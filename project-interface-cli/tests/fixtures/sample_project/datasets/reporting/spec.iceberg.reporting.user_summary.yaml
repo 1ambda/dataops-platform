@@ -1,0 +1,44 @@
+name: "iceberg.reporting.user_summary"
+description: "User summary report"
+
+owner: "analyst@example.com"
+team: "@reporting"
+domains:
+  - "reporting"
+tags:
+  - "report"
+  - "user"
+
+query_type: "SELECT"
+
+parameters:
+  - name: "start_date"
+    type: "date"
+    required: true
+    description: "Start date for the report"
+  - name: "end_date"
+    type: "date"
+    required: true
+    description: "End date for the report"
+  - name: "limit_count"
+    type: "integer"
+    required: false
+    default: 100
+    description: "Number of rows to return"
+
+query_file: "user_summary.sql"
+
+depends_on:
+  - "iceberg.analytics.daily_clicks"
+
+schema:
+  - name: "user_id"
+    type: "string"
+  - name: "total_clicks"
+    type: "integer"
+  - name: "avg_duration_ms"
+    type: "float"
+
+execution:
+  timeout_seconds: 300
+  dialect: "trino"

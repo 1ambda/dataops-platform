@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "debugging-toolkit@claude-code-workflows": true,
+    "tdd-workflows@claude-code-workflows": true,
+    "unit-testing@claude-code-workflows": true,
+    "backend-development@claude-code-workflows": true,
+    "cicd-automation@claude-code-workflows": true,
+    "code-documentation@claude-code-workflows": true,
+    "documentation-generation@claude-code-workflows": true,
+    "superpowers@superpowers-marketplace": true,
+    "superpowers-developing-for-claude-code@superpowers-marketplace": true,
+    "claude-mem@thedotmack": true
+  }
+}

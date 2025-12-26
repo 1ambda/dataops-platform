@@ -1,0 +1,99 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8-alpine
+    container_name: dataops-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: dataops
+      MYSQL_USER: dataops_user
+      MYSQL_PASSWORD: dataops_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./_docker/mysql/init-database.sh:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks:
+      - dataops-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: dataops-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - dataops-network
+
+  postgres:
+    container_name: ops-postgres
+    hostname: postgres
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./_docker/postgres/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      retries: 15
+      start_period: 5s
+    networks:
+      - dataops-network
+
+  keycloak:
+    container_name: op-keycloak
+    image: keycloak/keycloak:latest
+    ports:
+      - 8080:8080
+    command: [ "start-dev", "--import-realm" ]
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/keycloak"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_METRICS_ENABLED: true
+      KC_LOG_LEVEL: "INFO"
+    volumes:
+      - ./_docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dataops-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  dataops-network:
+    driver: bridge

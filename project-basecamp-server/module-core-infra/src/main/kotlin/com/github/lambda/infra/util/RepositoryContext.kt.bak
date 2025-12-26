@@ -1,0 +1,28 @@
+package com.github.lambda.infra.util
+
+import com.querydsl.core.types.Order
+import com.querydsl.core.types.OrderSpecifier
+import com.querydsl.core.types.dsl.EntityPathBase
+import com.querydsl.core.types.dsl.Expressions
+import org.springframework.data.domain.Pageable
+
+/**
+ * 리포지토리 유틸리티
+ */
+object RepositoryContext {
+    
+    /**
+     * Pageable의 정렬 조건을 QueryDSL OrderSpecifier 배열로 변환합니다.
+     */
+    fun <T> getSort(pageable: Pageable, qClass: EntityPathBase<T>): Array<OrderSpecifier<*>> {
+        return pageable.sort.stream()
+            .map { order ->
+                OrderSpecifier(
+                    Order.valueOf(order.direction.name),
+                    Expressions.path(Object::class.java, qClass, order.property)
+                )
+            }
+            .toList()
+            .toTypedArray()
+    }
+}

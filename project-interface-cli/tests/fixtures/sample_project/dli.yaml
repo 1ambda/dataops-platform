@@ -1,0 +1,22 @@
+version: "1"
+
+project:
+  name: "test-project"
+  description: "Test Project for DLI Core Engine"
+
+discovery:
+  datasets_dir: "datasets"
+  spec_patterns:
+    - "spec.*.yaml"
+    - "spec.yaml"
+
+defaults:
+  dialect: "trino"
+  timeout_seconds: 3600
+  retry_count: 2
+
+environments:
+  dev:
+    connection_string: "trino://localhost:8080/iceberg"
+  prod:
+    connection_string: "trino://trino-prod:8080/iceberg"

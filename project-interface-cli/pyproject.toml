@@ -1,0 +1,188 @@
+[project]
+name = "dataops-cli"
+version = "0.1.0"
+description = "DataOps Platform CLI - Command-line interface for DataOps platform operations"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "sqlglot>=28.5.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.9.0",
+    "python-dotenv>=1.0.0",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+]
+
+# Optional dependencies for specific integrations
+# Install with: pip install dataops-cli[airflow] or pip install dataops-cli[all]
+[project.optional-dependencies]
+airflow = ["apache-airflow>=2.7.0"]
+bigquery = ["google-cloud-bigquery>=3.0"]
+snowflake = ["snowflake-connector-python>=3.0"]
+all = [
+    "apache-airflow>=2.7.0",
+    "google-cloud-bigquery>=3.0",
+    "snowflake-connector-python>=3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-httpx>=0.30.0",
+    "black>=24.0.0",
+    "ruff>=0.6.0",
+    "pyright>=1.1.390",
+    "pre-commit>=3.5.0",
+]
+build = [
+    "pyinstaller>=6.0.0"
+]
+
+[project.scripts]
+dli = "dli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dli"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+include = '\.pyi?$'
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "dist_standalone",
+    "test_install_env",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "S",   # flake8-bandit
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "RET", # flake8-return
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PL",  # pylint
+    "TRY", # tryceratops
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",    # line too long, handled by black
+    "B008",    # do not perform function calls in argument defaults
+    "B904",    # raise from (typer.Exit is a signal, not exception)
+    "C901",    # too complex
+    "S101",    # use of assert
+    "S104",    # hardcoded bind all interfaces
+    "S105",    # hardcoded password string
+    "S106",    # hardcoded password function
+    "S107",    # hardcoded password default
+    "S108",    # hardcoded temp file
+    "S113",    # request without timeout
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
+    "PLW0603", # global statement (acceptable for singleton pattern)
+    "TRY003",  # avoid specifying long messages outside exception class
+    "TRY301",  # abstract raise (acceptable for CLI error handling)
+    "TRY400",  # logging.exception vs logging.error (CLI prefers cleaner output)
+    "ARG001",  # unused function argument
+    "PTH123",  # open() should be replaced by Path.open()
+    "T201",    # print found (acceptable for CLI)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "PLR2004", "ARG", "FBT", "PLC0415"]  # late imports needed for mocking
+"main.py" = ["T201"]  # allow print in main entry point
+"build_standalone.py" = ["S602", "TRY300", "PLR0911", "PLC0415"]  # build script allowances
+"src/dli/main.py" = ["PLC0415", "PLR2004"]  # allow late imports and magic numbers for CLI
+
+[tool.ruff.lint.isort]
+known-first-party = ["dli"]
+force-sort-within-sections = true
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["src", "main.py", "tests"]
+exclude = ["**/__pycache__", "**/.mypy_cache", "**/.pytest_cache", "**/build", "**/dist"]
+
+reportMissingImports = "warning"  # Allow optional dependencies like google-cloud-bigquery
+reportMissingTypeStubs = false
+reportUntypedFunctionDecorator = false
+reportUnknownParameterType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnusedImport = false
+reportUnusedFunction = false
+reportAttributeAccessIssue = "warning"  # Allow optional dependencies
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--strict-markers",
+    "--strict-config",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", ".pytest_cache", "build", "dist"]
+skips = ["B101"]  # Skip assert_used test
+
+[tool.bandit.assert_used]
+exclude = ["*test*.py", "*conftest.py"]

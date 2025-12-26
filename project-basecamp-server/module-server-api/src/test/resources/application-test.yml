@@ -1,0 +1,148 @@
+# 테스트 환경 설정
+spring:
+  # 데이터베이스 설정 (H2 인메모리)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        generate_statistics: false
+        jdbc:
+          batch_size: 20
+    database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
+
+  # SQL 초기화
+  sql:
+    init:
+      mode: never
+
+  # H2 콘솔 (테스트 시 디버깅용)
+  h2:
+    console:
+      enabled: true
+
+  # Redis 설정 (임베디드 Redis)
+  data:
+    redis:
+      host: localhost
+      port: 6370  # 다른 포트 사용하여 충돌 방지
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # 캐시 설정
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000  # 5분
+
+  # 보안 설정
+  security:
+    user:
+      name: testuser
+      password: testpass
+      roles: USER
+
+  # 웹 설정
+  web:
+    cors:
+      allowed-origins: "*"
+      allowed-methods: "*"
+      allowed-headers: "*"
+
+  # 세션 설정
+  session:
+    store-type: redis
+    timeout: 1800s
+
+# Flyway 비활성화 (테스트에서는 JPA가 스키마 생성)
+flyway:
+  enabled: false
+
+# 로깅 설정
+logging:
+  level:
+    root: INFO
+    com.github.lambda: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.transaction: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.test: DEBUG
+    org.testcontainers: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# 액추에이터 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# 테스트 전용 설정
+test:
+  # 테스트 데이터 설정
+  data:
+    cleanup-after-test: true
+    generate-test-data: true
+    test-users:
+      - username: testuser1
+        email: testuser1@test.com
+        role: USER
+      - username: testadmin
+        email: testadmin@test.com
+        role: ADMIN
+
+  # 성능 테스트 설정
+  performance:
+    response-time-threshold: 1000  # 1초
+    concurrent-users: 10
+
+  # Mock 설정
+  mocks:
+    external-api:
+      enabled: true
+      delay-ms: 100
+
+# 커스텀 애플리케이션 설정
+app:
+  name: DataOps Basecamp Server
+  version: test
+  environment: test
+
+  # API 설정
+  api:
+    base-path: /api
+    version: v1
+
+  # 보안 설정
+  security:
+    jwt:
+      secret: test-secret-key-for-testing-only-not-secure
+      expiration: 3600000  # 1시간
+
+  # 외부 서비스 설정 (테스트용)
+  external:
+    parser-service:
+      url: http://localhost:8081
+      timeout: 5000
+      retry-count: 3

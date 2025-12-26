@@ -1,0 +1,366 @@
+# =============================================================================
+# GitHub Validation CI Workflow
+# =============================================================================
+# This workflow validates:
+# 1. Pull Request titles (feature → develop, develop → main)
+# 2. Branch names (feature branches only)
+# 3. Commit messages (feature branches only)
+#
+# Git Flow: feature → develop → main
+# =============================================================================
+
+name: GitHub Validation CI
+
+# -----------------------------------------------------------------------------
+# Configurable Variables
+# -----------------------------------------------------------------------------
+# Modify these values to customize validation patterns for your project
+env:
+  # List of allowed system/project names (comma-separated)
+  ALLOWED_SYSTEMS: "basecamp,interface,platform"
+  # Jira ticket prefix (e.g., TICKET, JIRA, PROJECT)
+  TICKET_PREFIX: "TICKET"
+  # Environment prefix for development PRs (feature → develop)
+  DEV_ENV_PREFIX: "DEV"
+  # Environment prefix for release PRs (develop → main)
+  RELEASE_ENV_PREFIX: "RELEASE"
+
+on:
+  # Trigger on pull request events for PR title validation
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - develop
+      - main
+
+  # Trigger on push events for branch/commit validation on feature branches
+  push:
+    branches:
+      - 'feature/**'
+      - 'feature/*'
+
+# Minimal permissions following security best practices
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # ===========================================================================
+  # Job 1: Pull Request Title Validation
+  # ===========================================================================
+  # Validates PR titles based on target branch:
+  # - feature → develop: [DEV][TICKET-XXXX] description
+  # - develop → main: [RELEASE][TICKET-XXXX] description
+  # ===========================================================================
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Validate PR Title Format
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          echo "=============================================="
+          echo "Pull Request Title Validation"
+          echo "=============================================="
+          echo "PR Title: ${PR_TITLE}"
+          echo "Base Branch: ${BASE_BRANCH}"
+          echo "Head Branch: ${HEAD_BRANCH}"
+          echo "=============================================="
+
+          # Determine expected format based on target branch
+          if [[ "${BASE_BRANCH}" == "develop" ]]; then
+            # PR to develop branch (feature → develop)
+            # Expected format: [DEV][TICKET-XXXX] description
+            ENV_PREFIX="${DEV_ENV_PREFIX}"
+            EXPECTED_PATTERN="^\[${DEV_ENV_PREFIX}\]\[${TICKET_PREFIX}-[0-9]+\] .+"
+            EXAMPLE="[${DEV_ENV_PREFIX}][${TICKET_PREFIX}-4500] 개발 진행"
+
+          elif [[ "${BASE_BRANCH}" == "main" ]]; then
+            # PR to main branch (develop → main)
+            # Expected format: [RELEASE][TICKET-XXXX] description
+            ENV_PREFIX="${RELEASE_ENV_PREFIX}"
+            EXPECTED_PATTERN="^\[${RELEASE_ENV_PREFIX}\]\[${TICKET_PREFIX}-[0-9]+\] .+"
+            EXAMPLE="[${RELEASE_ENV_PREFIX}][${TICKET_PREFIX}-4500] 배포 진행"
+
+          else
+            echo "INFO: No PR title validation required for base branch: ${BASE_BRANCH}"
+            exit 0
+          fi
+
+          echo "Expected Pattern: ${EXPECTED_PATTERN}"
+          echo "Example Format: ${EXAMPLE}"
+          echo "=============================================="
+
+          # Validate PR title against expected pattern
+          if [[ "${PR_TITLE}" =~ ${EXPECTED_PATTERN} ]]; then
+            echo "SUCCESS: PR title format is valid!"
+            echo ""
+            echo "Extracted Information:"
+            echo "  - Environment: [${ENV_PREFIX}]"
+            echo "  - Ticket: $(echo "${PR_TITLE}" | grep -oE "\[${TICKET_PREFIX}-[0-9]+\]")"
+            exit 0
+          else
+            echo "ERROR: PR title format is invalid!"
+            echo ""
+            echo "=============================================="
+            echo "VALIDATION FAILED"
+            echo "=============================================="
+            echo ""
+            echo "Current PR Title:"
+            echo "  ${PR_TITLE}"
+            echo ""
+            echo "Expected Format:"
+            echo "  [${ENV_PREFIX}][${TICKET_PREFIX}-XXXX] <description>"
+            echo ""
+            echo "Example:"
+            echo "  ${EXAMPLE}"
+            echo ""
+            echo "Rules:"
+            echo "  1. Must start with [${ENV_PREFIX}] environment prefix"
+            echo "  2. Must include [${TICKET_PREFIX}-XXXX] ticket reference"
+            echo "  3. Must have a description after the ticket reference"
+            echo "  4. Ticket number must be numeric"
+            echo ""
+            echo "=============================================="
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Job 2: Branch Name Validation (Feature Branches Only)
+  # ===========================================================================
+  # Validates branch names follow the pattern:
+  # {system}.{ticket-prefix}-{number}/{description}
+  # Example: basecamp.TICKET-4500/improve-dockerfile
+  # ===========================================================================
+  validate-branch-name:
+    name: Validate Branch Name
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+
+    steps:
+      - name: Validate Branch Name Format
+        shell: bash
+        env:
+          BRANCH_REF: ${{ github.ref }}
+        run: |
+          echo "=============================================="
+          echo "Branch Name Validation"
+          echo "=============================================="
+
+          # Extract branch name from ref (remove refs/heads/feature/ prefix)
+          FULL_BRANCH="${BRANCH_REF#refs/heads/}"
+          BRANCH_NAME="${BRANCH_REF#refs/heads/feature/}"
+
+          echo "Full Branch: ${FULL_BRANCH}"
+          echo "Branch Name (after feature/): ${BRANCH_NAME}"
+          echo "Allowed Systems: ${ALLOWED_SYSTEMS}"
+          echo "Ticket Prefix: ${TICKET_PREFIX}"
+          echo "=============================================="
+
+          # Convert comma-separated systems to regex alternation pattern
+          # e.g., "basecamp,interface,platform" → "basecamp|interface|platform"
+          SYSTEMS_PATTERN=$(echo "${ALLOWED_SYSTEMS}" | tr ',' '|')
+
+          # Expected pattern: {system}.{ticket-prefix}-{number}/{description}
+          # Example: basecamp.TICKET-4500/improve-dockerfile
+          EXPECTED_PATTERN="^(${SYSTEMS_PATTERN})\.${TICKET_PREFIX}-[0-9]+/[a-zA-Z0-9_-]+$"
+
+          echo "Expected Pattern: ${EXPECTED_PATTERN}"
+          echo "=============================================="
+
+          # Validate branch name against expected pattern
+          if [[ "${BRANCH_NAME}" =~ ${EXPECTED_PATTERN} ]]; then
+            echo "SUCCESS: Branch name format is valid!"
+            echo ""
+            echo "Extracted Information:"
+            SYSTEM_NAME=$(echo "${BRANCH_NAME}" | cut -d'.' -f1)
+            TICKET_INFO=$(echo "${BRANCH_NAME}" | grep -oE "${TICKET_PREFIX}-[0-9]+")
+            DESCRIPTION=$(echo "${BRANCH_NAME}" | sed "s/.*\///")
+            echo "  - System: ${SYSTEM_NAME}"
+            echo "  - Ticket: ${TICKET_INFO}"
+            echo "  - Description: ${DESCRIPTION}"
+            exit 0
+          else
+            echo "ERROR: Branch name format is invalid!"
+            echo ""
+            echo "=============================================="
+            echo "VALIDATION FAILED"
+            echo "=============================================="
+            echo ""
+            echo "Current Branch Name:"
+            echo "  feature/${BRANCH_NAME}"
+            echo ""
+            echo "Expected Format:"
+            echo "  feature/{system}.${TICKET_PREFIX}-XXXX/{description}"
+            echo ""
+            echo "Examples:"
+            # Generate examples for each allowed system
+            IFS=',' read -ra SYSTEMS <<< "${ALLOWED_SYSTEMS}"
+            for system in "${SYSTEMS[@]}"; do
+              echo "  feature/${system}.${TICKET_PREFIX}-4500/improve-dockerfile"
+            done
+            echo ""
+            echo "Rules:"
+            echo "  1. Must be under feature/ directory"
+            echo "  2. System name must be one of: ${ALLOWED_SYSTEMS}"
+            echo "  3. System name followed by dot (.)"
+            echo "  4. Must include ${TICKET_PREFIX}-XXXX ticket reference"
+            echo "  5. Ticket followed by slash (/)"
+            echo "  6. Description using alphanumeric, underscore, or hyphen"
+            echo ""
+            echo "=============================================="
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Job 3: Commit Message Validation (Feature Branches Only)
+  # ===========================================================================
+  # Validates commit messages follow the pattern:
+  # {system}.{ticket-prefix}-{number}: {description}
+  # Example: basecamp.TICKET-4500: improve-dockerfile
+  # ===========================================================================
+  validate-commit-messages:
+    name: Validate Commit Messages
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Fetch enough history to validate all commits in the push
+          fetch-depth: 0
+
+      - name: Validate Commit Message Format
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+        run: |
+          echo "=============================================="
+          echo "Commit Message Validation"
+          echo "=============================================="
+          echo "Allowed Systems: ${ALLOWED_SYSTEMS}"
+          echo "Ticket Prefix: ${TICKET_PREFIX}"
+          echo "=============================================="
+
+          # Convert comma-separated systems to regex alternation pattern
+          SYSTEMS_PATTERN=$(echo "${ALLOWED_SYSTEMS}" | tr ',' '|')
+
+          # Expected pattern: {system}.{ticket-prefix}-{number}: {description}
+          # Example: basecamp.TICKET-4500: improve-dockerfile
+          EXPECTED_PATTERN="^(${SYSTEMS_PATTERN})\.${TICKET_PREFIX}-[0-9]+: .+"
+
+          echo "Expected Pattern: ${EXPECTED_PATTERN}"
+          echo "=============================================="
+
+          # Determine commit range to validate
+          # For new branches, BEFORE_SHA is all zeros
+          if [[ "${BEFORE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+            echo "INFO: New branch detected, validating only the latest commit"
+            # Explicitly reference AFTER_SHA to ensure we validate the correct commit
+            COMMITS=$(git log --format="%H" -n 1 "${AFTER_SHA}" 2>/dev/null || echo "${AFTER_SHA}")
+          else
+            echo "INFO: Validating commits from ${BEFORE_SHA} to ${AFTER_SHA}"
+            COMMITS=$(git log --format="%H" "${BEFORE_SHA}..${AFTER_SHA}" 2>/dev/null)
+          fi
+
+          if [[ -z "${COMMITS}" ]]; then
+            echo "INFO: No commits to validate"
+            exit 0
+          fi
+
+          echo ""
+          echo "Commits to validate:"
+          echo "${COMMITS}"
+          echo "=============================================="
+
+          # Track validation results
+          FAILED=0
+          TOTAL=0
+
+          # Validate each commit message
+          while IFS= read -r commit_sha; do
+            if [[ -z "${commit_sha}" ]]; then
+              continue
+            fi
+
+            TOTAL=$((TOTAL + 1))
+            COMMIT_MSG=$(git log --format="%s" -n 1 "${commit_sha}")
+            SHORT_SHA=$(echo "${commit_sha}" | cut -c1-7)
+
+            echo ""
+            echo "Checking commit ${SHORT_SHA}:"
+            echo "  Message: ${COMMIT_MSG}"
+
+            # Skip merge commits (optional - uncomment if needed)
+            # if [[ "${COMMIT_MSG}" =~ ^Merge ]]; then
+            #   echo "  Status: SKIPPED (merge commit)"
+            #   continue
+            # fi
+
+            if [[ "${COMMIT_MSG}" =~ ${EXPECTED_PATTERN} ]]; then
+              echo "  Status: VALID"
+              # Extract and display parsed information
+              SYSTEM_NAME=$(echo "${COMMIT_MSG}" | cut -d'.' -f1)
+              TICKET_INFO=$(echo "${COMMIT_MSG}" | grep -oE "${TICKET_PREFIX}-[0-9]+")
+              DESCRIPTION=$(echo "${COMMIT_MSG}" | sed -E "s/^(${SYSTEMS_PATTERN})\.${TICKET_PREFIX}-[0-9]+: //")
+              echo "  Parsed:"
+              echo "    - System: ${SYSTEM_NAME}"
+              echo "    - Ticket: ${TICKET_INFO}"
+              echo "    - Description: ${DESCRIPTION}"
+            else
+              echo "  Status: INVALID"
+              FAILED=$((FAILED + 1))
+            fi
+          done <<< "${COMMITS}"
+
+          echo ""
+          echo "=============================================="
+          echo "Validation Summary"
+          echo "=============================================="
+          echo "Total Commits: ${TOTAL}"
+          echo "Valid Commits: $((TOTAL - FAILED))"
+          echo "Invalid Commits: ${FAILED}"
+          echo "=============================================="
+
+          if [[ "${FAILED}" -gt 0 ]]; then
+            echo ""
+            echo "=============================================="
+            echo "VALIDATION FAILED"
+            echo "=============================================="
+            echo ""
+            echo "Expected Format:"
+            echo "  {system}.${TICKET_PREFIX}-XXXX: <description>"
+            echo ""
+            echo "Examples:"
+            # Generate examples for each allowed system
+            IFS=',' read -ra SYSTEMS <<< "${ALLOWED_SYSTEMS}"
+            for system in "${SYSTEMS[@]}"; do
+              echo "  ${system}.${TICKET_PREFIX}-4500: improve dockerfile caching"
+            done
+            echo ""
+            echo "Rules:"
+            echo "  1. Must start with system name (one of: ${ALLOWED_SYSTEMS})"
+            echo "  2. System name followed by dot (.)"
+            echo "  3. Must include ${TICKET_PREFIX}-XXXX ticket reference"
+            echo "  4. Ticket followed by colon and space (: )"
+            echo "  5. Must have a description after the ticket reference"
+            echo ""
+            echo "How to fix:"
+            echo "  Use 'git commit --amend' to fix the last commit message"
+            echo "  Use 'git rebase -i' to fix older commit messages"
+            echo ""
+            echo "=============================================="
+            exit 1
+          else
+            echo ""
+            echo "SUCCESS: All commit messages are valid!"
+            exit 0
+          fi

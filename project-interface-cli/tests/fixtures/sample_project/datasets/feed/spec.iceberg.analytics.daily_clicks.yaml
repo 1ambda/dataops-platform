@@ -1,0 +1,55 @@
+name: "iceberg.analytics.daily_clicks"
+description: "Daily clicks aggregation per user"
+
+owner: "henrykim@example.com"
+team: "@data-analytics"
+domains:
+  - "feed"
+  - "engagement"
+tags:
+  - "daily"
+  - "kpi"
+
+versions:
+  - version: "v1"
+    started_at: "2015-12-01"
+    ended_at: "2022-05-31"
+    description: "Initial version"
+  - version: "v2"
+    started_at: "2022-06-01"
+    description: "Window Function applied"
+
+query_type: "DML"
+
+parameters:
+  - name: "execution_date"
+    type: "date"
+    required: true
+    description: "Execution date"
+  - name: "lookback_days"
+    type: "integer"
+    required: false
+    default: 7
+    description: "Lookback days"
+
+query_file: "daily_clicks.sql"
+
+pre_statements:
+  - name: "delete_partition"
+    sql: |
+      DELETE FROM iceberg.analytics.daily_clicks
+      WHERE dt = '{{ execution_date }}'
+
+post_statements:
+  - name: "optimize"
+    sql: |
+      ALTER TABLE iceberg.analytics.daily_clicks
+      EXECUTE optimize WHERE dt = '{{ execution_date }}'
+    continue_on_error: true
+
+depends_on:
+  - "iceberg.raw.user_events"
+
+execution:
+  timeout_seconds: 1800
+  dialect: "trino"

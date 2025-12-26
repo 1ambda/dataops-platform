@@ -1,0 +1,118 @@
+name: CI - Basecamp UI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-basecamp-ui/**'
+      - '.github/workflows/basecamp-ui-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-basecamp-ui/**'
+  workflow_dispatch:
+    inputs:
+      skip_lint:
+        description: 'Skip linting checks'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  build:
+    name: Build & Test project-basecamp-ui
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'project-basecamp-ui/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: project-basecamp-ui
+        run: npm ci
+
+      - name: Run ESLint
+        if: ${{ github.event.inputs.skip_lint != 'true' }}
+        continue-on-error: true
+        working-directory: project-basecamp-ui
+        run: npm run lint -- --format=compact
+
+      - name: Run TypeScript type checking
+        if: ${{ github.event.inputs.skip_lint != 'true' }}
+        continue-on-error: true
+        working-directory: project-basecamp-ui
+        run: npx tsc --noEmit
+
+      - name: Build application
+        working-directory: project-basecamp-ui
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Check bundle size
+        working-directory: project-basecamp-ui
+        run: |
+          echo "### Build Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
+          find dist -name "*.js" -o -name "*.css" | head -20 | xargs -I {} sh -c 'echo "{}: $(du -h {} | cut -f1)"' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Dockerfile exists
+        id: dockerfile-check
+        run: |
+          if [[ -f "project-basecamp-ui/Dockerfile" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Dockerfile found"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No Dockerfile found in project-basecamp-ui/"
+          fi
+
+      - name: Validate Dockerfile syntax
+        if: steps.dockerfile-check.outputs.exists == 'true'
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          dockerfile: project-basecamp-ui/Dockerfile
+          failure-threshold: warning
+
+      - name: Upload build artifacts
+        id: artifact
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: basecamp-ui-build-${{ github.sha }}
+          path: |
+            project-basecamp-ui/dist/
+          retention-days: 5
+          if-no-files-found: error
+
+      - name: Set artifact output
+        if: success()
+        run: echo "name=basecamp-ui-build-${{ github.sha }}" >> $GITHUB_OUTPUT

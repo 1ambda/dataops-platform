@@ -1,0 +1,218 @@
+spring:
+  application:
+    name: dataops-platform
+
+  profiles:
+    active: local
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:svc_dops}
+    password: ${DB_PASSWORD:svc_dops}
+    hikari:
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      minimum-idle: 5
+      maximum-pool-size: 20
+      pool-name: DataOpsHikariCP
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis}
+      database: ${REDIS_DATABASE:0}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # Security & OAuth2 Configuration
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${OAUTH_ISSUER:http://localhost:8080/realms/playground}
+        registration:
+          keycloak:
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            scope: openid,email,profile
+            client-id: ${OAUTH_CLIENT_ID:application}
+            client-secret: ${OAUTH_CLIENT_SECRET:v7Yku3CSBSVfZOxTetGmA5tCRhzDXZeY}
+            redirect-uri: ${OAUTH_REDIRECT_URI:http://localhost:8070/login/oauth2/code/keycloak}
+
+  # Session Management
+  session:
+    redis:
+      namespace: "spring:session:ops"
+      repository-type: default
+      flush-mode: on_save
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+server:
+  port: ${SERVER_PORT:8070}
+  servlet:
+    context-path: /
+    session:
+      cookie:
+        name: JSESSIONID
+      timeout: 24h
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+
+app:
+  database:
+    connection-timeout: 30000
+    validation-timeout: 5000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+    minimum-idle: 5
+    maximum-pool-size: 20
+    pool-name: DataOpsHikariCP
+
+  cache:
+    default-ttl: 3600
+    short-ttl: 300
+    long-ttl: 86400
+    max-size: 10000
+    enable-statistics: true
+
+logging:
+  level:
+    com.github.lambda: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+logging:
+  level:
+    com.github.lambda: DEBUG
+    org.springframework.web: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  data:
+    redis:
+      host: localhost
+      port: 6370  # 테스트용 다른 포트
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:dev-mysql}:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  data:
+    redis:
+      host: ${REDIS_HOST:dev-redis}
+
+logging:
+  level:
+    com.github.lambda: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:mysql://${DB_HOST:prod-mysql}:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:prod-redis}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+logging:
+  level:
+    com.github.lambda: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
