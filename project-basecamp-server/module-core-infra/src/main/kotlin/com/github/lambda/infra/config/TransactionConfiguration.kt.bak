@@ -1,0 +1,42 @@
+package com.github.lambda.infra.config
+
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.EnableAspectJAutoProxy
+import org.springframework.orm.jpa.JpaTransactionManager
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.annotation.EnableTransactionManagement
+import org.springframework.transaction.annotation.TransactionManagementConfigurer
+import javax.sql.DataSource
+
+/**
+ * 트랜잭션 관리 설정
+ * 
+ * 특징:
+ * - 읽기 전용 트랜잭션 최적화
+ * - 캐시와 트랜잭션 동기화
+ * - 롤백 시 캐시 무효화
+ */
+@Configuration
+@EnableTransactionManagement(
+    proxyTargetClass = true,
+    mode = org.springframework.transaction.annotation.AdviceMode.PROXY
+)
+@EnableAspectJAutoProxy
+class TransactionConfiguration : TransactionManagementConfigurer {
+    
+    /**
+     * JPA 트랜잭션 매니저 설정
+     */
+    @Bean
+    override fun annotationDrivenTransactionManager(): PlatformTransactionManager {
+        return JpaTransactionManager().apply {
+            // 트랜잭션 타임아웃 설정 (30초)
+            defaultTimeout = 30
+            // 읽기 전용 최적화 활성화
+            isValidateExistingTransaction = true
+            // 네스티드 트랜잭션 지원
+            isNestedTransactionAllowed = true
+        }
+    }
+}

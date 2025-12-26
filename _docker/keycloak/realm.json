@@ -1,0 +1,73 @@
+{
+  "id": "playground",
+  "realm": "playground",
+  "sslRequired": "none",
+  "enabled": true,
+  "eventsEnabled": true,
+  "eventsExpiration": 900,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "attributes": {
+    "adminEventsExpiration": "900"
+  },
+  "clients": [
+    {
+      "id" : "application",
+      "clientId" : "application",
+      "name" : "application",
+      "description" : "",
+      "rootUrl" : "https://localhost:8070",
+      "adminUrl" : "https://localhost:8070",
+      "baseUrl" : "https://localhost:8070",
+      "surrogateAuthRequired" : false,
+      "enabled" : true,
+      "alwaysDisplayInConsole" : false,
+      "clientAuthenticatorType" : "client-secret",
+      "secret" : "v7Yku3CSBSVfZOxTetGmA5tCRhzDXZeY",
+      "redirectUris" : [
+        "https://localhost:8070/*"
+      ],
+      "webOrigins" : [
+        "*"
+      ],
+      "notBefore" : 0,
+      "bearerOnly" : false,
+      "consentRequired" : false,
+      "standardFlowEnabled" : true,
+      "implicitFlowEnabled" : false,
+      "directAccessGrantsEnabled" : false,
+      "serviceAccountsEnabled" : false,
+      "publicClient" : false,
+      "frontchannelLogout" : false,
+      "protocol" : "openid-connect",
+      "attributes" : {
+        "oidc.ciba.grant.enabled" : "false",
+        "client.secret.creation.time" : "1716872965",
+        "backchannel.logout.session.required" : "true",
+        "post.logout.redirect.uris" : "*",
+        "display.on.consent.screen" : "false",
+        "oauth2.device.authorization.grant.enabled" : "false",
+        "backchannel.logout.revoke.offline.tokens" : "false"
+      },
+      "fullScopeAllowed" : true
+    }
+  ],
+  "users": [
+    {
+      "id": "1ambda",
+      "email": "1ambda@github.com",
+      "username": "lambda",
+      "firstName": "lambda",
+      "lastName": "lambda",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "changeme"
+        }
+      ]
+    }
+  ]
+}

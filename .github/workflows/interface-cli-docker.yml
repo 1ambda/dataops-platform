@@ -1,0 +1,170 @@
+name: Docker - Interface CLI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-interface-cli/**'
+      - '.github/workflows/interface-cli-docker.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-interface-cli/**'
+  workflow_dispatch:
+    inputs:
+      push_image:
+        description: 'Push image to registry'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: docker-cli-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/interface-cli
+  PROJECT_PATH: project-interface-cli
+
+jobs:
+  build:
+    name: Docker Build - project-interface-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+      version: ${{ steps.version.outputs.version }}
+      builddate: ${{ steps.version.outputs.builddate }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Read version and generate builddate
+        id: version
+        run: |
+          # Read VERSION from .VERSION file
+          VERSION=$(cat ${{ env.PROJECT_PATH }}/.VERSION | tr -d '\n\r ')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          # Generate BUILDDATE in Asia/Seoul timezone (format: YYYYMMDDhhmm)
+          BUILDDATE=$(TZ=Asia/Seoul date +%Y%m%d%H%M)
+          echo "builddate=${BUILDDATE}" >> $GITHUB_OUTPUT
+
+          echo "### Version Info" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Date:** ${BUILDDATE}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILDDATE="${{ steps.version.outputs.builddate }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          # Initialize tags array
+          TAGS=""
+
+          # Feature branch (PR) builds
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            TAGS="${IMAGE}:feature-pr-${PR_NUMBER}"
+          fi
+
+          # Develop branch builds
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            TAGS="${IMAGE}:develop-${VERSION}-${BUILDDATE}"
+            TAGS="${TAGS},${IMAGE}:develop"
+          fi
+
+          # Main branch (release) builds
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            TAGS="${IMAGE}:release-${VERSION}-${BUILDDATE}"
+            TAGS="${TAGS},${IMAGE}:latest"
+            TAGS="${TAGS},${IMAGE}:main"
+          fi
+
+          # Always add SHA tag for traceability
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          if [ -n "${TAGS}" ]; then
+            TAGS="${TAGS},${IMAGE}:sha-${SHORT_SHA}"
+          else
+            TAGS="${IMAGE}:sha-${SHORT_SHA}"
+          fi
+
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "### Generated Tags" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${TAGS}" | tr ',' '\n' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.tags.outputs.tags }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        with:
+          context: ./${{ env.PROJECT_PATH }}
+          file: ./${{ env.PROJECT_PATH }}/Dockerfile
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_image != 'false') }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          provenance: true
+          sbom: true
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            BUILD_DATE=${{ steps.version.outputs.builddate }}
+
+      - name: Generate artifact attestation
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Output image info
+        run: |
+          echo "### Docker Image Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.tags.outputs.tags }}" | tr ',' '\n' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,181 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8-alpine
+    container_name: dataops-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: dataops
+      MYSQL_USER: dataops_user
+      MYSQL_PASSWORD: dataops_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./_docker/mysql/init-database.sh:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks:
+      - dataops-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: dataops-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - dataops-network
+
+  # PostgreSQL Database (for Keycloak)
+  postgres:
+    container_name: ops-postgres
+    hostname: postgres
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./_docker/postgres/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      retries: 15
+      start_period: 5s
+    networks:
+      - dataops-network
+
+  # Keycloak Identity Provider
+  keycloak:
+    container_name: op-keycloak
+    image: keycloak/keycloak:latest
+    ports:
+      - 8080:8080 # Expose Keycloak on 8080 for local access
+    command: [ "start-dev", "--import-realm" ]
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/keycloak"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_METRICS_ENABLED: true
+      KC_LOG_LEVEL: "INFO"
+    volumes:
+      - ./_docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dataops-network
+
+  # Spring Boot API Server (module-server-api)
+  basecamp-server:
+    build:
+      context: .
+      dockerfile: project-basecamp-server/Dockerfile
+    image: basecamp-server:latest
+    container_name: basecamp-server
+    restart: unless-stopped
+    ports:
+      - "8081:8080" # Map to a different port to avoid conflict with Keycloak if both run locally
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/dataops?useSSL=false
+      SPRING_DATASOURCE_USERNAME: dataops_user
+      SPRING_DATASOURCE_PASSWORD: dataops_password
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWK_SET_URI: http://keycloak:8080/realms/dataops/protocol/openid-connect/certs
+      # For local development, using the exposed port of Keycloak might be necessary
+      # SPRING_SECURITY_OAUTH2_ISSUER_URI: http://localhost:8080/realms/dataops
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - dataops-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  # Python SQL Parser Microservice
+  basecamp-parser:
+    build:
+      context: ./project-basecamp-parser
+      dockerfile: Dockerfile
+    image: basecamp-parser:latest
+    container_name: basecamp-parser
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount local source code for live changes and easier debugging
+      - ./project-basecamp-parser:/app
+    environment:
+      FLASK_APP: main.py
+      FLASK_ENV: development # Enable Flask development mode
+    command: ["flask", "run", "--host", "0.0.0.0", "--port", "5000"] # Run Flask in development mode
+    networks:
+      - dataops-network
+
+  # React + Vite Frontend UI
+  basecamp-ui:
+    build:
+      context: .
+      dockerfile: project-basecamp-ui/Dockerfile
+    image: basecamp-ui:latest
+    container_name: basecamp-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE: http://localhost:8081 # Point to the basecamp-server's exposed port
+      VITE_KEYCLOAK_URL: http://localhost:8080/realms/dataops
+    depends_on:
+      basecamp-server:
+        condition: service_healthy
+    networks:
+      - dataops-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  dataops-network:
+    driver: bridge

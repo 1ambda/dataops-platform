@@ -1,0 +1,119 @@
+name: CI - Basecamp Server
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-basecamp-server/**'
+      - '.github/workflows/basecamp-server-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'project-basecamp-server/**'
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip running tests'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+env:
+  JAVA_VERSION: '21'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
+
+jobs:
+  build:
+    name: Build & Test project-basecamp-server
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4.3.0
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4.3.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
+      - name: Build with Gradle
+        working-directory: project-basecamp-server
+        run: ./gradlew clean build -x test
+
+      - name: Run tests
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        working-directory: project-basecamp-server
+        run: ./gradlew test
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@170bf24d20d201b842d7a52403b73ed297e6981b # v2.18.0
+        if: always() && github.event.inputs.skip_tests != 'true'
+        with:
+          files: project-basecamp-server/**/build/test-results/**/*.xml
+          check_name: 'Test Results - Basecamp Server'
+          comment_mode: ${{ github.event_name == 'pull_request' && 'changes' || 'off' }}
+
+      - name: Run Kotlin linting (ktlint)
+        continue-on-error: true
+        working-directory: project-basecamp-server
+        run: ./gradlew ktlintCheck
+
+      - name: Check Dockerfile exists
+        id: dockerfile-check
+        run: |
+          if [[ -f "project-basecamp-server/Dockerfile" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Dockerfile found"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No Dockerfile found in project-basecamp-server/"
+          fi
+
+      - name: Validate Dockerfile syntax
+        if: steps.dockerfile-check.outputs.exists == 'true'
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          dockerfile: project-basecamp-server/Dockerfile
+          failure-threshold: warning
+
+      - name: Upload build artifacts
+        id: artifact
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: basecamp-server-build-${{ github.sha }}
+          path: |
+            project-basecamp-server/module-server-api/build/libs/
+          retention-days: 5
+          if-no-files-found: error
+
+      - name: Set artifact output
+        if: success()
+        run: echo "name=basecamp-server-build-${{ github.sha }}" >> $GITHUB_OUTPUT

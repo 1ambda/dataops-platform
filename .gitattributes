@@ -1,0 +1,5 @@
+/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+.githooks/** linguist-vendored
+gradlew linguist-vendored
