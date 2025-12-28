@@ -1,845 +1,675 @@
-# Day 4: Airflow 연동 + 라이브러리 배포 가이드 (dli)
+# Day 3: Backend 분리 구현 가이드 (MVP)
 
-## 핵심 개념
+> **MVP 범위**: 인증/인가, 결과 캐싱, 감사 로그는 Phase 2로 연기합니다.
+> Day 3에서는 Spring ↔ Python 통신 및 핵심 파싱/검증 기능에 집중합니다.
 
-`dataops-cli`는 **라이브러리**로 빌드되어 Airflow에서 import하여 사용합니다.
+## 아키텍처
 
-```python
-# Airflow DAG 파일에서
-from dli.airflow import SQLFrameworkOperator
-from dli.core import SQLFrameworkService  # 직접 사용도 가능
+```
+┌─────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
+│   UI    │ ──▶  │  project-basecamp-server │ ──▶  │  project-basecamp-parser │
+│ (React) │      │     (Kotlin/Spring)      │      │        (Python)          │
+└─────────┘      └─────────────────────────┘      └─────────────────────────┘
+                         │                                   │
+                         │ - 쿼리 메타데이터 CRUD              │ - Jinja 렌더링
+                         │ - BigQuery/Snowflake 실행          │ - SQL 파싱 (SQLGlot)
+                         │ - Dry-run 비용 추정                │ - SQL 검증
+                         │ (Phase 2: 인증, 캐싱, 감사로그)     │ - 테이블 추출
+                         │                                    │ - SQL 포맷팅
+                         └─────────────────────────────────────┘
 ```
 
 ---
 
-## 구현 순서 및 시간
+## 역할 분담
 
-| 순서 | 작업 | 시간 | 설명 |
+| 기능 | Spring (basecamp-server) | Python (basecamp-parser) | MVP |
+|------|--------------------------|--------------------------|-----|
+| 인증/인가 | ✅ JWT/OAuth | ❌ | ❌ Phase 2 |
+| 쿼리 메타데이터 CRUD | ✅ DB 저장 | ❌ | ✅ |
+| Jinja 렌더링 | ❌ | ✅ | ✅ |
+| SQL 파싱/검증 | ❌ | ✅ SQLGlot | ✅ |
+| 테이블 추출 | ❌ | ✅ | ✅ |
+| SQL 포맷팅 | ❌ | ✅ | ✅ |
+| BigQuery 실행 | ✅ | ❌ | ✅ |
+| Dry-run | ✅ | ❌ | ✅ |
+| 결과 캐싱 | ✅ | ❌ | ❌ Phase 2 |
+| 감사 로그 | ✅ | ❌ | ❌ Phase 2 |
+
+---
+
+## 시간 배분 (Day 3: 8시간)
+
+| 순서 | 항목 | 시간 | 설명 |
 |------|------|------|------|
-| 1 | pyproject.toml 업데이트 | 0.5h | 선택적 의존성 추가 |
-| 2 | airflow/operators.py | 2.5h | Operator, ValidateOperator |
-| 3 | airflow/sensors.py | 1h | Sensor |
-| 4 | airflow/__init__.py | 0.5h | 패키지 export |
-| 5 | 라이브러리 빌드/배포 | 1.5h | wheel 빌드, PyPI/내부 레지스트리 |
-| 6 | examples/dags/ | 1h | 샘플 DAG |
-| 7 | 테스트 | 1h | Operator 테스트 |
+| 1 | Python API 스키마 | 0.5h | Request/Response 정의 |
+| 2 | Python API 구현 | 2.5h | 4개 엔드포인트 |
+| 3 | Python 테스트 | 1h | 단위/통합 테스트 |
+| 4 | Spring API 스키마 | 0.5h | DTO 정의 |
+| 5 | Spring Parser Client | 1.5h | Python API 호출 클라이언트 |
+| 6 | Spring API 구현 | 2h | 엔드포인트 + 비즈니스 로직 |
 
 ---
 
-## 0. pyproject.toml 선택적 의존성
+## Python Backend (project-basecamp-parser)
 
-```toml
-[project.optional-dependencies]
-airflow = [
-    "apache-airflow>=2.7.0",
-]
-bigquery = [
-    "google-cloud-bigquery>=3.0",
-]
-snowflake = [
-    "snowflake-connector-python>=3.0",
-]
-all = [
-    "dataops-cli[airflow,bigquery,snowflake]",
-]
+### 디렉토리 구조
+
+```
+project-basecamp-parser/
+├── pyproject.toml
+├── src/
+│   └── parser/
+│       ├── __init__.py
+│       ├── main.py           # FastAPI 앱
+│       ├── schemas.py        # Request/Response
+│       ├── renderer.py       # Jinja 렌더링
+│       └── validator.py      # SQL 검증
+└── tests/
+    └── test_api.py
 ```
 
-### 설치 방법
+### API 엔드포인트
 
-```bash
-# 기본 설치 (CLI + Core)
-pip install dataops-cli
-
-# Airflow 연동용
-pip install dataops-cli[airflow]
-
-# BigQuery 실행용
-pip install dataops-cli[bigquery]
-
-# 전체 설치
-pip install dataops-cli[all]
-```
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | /health | 헬스 체크 |
+| POST | /render | Jinja 템플릿 렌더링 |
+| POST | /validate | SQL 문법 검증 |
+| POST | /parse | SQL 파싱 (테이블 추출) |
+| POST | /format | SQL 포맷팅 |
 
 ---
 
-## 디렉토리 구조
+### schemas.py
 
-```
-src/dli/airflow/
-├── __init__.py         # 패키지 export
-├── operators.py        # Operator 클래스
-└── sensors.py          # Sensor 클래스
-
-examples/dags/
-├── daily_retention_dag.py
-└── data_quality_dag.py
-```
-
----
-
-## 1. airflow/operators.py
-
-### 기능
-- SQLFrameworkOperator: 쿼리 실행
-- SQLFrameworkValidateOperator: 검증 전용 (CI/CD)
-
-### 코드
 ```python
-from typing import Any, Optional, Sequence
-from airflow.models import BaseOperator
-from airflow.utils.context import Context
+from pydantic import BaseModel
+from typing import Any, Optional
 
-from ..core.service import SQLFrameworkService
-from ..adapters.bigquery import BigQueryExecutor
+# === Render ===
+class RenderRequest(BaseModel):
+    template: str                    # SQL 템플릿 (Jinja)
+    params: dict[str, Any] = {}      # 파라미터
 
+class RenderResponse(BaseModel):
+    success: bool
+    rendered_sql: Optional[str] = None
+    error: Optional[str] = None
 
-class SQLFrameworkOperator(BaseOperator):
-    """
-    SQL Framework 쿼리 실행 Operator
-    
-    Example:
-        task = SQLFrameworkOperator(
-            task_id='run_retention',
-            query_name='daily_retention',
-            params={'date': '{{ ds }}'},
+# === Validate ===
+class ValidateRequest(BaseModel):
+    sql: str                         # 렌더링된 SQL
+    dialect: str = "bigquery"        # bigquery, snowflake 등
+
+class ValidateResponse(BaseModel):
+    is_valid: bool
+    errors: list[str] = []
+    warnings: list[str] = []
+
+# === Parse ===
+class ParseRequest(BaseModel):
+    sql: str
+    dialect: str = "bigquery"
+
+class ParseResponse(BaseModel):
+    success: bool
+    tables: list[str] = []           # 참조 테이블 목록
+    columns: list[str] = []          # SELECT 컬럼 목록 (가능한 경우)
+    error: Optional[str] = None
+
+# === Format ===
+class FormatRequest(BaseModel):
+    sql: str
+    dialect: str = "bigquery"
+
+class FormatResponse(BaseModel):
+    success: bool
+    formatted_sql: Optional[str] = None
+    error: Optional[str] = None
+```
+
+---
+
+### renderer.py
+
+```python
+from jinja2 import Environment, BaseLoader, TemplateSyntaxError, UndefinedError
+from typing import Any
+
+class SQLRenderer:
+    def __init__(self):
+        self.env = Environment(
+            loader=BaseLoader(),
+            trim_blocks=True,
+            lstrip_blocks=True,
         )
-    """
+        self._register_filters()
     
-    # Jinja 템플릿 지원 필드 (필수!)
-    template_fields: Sequence[str] = ('query_name', 'params')
-    template_ext: Sequence[str] = ()
-    ui_color = '#e8f7e4'
+    def _register_filters(self) -> None:
+        # SQL 문자열 이스케이프: ' → ''
+        self.env.filters["sql_string"] = lambda v: f"'{str(v).replace(chr(39), chr(39)*2)}'"
+        
+        # 리스트를 IN 절로: ['a','b'] → ('a', 'b')
+        self.env.filters["sql_list"] = lambda v: f"({', '.join(repr(x) for x in v)})"
+        
+        # 날짜 포맷
+        self.env.filters["sql_date"] = lambda v: f"DATE('{v}')"
     
-    def __init__(
-        self,
-        *,
-        query_name: str,
-        params: Optional[dict[str, Any]] = None,
-        queries_dir: str = '/opt/airflow/queries',
-        project: Optional[str] = None,
-        dialect: str = 'bigquery',
-        dry_run_first: bool = True,
-        fail_on_empty: bool = False,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.query_name = query_name
-        self.params = params or {}
-        self.queries_dir = queries_dir
-        self.project = project
+    def render(self, template: str, params: dict[str, Any]) -> str:
+        """Jinja 템플릿 렌더링"""
+        tmpl = self.env.from_string(template)
+        return tmpl.render(**params)
+
+
+# 싱글톤
+_renderer = SQLRenderer()
+
+def render_sql(template: str, params: dict[str, Any]) -> str:
+    return _renderer.render(template, params)
+```
+
+---
+
+### validator.py
+
+```python
+import sqlglot
+from sqlglot import exp
+from sqlglot.errors import ParseError
+
+class SQLValidator:
+    def __init__(self, dialect: str = "bigquery"):
         self.dialect = dialect
-        self.dry_run_first = dry_run_first
-        self.fail_on_empty = fail_on_empty
     
-    def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info(f"Executing query: {self.query_name}")
-        self.log.info(f"Parameters: {self.params}")
+    def validate(self, sql: str) -> tuple[bool, list[str], list[str]]:
+        """
+        SQL 검증
+        Returns: (is_valid, errors, warnings)
+        """
+        errors, warnings = [], []
         
-        # 서비스 초기화
-        project = self.project or context.get('params', {}).get('project')
-        executor = BigQueryExecutor(project=project) if project else None
+        if not sql or not sql.strip():
+            return False, ["Empty SQL"], []
         
-        service = SQLFrameworkService(
-            queries_dir=self.queries_dir,
-            executor=executor,
-            dialect=self.dialect,
-        )
-        
-        # 실행
-        result = service.execute(
-            self.query_name,
-            self.params,
-            dry_run_first=self.dry_run_first,
-        )
-        
-        if not result.success:
-            raise Exception(f"Query failed: {result.error_message}")
-        
-        if self.fail_on_empty and result.row_count == 0:
-            raise Exception(f"Query returned no rows: {self.query_name}")
-        
-        self.log.info(f"Query completed: {result.row_count} rows in {result.execution_time_ms}ms")
-        
-        # XCom으로 결과 반환
-        return {
-            'query_name': result.query_name,
-            'row_count': result.row_count,
-            'columns': result.columns,
-            'execution_time_ms': result.execution_time_ms,
-            'rendered_sql': result.rendered_sql,
-        }
-
-
-class SQLFrameworkValidateOperator(BaseOperator):
-    """
-    SQL Framework 쿼리 검증 Operator (CI/CD용)
-    
-    Example:
-        task = SQLFrameworkValidateOperator(
-            task_id='validate_queries',
-            query_names=['daily_retention', 'user_cohort'],
-        )
-    """
-    
-    template_fields: Sequence[str] = ('query_names', 'params')
-    ui_color = '#fff7e6'
-    
-    def __init__(
-        self,
-        *,
-        query_names: list[str],
-        params: Optional[dict[str, dict[str, Any]]] = None,
-        queries_dir: str = '/opt/airflow/queries',
-        dialect: str = 'bigquery',
-        fail_fast: bool = True,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.query_names = query_names
-        self.params = params or {}
-        self.queries_dir = queries_dir
-        self.dialect = dialect
-        self.fail_fast = fail_fast
-    
-    def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info(f"Validating {len(self.query_names)} queries")
-        
-        service = SQLFrameworkService(
-            queries_dir=self.queries_dir,
-            executor=None,  # 검증만 하므로 executor 불필요
-            dialect=self.dialect,
-        )
-        
-        results = {}
-        failed = []
-        
-        for query_name in self.query_names:
-            query_params = self.params.get(query_name, {})
-            self.log.info(f"Validating: {query_name}")
+        try:
+            parsed = sqlglot.parse(sql, dialect=self.dialect)
             
-            result = service.validate(query_name, query_params)
-            results[query_name] = {
-                'is_valid': result.is_valid,
-                'errors': result.errors,
-                'warnings': result.warnings,
-            }
+            if not parsed or parsed[0] is None:
+                return False, ["Failed to parse SQL"], []
             
-            if not result.is_valid:
-                failed.append(query_name)
-                self.log.error(f"Validation failed for {query_name}: {result.errors}")
-                
-                if self.fail_fast:
-                    raise Exception(f"Validation failed: {query_name} - {result.errors}")
-        
-        if failed:
-            raise Exception(f"Validation failed for queries: {failed}")
-        
-        self.log.info(f"All {len(self.query_names)} queries validated successfully")
-        return results
+            # SELECT 없는 LIMIT 경고
+            for stmt in parsed:
+                if stmt and stmt.find(exp.Select) and not stmt.find(exp.Limit):
+                    warnings.append("SELECT without LIMIT - may return large result")
+            
+            return True, [], warnings
+            
+        except ParseError as e:
+            return False, [f"Syntax error: {e}"], []
+    
+    def extract_tables(self, sql: str) -> list[str]:
+        """참조 테이블 추출"""
+        try:
+            parsed = sqlglot.parse_one(sql, dialect=self.dialect)
+            tables = set()
+            for table in parsed.find_all(exp.Table):
+                # schema.table 형식 처리
+                parts = []
+                if table.catalog:
+                    parts.append(table.catalog)
+                if table.db:
+                    parts.append(table.db)
+                parts.append(table.name)
+                tables.add(".".join(parts))
+            return sorted(tables)
+        except:
+            return []
+    
+    def format_sql(self, sql: str) -> str:
+        """SQL 포맷팅 (pretty print)"""
+        try:
+            return sqlglot.transpile(sql, read=self.dialect, pretty=True)[0]
+        except:
+            return sql
 ```
 
 ---
 
-## 2. airflow/sensors.py
+### main.py
 
-### 기능
-- SQLFrameworkSensor: 조건 만족까지 대기
-
-### 코드
 ```python
-from typing import Any, Optional, Sequence
-from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+from fastapi import FastAPI, HTTPException
+from jinja2 import TemplateSyntaxError, UndefinedError
 
-from ..core.service import SQLFrameworkService
-from ..adapters.bigquery import BigQueryExecutor
+from .schemas import (
+    RenderRequest, RenderResponse,
+    ValidateRequest, ValidateResponse,
+    ParseRequest, ParseResponse,
+    FormatRequest, FormatResponse,
+)
+from .renderer import render_sql
+from .validator import SQLValidator
 
-
-class SQLFrameworkSensor(BaseSensorOperator):
-    """
-    SQL Framework 쿼리 결과 대기 Sensor
-    
-    쿼리 결과가 조건을 만족할 때까지 대기합니다.
-    기본: row_count > 0 이면 성공
-    
-    Example:
-        sensor = SQLFrameworkSensor(
-            task_id='wait_for_data',
-            query_name='check_data_ready',
-            params={'date': '{{ ds }}'},
-            poke_interval=300,  # 5분마다 체크
-            timeout=3600,       # 1시간 타임아웃
-        )
-    """
-    
-    template_fields: Sequence[str] = ('query_name', 'params')
-    ui_color = '#e6f3ff'
-    
-    def __init__(
-        self,
-        *,
-        query_name: str,
-        params: Optional[dict[str, Any]] = None,
-        queries_dir: str = '/opt/airflow/queries',
-        project: Optional[str] = None,
-        dialect: str = 'bigquery',
-        min_row_count: int = 1,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.query_name = query_name
-        self.params = params or {}
-        self.queries_dir = queries_dir
-        self.project = project
-        self.dialect = dialect
-        self.min_row_count = min_row_count
-    
-    def poke(self, context: Context) -> bool:
-        self.log.info(f"Checking: {self.query_name} with params {self.params}")
-        
-        project = self.project or context.get('params', {}).get('project')
-        executor = BigQueryExecutor(project=project) if project else None
-        
-        service = SQLFrameworkService(
-            queries_dir=self.queries_dir,
-            executor=executor,
-            dialect=self.dialect,
-        )
-        
-        result = service.execute(self.query_name, self.params, dry_run_first=False)
-        
-        if not result.success:
-            self.log.warning(f"Query failed: {result.error_message}")
-            return False
-        
-        self.log.info(f"Query returned {result.row_count} rows (need >= {self.min_row_count})")
-        return result.row_count >= self.min_row_count
-```
-
----
-
-## 3. airflow/__init__.py
-
-### 코드
-```python
-from .operators import SQLFrameworkOperator, SQLFrameworkValidateOperator
-from .sensors import SQLFrameworkSensor
-
-__all__ = [
-    'SQLFrameworkOperator',
-    'SQLFrameworkValidateOperator',
-    'SQLFrameworkSensor',
-]
-```
-
----
-
-## 4. 테스트 코드
-
-### tests/airflow/test_operators.py
-```python
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
-
-from dli.airflow.operators import SQLFrameworkOperator, SQLFrameworkValidateOperator
-from dli.core.models import ExecutionResult, ValidationResult
-
-
-class TestSQLFrameworkOperator:
-    @pytest.fixture
-    def mock_context(self):
-        return {
-            'ds': '2024-01-01',
-            'params': {'project': 'test-project'},
-        }
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    @patch('dli.airflow.operators.BigQueryExecutor')
-    def test_execute_success(self, mock_executor_cls, mock_service_cls, mock_context):
-        # Mock 설정
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='test_query',
-            success=True,
-            row_count=10,
-            columns=['id', 'name'],
-            execution_time_ms=150,
-            rendered_sql='SELECT * FROM test',
-        )
-        mock_service_cls.return_value = mock_service
-        
-        # Operator 실행
-        operator = SQLFrameworkOperator(
-            task_id='test_task',
-            query_name='test_query',
-            params={'date': '2024-01-01'},
-            project='test-project',
-        )
-        
-        result = operator.execute(mock_context)
-        
-        # 검증
-        assert result['query_name'] == 'test_query'
-        assert result['row_count'] == 10
-        mock_service.execute.assert_called_once()
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    @patch('dli.airflow.operators.BigQueryExecutor')
-    def test_execute_failure(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='test_query',
-            success=False,
-            error_message='Query failed',
-        )
-        mock_service_cls.return_value = mock_service
-        
-        operator = SQLFrameworkOperator(
-            task_id='test_task',
-            query_name='test_query',
-            project='test-project',
-        )
-        
-        with pytest.raises(Exception, match="Query failed"):
-            operator.execute(mock_context)
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    @patch('dli.airflow.operators.BigQueryExecutor')
-    def test_fail_on_empty(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='test_query',
-            success=True,
-            row_count=0,
-            columns=[],
-            execution_time_ms=100,
-        )
-        mock_service_cls.return_value = mock_service
-        
-        operator = SQLFrameworkOperator(
-            task_id='test_task',
-            query_name='test_query',
-            project='test-project',
-            fail_on_empty=True,
-        )
-        
-        with pytest.raises(Exception, match="no rows"):
-            operator.execute(mock_context)
-    
-    def test_template_fields(self):
-        """template_fields에 params 포함 확인 (Airflow 매크로 지원)"""
-        assert 'params' in SQLFrameworkOperator.template_fields
-        assert 'query_name' in SQLFrameworkOperator.template_fields
-
-
-class TestSQLFrameworkValidateOperator:
-    @pytest.fixture
-    def mock_context(self):
-        return {}
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    def test_validate_all_success(self, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.validate.return_value = ValidationResult(is_valid=True)
-        mock_service_cls.return_value = mock_service
-        
-        operator = SQLFrameworkValidateOperator(
-            task_id='validate_task',
-            query_names=['query1', 'query2'],
-        )
-        
-        result = operator.execute(mock_context)
-        
-        assert result['query1']['is_valid'] is True
-        assert result['query2']['is_valid'] is True
-        assert mock_service.validate.call_count == 2
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    def test_validate_failure_fail_fast(self, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.validate.return_value = ValidationResult(
-            is_valid=False,
-            errors=['Missing parameter']
-        )
-        mock_service_cls.return_value = mock_service
-        
-        operator = SQLFrameworkValidateOperator(
-            task_id='validate_task',
-            query_names=['query1', 'query2'],
-            fail_fast=True,
-        )
-        
-        with pytest.raises(Exception, match="Validation failed"):
-            operator.execute(mock_context)
-        
-        # fail_fast이므로 첫 번째 실패 후 중단
-        assert mock_service.validate.call_count == 1
-    
-    @patch('dli.airflow.operators.SQLFrameworkService')
-    def test_validate_with_params(self, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.validate.return_value = ValidationResult(is_valid=True)
-        mock_service_cls.return_value = mock_service
-        
-        operator = SQLFrameworkValidateOperator(
-            task_id='validate_task',
-            query_names=['query1'],
-            params={'query1': {'date': '2024-01-01'}},
-        )
-        
-        operator.execute(mock_context)
-        
-        mock_service.validate.assert_called_with('query1', {'date': '2024-01-01'})
-```
-
-### tests/airflow/test_sensors.py
-```python
-import pytest
-from unittest.mock import Mock, patch
-
-from dli.airflow.sensors import SQLFrameworkSensor
-from dli.core.models import ExecutionResult
-
-
-class TestSQLFrameworkSensor:
-    @pytest.fixture
-    def mock_context(self):
-        return {'params': {'project': 'test-project'}}
-    
-    @patch('dli.airflow.sensors.SQLFrameworkService')
-    @patch('dli.airflow.sensors.BigQueryExecutor')
-    def test_poke_success(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='check_query',
-            success=True,
-            row_count=5,
-        )
-        mock_service_cls.return_value = mock_service
-        
-        sensor = SQLFrameworkSensor(
-            task_id='wait_task',
-            query_name='check_query',
-            params={'date': '2024-01-01'},
-            project='test-project',
-        )
-        
-        result = sensor.poke(mock_context)
-        
-        assert result is True
-    
-    @patch('dli.airflow.sensors.SQLFrameworkService')
-    @patch('dli.airflow.sensors.BigQueryExecutor')
-    def test_poke_no_rows(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='check_query',
-            success=True,
-            row_count=0,
-        )
-        mock_service_cls.return_value = mock_service
-        
-        sensor = SQLFrameworkSensor(
-            task_id='wait_task',
-            query_name='check_query',
-            project='test-project',
-        )
-        
-        result = sensor.poke(mock_context)
-        
-        assert result is False
-    
-    @patch('dli.airflow.sensors.SQLFrameworkService')
-    @patch('dli.airflow.sensors.BigQueryExecutor')
-    def test_poke_min_row_count(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='check_query',
-            success=True,
-            row_count=5,
-        )
-        mock_service_cls.return_value = mock_service
-        
-        sensor = SQLFrameworkSensor(
-            task_id='wait_task',
-            query_name='check_query',
-            project='test-project',
-            min_row_count=10,  # 10개 이상 필요
-        )
-        
-        result = sensor.poke(mock_context)
-        
-        assert result is False  # 5 < 10이므로 False
-    
-    @patch('dli.airflow.sensors.SQLFrameworkService')
-    @patch('dli.airflow.sensors.BigQueryExecutor')
-    def test_poke_query_failure(self, mock_executor_cls, mock_service_cls, mock_context):
-        mock_service = Mock()
-        mock_service.execute.return_value = ExecutionResult(
-            query_name='check_query',
-            success=False,
-            error_message='Query error',
-        )
-        mock_service_cls.return_value = mock_service
-        
-        sensor = SQLFrameworkSensor(
-            task_id='wait_task',
-            query_name='check_query',
-            project='test-project',
-        )
-        
-        result = sensor.poke(mock_context)
-        
-        assert result is False
-    
-    def test_template_fields(self):
-        assert 'params' in SQLFrameworkSensor.template_fields
-        assert 'query_name' in SQLFrameworkSensor.template_fields
-```
-
----
-
-## 5. 샘플 DAG
-
-### examples/dags/daily_retention_dag.py
-```python
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.empty import EmptyOperator
-
-from dli.airflow import (
-    SQLFrameworkOperator,
-    SQLFrameworkValidateOperator,
-    SQLFrameworkSensor,
+app = FastAPI(
+    title="SQL Parser API",
+    description="SQL 렌더링/파싱/검증 API (project-basecamp-parser)",
+    version="0.1.0",
 )
 
-default_args = {
-    'owner': 'data-team',
-    'depends_on_past': False,
-    'email_on_failure': True,
-    'email': ['data-team@example.com'],
-    'retries': 2,
-    'retry_delay': timedelta(minutes=5),
-}
 
-with DAG(
-    dag_id='daily_retention_analysis',
-    default_args=default_args,
-    description='일별 리텐션 분석',
-    schedule_interval='0 9 * * *',  # 매일 9시
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
-    tags=['retention', 'marketing'],
-    params={'project': 'my-gcp-project'},
-) as dag:
-    
-    start = EmptyOperator(task_id='start')
-    
-    # 데이터 준비 대기
-    wait_for_data = SQLFrameworkSensor(
-        task_id='wait_for_data',
-        query_name='check_events_ready',
-        params={'date': '{{ ds }}'},
-        poke_interval=300,  # 5분마다
-        timeout=3600,       # 1시간 타임아웃
-        mode='reschedule',  # Worker 점유 안 함
-    )
-    
-    # 리텐션 분석 실행
-    run_retention = SQLFrameworkOperator(
-        task_id='run_daily_retention',
-        query_name='daily_retention',
-        params={
-            'start_date': '{{ ds }}',
-            'end_date': '{{ ds }}',
-            'cohort_size': 7,
-        },
-    )
-    
-    # 코호트 분석 실행
-    run_cohort = SQLFrameworkOperator(
-        task_id='run_user_cohort',
-        query_name='user_cohort',
-        params={
-            'date': '{{ ds }}',
-        },
-    )
-    
-    end = EmptyOperator(task_id='end')
-    
-    # 의존성 정의
-    start >> wait_for_data >> [run_retention, run_cohort] >> end
-```
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "basecamp-parser"}
 
-### examples/dags/data_quality_dag.py
-```python
-from datetime import datetime
-from airflow import DAG
-from airflow.operators.empty import EmptyOperator
 
-from dli.airflow import SQLFrameworkValidateOperator
+@app.post("/render", response_model=RenderResponse)
+async def render(request: RenderRequest):
+    """Jinja 템플릿 렌더링"""
+    try:
+        rendered = render_sql(request.template, request.params)
+        return RenderResponse(success=True, rendered_sql=rendered)
+    except TemplateSyntaxError as e:
+        return RenderResponse(success=False, error=f"Template syntax error: {e}")
+    except UndefinedError as e:
+        return RenderResponse(success=False, error=f"Missing parameter: {e}")
+    except Exception as e:
+        return RenderResponse(success=False, error=str(e))
 
-with DAG(
-    dag_id='query_validation_ci',
-    description='쿼리 검증 (CI/CD)',
-    schedule_interval=None,  # 수동 트리거
-    start_date=datetime(2024, 1, 1),
-    catchup=False,
-    tags=['ci', 'validation'],
-) as dag:
-    
-    start = EmptyOperator(task_id='start')
-    
-    # 모든 쿼리 검증
-    validate_all = SQLFrameworkValidateOperator(
-        task_id='validate_all_queries',
-        query_names=[
-            'daily_retention',
-            'user_cohort',
-            'revenue_report',
-        ],
-        params={
-            'daily_retention': {'start_date': '2024-01-01', 'end_date': '2024-01-01'},
-            'user_cohort': {'date': '2024-01-01'},
-            'revenue_report': {'month': '2024-01'},
-        },
-        fail_fast=False,  # 모든 쿼리 검증 후 결과 반환
-    )
-    
-    end = EmptyOperator(task_id='end')
-    
-    start >> validate_all >> end
+
+@app.post("/validate", response_model=ValidateResponse)
+async def validate(request: ValidateRequest):
+    """SQL 문법 검증"""
+    validator = SQLValidator(request.dialect)
+    is_valid, errors, warnings = validator.validate(request.sql)
+    return ValidateResponse(is_valid=is_valid, errors=errors, warnings=warnings)
+
+
+@app.post("/parse", response_model=ParseResponse)
+async def parse(request: ParseRequest):
+    """SQL 파싱 (테이블 추출)"""
+    try:
+        validator = SQLValidator(request.dialect)
+        tables = validator.extract_tables(request.sql)
+        return ParseResponse(success=True, tables=tables)
+    except Exception as e:
+        return ParseResponse(success=False, error=str(e))
+
+
+@app.post("/format", response_model=FormatResponse)
+async def format_sql(request: FormatRequest):
+    """SQL 포맷팅"""
+    try:
+        validator = SQLValidator(request.dialect)
+        formatted = validator.format_sql(request.sql)
+        return FormatResponse(success=True, formatted_sql=formatted)
+    except Exception as e:
+        return FormatResponse(success=False, error=str(e))
 ```
 
 ---
 
-## 핵심 주의사항
+### 테스트: tests/test_api.py
 
-### 1. template_fields 필수
 ```python
-# Airflow 매크로 ({{ ds }}, {{ params.xxx }}) 사용하려면 반드시 포함
-template_fields: Sequence[str] = ('query_name', 'params')
-```
+import pytest
+from fastapi.testclient import TestClient
+from parser.main import app
 
-### 2. XCom 결과 반환
-```python
-# execute()에서 dict 반환 → 다음 태스크에서 사용 가능
-return {
-    'row_count': result.row_count,
-    'columns': result.columns,
-}
-```
+client = TestClient(app)
 
-### 3. Sensor mode
-```python
-# 'reschedule': Worker 점유 안 함 (권장)
-# 'poke': Worker 점유 (빠른 응답 필요 시)
-mode='reschedule'
-```
 
-### 4. 에러 핸들링
-```python
-# 실패 시 Exception raise → Airflow가 retry 처리
-if not result.success:
-    raise Exception(f"Query failed: {result.error_message}")
+class TestHealthEndpoint:
+    def test_health(self):
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
+
+
+class TestRenderEndpoint:
+    def test_render_success(self):
+        response = client.post("/render", json={
+            "template": "SELECT * FROM users WHERE date = '{{ date }}'",
+            "params": {"date": "2024-01-01"}
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "2024-01-01" in data["rendered_sql"]
+    
+    def test_render_with_filter(self):
+        response = client.post("/render", json={
+            "template": "SELECT * FROM users WHERE name = {{ name | sql_string }}",
+            "params": {"name": "O'Brien"}
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "O''Brien" in data["rendered_sql"]  # 이스케이프 확인
+    
+    def test_render_missing_param(self):
+        response = client.post("/render", json={
+            "template": "SELECT * FROM users WHERE date = '{{ date }}'",
+            "params": {}
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "Missing parameter" in data["error"]
+    
+    def test_render_syntax_error(self):
+        response = client.post("/render", json={
+            "template": "SELECT * FROM users WHERE {{ % invalid }",
+            "params": {}
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+
+
+class TestValidateEndpoint:
+    def test_validate_valid_sql(self):
+        response = client.post("/validate", json={
+            "sql": "SELECT id, name FROM users WHERE active = true",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_valid"] is True
+        assert len(data["errors"]) == 0
+    
+    def test_validate_invalid_sql(self):
+        response = client.post("/validate", json={
+            "sql": "SELECT * FROM",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_valid"] is False
+        assert len(data["errors"]) > 0
+    
+    def test_validate_empty_sql(self):
+        response = client.post("/validate", json={
+            "sql": "",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_valid"] is False
+    
+    def test_validate_warning_no_limit(self):
+        response = client.post("/validate", json={
+            "sql": "SELECT * FROM users",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_valid"] is True
+        assert len(data["warnings"]) > 0
+
+
+class TestParseEndpoint:
+    def test_parse_single_table(self):
+        response = client.post("/parse", json={
+            "sql": "SELECT * FROM users",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "users" in data["tables"]
+    
+    def test_parse_multiple_tables(self):
+        response = client.post("/parse", json={
+            "sql": "SELECT * FROM users u JOIN orders o ON u.id = o.user_id",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "users" in data["tables"]
+        assert "orders" in data["tables"]
+    
+    def test_parse_with_schema(self):
+        response = client.post("/parse", json={
+            "sql": "SELECT * FROM analytics.events",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "analytics.events" in data["tables"]
+
+
+class TestFormatEndpoint:
+    def test_format_sql(self):
+        response = client.post("/format", json={
+            "sql": "select id,name from users where active=true",
+            "dialect": "bigquery"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "SELECT" in data["formatted_sql"]  # 대문자로 변환
 ```
 
 ---
 
-## 6. 라이브러리 빌드 및 배포
+## Spring Backend (project-basecamp-server)
 
-### 빌드
+### Parser Client 인터페이스
 
-```bash
-cd project-interface-cli
+```kotlin
+// ParserClient.kt
+interface ParserClient {
+    fun render(template: String, params: Map<String, Any>): RenderResponse
+    fun validate(sql: String, dialect: String = "bigquery"): ValidateResponse
+    fun parse(sql: String, dialect: String = "bigquery"): ParseResponse
+    fun format(sql: String, dialect: String = "bigquery"): FormatResponse
+}
 
-# wheel 빌드
-uv build
+// DTOs
+data class RenderResponse(
+    val success: Boolean,
+    val renderedSql: String?,
+    val error: String?
+)
 
-# 결과물 확인
-ls dist/
-# dli-0.1.0-py3-none-any.whl
-# dli-0.1.0.tar.gz
-```
+data class ValidateResponse(
+    val isValid: Boolean,
+    val errors: List<String>,
+    val warnings: List<String>
+)
 
-### 로컬 테스트
+data class ParseResponse(
+    val success: Boolean,
+    val tables: List<String>,
+    val columns: List<String>,
+    val error: String?
+)
 
-```bash
-# 가상환경에서 테스트
-python -m venv test_env
-source test_env/bin/activate
-
-# 빌드한 wheel 설치
-pip install dist/dli-0.1.0-py3-none-any.whl[airflow,bigquery]
-
-# import 테스트
-python -c "from dli.airflow import SQLFrameworkOperator; print('OK')"
-```
-
-### Airflow 환경에 배포
-
-**방법 1: requirements.txt (간단)**
-```txt
-# airflow/requirements.txt
-dataops-cli[airflow,bigquery] @ https://your-artifact-server/dli-0.1.0-py3-none-any.whl
-```
-
-**방법 2: Private PyPI (권장)**
-```bash
-# 내부 PyPI 서버에 업로드
-twine upload --repository internal dist/*
-
-# Airflow 환경에서 설치
-pip install --extra-index-url https://pypi.internal.company.com/simple dataops-cli[airflow,bigquery]
-```
-
-**방법 3: Docker 이미지 빌드**
-```dockerfile
-# airflow/Dockerfile
-FROM apache/airflow:2.7.0-python3.12
-
-# 라이브러리 설치
-COPY dist/dli-0.1.0-py3-none-any.whl /tmp/
-RUN pip install /tmp/dli-0.1.0-py3-none-any.whl[airflow,bigquery]
-
-# 쿼리 디렉토리 복사
-COPY queries/ /opt/airflow/queries/
-```
-
-### Airflow DAG에서 사용
-
-```python
-# dags/my_dag.py
-from dli.airflow import SQLFrameworkOperator
-
-task = SQLFrameworkOperator(
-    task_id='run_retention',
-    query_name='daily_retention',
-    params={'date': '{{ ds }}'},
-    queries_dir='/opt/airflow/queries',
+data class FormatResponse(
+    val success: Boolean,
+    val formattedSql: String?,
+    val error: String?
 )
 ```
 
+### Parser Client 구현
+
+```kotlin
+// ParserClientImpl.kt
+@Component
+class ParserClientImpl(
+    private val webClient: WebClient,
+    @Value("\${parser.base-url}") private val baseUrl: String
+) : ParserClient {
+
+    override fun render(template: String, params: Map<String, Any>): RenderResponse {
+        return webClient.post()
+            .uri("$baseUrl/render")
+            .bodyValue(mapOf("template" to template, "params" to params))
+            .retrieve()
+            .bodyToMono(RenderResponse::class.java)
+            .block() ?: throw ParserException("Render failed")
+    }
+
+    override fun validate(sql: String, dialect: String): ValidateResponse {
+        return webClient.post()
+            .uri("$baseUrl/validate")
+            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
+            .retrieve()
+            .bodyToMono(ValidateResponse::class.java)
+            .block() ?: throw ParserException("Validate failed")
+    }
+
+    override fun parse(sql: String, dialect: String): ParseResponse {
+        return webClient.post()
+            .uri("$baseUrl/parse")
+            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
+            .retrieve()
+            .bodyToMono(ParseResponse::class.java)
+            .block() ?: throw ParserException("Parse failed")
+    }
+
+    override fun format(sql: String, dialect: String): FormatResponse {
+        return webClient.post()
+            .uri("$baseUrl/format")
+            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
+            .retrieve()
+            .bodyToMono(FormatResponse::class.java)
+            .block() ?: throw ParserException("Format failed")
+    }
+}
+```
+
+### Spring Service 예시
+
+```kotlin
+// QueryService.kt
+@Service
+class QueryService(
+    private val parserClient: ParserClient,
+    private val bigQueryExecutor: BigQueryExecutor,
+    private val queryRepository: QueryRepository
+) {
+
+    fun validateQuery(queryId: Long, params: Map<String, Any>): ValidationResult {
+        val query = queryRepository.findById(queryId)
+            ?: throw QueryNotFoundException(queryId)
+        
+        // 1. Python Parser로 렌더링
+        val renderResult = parserClient.render(query.template, params)
+        if (!renderResult.success) {
+            return ValidationResult(false, listOf(renderResult.error!!), emptyList(), null)
+        }
+        
+        // 2. Python Parser로 검증
+        val validateResult = parserClient.validate(renderResult.renderedSql!!, query.dialect)
+        
+        return ValidationResult(
+            isValid = validateResult.isValid,
+            errors = validateResult.errors,
+            warnings = validateResult.warnings,
+            renderedSql = renderResult.renderedSql
+        )
+    }
+
+    fun executeQuery(queryId: Long, params: Map<String, Any>): ExecutionResult {
+        val validation = validateQuery(queryId, params)
+        if (!validation.isValid) {
+            throw ValidationException(validation.errors)
+        }
+        
+        // Spring에서 BigQuery 실행
+        return bigQueryExecutor.execute(validation.renderedSql!!)
+    }
+}
+```
+
 ---
 
-## Day 4 체크리스트
+## 통신 흐름 예시
 
-- [ ] pyproject.toml 선택적 의존성 추가
-  - [ ] `[project.optional-dependencies]`
-  - [ ] airflow, bigquery, snowflake, all
-- [ ] airflow/operators.py
-  - [ ] SQLFrameworkOperator
-  - [ ] SQLFrameworkValidateOperator
-- [ ] airflow/sensors.py
-  - [ ] SQLFrameworkSensor
-- [ ] airflow/__init__.py
-- [ ] 라이브러리 빌드
-  - [ ] `uv build`
-  - [ ] wheel 로컬 테스트
+### 쿼리 검증 흐름
+
+```
+1. UI → Spring: POST /api/queries/{id}/validate
+   { "params": { "date": "2024-01-01" } }
+
+2. Spring → Python: POST /render
+   { "template": "SELECT * FROM t WHERE dt='{{date}}'", "params": {"date":"2024-01-01"} }
+
+3. Python → Spring: 
+   { "success": true, "rendered_sql": "SELECT * FROM t WHERE dt='2024-01-01'" }
+
+4. Spring → Python: POST /validate
+   { "sql": "SELECT * FROM t WHERE dt='2024-01-01'", "dialect": "bigquery" }
+
+5. Python → Spring:
+   { "is_valid": true, "errors": [], "warnings": [] }
+
+6. Spring → UI:
+   { "isValid": true, "renderedSql": "SELECT * FROM t WHERE dt='2024-01-01'" }
+```
+
+### 쿼리 실행 흐름
+
+```
+1. UI → Spring: POST /api/queries/{id}/execute
+   { "params": { "date": "2024-01-01" } }
+
+2. Spring → Python: POST /render (렌더링)
+3. Spring → Python: POST /validate (검증)
+4. Spring → BigQuery: 실행 (Spring이 직접)
+5. Spring → UI: 결과 반환
+```
+
+---
+
+## 환경 설정
+
+### Python (basecamp-parser)
+
+```bash
+# 실행
+uvicorn parser.main:app --host 0.0.0.0 --port 8001
+
+# 환경변수
+PARSER_PORT=8001
+```
+
+### Spring (basecamp-server)
+
+```yaml
+# application.yml
+parser:
+  base-url: http://localhost:8001
+
+spring:
+  webflux:
+    timeout: 30s
+```
+
+---
+
+## Day 3 체크리스트
+
+### Python (basecamp-parser)
+- [ ] schemas.py (4개 Request/Response)
+- [ ] renderer.py (Jinja 렌더링 + 필터)
+- [ ] validator.py (SQLGlot 검증 + 테이블 추출)
+- [ ] main.py (4개 엔드포인트)
 - [ ] 테스트 코드
-- [ ] 샘플 DAG 작성
-- [ ] Airflow UI에서 동작 확인
+- [ ] Dockerfile
+
+### Spring (basecamp-server)
+- [ ] ParserClient 인터페이스
+- [ ] ParserClientImpl (WebClient)
+- [ ] DTO 클래스
+- [ ] QueryService 연동
+- [ ] 에러 핸들링
+- [ ] application.yml 설정
 
 ---
 
@@ -847,6 +677,6 @@ task = SQLFrameworkOperator(
 
 | 참고 | URL |
 |------|-----|
-| Airflow Custom Operator | https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html |
-| Airflow Sensors | https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/sensors.html |
-| Airflow Best Practices | https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html |
+| FastAPI | https://fastapi.tiangolo.com/ |
+| SQLGlot | https://github.com/tobymao/sqlglot |
+| Spring WebClient | https://docs.spring.io/spring-framework/reference/web/webflux-webclient.html |

@@ -103,7 +103,9 @@
       "mcp__context7__resolve-library-id",
       "WebFetch(domain:sqlmesh.readthedocs.io)",
       "mcp__plugin_claude-mem_mem-search__search",
-      "mcp__plugin_claude-mem_mem-search__get_observations"
+      "mcp__plugin_claude-mem_mem-search__get_observations",
+      "mcp__plugin_claude-mem_mem-search__get_observation",
+      "WebFetch(domain:docs.getdbt.com)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

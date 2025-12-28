@@ -8,11 +8,22 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from rich.table import Table
 import typer
 
+from dli.commands.base import (
+    ListOutputFormat,
+    SourceType,
+    format_tags_display,
+    get_client,
+    get_project_path,
+    load_dataset_service,
+    spec_to_dict,
+    spec_to_list_dict,
+    spec_to_register_dict,
+)
 from dli.commands.utils import (
     console,
     parse_params,
@@ -23,9 +34,6 @@ from dli.commands.utils import (
     print_warning,
 )
 
-# Constants
-MAX_TAGS_DISPLAY = 3
-
 # Create dataset subcommand app
 dataset_app = typer.Typer(
     name="dataset",
@@ -34,49 +42,10 @@ dataset_app = typer.Typer(
 )
 
 
-def _get_project_path(path: Path | None) -> Path:
-    """Get project path, searching for dli.yaml if needed."""
-    search_path = path or Path.cwd()
-
-    config_path = search_path / "dli.yaml"
-    if config_path.exists():
-        return search_path
-
-    for parent in search_path.parents:
-        if (parent / "dli.yaml").exists():
-            return parent
-
-    return search_path
-
-
-def _load_dataset_service(project_path: Path) -> Any:
-    """Load DatasetService."""
-    from dli.core import DatasetService
-
-    return DatasetService(project_path=project_path)
-
-
-def _get_client(project_path: Path, mock_mode: bool = True) -> Any:
-    """Get Basecamp client."""
-    from dli.core.client import create_client
-    from dli.core.config import load_project
-
-    try:
-        config = load_project(project_path)
-        return create_client(
-            url=config.server_url,
-            timeout=config.server_timeout,
-            api_key=config.server_api_key,
-            mock_mode=mock_mode,
-        )
-    except FileNotFoundError:
-        return create_client(mock_mode=mock_mode)
-
-
 @dataset_app.command("list")
 def list_datasets(
     source: Annotated[
-        str,
+        SourceType,
         typer.Option("--source", "-s", help="Source: local or server."),
     ] = "local",
     tag: Annotated[
@@ -92,7 +61,7 @@ def list_datasets(
         typer.Option("--search", help="Search in name/description."),
     ] = None,
     format_output: Annotated[
-        str,
+        ListOutputFormat,
         typer.Option("--format", "-f", help="Output format (table or json)."),
     ] = "table",
     path: Annotated[
@@ -107,10 +76,10 @@ def list_datasets(
         dli dataset list --source server
         dli dataset list --tag daily --format json
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     if source == "server":
-        client = _get_client(project_path)
+        client = get_client(project_path)
         response = client.list_datasets(tag=tag, owner=owner, search=search)
 
         if not response.success:
@@ -120,19 +89,9 @@ def list_datasets(
         datasets = response.data or []
     else:
         try:
-            service = _load_dataset_service(project_path)
+            service = load_dataset_service(project_path)
             local_datasets = service.list_datasets(tag=tag, owner=owner)
-            datasets = [
-                {
-                    "name": d.name,
-                    "type": d.type.value,
-                    "owner": d.owner,
-                    "team": d.team,
-                    "description": d.description or "",
-                    "tags": d.tags,
-                }
-                for d in local_datasets
-            ]
+            datasets = [spec_to_list_dict(d) for d in local_datasets]
         except Exception as e:
             print_error(f"Failed to list local datasets: {e}")
             raise typer.Exit(1)
@@ -145,24 +104,23 @@ def list_datasets(
         console.print_json(json.dumps(datasets, default=str))
         return
 
-    table = Table(title=f"Datasets ({len(datasets)}) - Source: {source}", show_header=True)
+    table = Table(
+        title=f"Datasets ({len(datasets)}) - Source: {source}", show_header=True
+    )
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Owner", style="green")
     table.add_column("Team", style="yellow")
     table.add_column("Tags", style="magenta")
 
     for d in datasets:
-        tags = d.get("tags", [])
-        tags_display = ", ".join(tags[:MAX_TAGS_DISPLAY])
-        if len(tags) > MAX_TAGS_DISPLAY:
-            tags_display += "..."
-
-        table.add_row(
-            d.get("name", ""),
-            d.get("owner", "-"),
-            d.get("team", "-"),
-            tags_display or "-",
-        )
+        if isinstance(d, dict):
+            tags = d.get("tags", [])
+            table.add_row(
+                d.get("name", ""),
+                d.get("owner", "-"),
+                d.get("team", "-"),
+                format_tags_display(tags),
+            )
 
     console.print(table)
 
@@ -171,11 +129,11 @@ def list_datasets(
 def get_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name.")],
     source: Annotated[
-        str,
+        SourceType,
         typer.Option("--source", "-s", help="Source: local or server."),
     ] = "local",
     format_output: Annotated[
-        str,
+        ListOutputFormat,
         typer.Option("--format", "-f", help="Output format (table or json)."),
     ] = "table",
     path: Annotated[
@@ -189,44 +147,30 @@ def get_dataset(
         dli dataset get iceberg.analytics.daily_clicks
         dli dataset get iceberg.analytics.daily_clicks --source server
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     if source == "server":
-        client = _get_client(project_path)
+        client = get_client(project_path)
         response = client.get_dataset(name)
 
         if not response.success:
             print_error(response.error or f"Dataset '{name}' not found on server")
             raise typer.Exit(1)
 
-        dataset_data = response.data
+        if not isinstance(response.data, dict):
+            print_error(f"Invalid response data for dataset '{name}'")
+            raise typer.Exit(1)
+
+        dataset_data: dict = response.data
     else:
         try:
-            service = _load_dataset_service(project_path)
+            service = load_dataset_service(project_path)
             dataset = service.get_dataset(name)
             if not dataset:
                 print_error(f"Dataset '{name}' not found locally")
                 raise typer.Exit(1)
 
-            dataset_data = {
-                "name": dataset.name,
-                "type": dataset.type.value,
-                "owner": dataset.owner,
-                "team": dataset.team,
-                "description": dataset.description or "",
-                "tags": dataset.tags,
-                "domains": dataset.domains,
-                "parameters": [
-                    {
-                        "name": p.name,
-                        "type": p.type.value,
-                        "required": p.required,
-                        "default": p.default,
-                        "description": p.description,
-                    }
-                    for p in dataset.parameters
-                ],
-            }
+            dataset_data = spec_to_dict(dataset, include_parameters=True)
         except Exception as e:
             print_error(f"Failed to get dataset: {e}")
             raise typer.Exit(1)
@@ -255,7 +199,7 @@ def get_dataset(
             param_table.add_row(
                 p.get("name", ""),
                 p.get("type", ""),
-                "✓" if p.get("required") else "",
+                "Y" if p.get("required") else "",
                 str(p.get("default")) if p.get("default") is not None else "-",
             )
         console.print(param_table)
@@ -265,9 +209,9 @@ def get_dataset(
 def run_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to run.")],
     params: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
-    ] = [],  # noqa: B006
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Only validate, don't execute."),
@@ -295,7 +239,10 @@ def run_dataset(
         dli dataset run iceberg.analytics.daily_clicks -p execution_date=2024-01-01
         dli dataset run iceberg.analytics.daily_clicks -p execution_date=2024-01-01 --dry-run
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
+
+    # Fix: Handle None default for mutable list argument
+    params = params or []
 
     try:
         param_dict = parse_params(params)
@@ -304,7 +251,7 @@ def run_dataset(
         raise typer.Exit(1)
 
     try:
-        service = _load_dataset_service(project_path)
+        service = load_dataset_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -336,9 +283,13 @@ def run_dataset(
 
         # Show execution summary
         if result.pre_results:
-            console.print(f"  [dim]Pre-statements:[/dim] {len(result.pre_results)} executed")
+            console.print(
+                f"  [dim]Pre-statements:[/dim] {len(result.pre_results)} executed"
+            )
         if result.post_results:
-            console.print(f"  [dim]Post-statements:[/dim] {len(result.post_results)} executed")
+            console.print(
+                f"  [dim]Post-statements:[/dim] {len(result.post_results)} executed"
+            )
 
     if show_sql and result.main_result and result.main_result.rendered_sql:
         console.print()
@@ -349,9 +300,9 @@ def run_dataset(
 def validate_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to validate.")],
     params: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
-    ] = [],  # noqa: B006
+    ] = None,
     show_sql: Annotated[
         bool,
         typer.Option("--show-sql/--no-sql", help="Show rendered SQL."),
@@ -366,7 +317,10 @@ def validate_dataset(
     Examples:
         dli dataset validate iceberg.analytics.daily_clicks -p execution_date=2024-01-01
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
+
+    # Fix: Handle None default for mutable list argument
+    params = params or []
 
     try:
         param_dict = parse_params(params)
@@ -375,7 +329,7 @@ def validate_dataset(
         raise typer.Exit(1)
 
     try:
-        service = _load_dataset_service(project_path)
+        service = load_dataset_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -429,10 +383,10 @@ def register_dataset(
         dli dataset register iceberg.analytics.daily_clicks
         dli dataset register iceberg.analytics.daily_clicks --force
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     try:
-        service = _load_dataset_service(project_path)
+        service = load_dataset_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -442,23 +396,17 @@ def register_dataset(
         print_error(f"Dataset '{name}' not found locally")
         raise typer.Exit(1)
 
-    client = _get_client(project_path)
+    client = get_client(project_path)
 
     if not force:
         existing = client.get_dataset(name)
         if existing.success:
-            print_error(f"Dataset '{name}' already exists on server. Use --force to overwrite.")
+            print_error(
+                f"Dataset '{name}' already exists on server. Use --force to overwrite."
+            )
             raise typer.Exit(1)
 
-    spec_data = {
-        "name": dataset.name,
-        "type": dataset.type.value,
-        "owner": dataset.owner,
-        "team": dataset.team,
-        "description": dataset.description or "",
-        "tags": dataset.tags,
-        "domains": dataset.domains,
-    }
+    spec_data = spec_to_register_dict(dataset)
 
     with console.status("[bold green]Registering dataset..."):
         response = client.register_dataset(spec_data)

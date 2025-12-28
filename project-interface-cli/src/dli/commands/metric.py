@@ -8,13 +8,25 @@ from __future__ import annotations
 
 import csv as csv_module
 import json
-import sys
 from pathlib import Path
-from typing import Annotated, Any
+import sys
+from typing import Annotated
 
 from rich.table import Table
 import typer
 
+from dli.commands.base import (
+    ListOutputFormat,
+    OutputFormat,
+    SourceType,
+    format_tags_display,
+    get_client,
+    get_project_path,
+    load_metric_service,
+    spec_to_dict,
+    spec_to_list_dict,
+    spec_to_register_dict,
+)
 from dli.commands.utils import (
     console,
     parse_params,
@@ -26,9 +38,6 @@ from dli.commands.utils import (
     print_warning,
 )
 
-# Constants
-MAX_TAGS_DISPLAY = 3
-
 # Create metric subcommand app
 metric_app = typer.Typer(
     name="metric",
@@ -37,49 +46,10 @@ metric_app = typer.Typer(
 )
 
 
-def _get_project_path(path: Path | None) -> Path:
-    """Get project path, searching for dli.yaml if needed."""
-    search_path = path or Path.cwd()
-
-    config_path = search_path / "dli.yaml"
-    if config_path.exists():
-        return search_path
-
-    for parent in search_path.parents:
-        if (parent / "dli.yaml").exists():
-            return parent
-
-    return search_path
-
-
-def _load_metric_service(project_path: Path) -> Any:
-    """Load MetricService."""
-    from dli.core import MetricService
-
-    return MetricService(project_path=project_path)
-
-
-def _get_client(project_path: Path, mock_mode: bool = True) -> Any:
-    """Get Basecamp client."""
-    from dli.core.client import create_client
-    from dli.core.config import load_project
-
-    try:
-        config = load_project(project_path)
-        return create_client(
-            url=config.server_url,
-            timeout=config.server_timeout,
-            api_key=config.server_api_key,
-            mock_mode=mock_mode,
-        )
-    except FileNotFoundError:
-        return create_client(mock_mode=mock_mode)
-
-
 @metric_app.command("list")
 def list_metrics(
     source: Annotated[
-        str,
+        SourceType,
         typer.Option("--source", "-s", help="Source: local or server."),
     ] = "local",
     tag: Annotated[
@@ -95,7 +65,7 @@ def list_metrics(
         typer.Option("--search", help="Search in name/description."),
     ] = None,
     format_output: Annotated[
-        str,
+        ListOutputFormat,
         typer.Option("--format", "-f", help="Output format (table or json)."),
     ] = "table",
     path: Annotated[
@@ -110,11 +80,11 @@ def list_metrics(
         dli metric list --source server
         dli metric list --tag daily --format json
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     if source == "server":
         # List from server
-        client = _get_client(project_path)
+        client = get_client(project_path)
         response = client.list_metrics(tag=tag, owner=owner, search=search)
 
         if not response.success:
@@ -125,19 +95,9 @@ def list_metrics(
     else:
         # List from local
         try:
-            service = _load_metric_service(project_path)
+            service = load_metric_service(project_path)
             local_metrics = service.list_metrics(tag=tag, owner=owner)
-            metrics = [
-                {
-                    "name": m.name,
-                    "type": m.type.value,
-                    "owner": m.owner,
-                    "team": m.team,
-                    "description": m.description or "",
-                    "tags": m.tags,
-                }
-                for m in local_metrics
-            ]
+            metrics = [spec_to_list_dict(m) for m in local_metrics]
         except Exception as e:
             print_error(f"Failed to list local metrics: {e}")
             raise typer.Exit(1)
@@ -151,24 +111,23 @@ def list_metrics(
         return
 
     # Table output
-    table = Table(title=f"Metrics ({len(metrics)}) - Source: {source}", show_header=True)
+    table = Table(
+        title=f"Metrics ({len(metrics)}) - Source: {source}", show_header=True
+    )
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Owner", style="green")
     table.add_column("Team", style="yellow")
     table.add_column("Tags", style="magenta")
 
     for m in metrics:
-        tags = m.get("tags", [])
-        tags_display = ", ".join(tags[:MAX_TAGS_DISPLAY])
-        if len(tags) > MAX_TAGS_DISPLAY:
-            tags_display += "..."
-
-        table.add_row(
-            m.get("name", ""),
-            m.get("owner", "-"),
-            m.get("team", "-"),
-            tags_display or "-",
-        )
+        if isinstance(m, dict):
+            tags = m.get("tags", [])
+            table.add_row(
+                m.get("name", ""),
+                m.get("owner", "-"),
+                m.get("team", "-"),
+                format_tags_display(tags),
+            )
 
     console.print(table)
 
@@ -177,11 +136,11 @@ def list_metrics(
 def get_metric(
     name: Annotated[str, typer.Argument(help="Metric name.")],
     source: Annotated[
-        str,
+        SourceType,
         typer.Option("--source", "-s", help="Source: local or server."),
     ] = "local",
     format_output: Annotated[
-        str,
+        ListOutputFormat,
         typer.Option("--format", "-f", help="Output format (table or json)."),
     ] = "table",
     path: Annotated[
@@ -195,44 +154,30 @@ def get_metric(
         dli metric get iceberg.reporting.user_summary
         dli metric get iceberg.reporting.user_summary --source server
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     if source == "server":
-        client = _get_client(project_path)
+        client = get_client(project_path)
         response = client.get_metric(name)
 
         if not response.success:
             print_error(response.error or f"Metric '{name}' not found on server")
             raise typer.Exit(1)
 
-        metric_data = response.data
+        if not isinstance(response.data, dict):
+            print_error(f"Invalid response data for metric '{name}'")
+            raise typer.Exit(1)
+
+        metric_data: dict = response.data
     else:
         try:
-            service = _load_metric_service(project_path)
+            service = load_metric_service(project_path)
             metric = service.get_metric(name)
             if not metric:
                 print_error(f"Metric '{name}' not found locally")
                 raise typer.Exit(1)
 
-            metric_data = {
-                "name": metric.name,
-                "type": metric.type.value,
-                "owner": metric.owner,
-                "team": metric.team,
-                "description": metric.description or "",
-                "tags": metric.tags,
-                "domains": metric.domains,
-                "parameters": [
-                    {
-                        "name": p.name,
-                        "type": p.type.value,
-                        "required": p.required,
-                        "default": p.default,
-                        "description": p.description,
-                    }
-                    for p in metric.parameters
-                ],
-            }
+            metric_data = spec_to_dict(metric, include_parameters=True)
         except Exception as e:
             print_error(f"Failed to get metric: {e}")
             raise typer.Exit(1)
@@ -262,7 +207,7 @@ def get_metric(
             param_table.add_row(
                 p.get("name", ""),
                 p.get("type", ""),
-                "✓" if p.get("required") else "",
+                "Y" if p.get("required") else "",
                 str(p.get("default")) if p.get("default") is not None else "-",
             )
         console.print(param_table)
@@ -272,11 +217,11 @@ def get_metric(
 def run_metric(
     name: Annotated[str, typer.Argument(help="Metric name to run.")],
     params: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
-    ] = [],  # noqa: B006
+    ] = None,
     output: Annotated[
-        str,
+        OutputFormat,
         typer.Option("--output", "-o", help="Output format (table, json, csv)."),
     ] = "table",
     limit: Annotated[
@@ -302,7 +247,10 @@ def run_metric(
         dli metric run iceberg.reporting.user_summary -p date=2024-01-01
         dli metric run iceberg.reporting.user_summary -p date=2024-01-01 -o json
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
+
+    # Fix: Handle None default for mutable list argument
+    params = params or []
 
     try:
         param_dict = parse_params(params)
@@ -311,7 +259,7 @@ def run_metric(
         raise typer.Exit(1)
 
     try:
-        service = _load_metric_service(project_path)
+        service = load_metric_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -372,9 +320,9 @@ def run_metric(
 def validate_metric(
     name: Annotated[str, typer.Argument(help="Metric name to validate.")],
     params: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
-    ] = [],  # noqa: B006
+    ] = None,
     show_sql: Annotated[
         bool,
         typer.Option("--show-sql/--no-sql", help="Show rendered SQL."),
@@ -389,7 +337,10 @@ def validate_metric(
     Examples:
         dli metric validate iceberg.reporting.user_summary -p date=2024-01-01
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
+
+    # Fix: Handle None default for mutable list argument
+    params = params or []
 
     try:
         param_dict = parse_params(params)
@@ -398,7 +349,7 @@ def validate_metric(
         raise typer.Exit(1)
 
     try:
-        service = _load_metric_service(project_path)
+        service = load_metric_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -449,10 +400,10 @@ def register_metric(
         dli metric register iceberg.reporting.user_summary
         dli metric register iceberg.reporting.user_summary --force
     """
-    project_path = _get_project_path(path)
+    project_path = get_project_path(path)
 
     try:
-        service = _load_metric_service(project_path)
+        service = load_metric_service(project_path)
     except Exception as e:
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
@@ -462,24 +413,18 @@ def register_metric(
         print_error(f"Metric '{name}' not found locally")
         raise typer.Exit(1)
 
-    client = _get_client(project_path)
+    client = get_client(project_path)
 
     # Check if exists
     if not force:
         existing = client.get_metric(name)
         if existing.success:
-            print_error(f"Metric '{name}' already exists on server. Use --force to overwrite.")
+            print_error(
+                f"Metric '{name}' already exists on server. Use --force to overwrite."
+            )
             raise typer.Exit(1)
 
-    spec_data = {
-        "name": metric.name,
-        "type": metric.type.value,
-        "owner": metric.owner,
-        "team": metric.team,
-        "description": metric.description or "",
-        "tags": metric.tags,
-        "domains": metric.domains,
-    }
+    spec_data = spec_to_register_dict(metric)
 
     with console.status("[bold green]Registering metric..."):
         response = client.register_metric(spec_data)

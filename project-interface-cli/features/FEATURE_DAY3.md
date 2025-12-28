@@ -1,682 +1,382 @@
-# Day 3: Backend 분리 구현 가이드 (MVP)
+# Day 3: Semantic Layer & Advanced Features
 
-> **MVP 범위**: 인증/인가, 결과 캐싱, 감사 로그는 Phase 2로 연기합니다.
-> Day 3에서는 Spring ↔ Python 통신 및 핵심 파싱/검증 기능에 집중합니다.
+## 개요
 
-## 아키텍처
+2025년 업계 트렌드와 [dbt Semantic Layer](https://docs.getdbt.com/docs/build/about-metricflow), [SQLMesh](https://sqlmesh.readthedocs.io/en/stable/), [Open Semantic Interchange (OSI)](https://opensemanticinterchange.org/) 표준을 기반으로 dli CLI에 추가할 기능들을 정의합니다.
 
-```
-┌─────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
-│   UI    │ ──▶  │  project-basecamp-server │ ──▶  │  project-basecamp-parser │
-│ (React) │      │     (Kotlin/Spring)      │      │        (Python)          │
-└─────────┘      └─────────────────────────┘      └─────────────────────────┘
-                         │                                   │
-                         │ - 쿼리 메타데이터 CRUD              │ - Jinja 렌더링
-                         │ - BigQuery/Snowflake 실행          │ - SQL 파싱 (SQLGlot)
-                         │ - Dry-run 비용 추정                │ - SQL 검증
-                         │ (Phase 2: 인증, 캐싱, 감사로그)     │ - 테이블 추출
-                         │                                    │ - SQL 포맷팅
-                         └─────────────────────────────────────┘
-```
+### 참고 자료
+
+- [dbt Semantic Layer Best Practices](https://docs.getdbt.com/best-practices/how-we-build-our-metrics/semantic-layer-1-intro)
+- [MetricFlow Open Source (Apache 2.0)](https://www.getdbt.com/blog/open-source-metricflow-governed-metrics)
+- [SQLMesh Model Overview](https://sqlmesh.readthedocs.io/en/stable/concepts/models/overview/)
+- [Typer CLI Best Practices](https://typer.tiangolo.com/)
 
 ---
 
-## 역할 분담
+## 핵심 추가 기능
 
-| 기능 | Spring (basecamp-server) | Python (basecamp-parser) | MVP |
-|------|--------------------------|--------------------------|-----|
-| 인증/인가 | ✅ JWT/OAuth | ❌ | ❌ Phase 2 |
-| 쿼리 메타데이터 CRUD | ✅ DB 저장 | ❌ | ✅ |
-| Jinja 렌더링 | ❌ | ✅ | ✅ |
-| SQL 파싱/검증 | ❌ | ✅ SQLGlot | ✅ |
-| 테이블 추출 | ❌ | ✅ | ✅ |
-| SQL 포맷팅 | ❌ | ✅ | ✅ |
-| BigQuery 실행 | ✅ | ❌ | ✅ |
-| Dry-run | ✅ | ❌ | ✅ |
-| 결과 캐싱 | ✅ | ❌ | ❌ Phase 2 |
-| 감사 로그 | ✅ | ❌ | ❌ Phase 2 |
+### 1. Semantic Layer 명령어 (`dli sl`)
 
----
-
-## 시간 배분 (Day 3: 8시간)
-
-| 순서 | 항목 | 시간 | 설명 |
-|------|------|------|------|
-| 1 | Python API 스키마 | 0.5h | Request/Response 정의 |
-| 2 | Python API 구현 | 2.5h | 4개 엔드포인트 |
-| 3 | Python 테스트 | 1h | 단위/통합 테스트 |
-| 4 | Spring API 스키마 | 0.5h | DTO 정의 |
-| 5 | Spring Parser Client | 1.5h | Python API 호출 클라이언트 |
-| 6 | Spring API 구현 | 2h | 엔드포인트 + 비즈니스 로직 |
-
----
-
-## Python Backend (project-basecamp-parser)
-
-### 디렉토리 구조
-
-```
-project-basecamp-parser/
-├── pyproject.toml
-├── src/
-│   └── parser/
-│       ├── __init__.py
-│       ├── main.py           # FastAPI 앱
-│       ├── schemas.py        # Request/Response
-│       ├── renderer.py       # Jinja 렌더링
-│       └── validator.py      # SQL 검증
-└── tests/
-    └── test_api.py
-```
-
-### API 엔드포인트
-
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | /health | 헬스 체크 |
-| POST | /render | Jinja 템플릿 렌더링 |
-| POST | /validate | SQL 문법 검증 |
-| POST | /parse | SQL 파싱 (테이블 추출) |
-| POST | /format | SQL 포맷팅 |
-
----
-
-### schemas.py
-
-```python
-from pydantic import BaseModel
-from typing import Any, Optional
-
-# === Render ===
-class RenderRequest(BaseModel):
-    template: str                    # SQL 템플릿 (Jinja)
-    params: dict[str, Any] = {}      # 파라미터
-
-class RenderResponse(BaseModel):
-    success: bool
-    rendered_sql: Optional[str] = None
-    error: Optional[str] = None
-
-# === Validate ===
-class ValidateRequest(BaseModel):
-    sql: str                         # 렌더링된 SQL
-    dialect: str = "bigquery"        # bigquery, snowflake 등
-
-class ValidateResponse(BaseModel):
-    is_valid: bool
-    errors: list[str] = []
-    warnings: list[str] = []
-
-# === Parse ===
-class ParseRequest(BaseModel):
-    sql: str
-    dialect: str = "bigquery"
-
-class ParseResponse(BaseModel):
-    success: bool
-    tables: list[str] = []           # 참조 테이블 목록
-    columns: list[str] = []          # SELECT 컬럼 목록 (가능한 경우)
-    error: Optional[str] = None
-
-# === Format ===
-class FormatRequest(BaseModel):
-    sql: str
-    dialect: str = "bigquery"
-
-class FormatResponse(BaseModel):
-    success: bool
-    formatted_sql: Optional[str] = None
-    error: Optional[str] = None
-```
-
----
-
-### renderer.py
-
-```python
-from jinja2 import Environment, BaseLoader, TemplateSyntaxError, UndefinedError
-from typing import Any
-
-class SQLRenderer:
-    def __init__(self):
-        self.env = Environment(
-            loader=BaseLoader(),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
-        self._register_filters()
-    
-    def _register_filters(self) -> None:
-        # SQL 문자열 이스케이프: ' → ''
-        self.env.filters["sql_string"] = lambda v: f"'{str(v).replace(chr(39), chr(39)*2)}'"
-        
-        # 리스트를 IN 절로: ['a','b'] → ('a', 'b')
-        self.env.filters["sql_list"] = lambda v: f"({', '.join(repr(x) for x in v)})"
-        
-        # 날짜 포맷
-        self.env.filters["sql_date"] = lambda v: f"DATE('{v}')"
-    
-    def render(self, template: str, params: dict[str, Any]) -> str:
-        """Jinja 템플릿 렌더링"""
-        tmpl = self.env.from_string(template)
-        return tmpl.render(**params)
-
-
-# 싱글톤
-_renderer = SQLRenderer()
-
-def render_sql(template: str, params: dict[str, Any]) -> str:
-    return _renderer.render(template, params)
-```
-
----
-
-### validator.py
-
-```python
-import sqlglot
-from sqlglot import exp
-from sqlglot.errors import ParseError
-
-class SQLValidator:
-    def __init__(self, dialect: str = "bigquery"):
-        self.dialect = dialect
-    
-    def validate(self, sql: str) -> tuple[bool, list[str], list[str]]:
-        """
-        SQL 검증
-        Returns: (is_valid, errors, warnings)
-        """
-        errors, warnings = [], []
-        
-        if not sql or not sql.strip():
-            return False, ["Empty SQL"], []
-        
-        try:
-            parsed = sqlglot.parse(sql, dialect=self.dialect)
-            
-            if not parsed or parsed[0] is None:
-                return False, ["Failed to parse SQL"], []
-            
-            # SELECT 없는 LIMIT 경고
-            for stmt in parsed:
-                if stmt and stmt.find(exp.Select) and not stmt.find(exp.Limit):
-                    warnings.append("SELECT without LIMIT - may return large result")
-            
-            return True, [], warnings
-            
-        except ParseError as e:
-            return False, [f"Syntax error: {e}"], []
-    
-    def extract_tables(self, sql: str) -> list[str]:
-        """참조 테이블 추출"""
-        try:
-            parsed = sqlglot.parse_one(sql, dialect=self.dialect)
-            tables = set()
-            for table in parsed.find_all(exp.Table):
-                # schema.table 형식 처리
-                parts = []
-                if table.catalog:
-                    parts.append(table.catalog)
-                if table.db:
-                    parts.append(table.db)
-                parts.append(table.name)
-                tables.add(".".join(parts))
-            return sorted(tables)
-        except:
-            return []
-    
-    def format_sql(self, sql: str) -> str:
-        """SQL 포맷팅 (pretty print)"""
-        try:
-            return sqlglot.transpile(sql, read=self.dialect, pretty=True)[0]
-        except:
-            return sql
-```
-
----
-
-### main.py
-
-```python
-from fastapi import FastAPI, HTTPException
-from jinja2 import TemplateSyntaxError, UndefinedError
-
-from .schemas import (
-    RenderRequest, RenderResponse,
-    ValidateRequest, ValidateResponse,
-    ParseRequest, ParseResponse,
-    FormatRequest, FormatResponse,
-)
-from .renderer import render_sql
-from .validator import SQLValidator
-
-app = FastAPI(
-    title="SQL Parser API",
-    description="SQL 렌더링/파싱/검증 API (project-basecamp-parser)",
-    version="0.1.0",
-)
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "service": "basecamp-parser"}
-
-
-@app.post("/render", response_model=RenderResponse)
-async def render(request: RenderRequest):
-    """Jinja 템플릿 렌더링"""
-    try:
-        rendered = render_sql(request.template, request.params)
-        return RenderResponse(success=True, rendered_sql=rendered)
-    except TemplateSyntaxError as e:
-        return RenderResponse(success=False, error=f"Template syntax error: {e}")
-    except UndefinedError as e:
-        return RenderResponse(success=False, error=f"Missing parameter: {e}")
-    except Exception as e:
-        return RenderResponse(success=False, error=str(e))
-
-
-@app.post("/validate", response_model=ValidateResponse)
-async def validate(request: ValidateRequest):
-    """SQL 문법 검증"""
-    validator = SQLValidator(request.dialect)
-    is_valid, errors, warnings = validator.validate(request.sql)
-    return ValidateResponse(is_valid=is_valid, errors=errors, warnings=warnings)
-
-
-@app.post("/parse", response_model=ParseResponse)
-async def parse(request: ParseRequest):
-    """SQL 파싱 (테이블 추출)"""
-    try:
-        validator = SQLValidator(request.dialect)
-        tables = validator.extract_tables(request.sql)
-        return ParseResponse(success=True, tables=tables)
-    except Exception as e:
-        return ParseResponse(success=False, error=str(e))
-
-
-@app.post("/format", response_model=FormatResponse)
-async def format_sql(request: FormatRequest):
-    """SQL 포맷팅"""
-    try:
-        validator = SQLValidator(request.dialect)
-        formatted = validator.format_sql(request.sql)
-        return FormatResponse(success=True, formatted_sql=formatted)
-    except Exception as e:
-        return FormatResponse(success=False, error=str(e))
-```
-
----
-
-### 테스트: tests/test_api.py
-
-```python
-import pytest
-from fastapi.testclient import TestClient
-from parser.main import app
-
-client = TestClient(app)
-
-
-class TestHealthEndpoint:
-    def test_health(self):
-        response = client.get("/health")
-        assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
-
-
-class TestRenderEndpoint:
-    def test_render_success(self):
-        response = client.post("/render", json={
-            "template": "SELECT * FROM users WHERE date = '{{ date }}'",
-            "params": {"date": "2024-01-01"}
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "2024-01-01" in data["rendered_sql"]
-    
-    def test_render_with_filter(self):
-        response = client.post("/render", json={
-            "template": "SELECT * FROM users WHERE name = {{ name | sql_string }}",
-            "params": {"name": "O'Brien"}
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "O''Brien" in data["rendered_sql"]  # 이스케이프 확인
-    
-    def test_render_missing_param(self):
-        response = client.post("/render", json={
-            "template": "SELECT * FROM users WHERE date = '{{ date }}'",
-            "params": {}
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "Missing parameter" in data["error"]
-    
-    def test_render_syntax_error(self):
-        response = client.post("/render", json={
-            "template": "SELECT * FROM users WHERE {{ % invalid }",
-            "params": {}
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-
-
-class TestValidateEndpoint:
-    def test_validate_valid_sql(self):
-        response = client.post("/validate", json={
-            "sql": "SELECT id, name FROM users WHERE active = true",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is True
-        assert len(data["errors"]) == 0
-    
-    def test_validate_invalid_sql(self):
-        response = client.post("/validate", json={
-            "sql": "SELECT * FROM",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is False
-        assert len(data["errors"]) > 0
-    
-    def test_validate_empty_sql(self):
-        response = client.post("/validate", json={
-            "sql": "",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is False
-    
-    def test_validate_warning_no_limit(self):
-        response = client.post("/validate", json={
-            "sql": "SELECT * FROM users",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["is_valid"] is True
-        assert len(data["warnings"]) > 0
-
-
-class TestParseEndpoint:
-    def test_parse_single_table(self):
-        response = client.post("/parse", json={
-            "sql": "SELECT * FROM users",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "users" in data["tables"]
-    
-    def test_parse_multiple_tables(self):
-        response = client.post("/parse", json={
-            "sql": "SELECT * FROM users u JOIN orders o ON u.id = o.user_id",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "users" in data["tables"]
-        assert "orders" in data["tables"]
-    
-    def test_parse_with_schema(self):
-        response = client.post("/parse", json={
-            "sql": "SELECT * FROM analytics.events",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "analytics.events" in data["tables"]
-
-
-class TestFormatEndpoint:
-    def test_format_sql(self):
-        response = client.post("/format", json={
-            "sql": "select id,name from users where active=true",
-            "dialect": "bigquery"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "SELECT" in data["formatted_sql"]  # 대문자로 변환
-```
-
----
-
-## Spring Backend (project-basecamp-server)
-
-### Parser Client 인터페이스
-
-```kotlin
-// ParserClient.kt
-interface ParserClient {
-    fun render(template: String, params: Map<String, Any>): RenderResponse
-    fun validate(sql: String, dialect: String = "bigquery"): ValidateResponse
-    fun parse(sql: String, dialect: String = "bigquery"): ParseResponse
-    fun format(sql: String, dialect: String = "bigquery"): FormatResponse
-}
-
-// DTOs
-data class RenderResponse(
-    val success: Boolean,
-    val renderedSql: String?,
-    val error: String?
-)
-
-data class ValidateResponse(
-    val isValid: Boolean,
-    val errors: List<String>,
-    val warnings: List<String>
-)
-
-data class ParseResponse(
-    val success: Boolean,
-    val tables: List<String>,
-    val columns: List<String>,
-    val error: String?
-)
-
-data class FormatResponse(
-    val success: Boolean,
-    val formattedSql: String?,
-    val error: String?
-)
-```
-
-### Parser Client 구현
-
-```kotlin
-// ParserClientImpl.kt
-@Component
-class ParserClientImpl(
-    private val webClient: WebClient,
-    @Value("\${parser.base-url}") private val baseUrl: String
-) : ParserClient {
-
-    override fun render(template: String, params: Map<String, Any>): RenderResponse {
-        return webClient.post()
-            .uri("$baseUrl/render")
-            .bodyValue(mapOf("template" to template, "params" to params))
-            .retrieve()
-            .bodyToMono(RenderResponse::class.java)
-            .block() ?: throw ParserException("Render failed")
-    }
-
-    override fun validate(sql: String, dialect: String): ValidateResponse {
-        return webClient.post()
-            .uri("$baseUrl/validate")
-            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
-            .retrieve()
-            .bodyToMono(ValidateResponse::class.java)
-            .block() ?: throw ParserException("Validate failed")
-    }
-
-    override fun parse(sql: String, dialect: String): ParseResponse {
-        return webClient.post()
-            .uri("$baseUrl/parse")
-            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
-            .retrieve()
-            .bodyToMono(ParseResponse::class.java)
-            .block() ?: throw ParserException("Parse failed")
-    }
-
-    override fun format(sql: String, dialect: String): FormatResponse {
-        return webClient.post()
-            .uri("$baseUrl/format")
-            .bodyValue(mapOf("sql" to sql, "dialect" to dialect))
-            .retrieve()
-            .bodyToMono(FormatResponse::class.java)
-            .block() ?: throw ParserException("Format failed")
-    }
-}
-```
-
-### Spring Service 예시
-
-```kotlin
-// QueryService.kt
-@Service
-class QueryService(
-    private val parserClient: ParserClient,
-    private val bigQueryExecutor: BigQueryExecutor,
-    private val queryRepository: QueryRepository
-) {
-
-    fun validateQuery(queryId: Long, params: Map<String, Any>): ValidationResult {
-        val query = queryRepository.findById(queryId)
-            ?: throw QueryNotFoundException(queryId)
-        
-        // 1. Python Parser로 렌더링
-        val renderResult = parserClient.render(query.template, params)
-        if (!renderResult.success) {
-            return ValidationResult(false, listOf(renderResult.error!!), emptyList(), null)
-        }
-        
-        // 2. Python Parser로 검증
-        val validateResult = parserClient.validate(renderResult.renderedSql!!, query.dialect)
-        
-        return ValidationResult(
-            isValid = validateResult.isValid,
-            errors = validateResult.errors,
-            warnings = validateResult.warnings,
-            renderedSql = renderResult.renderedSql
-        )
-    }
-
-    fun executeQuery(queryId: Long, params: Map<String, Any>): ExecutionResult {
-        val validation = validateQuery(queryId, params)
-        if (!validation.isValid) {
-            throw ValidationException(validation.errors)
-        }
-        
-        // Spring에서 BigQuery 실행
-        return bigQueryExecutor.execute(validation.renderedSql!!)
-    }
-}
-```
-
----
-
-## 통신 흐름 예시
-
-### 쿼리 검증 흐름
-
-```
-1. UI → Spring: POST /api/queries/{id}/validate
-   { "params": { "date": "2024-01-01" } }
-
-2. Spring → Python: POST /render
-   { "template": "SELECT * FROM t WHERE dt='{{date}}'", "params": {"date":"2024-01-01"} }
-
-3. Python → Spring: 
-   { "success": true, "rendered_sql": "SELECT * FROM t WHERE dt='2024-01-01'" }
-
-4. Spring → Python: POST /validate
-   { "sql": "SELECT * FROM t WHERE dt='2024-01-01'", "dialect": "bigquery" }
-
-5. Python → Spring:
-   { "is_valid": true, "errors": [], "warnings": [] }
-
-6. Spring → UI:
-   { "isValid": true, "renderedSql": "SELECT * FROM t WHERE dt='2024-01-01'" }
-```
-
-### 쿼리 실행 흐름
-
-```
-1. UI → Spring: POST /api/queries/{id}/execute
-   { "params": { "date": "2024-01-01" } }
-
-2. Spring → Python: POST /render (렌더링)
-3. Spring → Python: POST /validate (검증)
-4. Spring → BigQuery: 실행 (Spring이 직접)
-5. Spring → UI: 결과 반환
-```
-
----
-
-## 환경 설정
-
-### Python (basecamp-parser)
+[dbt Semantic Layer](https://docs.getdbt.com/docs/build/about-metricflow)의 MetricFlow 패턴을 참고한 semantic layer 명령어:
 
 ```bash
-# 실행
-uvicorn parser.main:app --host 0.0.0.0 --port 8001
+# Semantic Layer 쿼리
+dli sl query --metrics revenue,orders --group-by date,region
+dli sl query --metrics revenue_per_order --time-grain monthly
 
-# 환경변수
-PARSER_PORT=8001
+# 차원(Dimension) 탐색
+dli sl list dimensions --metric revenue
+dli sl list metrics --dimension region
+
+# 메트릭 미리보기
+dli sl preview iceberg.metrics.daily_revenue -p start_date=2024-01-01
 ```
 
-### Spring (basecamp-server)
+**구현 항목:**
+
+```
+src/dli/commands/sl.py
+├── query     # Semantic query execution
+├── list      # List dimensions/metrics
+├── preview   # Preview metric output
+└── export    # Export to BI tools (Looker, Tableau)
+```
+
+**Metric Types 지원 (MetricFlow 기준):**
+
+| Type | 설명 | 예시 |
+|------|------|------|
+| `simple` | 단일 measure 참조 | `SUM(revenue)` |
+| `derived` | 다른 metrics 조합 | `revenue / orders` |
+| `ratio` | 비율 계산 | `active_users / total_users` |
+| `cumulative` | 누적 집계 | `SUM(revenue) OVER last 30 days` |
+| `conversion` | 전환율 | `purchase / page_view` |
+
+---
+
+### 2. Data Lineage 시각화 (`dli lineage`)
+
+[2025년 Data Lineage 트렌드](https://www.5x.co/blogs/data-lineage-tools)에 따라 column-level lineage 지원:
+
+```bash
+# 테이블/메트릭 lineage 조회
+dli lineage show iceberg.analytics.daily_clicks
+dli lineage show iceberg.analytics.daily_clicks --column click_count
+dli lineage show iceberg.metrics.revenue --upstream --depth 3
+
+# Lineage 그래프 출력
+dli lineage graph --output mermaid
+dli lineage graph --output dot > lineage.dot
+
+# 영향도 분석
+dli lineage impact iceberg.raw.user_events
+```
+
+**구현 항목:**
+
+```
+src/dli/core/lineage.py
+├── LineageParser      # SQLGlot 기반 lineage 추출
+├── LineageGraph       # DAG 구조 관리
+├── LineageRenderer    # ASCII/Mermaid/DOT 출력
+└── ImpactAnalyzer     # 하류 영향도 분석
+```
+
+---
+
+### 3. 버전 관리 & 스키마 변경 (`dli version`)
+
+[Atlan](https://atlan.com/know/semantic-layer/)의 버전 추적 패턴:
+
+```bash
+# 스키마 변경 이력 조회
+dli version history iceberg.analytics.daily_clicks
+dli version show iceberg.analytics.daily_clicks --version v2
+
+# 버전 비교
+dli version diff iceberg.analytics.daily_clicks v1 v2
+
+# 마이그레이션 생성
+dli version migrate iceberg.analytics.daily_clicks --from v1 --to v2
+```
+
+**Spec 확장:**
 
 ```yaml
-# application.yml
-parser:
-  base-url: http://localhost:8001
+# spec.iceberg.analytics.daily_clicks.yaml
+versions:
+  - version: "v1"
+    started_at: "2024-01-01"
+    ended_at: "2024-06-30"
+    schema:
+      - name: user_id
+        type: bigint
+      - name: click_count
+        type: integer
 
-spring:
-  webflux:
-    timeout: 30s
+  - version: "v2"
+    started_at: "2024-07-01"
+    changes:
+      - type: ADD_COLUMN
+        column: device_type
+        dtype: varchar
+      - type: RENAME_COLUMN
+        old: click_count
+        new: total_clicks
 ```
 
 ---
 
-## Day 3 체크리스트
+### 4. 데이터 카탈로그 통합 (`dli catalog`)
 
-### Python (basecamp-parser)
-- [ ] schemas.py (4개 Request/Response)
-- [ ] renderer.py (Jinja 렌더링 + 필터)
-- [ ] validator.py (SQLGlot 검증 + 테이블 추출)
-- [ ] main.py (4개 엔드포인트)
-- [ ] 테스트 코드
-- [ ] Dockerfile
+[Data Catalog 2025 가이드](https://www.decube.io/post/data-catalog-metadata-management-guide) 기반:
 
-### Spring (basecamp-server)
-- [ ] ParserClient 인터페이스
-- [ ] ParserClientImpl (WebClient)
-- [ ] DTO 클래스
-- [ ] QueryService 연동
-- [ ] 에러 핸들링
-- [ ] application.yml 설정
+```bash
+# 카탈로그 검색
+dli catalog search "daily revenue"
+dli catalog search --tag kpi --owner data-team
+
+# 메타데이터 동기화
+dli catalog sync --to datahub
+dli catalog sync --to atlan --incremental
+
+# 거버넌스 정책 확인
+dli catalog policies iceberg.pii.user_data
+```
+
+**통합 대상:**
+
+| Catalog | 연동 방식 | 우선순위 |
+|---------|----------|---------|
+| DataHub | REST API | High |
+| Atlan | GraphQL | Medium |
+| OpenMetadata | REST API | Medium |
+| Unity Catalog | Spark Connect | Low |
 
 ---
 
-## 참고 코드
+### 5. AI/LLM 지원 기능 (`dli ai`)
 
-| 참고 | URL |
-|------|-----|
-| FastAPI | https://fastapi.tiangolo.com/ |
-| SQLGlot | https://github.com/tobymao/sqlglot |
-| Spring WebClient | https://docs.spring.io/spring-framework/reference/web/webflux-webclient.html |
+[MetricFlow + AI 통합](https://www.getdbt.com/blog/open-source-metricflow-governed-metrics) (83% 정확도):
+
+```bash
+# 자연어 쿼리
+dli ai query "지난 달 지역별 매출은?"
+dli ai query "가장 많이 클릭한 상위 10개 아이템"
+
+# 메트릭 설명 생성
+dli ai describe iceberg.metrics.daily_revenue
+dli ai suggest-metrics --table iceberg.raw.orders
+
+# SQL 변환
+dli ai translate "monthly active users by region" --dialect trino
+```
+
+**MCP Server 연동 (dbt Labs 패턴):**
+
+```python
+# src/dli/mcp/server.py
+@mcp.tool()
+def query_semantic_layer(natural_language_query: str) -> dict:
+    """Natural language to SQL conversion via semantic layer."""
+    ...
+
+@mcp.tool()
+def get_metric_details(metric_name: str) -> dict:
+    """Get metric metadata and lineage."""
+    ...
+```
+
+---
+
+### 6. 환경 관리 & 프로모션 (`dli env`)
+
+[SQLMesh Plan](https://sqlmesh.readthedocs.io/en/stable/concepts/plans/) 패턴:
+
+```bash
+# 환경 관리
+dli env list
+dli env create staging --from production
+dli env diff staging production
+
+# 변경사항 프로모션
+dli env plan staging  # 변경사항 미리보기
+dli env apply staging --to production
+dli env rollback production --to-version v1.2.3
+```
+
+**환경 구성:**
+
+```yaml
+# dli.yaml
+environments:
+  development:
+    catalog: dev_iceberg
+    schema_suffix: _dev
+
+  staging:
+    catalog: staging_iceberg
+    requires_approval: true
+
+  production:
+    catalog: iceberg
+    protected: true
+    requires_approval: true
+```
+
+---
+
+## 구현 우선순위
+
+| 기능 | 복잡도 | 가치 | 우선순위 | 예상 일정 |
+|------|--------|------|----------|----------|
+| Semantic Layer Query | Medium | High | P1 | Day 3 |
+| Data Lineage | High | High | P1 | Day 3-4 |
+| Version Management | Medium | Medium | P2 | Day 4 |
+| Environment Management | Low | Medium | P2 | Day 4 |
+| Catalog Integration | High | Medium | P3 | Day 5 |
+| AI/LLM Support | High | High | P3 | Future |
+
+---
+
+## Day 3 구현 목표
+
+### 목표: Semantic Layer CLI 기본 기능
+
+```
+project-interface-cli/
+├── src/dli/
+│   ├── commands/
+│   │   └── sl.py                 # NEW: Semantic layer commands
+│   ├── core/
+│   │   ├── semantic/
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py         # SemanticModel, Dimension, Measure
+│   │   │   ├── query_builder.py  # MetricFlow-style query builder
+│   │   │   └── executor.py       # Query execution
+│   │   └── lineage/
+│   │       ├── __init__.py
+│   │       ├── parser.py         # SQLGlot-based lineage extraction
+│   │       └── graph.py          # DAG management
+│   └── mcp/                       # MCP server for AI integration
+│       └── server.py
+└── tests/
+    └── core/
+        ├── test_semantic.py
+        └── test_lineage.py
+```
+
+### 명령어 구조
+
+```bash
+# Phase 1: Semantic Layer (Day 3)
+dli sl list dimensions --metric <name>
+dli sl list metrics
+dli sl query --metrics m1,m2 --group-by d1,d2
+
+# Phase 2: Lineage (Day 3-4)
+dli lineage show <resource>
+dli lineage graph --format mermaid
+
+# Phase 3: Versioning (Day 4)
+dli version history <resource>
+dli version diff <resource> v1 v2
+```
+
+---
+
+## Spec 스키마 확장
+
+### Semantic Model Definition
+
+```yaml
+# semantic_models/sales.yaml
+name: sales
+description: "Sales semantic model"
+model: iceberg.fact.orders
+
+entities:
+  - name: order
+    type: primary
+    expr: order_id
+
+dimensions:
+  - name: order_date
+    type: time
+    expr: created_at
+    time_granularity: day
+
+  - name: region
+    type: categorical
+    expr: region_code
+
+measures:
+  - name: revenue
+    expr: amount
+    agg: sum
+
+  - name: order_count
+    expr: order_id
+    agg: count_distinct
+```
+
+### Metric Definition (MetricFlow Style)
+
+```yaml
+# metrics/revenue_per_order.yaml
+name: revenue_per_order
+type: derived
+description: "Average revenue per order"
+
+metrics:
+  - name: revenue_per_order
+    type: ratio
+    numerator: revenue
+    denominator: order_count
+    filter: |
+      {{ Dimension('order_date') }} >= '2024-01-01'
+```
+
+---
+
+## 참고: 업계 표준 비교
+
+| 기능 | dbt Semantic Layer | SQLMesh | Cube | dli (목표) |
+|------|-------------------|---------|------|-----------|
+| Semantic Models | ✅ | ✅ | ✅ | ✅ |
+| Multi-hop Joins | ✅ | ✅ | ✅ | 🔜 |
+| Time Granularity | ✅ | ✅ | ✅ | ✅ |
+| Column Lineage | ✅ | ✅ | ❌ | ✅ |
+| Version Control | Git | Git | ❌ | Git + Schema |
+| AI Integration | MCP | ❌ | ❌ | MCP |
+| Environment Mgmt | dbt Cloud | ✅ | ❌ | ✅ |
+
+---
+
+## 기술 스택 추가
+
+```toml
+# pyproject.toml 추가 의존성
+[project.optional-dependencies]
+semantic = [
+    "networkx>=3.0",      # Lineage graph
+    "mcp>=1.0",           # MCP server
+]
+
+catalog = [
+    "datahub-client>=0.12",
+    "openmetadata-client>=1.0",
+]
+```
+
+---
+
+## 완료 기준
+
+- [ ] `dli sl list` 명령어 구현
+- [ ] `dli sl query` 명령어 구현 (기본)
+- [ ] Semantic model YAML 파싱
+- [ ] `dli lineage show` 명령어 구현
+- [ ] SQLGlot 기반 lineage 추출
+- [ ] 단위 테스트 80% 이상 커버리지
+- [ ] README 문서 업데이트
