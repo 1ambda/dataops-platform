@@ -1,0 +1,102 @@
+# Financial Data Processing - Transaction Aggregation
+# DML query for data processing (no metrics - following 2025 best practices)
+
+name: "warehouse.finance.daily_transactions"
+description: "Daily aggregation of financial transactions with risk scoring and compliance checks"
+owner: "fintech-engineering@company.com"
+team: "@fintech-data"
+
+domains:
+  - "finance"
+  - "transactions"
+  - "compliance"
+tags:
+  - "daily"
+  - "transactions"
+  - "risk-scoring"
+  - "regulatory"
+
+versions:
+  - version: "v1"
+    started_at: "2023-01-01"
+    ended_at: "2024-12-31"
+    description: "Initial implementation with basic aggregations"
+  - version: "v2"
+    started_at: "2025-01-01"
+    description: "Enhanced with ML-based risk scoring and real-time fraud detection"
+
+query_type: "DML"
+
+parameters:
+  - name: "processing_date"
+    type: "date"
+    required: true
+    description: "Date to process transactions for"
+  - name: "risk_threshold"
+    type: "float"
+    required: false
+    default: 0.8
+    description: "Risk score threshold for flagging (0.0-1.0)"
+  - name: "batch_size"
+    type: "integer"
+    required: false
+    default: 10000
+    description: "Batch size for processing"
+
+pre_statements:
+  - name: "cleanup_existing_data"
+    sql: |
+      DELETE FROM warehouse.finance.daily_transactions
+      WHERE transaction_date = '{{ processing_date }}'
+
+  - name: "validate_source_data"
+    sql: |
+      -- Ensure we have source data for the processing date
+      SELECT COUNT(*) as record_count
+      FROM warehouse.raw.transactions
+      WHERE DATE(created_at) = '{{ processing_date }}'
+      HAVING COUNT(*) > 0
+
+query_file: "daily_transactions.sql"
+
+post_statements:
+  - name: "update_statistics"
+    sql: |
+      ANALYZE TABLE warehouse.finance.daily_transactions
+      COMPUTE STATISTICS FOR COLUMNS transaction_date, risk_score, compliance_status
+
+  - name: "validate_output_quality"
+    sql: |
+      -- Data quality check: ensure no negative amounts in final output
+      SELECT COUNT(*) as invalid_records
+      FROM warehouse.finance.daily_transactions
+      WHERE transaction_date = '{{ processing_date }}'
+        AND total_amount < 0
+      HAVING COUNT(*) = 0
+    continue_on_error: false
+
+  - name: "notify_compliance_team"
+    sql: |
+      -- Create alerts for high-risk transactions
+      INSERT INTO warehouse.alerts.compliance_notifications
+      SELECT
+        '{{ processing_date }}' as alert_date,
+        'HIGH_RISK_TRANSACTIONS' as alert_type,
+        COUNT(*) as high_risk_count,
+        CURRENT_TIMESTAMP as created_at
+      FROM warehouse.finance.daily_transactions
+      WHERE transaction_date = '{{ processing_date }}'
+        AND risk_score >= {{ risk_threshold }}
+      HAVING COUNT(*) > 0
+    continue_on_error: true
+
+depends_on:
+  - "warehouse.raw.transactions"
+  - "warehouse.lookup.currency_rates"
+  - "warehouse.ml.risk_scores"
+
+execution:
+  timeout_seconds: 3600
+  retry_count: 3
+  retry_delay_seconds: 120
+  dialect: "trino"

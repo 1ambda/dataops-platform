@@ -6,6 +6,7 @@ import pytest
 
 from dli.core.models import ParameterType, QueryParameter
 from dli.core.renderer import SQLRenderer
+from dli.core.templates import sql_identifier_escape, sql_list_escape, sql_string_escape
 
 
 @pytest.fixture
@@ -127,21 +128,27 @@ INSERT INTO {{ target }} SELECT 1
 
 
 class TestSQLFilters:
-    """Tests for custom Jinja2 filters."""
+    """Tests for custom Jinja2 filters.
+
+    Note: Most SQL filter tests are now in test_templates.py (TestSharedSQLFilters)
+    since these functions are shared between SQLRenderer and SafeJinjaEnvironment.
+    These tests cover SQLRenderer-specific filters (sql_date) and verify the
+    shared filters are properly registered in SQLRenderer.
+    """
 
     def test_sql_string_filter_null(self):
         """Test sql_string filter with None."""
-        result = SQLRenderer._sql_string_filter(None)
+        result = sql_string_escape(None)
         assert result == "NULL"
 
     def test_sql_string_filter_escaping(self):
         """Test sql_string filter escapes single quotes."""
-        result = SQLRenderer._sql_string_filter("It's a test")
+        result = sql_string_escape("It's a test")
         assert result == "'It''s a test'"
 
     def test_sql_list_filter_mixed(self):
         """Test sql_list filter with mixed types."""
-        result = SQLRenderer._sql_list_filter([1, "hello", None])
+        result = sql_list_escape([1, "hello", None])
         assert result == "(1, 'hello', NULL)"
 
     def test_sql_date_filter_string(self):
@@ -156,5 +163,5 @@ class TestSQLFilters:
 
     def test_sql_identifier_filter_escaping(self):
         """Test sql_identifier filter escapes double quotes."""
-        result = SQLRenderer._sql_identifier_filter('table"name')
+        result = sql_identifier_escape('table"name')
         assert result == '"table""name"'

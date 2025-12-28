@@ -31,19 +31,20 @@ def temp_project(tmp_path):
     datasets_dir = tmp_path / "datasets"
     datasets_dir.mkdir(parents=True)
 
-    # Spec with inline SQL
+    # Spec with inline SQL (type: Dataset, query_type: DML)
     spec = {
         "name": "iceberg.analytics.test",
         "owner": "owner@example.com",
         "team": "@team",
+        "type": "Dataset",
         "domains": ["analytics"],
         "tags": ["test"],
-        "query_type": "SELECT",
+        "query_type": "DML",
         "parameters": [
             {"name": "date", "type": "date", "required": True},
             {"name": "limit", "type": "integer", "required": False, "default": 10},
         ],
-        "query_statement": "SELECT * FROM users WHERE dt = '{{ date }}' LIMIT {{ limit }}",
+        "query_statement": "INSERT INTO results SELECT * FROM users WHERE dt = '{{ date }}' LIMIT {{ limit }}",
     }
     (datasets_dir / "spec.iceberg.analytics.test.yaml").write_text(yaml.dump(spec))
 
@@ -185,13 +186,14 @@ class TestDatasetService:
 
     def test_reload(self, service, temp_project):
         """Test reloading dataset specs."""
-        # Add a new spec
+        # Add a new spec (type: Dataset, query_type: DML)
         new_spec = {
             "name": "iceberg.new.dataset",
             "owner": "owner@example.com",
             "team": "@team",
-            "query_type": "SELECT",
-            "query_statement": "SELECT 1",
+            "type": "Dataset",
+            "query_type": "DML",
+            "query_statement": "INSERT INTO t SELECT 1",
         }
         (temp_project / "datasets" / "spec.iceberg.new.dataset.yaml").write_text(
             yaml.dump(new_spec)
@@ -223,16 +225,21 @@ class TestDatasetService:
 
 
 class TestDatasetServiceFromFixture:
-    """Tests for DatasetService using the sample project fixture."""
+    """Tests for DatasetService using the sample project fixture.
+
+    Note: DatasetService only works with DatasetSpec types (type: Dataset, query_type: DML).
+    MetricSpec types (type: Metric, query_type: SELECT) are not included.
+    For both types, use SpecDiscovery directly.
+    """
 
     def test_list_datasets(self, fixture_service):
         """Test listing datasets from fixture."""
         datasets = fixture_service.list_datasets()
-        assert len(datasets) == 2
+        # Only 1 dataset (daily_clicks) - user_summary is now a Metric, not Dataset
+        assert len(datasets) == 1
 
         names = {d.name for d in datasets}
         assert "iceberg.analytics.daily_clicks" in names
-        assert "iceberg.reporting.user_summary" in names
 
     def test_validate_daily_clicks(self, fixture_service):
         """Test validating daily_clicks dataset."""
@@ -283,22 +290,22 @@ class TestDatasetServiceFromFixture:
         assert "iceberg" in catalogs
 
     def test_get_schemas(self, fixture_service):
-        """Test getting schemas."""
+        """Test getting schemas from datasets only (not metrics)."""
         schemas = fixture_service.get_schemas()
         assert "analytics" in schemas
-        assert "reporting" in schemas
+        # "reporting" is now in metrics, not datasets
 
     def test_get_domains(self, fixture_service):
-        """Test getting domains."""
+        """Test getting domains from datasets only (not metrics)."""
         domains = fixture_service.get_domains()
         assert "feed" in domains
-        assert "reporting" in domains
+        # "reporting" is now in metrics, not datasets
 
     def test_get_tags(self, fixture_service):
-        """Test getting tags."""
+        """Test getting tags from datasets only (not metrics)."""
         tags = fixture_service.get_tags()
         assert "daily" in tags
-        assert "report" in tags
+        # "report" is now in metrics, not datasets
 
 
 class TestServiceIntegration:

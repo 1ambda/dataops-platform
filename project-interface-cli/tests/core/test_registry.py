@@ -17,7 +17,7 @@ def sample_project_path():
 
 @pytest.fixture
 def temp_project(tmp_path):
-    """Create a temporary project structure."""
+    """Create a temporary project structure with proper type/query_type combinations."""
     # dli.yaml
     config = {
         "version": "1",
@@ -31,11 +31,12 @@ def temp_project(tmp_path):
     datasets_dir = tmp_path / "datasets"
     datasets_dir.mkdir(parents=True)
 
-    # First spec
+    # First spec - Dataset with DML
     spec1 = {
         "name": "iceberg.analytics.daily_clicks",
         "owner": "henry@example.com",
         "team": "@analytics",
+        "type": "Dataset",
         "domains": ["feed", "engagement"],
         "tags": ["daily", "kpi"],
         "query_type": "DML",
@@ -45,25 +46,27 @@ def temp_project(tmp_path):
         yaml.dump(spec1)
     )
 
-    # Second spec
+    # Second spec - Dataset with DML
     spec2 = {
         "name": "iceberg.reporting.user_summary",
         "owner": "analyst@example.com",
         "team": "@reporting",
+        "type": "Dataset",
         "domains": ["reporting"],
         "tags": ["report", "user"],
-        "query_type": "SELECT",
-        "query_statement": "SELECT 1",
+        "query_type": "DML",
+        "query_statement": "INSERT INTO t SELECT 1",
     }
     (datasets_dir / "spec.iceberg.reporting.user_summary.yaml").write_text(
         yaml.dump(spec2)
     )
 
-    # Third spec
+    # Third spec - Dataset with DML
     spec3 = {
         "name": "iceberg.analytics.weekly_summary",
         "owner": "henry@example.com",
         "team": "@analytics",
+        "type": "Dataset",
         "domains": ["feed"],
         "tags": ["weekly", "kpi"],
         "query_type": "DML",
@@ -297,13 +300,14 @@ class TestDatasetRegistry:
         registry = DatasetRegistry(config)
         assert len(registry) == 3
 
-        # Add a new spec
+        # Add a new spec (type: Dataset, query_type: DML)
         new_spec = {
             "name": "iceberg.new.dataset",
             "owner": "new@example.com",
             "team": "@new",
-            "query_type": "SELECT",
-            "query_statement": "SELECT 1",
+            "type": "Dataset",
+            "query_type": "DML",
+            "query_statement": "INSERT INTO t SELECT 1",
         }
         (temp_project / "datasets" / "spec.iceberg.new.dataset.yaml").write_text(
             yaml.dump(new_spec)
@@ -331,10 +335,15 @@ class TestDatasetRegistry:
         assert len(specs) == 3
 
     def test_from_fixture(self, sample_project_path):
-        """Test loading from fixture project."""
+        """Test loading from fixture project.
+
+        Note: Only DatasetSpec types are loaded (type: Dataset, query_type: DML).
+        MetricSpec types (type: Metric, query_type: SELECT) are not included
+        in the DatasetRegistry. Use SpecDiscovery for both types.
+        """
         config = load_project(sample_project_path)
         registry = DatasetRegistry(config)
 
-        assert len(registry) == 2
+        # Only 1 dataset (daily_clicks) - user_summary is now a Metric, not Dataset
+        assert len(registry) == 1
         assert "iceberg.analytics.daily_clicks" in registry
-        assert "iceberg.reporting.user_summary" in registry

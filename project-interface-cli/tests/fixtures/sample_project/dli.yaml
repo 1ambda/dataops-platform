@@ -5,10 +5,22 @@ project:
   description: "Test Project for DLI Core Engine"
 
 discovery:
+  # Separate directories for metrics and datasets
   datasets_dir: "datasets"
+  metrics_dir: "metrics"
+
+  # Legacy patterns (backward compatibility)
   spec_patterns:
     - "spec.*.yaml"
     - "spec.yaml"
+
+  # New metric/dataset patterns
+  metric_patterns:
+    - "metric.*.yaml"
+    - "metric.yaml"
+  dataset_patterns:
+    - "dataset.*.yaml"
+    - "dataset.yaml"
 
 defaults:
   dialect: "trino"

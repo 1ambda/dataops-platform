@@ -8,10 +8,11 @@ import yaml
 from dli.core.discovery import (
     DatasetDiscovery,
     ProjectConfig,
+    SpecDiscovery,
     get_dli_home,
     load_project,
 )
-from dli.core.models import QueryType
+from dli.core.models import QueryType, SpecType
 
 
 @pytest.fixture
@@ -133,16 +134,23 @@ class TestDatasetDiscovery:
         assert specs[0].name == "iceberg.analytics.daily_clicks"
 
     def test_discover_from_fixture(self, sample_project_path):
-        """Test discovering datasets from fixture."""
+        """Test discovering datasets from fixture.
+
+        Note: DatasetDiscovery only discovers DatasetSpec files (type=Dataset).
+        The user_summary.yaml has type=Metric, so it's correctly skipped.
+        Use SpecDiscovery.discover_all() to get both metrics and datasets.
+        """
         config = load_project(sample_project_path)
         discovery = DatasetDiscovery(config)
 
         specs = list(discovery.discover_all())
-        assert len(specs) == 2  # daily_clicks and user_summary
+        # Only daily_clicks is a Dataset; user_summary is a Metric
+        assert len(specs) == 1
 
         names = {s.name for s in specs}
         assert "iceberg.analytics.daily_clicks" in names
-        assert "iceberg.reporting.user_summary" in names
+        # user_summary is type=Metric, so it's not discovered by DatasetDiscovery
+        assert "iceberg.reporting.user_summary" not in names
 
     def test_find_spec(self, temp_project):
         """Test finding a specific spec."""
@@ -210,3 +218,161 @@ class TestGetDliHome:
         monkeypatch.setenv("DLI_HOME", str(tmp_path))
         result = get_dli_home()
         assert result == tmp_path
+
+
+class TestSpecDiscovery:
+    """Tests for SpecDiscovery class."""
+
+    def test_discover_all_from_fixture(self, sample_project_path):
+        """Test discovering all specs (metrics and datasets) from fixture."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        specs = list(discovery.discover_all())
+        # Should include both metrics and datasets
+        assert len(specs) >= 4  # 2 metrics + at least 2 datasets
+
+        types = {spec.type for spec in specs}
+        assert SpecType.METRIC in types
+        assert SpecType.DATASET in types
+
+    def test_discover_metrics_from_fixture(self, sample_project_path):
+        """Test discovering metric specs from fixture."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        metrics = list(discovery.discover_metrics())
+        assert len(metrics) == 2  # user_engagement and revenue_summary
+
+        names = {m.name for m in metrics}
+        assert "iceberg.analytics.user_engagement" in names
+        assert "iceberg.analytics.revenue_summary" in names
+
+        # Verify all are metrics
+        for metric in metrics:
+            assert metric.type == SpecType.METRIC
+            assert metric.query_type == QueryType.SELECT
+
+    def test_discover_datasets_from_fixture(self, sample_project_path):
+        """Test discovering dataset specs from fixture."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        datasets = list(discovery.discover_datasets())
+        # Should find datasets from both new patterns and legacy patterns
+        assert len(datasets) >= 2
+
+        # Verify all are datasets
+        for dataset in datasets:
+            assert dataset.type == SpecType.DATASET
+            assert dataset.query_type == QueryType.DML
+
+    def test_find_metric(self, sample_project_path):
+        """Test finding a specific metric by name."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        metric = discovery.find_metric("iceberg.analytics.user_engagement")
+        assert metric is not None
+        assert metric.name == "iceberg.analytics.user_engagement"
+        assert metric.type == SpecType.METRIC
+        assert len(metric.metrics) > 0  # Has metric definitions
+
+    def test_find_metric_not_found(self, sample_project_path):
+        """Test finding non-existent metric."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        metric = discovery.find_metric("nonexistent.metric.name")
+        assert metric is None
+
+    def test_find_dataset(self, sample_project_path):
+        """Test finding a specific dataset by name."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        dataset = discovery.find_dataset("iceberg.analytics.daily_clicks")
+        assert dataset is not None
+        assert dataset.name == "iceberg.analytics.daily_clicks"
+        assert dataset.type == SpecType.DATASET
+
+    def test_find_dataset_not_found(self, sample_project_path):
+        """Test finding non-existent dataset."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        dataset = discovery.find_dataset("nonexistent.dataset.name")
+        assert dataset is None
+
+    def test_find_spec_returns_metric_or_dataset(self, sample_project_path):
+        """Test find_spec returns either metric or dataset."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        # Find a metric
+        metric = discovery.find_spec("iceberg.analytics.user_engagement")
+        assert metric is not None
+        assert metric.type == SpecType.METRIC
+
+        # Find a dataset
+        dataset = discovery.find_spec("iceberg.analytics.daily_clicks")
+        assert dataset is not None
+        assert dataset.type == SpecType.DATASET
+
+    def test_deduplication(self, tmp_path):
+        """Test that specs are not yielded twice even if matched by multiple patterns."""
+        # Create a project where a file could match multiple patterns
+        config_data = {
+            "version": "1",
+            "project": {"name": "test"},
+            "discovery": {
+                "datasets_dir": "datasets",
+                "dataset_patterns": ["dataset.*.yaml", "*.dataset.yaml"],
+            },
+        }
+        (tmp_path / "dli.yaml").write_text(yaml.dump(config_data))
+
+        datasets_dir = tmp_path / "datasets"
+        datasets_dir.mkdir()
+
+        # Create a dataset spec
+        spec_data = {
+            "name": "test.test.test",
+            "owner": "owner@example.com",
+            "team": "@team",
+            "type": "Dataset",
+            "query_type": "DML",
+            "query_statement": "INSERT INTO t SELECT 1",
+        }
+        (datasets_dir / "dataset.test.test.test.yaml").write_text(yaml.dump(spec_data))
+
+        config = load_project(tmp_path)
+        discovery = SpecDiscovery(config)
+
+        datasets = list(discovery.discover_datasets())
+        names = [d.name for d in datasets]
+
+        # Should only appear once even if it matches the pattern
+        assert names.count("test.test.test") == 1
+
+    def test_metrics_merged_from_project_defaults(self, sample_project_path):
+        """Test that project defaults are merged into metric specs."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        metric = discovery.find_metric("iceberg.analytics.user_engagement")
+        assert metric is not None
+        # Default dialect should be merged from project config
+        assert metric.execution.dialect == "trino"
+
+    def test_discover_sql_files(self, sample_project_path):
+        """Test discovering SQL files."""
+        config = load_project(sample_project_path)
+        discovery = SpecDiscovery(config)
+
+        sql_files = list(discovery.discover_sql_files())
+        assert len(sql_files) >= 1
+
+        # All should be .sql files
+        for sql_file in sql_files:
+            assert sql_file.suffix == ".sql"

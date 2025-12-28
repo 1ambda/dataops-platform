@@ -1,0 +1,226 @@
+# Marketing Attribution - Campaign Performance Processing
+# DML query for marketing data transformation and attribution modeling
+
+name: "datalake.attribution.campaign_attribution"
+description: "Multi-touch attribution processing for campaign performance analysis with advanced attribution models"
+owner: "marketing-analytics@company.com"
+team: "@growth-marketing"
+
+domains:
+  - "marketing"
+  - "attribution"
+  - "campaigns"
+  - "performance"
+tags:
+  - "attribution"
+  - "campaigns"
+  - "conversion"
+  - "multi-touch"
+  - "weekly"
+
+versions:
+  - version: "v1"
+    started_at: "2024-03-01"
+    ended_at: "2024-09-30"
+    description: "Last-touch attribution model"
+  - version: "v2"
+    started_at: "2024-10-01"
+    description: "Multi-touch attribution with ML-based weighting"
+
+query_type: "DML"
+
+parameters:
+  - name: "attribution_week"
+    type: "date"
+    required: true
+    description: "Week start date for attribution processing (Monday)"
+
+  - name: "lookback_days"
+    type: "integer"
+    required: false
+    default: 30
+    description: "Attribution lookback window in days"
+
+  - name: "attribution_model"
+    type: "string"
+    required: false
+    default: "multi_touch"
+    description: "Attribution model: last_touch, first_touch, linear, time_decay, or multi_touch"
+
+  - name: "min_touchpoints"
+    type: "integer"
+    required: false
+    default: 1
+    description: "Minimum number of touchpoints required for attribution"
+
+pre_statements:
+  - name: "cleanup_existing_week"
+    sql: |
+      DELETE FROM datalake.attribution.campaign_attribution
+      WHERE attribution_week = '{{ attribution_week }}'
+
+  - name: "validate_conversion_data"
+    sql: |
+      -- Ensure we have conversion data for the specified week
+      SELECT COUNT(*) as conversion_count
+      FROM datalake.staging.conversions
+      WHERE conversion_date >= '{{ attribution_week }}'
+        AND conversion_date < DATE_ADD('{{ attribution_week }}', INTERVAL 7 DAY)
+      HAVING COUNT(*) > 0
+
+  - name: "refresh_ml_weights"
+    sql: |
+      -- Update ML attribution weights if using multi_touch model
+      CALL datalake.ml.refresh_attribution_weights('{{ attribution_week }}')
+    continue_on_error: true
+
+query_statement: |
+  INSERT INTO datalake.attribution.campaign_attribution
+  WITH conversion_touchpoints AS (
+    -- Get all touchpoints leading to conversions
+    SELECT
+      c.conversion_id,
+      c.user_id,
+      c.conversion_date,
+      c.conversion_value,
+      c.conversion_type,
+      tp.touchpoint_id,
+      tp.campaign_id,
+      tp.channel,
+      tp.campaign_name,
+      tp.ad_group_id,
+      tp.creative_id,
+      tp.touchpoint_timestamp,
+      tp.touchpoint_type,
+      -- Calculate time from touchpoint to conversion
+      EXTRACT(EPOCH FROM (c.conversion_timestamp - tp.touchpoint_timestamp)) / 3600.0 as hours_to_conversion,
+      -- Rank touchpoints by time (1 = first touch, max = last touch)
+      ROW_NUMBER() OVER (
+        PARTITION BY c.conversion_id
+        ORDER BY tp.touchpoint_timestamp ASC
+      ) as touch_sequence_asc,
+      ROW_NUMBER() OVER (
+        PARTITION BY c.conversion_id
+        ORDER BY tp.touchpoint_timestamp DESC
+      ) as touch_sequence_desc,
+      COUNT(*) OVER (PARTITION BY c.conversion_id) as total_touchpoints
+    FROM datalake.staging.conversions c
+    INNER JOIN datalake.staging.touchpoints tp
+      ON c.user_id = tp.user_id
+      AND tp.touchpoint_timestamp <= c.conversion_timestamp
+      AND tp.touchpoint_timestamp >= DATE_SUB(c.conversion_timestamp, INTERVAL {{ lookback_days }} DAY)
+    WHERE c.conversion_date >= '{{ attribution_week }}'
+      AND c.conversion_date < DATE_ADD('{{ attribution_week }}', INTERVAL 7 DAY)
+  ),
+
+  attribution_weights AS (
+    SELECT
+      *,
+      -- Calculate attribution weights based on selected model
+      CASE '{{ attribution_model }}'
+        WHEN 'first_touch' THEN
+          CASE WHEN touch_sequence_asc = 1 THEN 1.0 ELSE 0.0 END
+        WHEN 'last_touch' THEN
+          CASE WHEN touch_sequence_desc = 1 THEN 1.0 ELSE 0.0 END
+        WHEN 'linear' THEN
+          1.0 / total_touchpoints
+        WHEN 'time_decay' THEN
+          POW(2, -hours_to_conversion / 24.0) /
+          SUM(POW(2, -hours_to_conversion / 24.0)) OVER (PARTITION BY conversion_id)
+        WHEN 'multi_touch' THEN
+          -- ML-based attribution weights from trained model
+          COALESCE(mlw.attribution_weight, 1.0 / total_touchpoints)
+        ELSE 1.0 / total_touchpoints  -- default to linear
+      END as attribution_weight
+    FROM conversion_touchpoints ctp
+    LEFT JOIN datalake.ml.attribution_weights mlw
+      ON ctp.touchpoint_id = mlw.touchpoint_id
+      AND '{{ attribution_model }}' = 'multi_touch'
+  )
+
+  SELECT
+    '{{ attribution_week }}' as attribution_week,
+    campaign_id,
+    campaign_name,
+    channel,
+    ad_group_id,
+    creative_id,
+    conversion_type,
+    '{{ attribution_model }}' as attribution_model,
+    -- Aggregated metrics
+    COUNT(DISTINCT conversion_id) as attributed_conversions,
+    COUNT(DISTINCT user_id) as attributed_users,
+    SUM(conversion_value * attribution_weight) as attributed_revenue,
+    AVG(conversion_value) as avg_conversion_value,
+    SUM(attribution_weight) as total_attribution_weight,
+    AVG(hours_to_conversion) as avg_hours_to_conversion,
+    AVG(total_touchpoints) as avg_touchpoints_per_conversion,
+    -- Time-based metrics
+    MIN(touchpoint_timestamp) as first_touchpoint_at,
+    MAX(touchpoint_timestamp) as last_touchpoint_at,
+    -- Performance indicators
+    SUM(conversion_value * attribution_weight) / COUNT(DISTINCT conversion_id) as revenue_per_attribution,
+    COUNT(DISTINCT conversion_id) / COUNT(DISTINCT user_id) as conversion_rate,
+    CURRENT_TIMESTAMP as processed_at,
+    '{{ attribution_week }}' as processing_batch_week
+  FROM attribution_weights
+  WHERE total_touchpoints >= {{ min_touchpoints }}  -- Filter out low-quality attribution paths
+  GROUP BY
+    campaign_id,
+    campaign_name,
+    channel,
+    ad_group_id,
+    creative_id,
+    conversion_type
+
+post_statements:
+  - name: "validate_attribution_totals"
+    sql: |
+      -- Ensure attribution adds up correctly (should be close to actual conversions)
+      WITH validation AS (
+        SELECT
+          SUM(attributed_conversions) as total_attributed,
+          (SELECT COUNT(*) FROM datalake.staging.conversions
+           WHERE conversion_date >= '{{ attribution_week }}'
+             AND conversion_date < DATE_ADD('{{ attribution_week }}', INTERVAL 7 DAY)
+          ) as total_actual
+      )
+      SELECT
+        total_attributed,
+        total_actual,
+        ABS(total_attributed - total_actual) / total_actual as variance_pct
+      FROM validation
+      WHERE ABS(total_attributed - total_actual) / total_actual < 0.05  -- Max 5% variance
+
+  - name: "update_campaign_performance_cache"
+    sql: |
+      -- Refresh campaign performance summary tables
+      REFRESH MATERIALIZED VIEW datalake.marts.campaign_performance_weekly
+    continue_on_error: true
+
+  - name: "export_to_marketing_tools"
+    sql: |
+      -- Export attribution results to marketing automation platforms
+      INSERT INTO datalake.exports.marketing_attribution
+      SELECT
+        campaign_id,
+        attributed_revenue,
+        attributed_conversions,
+        attribution_week,
+        'EXPORTED' as export_status,
+        CURRENT_TIMESTAMP as exported_at
+      FROM datalake.attribution.campaign_attribution
+      WHERE attribution_week = '{{ attribution_week }}'
+        AND attributed_revenue > 100  -- Only export meaningful revenue
+    continue_on_error: true
+
+depends_on:
+  - "datalake.staging.conversions"
+  - "datalake.staging.touchpoints"
+  - "datalake.ml.attribution_weights"
+
+execution:
+  timeout_seconds: 2400  # 40 minutes for complex attribution processing
+  retry_count: 2
+  retry_delay_seconds: 180
+  dialect: "trino"

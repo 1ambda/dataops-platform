@@ -1,0 +1,127 @@
+# Revenue Summary Metrics - Business Intelligence
+# type: Metric -> query_type: SELECT (read-only analytical queries)
+
+# Required fields
+name: "iceberg.analytics.revenue_summary"
+description: "Revenue metrics for business intelligence dashboards"
+owner: "bizops@example.com"
+team: "@business-intelligence"
+type: "Metric"
+query_type: "SELECT"
+
+# Metadata
+domains:
+  - "revenue"
+  - "finance"
+  - "business"
+tags:
+  - "metric"
+  - "revenue"
+  - "kpi"
+  - "executive-dashboard"
+
+# Query parameters
+parameters:
+  - name: "report_date"
+    type: "date"
+    required: true
+    description: "Date for the revenue report"
+  - name: "currency"
+    type: "string"
+    required: false
+    default: "USD"
+    description: "Currency for revenue calculations"
+
+# SQL definition (inline for simplicity)
+query_statement: |
+  SELECT
+      DATE_TRUNC('day', transaction_timestamp) AS report_date,
+      product_category,
+      region,
+      COUNT(DISTINCT transaction_id) AS transaction_count,
+      SUM(amount) AS total_revenue,
+      AVG(amount) AS avg_transaction_value,
+      COUNT(DISTINCT customer_id) AS unique_customers
+  FROM iceberg.raw.transactions
+  WHERE DATE(transaction_timestamp) = '{{ report_date }}'
+    AND currency = '{{ currency }}'
+  GROUP BY DATE_TRUNC('day', transaction_timestamp), product_category, region
+
+# Dependencies
+depends_on:
+  - "iceberg.raw.transactions"
+
+# Output schema
+schema:
+  - name: "report_date"
+    type: "date"
+  - name: "product_category"
+    type: "string"
+  - name: "region"
+    type: "string"
+  - name: "transaction_count"
+    type: "integer"
+  - name: "total_revenue"
+    type: "decimal"
+  - name: "avg_transaction_value"
+    type: "decimal"
+  - name: "unique_customers"
+    type: "integer"
+
+# Semantic Layer - Revenue Metrics
+metrics:
+  - name: "gross_revenue"
+    aggregation: "sum"
+    expression: "total_revenue"
+    description: "Total gross revenue"
+
+  - name: "transaction_volume"
+    aggregation: "sum"
+    expression: "transaction_count"
+    description: "Total number of transactions"
+
+  - name: "avg_order_value"
+    aggregation: "avg"
+    expression: "avg_transaction_value"
+    description: "Average order value (AOV)"
+
+  - name: "unique_paying_customers"
+    aggregation: "sum"
+    expression: "unique_customers"
+    description: "Number of unique paying customers"
+
+  - name: "revenue_per_customer"
+    aggregation: "avg"
+    expression: "total_revenue / NULLIF(unique_customers, 0)"
+    description: "Average revenue per customer"
+
+# Semantic Layer - Business Dimensions
+dimensions:
+  - name: "product_category"
+    type: "categorical"
+    expression: "product_category"
+    description: "Product category for the transaction"
+
+  - name: "region"
+    type: "categorical"
+    expression: "region"
+    description: "Geographic region"
+
+  - name: "report_period"
+    type: "time"
+    expression: "report_date"
+    description: "Report date"
+
+  - name: "revenue_tier"
+    type: "categorical"
+    expression: "CASE
+      WHEN total_revenue >= 10000 THEN 'high'
+      WHEN total_revenue >= 1000 THEN 'medium'
+      ELSE 'low'
+    END"
+    description: "Revenue tier classification"
+
+# Execution configuration
+execution:
+  timeout_seconds: 180
+  dialect: "trino"

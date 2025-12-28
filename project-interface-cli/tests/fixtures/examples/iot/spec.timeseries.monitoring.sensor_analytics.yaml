@@ -1,0 +1,217 @@
+# IoT Sensor Analytics - Time Series Analysis
+# SELECT query with time-series metrics for sensor monitoring
+
+name: "timeseries.monitoring.sensor_analytics"
+description: "Real-time IoT sensor data analysis with anomaly detection and performance metrics"
+owner: "iot-platform@manufacturing.com"
+team: "@iot-engineering"
+
+domains:
+  - "iot"
+  - "manufacturing"
+  - "monitoring"
+  - "predictive-maintenance"
+tags:
+  - "real-time"
+  - "sensors"
+  - "anomaly-detection"
+  - "predictive-maintenance"
+  - "time-series"
+
+query_type: "SELECT"
+
+parameters:
+  - name: "start_timestamp"
+    type: "string"  # ISO datetime string
+    required: true
+    description: "Start timestamp for sensor data analysis (ISO format)"
+
+  - name: "end_timestamp"
+    type: "string"  # ISO datetime string
+    required: true
+    description: "End timestamp for sensor data analysis (ISO format)"
+
+  - name: "facility_ids"
+    type: "list"
+    required: false
+    default: []
+    description: "List of facility IDs to analyze (empty = all facilities)"
+
+  - name: "anomaly_threshold"
+    type: "float"
+    required: false
+    default: 3.0
+    description: "Standard deviation threshold for anomaly detection"
+
+query_statement: |
+  WITH sensor_readings AS (
+    SELECT
+      sr.sensor_id,
+      sr.facility_id,
+      sr.equipment_id,
+      sr.sensor_type,
+      sr.timestamp,
+      sr.value,
+      sr.unit,
+      sr.quality_score,
+      -- Time-based groupings for analysis
+      DATE_TRUNC('hour', sr.timestamp) as hour_bucket,
+      DATE_TRUNC('day', sr.timestamp) as day_bucket,
+      -- Equipment metadata
+      eq.equipment_type,
+      eq.manufacturer,
+      eq.install_date,
+      -- Facility metadata
+      fc.facility_name,
+      fc.region,
+      fc.timezone_offset
+    FROM timeseries.raw.sensor_readings sr
+    INNER JOIN timeseries.metadata.equipment eq
+      ON sr.equipment_id = eq.equipment_id
+    INNER JOIN timeseries.metadata.facilities fc
+      ON sr.facility_id = fc.facility_id
+    WHERE sr.timestamp BETWEEN TIMESTAMP '{{ start_timestamp }}'
+                           AND TIMESTAMP '{{ end_timestamp }}'
+      AND sr.quality_score >= 0.8  -- Only high-quality readings
+      {% if facility_ids %}
+      AND sr.facility_id IN ({{ facility_ids | sql_list }})
+      {% endif %}
+  ),
+
+  statistical_analysis AS (
+    SELECT
+      *,
+      -- Statistical measures for anomaly detection
+      AVG(value) OVER (
+        PARTITION BY sensor_id
+        ORDER BY timestamp
+        ROWS BETWEEN 50 PRECEDING AND 50 FOLLOWING
+      ) as rolling_avg_value,
+      STDDEV(value) OVER (
+        PARTITION BY sensor_id
+        ORDER BY timestamp
+        ROWS BETWEEN 50 PRECEDING AND 50 FOLLOWING
+      ) as rolling_stddev_value,
+      -- Trend analysis
+      LAG(value, 1) OVER (
+        PARTITION BY sensor_id ORDER BY timestamp
+      ) as prev_value,
+      -- Time since last reading
+      EXTRACT(EPOCH FROM (
+        timestamp - LAG(timestamp, 1) OVER (
+          PARTITION BY sensor_id ORDER BY timestamp
+        )
+      )) as seconds_since_last_reading
+    FROM sensor_readings
+  )
+
+  SELECT
+    *,
+    -- Anomaly detection flags
+    CASE
+      WHEN ABS(value - rolling_avg_value) > {{ anomaly_threshold }} * rolling_stddev_value
+      THEN true
+      ELSE false
+    END as is_anomaly,
+    -- Performance indicators
+    CASE
+      WHEN seconds_since_last_reading > 300 THEN 'DELAYED'  -- 5 min
+      WHEN quality_score < 0.9 THEN 'LOW_QUALITY'
+      WHEN is_anomaly THEN 'ANOMALY'
+      ELSE 'NORMAL'
+    END as status_flag,
+    -- Trend direction
+    CASE
+      WHEN value > prev_value THEN 'INCREASING'
+      WHEN value < prev_value THEN 'DECREASING'
+      ELSE 'STABLE'
+    END as trend_direction
+  FROM statistical_analysis
+
+depends_on:
+  - "timeseries.raw.sensor_readings"
+  - "timeseries.metadata.equipment"
+  - "timeseries.metadata.facilities"
+
+schema:
+  - name: "sensor_id"
+    type: "string"
+  - name: "facility_id"
+    type: "string"
+  - name: "equipment_id"
+    type: "string"
+  - name: "timestamp"
+    type: "timestamp"
+  - name: "value"
+    type: "float"
+  - name: "is_anomaly"
+    type: "boolean"
+  - name: "status_flag"
+    type: "string"
+  - name: "trend_direction"
+    type: "string"
+
+# IoT Time-Series Metrics (following dbt MetricFlow patterns)
+metrics:
+  - name: "total_readings"
+    aggregation: "count"
+    expression: "*"
+    description: "Total number of sensor readings"
+
+  - name: "unique_sensors"
+    aggregation: "count_distinct"
+    expression: "sensor_id"
+    description: "Number of active sensors"
+
+  - name: "avg_sensor_value"
+    aggregation: "avg"
+    expression: "value"
+    description: "Average sensor reading value"
+
+  - name: "anomaly_rate"
+    aggregation: "avg"
+    expression: "CASE WHEN is_anomaly THEN 1.0 ELSE 0.0 END"
+    description: "Rate of anomalous readings"
+
+  - name: "data_quality_score"
+    aggregation: "avg"
+    expression: "quality_score"
+    description: "Average data quality score"
+    filters:
+      - "quality_score IS NOT NULL"
+
+  - name: "uptime_percentage"
+    aggregation: "avg"
+    expression: "CASE WHEN seconds_since_last_reading <= 300 THEN 1.0 ELSE 0.0 END"
+    description: "Sensor uptime percentage (readings within 5 min)"
+
+# Time-Series Dimensions
+dimensions:
+  - name: "facility_region"
+    type: "categorical"
+    expression: "region"
+    description: "Manufacturing facility region"
+
+  - name: "equipment_type"
+    type: "categorical"
+    expression: "equipment_type"
+    description: "Type of equipment being monitored"
+
+  - name: "sensor_type"
+    type: "categorical"
+    expression: "sensor_type"
+    description: "Type of sensor (temperature, pressure, vibration, etc.)"
+
+  - name: "hour_bucket"
+    type: "time"
+    expression: "hour_bucket"
+    description: "Hourly time buckets for trend analysis"
+
+  - name: "status_flag"
+    type: "categorical"
+    expression: "status_flag"
+    description: "Sensor status classification"
+
+execution:
+  timeout_seconds: 1200  # 20 minutes for large time-series queries
+  dialect: "trino"

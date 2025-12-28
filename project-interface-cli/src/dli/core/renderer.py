@@ -2,16 +2,32 @@
 
 This module provides the SQLRenderer class which renders SQL templates
 with parameter validation and custom SQL-safe filters.
+
+Integrates with TemplateContext to provide dbt/SQLMesh-compatible
+template variables (ds, ds_nodash, var(), date_add(), etc.).
+
+Note:
+    This renderer uses a regular Jinja2 Environment (not sandboxed) for
+    performance. It is intended for trusted templates loaded from the
+    local filesystem. For untrusted/user-provided templates, use
+    SafeTemplateRenderer from dli.core.templates instead.
 """
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from dli.core.models import QueryParameter
+from dli.core.templates import (
+    TemplateContext,
+    sql_identifier_escape,
+    sql_list_escape,
+    sql_string_escape,
+)
 
 
 class SQLRenderer:
@@ -44,55 +60,19 @@ class SQLRenderer:
         self._register_filters()
 
     def _register_filters(self) -> None:
-        """Register custom Jinja2 filters for SQL rendering."""
-        # SQL string escaping (escape single quotes by doubling)
-        self.env.filters["sql_string"] = self._sql_string_filter
-        # List to IN clause
-        self.env.filters["sql_list"] = self._sql_list_filter
-        # SQL date formatting
+        """Register custom Jinja2 filters for SQL rendering.
+
+        Uses shared filter functions from dli.core.templates for consistency
+        with SafeJinjaEnvironment.
+        """
+        # SQL string escaping (shared with SafeJinjaEnvironment)
+        self.env.filters["sql_string"] = sql_string_escape
+        # List to IN clause (shared with SafeJinjaEnvironment)
+        self.env.filters["sql_list"] = sql_list_escape
+        # SQL identifier quoting (shared with SafeJinjaEnvironment)
+        self.env.filters["sql_identifier"] = sql_identifier_escape
+        # SQL date formatting (SQLRenderer-specific)
         self.env.filters["sql_date"] = self._sql_date_filter
-        # SQL identifier quoting
-        self.env.filters["sql_identifier"] = self._sql_identifier_filter
-
-    @staticmethod
-    def _sql_string_filter(value: Any) -> str:
-        """Escape a value for safe use in SQL strings.
-
-        Args:
-            value: The value to escape
-
-        Returns:
-            SQL-safe escaped string with single quotes
-        """
-        if value is None:
-            return "NULL"
-        escaped = str(value).replace("'", "''")
-        return f"'{escaped}'"
-
-    @staticmethod
-    def _sql_list_filter(values: list[Any]) -> str:
-        """Convert a list to a SQL IN clause.
-
-        Args:
-            values: List of values
-
-        Returns:
-            Comma-separated values in parentheses
-        """
-        if not values:
-            return "(NULL)"
-
-        formatted = []
-        for v in values:
-            if isinstance(v, str):
-                escaped = v.replace("'", "''")
-                formatted.append(f"'{escaped}'")
-            elif v is None:
-                formatted.append("NULL")
-            else:
-                formatted.append(str(v))
-
-        return f"({', '.join(formatted)})"
 
     @staticmethod
     def _sql_date_filter(value: Any, fmt: str = "%Y-%m-%d") -> str:
@@ -115,22 +95,6 @@ class SQLRenderer:
             return f"'{value.strftime(fmt)}'"
         except AttributeError:
             return f"'{value}'"
-
-    @staticmethod
-    def _sql_identifier_filter(value: Any) -> str:
-        """Quote a SQL identifier.
-
-        Args:
-            value: Identifier to quote (string or None)
-
-        Returns:
-            Double-quoted identifier, or empty quotes for None
-        """
-        if value is None:
-            return '""'
-        # Escape double quotes by doubling them
-        escaped = str(value).replace('"', '""')
-        return f'"{escaped}"'
 
     def render(
         self,
@@ -204,3 +168,49 @@ class SQLRenderer:
         """
         template_str = file_path.read_text(encoding="utf-8")
         return self.render(template_str, parameters, params)
+
+    def render_with_template_context(
+        self,
+        template_str: str,
+        execution_date: date | None = None,
+        variables: dict[str, Any] | None = None,
+        refs: dict[str, str] | None = None,
+        extra_params: dict[str, Any] | None = None,
+    ) -> str:
+        """Render a SQL template with TemplateContext (dbt/SQLMesh compatible).
+
+        Provides access to template variables like ds, ds_nodash, and functions
+        like var(), date_add(), date_sub(), ref(), source().
+
+        Args:
+            template_str: SQL template string with Jinja2 placeholders
+            execution_date: Execution date for template context (defaults to today)
+            variables: Project variables accessible via var()
+            refs: Dataset references accessible via ref()
+            extra_params: Additional parameters to merge with context
+
+        Returns:
+            Rendered SQL string
+
+        Example:
+            >>> renderer = SQLRenderer()
+            >>> sql = renderer.render_with_template_context(
+            ...     "SELECT * FROM {{ ref('users') }} WHERE dt = '{{ ds }}'",
+            ...     execution_date=date(2025, 1, 15),
+            ...     refs={"users": "prod.analytics.users"},
+            ... )
+            >>> print(sql)
+            SELECT * FROM prod.analytics.users WHERE dt = '2025-01-15'
+        """
+        context = TemplateContext(
+            execution_date=execution_date,
+            variables=variables,
+            refs=refs,
+        )
+
+        render_context = context.to_dict()
+        if extra_params:
+            render_context.update(extra_params)
+
+        template = self.env.from_string(template_str)
+        return template.render(**render_context)

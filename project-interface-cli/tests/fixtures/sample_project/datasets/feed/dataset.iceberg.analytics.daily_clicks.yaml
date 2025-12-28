@@ -1,0 +1,96 @@
+# User Engagement Data Processing - Daily Click Aggregation
+# type: Dataset -> query_type: DML (data processing operations)
+
+# Required fields
+name: "iceberg.analytics.daily_clicks"
+description: "Daily aggregation of user click events with engagement scoring"
+owner: "engineer@example.com"
+team: "@data-engineering"
+type: "Dataset"
+query_type: "DML"
+
+# Metadata
+domains:
+  - "feed"
+  - "engagement"
+  - "user-behavior"
+tags:
+  - "daily"
+  - "pipeline"
+  - "aggregation"
+
+# Version history
+versions:
+  - version: "v1"
+    started_at: "2024-01-01"
+    description: "Initial data processing pipeline"
+  - version: "v2"
+    started_at: "2025-01-01"
+    description: "Enhanced with behavioral scoring"
+
+# Query parameters
+parameters:
+  - name: "execution_date"
+    type: "date"
+    required: true
+    description: "Date to process click events for"
+  - name: "lookback_days"
+    type: "integer"
+    required: false
+    default: 7
+    description: "Number of days to look back for context"
+
+# SQL definition
+query_file: "daily_clicks.sql"
+
+# Pre-processing steps (DELETE partition before INSERT)
+pre_statements:
+  - name: "delete_partition"
+    sql: |
+      DELETE FROM iceberg.analytics.daily_clicks
+      WHERE dt = '{{ execution_date }}'
+    continue_on_error: false
+
+  - name: "analyze_source"
+    sql: |
+      ANALYZE iceberg.raw.user_events
+    continue_on_error: true
+
+# Post-processing steps (OPTIMIZE after INSERT)
+post_statements:
+  - name: "optimize_table"
+    sql: |
+      ALTER TABLE iceberg.analytics.daily_clicks
+      EXECUTE optimize WHERE dt = '{{ execution_date }}'
+    continue_on_error: true
+
+  - name: "expire_snapshots"
+    sql: |
+      ALTER TABLE iceberg.analytics.daily_clicks
+      EXECUTE expire_snapshots(retention_threshold => '7d')
+    continue_on_error: true
+
+# Dependencies
+depends_on:
+  - "iceberg.raw.user_events"
+  - "iceberg.dim.users"
+
+# Output schema
+schema:
+  - name: "dt"
+    type: "date"
+  - name: "user_id"
+    type: "string"
+  - name: "click_count"
+    type: "integer"
+  - name: "session_count"
+    type: "integer"
+  - name: "total_duration_ms"
+    type: "bigint"
+
+# Execution configuration
+execution:
+  timeout_seconds: 1800
+  retry_count: 3
+  retry_delay_seconds: 60
+  dialect: "trino"

@@ -1,0 +1,240 @@
+# Supply Chain Analytics - KPI Dashboard
+# SELECT query with complex metrics for supply chain performance monitoring
+
+name: "warehouse.logistics.supply_chain_kpis"
+description: "Comprehensive supply chain KPI analysis including inventory optimization, supplier performance, and logistics efficiency"
+owner: "supply-chain-analytics@logistics.com"
+team: "@supply-chain-ops"
+
+domains:
+  - "supply-chain"
+  - "logistics"
+  - "inventory"
+  - "suppliers"
+  - "operations"
+tags:
+  - "kpis"
+  - "inventory-optimization"
+  - "supplier-performance"
+  - "logistics"
+  - "operational-excellence"
+
+query_type: "SELECT"
+
+parameters:
+  - name: "report_date"
+    type: "date"
+    required: true
+    description: "Date for supply chain KPI analysis"
+
+  - name: "region_filter"
+    type: "list"
+    required: false
+    default: []
+    description: "List of regions to include (empty = all regions)"
+
+  - name: "product_categories"
+    type: "list"
+    required: false
+    default: []
+    description: "Product categories to analyze (empty = all categories)"
+
+  - name: "min_order_value"
+    type: "float"
+    required: false
+    default: 100.0
+    description: "Minimum order value to include in analysis"
+
+  - name: "performance_window_days"
+    type: "integer"
+    required: false
+    default: 30
+    description: "Historical window for performance trend analysis"
+
+query_file: "supply_chain_kpis.sql"
+
+depends_on:
+  - "warehouse.staging.inventory_levels"
+  - "warehouse.staging.purchase_orders"
+  - "warehouse.staging.supplier_deliveries"
+  - "warehouse.staging.customer_orders"
+  - "warehouse.reference.products"
+  - "warehouse.reference.suppliers"
+  - "warehouse.reference.warehouses"
+
+schema:
+  - name: "report_date"
+    type: "date"
+  - name: "region"
+    type: "string"
+  - name: "product_category"
+    type: "string"
+  - name: "warehouse_id"
+    type: "string"
+  - name: "supplier_id"
+    type: "string"
+  - name: "inventory_turnover_ratio"
+    type: "float"
+  - name: "fill_rate_percentage"
+    type: "float"
+  - name: "on_time_delivery_rate"
+    type: "float"
+  - name: "perfect_order_rate"
+    type: "float"
+  - name: "carrying_cost_per_unit"
+    type: "float"
+
+# Supply Chain Metrics (following dbt MetricFlow patterns for operational analytics)
+metrics:
+  # Inventory Management Metrics
+  - name: "inventory_turnover_ratio"
+    aggregation: "avg"
+    expression: "inventory_turnover_ratio"
+    description: "Average inventory turnover ratio across all SKUs"
+    filters:
+      - "inventory_turnover_ratio IS NOT NULL"
+      - "inventory_turnover_ratio > 0"
+
+  - name: "days_of_supply"
+    aggregation: "avg"
+    expression: "days_of_supply"
+    description: "Average days of inventory supply on hand"
+    filters:
+      - "days_of_supply > 0"
+
+  - name: "stockout_rate"
+    aggregation: "avg"
+    expression: "CASE WHEN is_stockout THEN 1.0 ELSE 0.0 END"
+    description: "Percentage of SKUs experiencing stockouts"
+
+  - name: "excess_inventory_value"
+    aggregation: "sum"
+    expression: "excess_inventory_value"
+    description: "Total value of excess inventory across all SKUs"
+    filters:
+      - "excess_inventory_value > 0"
+
+  # Order Fulfillment Metrics
+  - name: "fill_rate"
+    aggregation: "avg"
+    expression: "fill_rate_percentage"
+    description: "Average order fill rate percentage"
+    filters:
+      - "fill_rate_percentage IS NOT NULL"
+
+  - name: "perfect_order_rate"
+    aggregation: "avg"
+    expression: "perfect_order_rate"
+    description: "Rate of perfect orders (on-time, complete, error-free)"
+    filters:
+      - "perfect_order_rate IS NOT NULL"
+
+  - name: "cycle_time_days"
+    aggregation: "avg"
+    expression: "avg_cycle_time_days"
+    description: "Average order-to-delivery cycle time in days"
+    filters:
+      - "avg_cycle_time_days > 0"
+
+  # Supplier Performance Metrics
+  - name: "supplier_on_time_delivery"
+    aggregation: "avg"
+    expression: "on_time_delivery_rate"
+    description: "Supplier on-time delivery rate percentage"
+    filters:
+      - "on_time_delivery_rate IS NOT NULL"
+
+  - name: "supplier_quality_score"
+    aggregation: "avg"
+    expression: "quality_score"
+    description: "Average supplier quality score"
+    filters:
+      - "quality_score IS NOT NULL"
+      - "quality_score > 0"
+
+  - name: "total_procurement_cost"
+    aggregation: "sum"
+    expression: "total_procurement_cost"
+    description: "Total procurement costs"
+    filters:
+      - "total_procurement_cost > 0"
+
+  # Cost and Efficiency Metrics
+  - name: "carrying_cost_per_unit"
+    aggregation: "avg"
+    expression: "carrying_cost_per_unit"
+    description: "Average inventory carrying cost per unit"
+    filters:
+      - "carrying_cost_per_unit > 0"
+
+  - name: "logistics_cost_percentage"
+    aggregation: "avg"
+    expression: "logistics_cost_percentage"
+    description: "Logistics costs as percentage of total order value"
+    filters:
+      - "logistics_cost_percentage >= 0"
+
+  - name: "warehouse_utilization"
+    aggregation: "avg"
+    expression: "warehouse_utilization_rate"
+    description: "Average warehouse space utilization rate"
+    filters:
+      - "warehouse_utilization_rate > 0"
+
+  # Performance Trend Metrics
+  - name: "demand_forecast_accuracy"
+    aggregation: "avg"
+    expression: "forecast_accuracy_percentage"
+    description: "Demand forecasting accuracy percentage"
+    filters:
+      - "forecast_accuracy_percentage IS NOT NULL"
+
+# Supply Chain Dimensions for Analysis
+dimensions:
+  - name: "region"
+    type: "categorical"
+    expression: "region"
+    description: "Geographic region"
+
+  - name: "product_category"
+    type: "categorical"
+    expression: "product_category"
+    description: "Product category classification"
+
+  - name: "supplier_tier"
+    type: "categorical"
+    expression: "supplier_tier"
+    description: "Supplier tier classification (Tier 1, Tier 2, etc.)"
+
+  - name: "warehouse_type"
+    type: "categorical"
+    expression: "warehouse_type"
+    description: "Type of warehouse (Distribution Center, Fulfillment Center, etc.)"
+
+  - name: "report_date"
+    type: "time"
+    expression: "report_date"
+    description: "KPI reporting date"
+
+  - name: "performance_grade"
+    type: "categorical"
+    expression: "CASE
+      WHEN perfect_order_rate >= 0.95 AND on_time_delivery_rate >= 0.95 THEN 'EXCELLENT'
+      WHEN perfect_order_rate >= 0.90 AND on_time_delivery_rate >= 0.90 THEN 'GOOD'
+      WHEN perfect_order_rate >= 0.80 AND on_time_delivery_rate >= 0.80 THEN 'FAIR'
+      ELSE 'NEEDS_IMPROVEMENT'
+    END"
+    description: "Overall supply chain performance grade"
+
+  - name: "risk_level"
+    type: "categorical"
+    expression: "CASE
+      WHEN days_of_supply < 7 OR stockout_rate > 0.1 THEN 'HIGH'
+      WHEN days_of_supply < 14 OR stockout_rate > 0.05 THEN 'MEDIUM'
+      ELSE 'LOW'
+    END"
+    description: "Supply chain risk level assessment"
+
+execution:
+  timeout_seconds: 1800  # 30 minutes for complex supply chain calculations
+  dialect: "trino"

@@ -1,0 +1,79 @@
+# Daily Summary Data Processing - Reporting Pipeline
+# type: Dataset -> query_type: DML (data processing operations)
+
+# Required fields
+name: "iceberg.reporting.daily_summary"
+description: "Daily summary table for reporting dashboards"
+owner: "engineer@example.com"
+team: "@data-engineering"
+type: "Dataset"
+query_type: "DML"
+
+# Metadata
+domains:
+  - "reporting"
+  - "analytics"
+tags:
+  - "daily"
+  - "summary"
+  - "pipeline"
+
+# Query parameters
+parameters:
+  - name: "execution_date"
+    type: "date"
+    required: true
+    description: "Date to generate the summary for"
+
+# SQL definition (inline for simplicity)
+query_statement: |
+  INSERT INTO iceberg.reporting.daily_summary
+  SELECT
+      '{{ execution_date }}' AS report_date,
+      country_code,
+      COUNT(DISTINCT user_id) AS unique_users,
+      SUM(click_count) AS total_clicks,
+      SUM(session_count) AS total_sessions,
+      AVG(total_duration_ms) AS avg_duration_ms
+  FROM iceberg.analytics.daily_clicks
+  WHERE dt = '{{ execution_date }}'
+  GROUP BY country_code
+
+# Pre-processing steps
+pre_statements:
+  - name: "delete_existing"
+    sql: |
+      DELETE FROM iceberg.reporting.daily_summary
+      WHERE report_date = '{{ execution_date }}'
+
+# Post-processing steps
+post_statements:
+  - name: "update_stats"
+    sql: |
+      ANALYZE iceberg.reporting.daily_summary
+    continue_on_error: true
+
+# Dependencies
+depends_on:
+  - "iceberg.analytics.daily_clicks"
+
+# Output schema
+schema:
+  - name: "report_date"
+    type: "date"
+  - name: "country_code"
+    type: "string"
+  - name: "unique_users"
+    type: "integer"
+  - name: "total_clicks"
+    type: "bigint"
+  - name: "total_sessions"
+    type: "bigint"
+  - name: "avg_duration_ms"
+    type: "float"
+
+# Execution configuration
+execution:
+  timeout_seconds: 600
+  retry_count: 2
+  dialect: "trino"

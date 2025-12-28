@@ -1,33 +1,60 @@
-name: "iceberg.reporting.user_summary"
-description: "User summary report"
+# User Analytics - Summary Report
+# SELECT query with user engagement metrics following dbt MetricFlow patterns
+# Legacy spec.*.yaml format with type field for backward compatibility
 
+# ─────────────────────────────────────────────
+# REQUIRED FIELDS
+# ─────────────────────────────────────────────
+name: "iceberg.reporting.user_summary"
+description: "Comprehensive user summary report with engagement metrics and behavioral analysis"
 owner: "analyst@example.com"
 team: "@reporting"
+type: "Metric"
+query_type: "SELECT"
+
+# ─────────────────────────────────────────────
+# OPTIONAL FIELDS - Metadata & Organization
+# ─────────────────────────────────────────────
 domains:
   - "reporting"
+  - "user-analytics"
 tags:
   - "report"
   - "user"
+  - "engagement"
+  - "daily"
 
-query_type: "SELECT"
-
+# ─────────────────────────────────────────────
+# PARAMETERS - Query Customization
+# ─────────────────────────────────────────────
 parameters:
   - name: "start_date"
     type: "date"
     required: true
-    description: "Start date for the report"
+    description: "Start date for the user summary report"
   - name: "end_date"
     type: "date"
     required: true
-    description: "End date for the report"
+    description: "End date for the user summary report"
   - name: "limit_count"
     type: "integer"
     required: false
     default: 100
-    description: "Number of rows to return"
+    description: "Number of top users to return in the report"
+  - name: "min_activity_threshold"
+    type: "integer"
+    required: false
+    default: 5
+    description: "Minimum number of clicks required to include user in report"
 
+# ─────────────────────────────────────────────
+# SQL DEFINITION
+# ─────────────────────────────────────────────
 query_file: "user_summary.sql"
 
+# ─────────────────────────────────────────────
+# DEPENDENCIES & SCHEMA
+# ─────────────────────────────────────────────
 depends_on:
   - "iceberg.analytics.daily_clicks"
 
@@ -38,7 +65,85 @@ schema:
     type: "integer"
   - name: "avg_duration_ms"
     type: "float"
+  - name: "country_code"
+    type: "string"
+  - name: "first_seen_date"
+    type: "date"
+  - name: "last_seen_date"
+    type: "date"
 
+# ─────────────────────────────────────────────
+# SEMANTIC LAYER - User Engagement Metrics (dbt MetricFlow compatible)
+# ─────────────────────────────────────────────
+metrics:
+  - name: "unique_users"
+    aggregation: "count_distinct"
+    expression: "user_id"
+    description: "Number of unique active users"
+
+  - name: "total_user_clicks"
+    aggregation: "sum"
+    expression: "total_clicks"
+    description: "Total number of clicks across all users"
+    filters:
+      - "total_clicks > 0"
+
+  - name: "avg_clicks_per_user"
+    aggregation: "avg"
+    expression: "total_clicks"
+    description: "Average number of clicks per user"
+    filters:
+      - "total_clicks >= {{ min_activity_threshold }}"
+
+  - name: "avg_session_duration"
+    aggregation: "avg"
+    expression: "avg_duration_ms"
+    description: "Average session duration in milliseconds"
+    filters:
+      - "avg_duration_ms > 0"
+
+  - name: "user_retention_rate"
+    aggregation: "avg"
+    expression: "CASE WHEN days_since_first_seen > 7 THEN 1.0 ELSE 0.0 END"
+    description: "Rate of users who return after 7 days"
+
+# ─────────────────────────────────────────────
+# SEMANTIC LAYER - Analysis Dimensions
+# ─────────────────────────────────────────────
+dimensions:
+  - name: "user_country"
+    type: "categorical"
+    expression: "country_code"
+    description: "User's country of origin"
+
+  - name: "report_period"
+    type: "time"
+    expression: "DATE_TRUNC('week', last_seen_date)"
+    description: "Weekly reporting period"
+
+  - name: "user_segment"
+    type: "categorical"
+    expression: "CASE
+      WHEN total_clicks >= 100 THEN 'power_user'
+      WHEN total_clicks >= 20 THEN 'active_user'
+      WHEN total_clicks >= 5 THEN 'casual_user'
+      ELSE 'low_activity'
+    END"
+    description: "User engagement segment based on click behavior"
+
+  - name: "user_tenure"
+    type: "categorical"
+    expression: "CASE
+      WHEN days_since_first_seen >= 365 THEN 'veteran'
+      WHEN days_since_first_seen >= 90 THEN 'established'
+      WHEN days_since_first_seen >= 30 THEN 'regular'
+      ELSE 'new'
+    END"
+    description: "User tenure classification"
+
+# ─────────────────────────────────────────────
+# EXECUTION CONFIGURATION
+# ─────────────────────────────────────────────
 execution:
   timeout_seconds: 300
   dialect: "trino"

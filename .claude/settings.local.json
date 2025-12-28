@@ -99,7 +99,9 @@
       "Bash(__NEW_LINE__ echo -e \"\\\\n=== Testing Development Documentation Links ===\")",
       "Bash(__NEW_LINE__ echo -e \"\\\\n=== Testing docs/development.md Structure ===\")",
       "mcp__serena__read_memory",
-      "mcp__serena__get_symbols_overview"
+      "mcp__serena__get_symbols_overview",
+      "mcp__context7__resolve-library-id",
+      "WebFetch(domain:sqlmesh.readthedocs.io)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
