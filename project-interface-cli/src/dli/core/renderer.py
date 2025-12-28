@@ -22,12 +22,12 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from dli.core.models import QueryParameter
-from dli.core.templates import (
-    TemplateContext,
+from dli.core.sql_filters import (
     sql_identifier_escape,
     sql_list_escape,
     sql_string_escape,
 )
+from dli.core.templates import TemplateContext
 
 
 class SQLRenderer:
@@ -76,25 +76,25 @@ class SQLRenderer:
 
     @staticmethod
     def _sql_date_filter(value: Any, fmt: str = "%Y-%m-%d") -> str:
-        """Format a date value for SQL.
+        """Format a date value for SQL with proper escaping.
 
         Args:
             value: Date value (string or date object)
             fmt: Date format string
 
         Returns:
-            SQL-safe date string with single quotes
+            SQL-safe escaped date string with single quotes
         """
         if value is None:
             return "NULL"
-        # If it's already a string, use it directly
+        # If it's already a string, escape it
         if isinstance(value, str):
-            return f"'{value}'"
-        # Otherwise, try to format it
+            return sql_string_escape(value)
+        # Otherwise, try to format it and escape
         try:
-            return f"'{value.strftime(fmt)}'"
+            return sql_string_escape(value.strftime(fmt))
         except AttributeError:
-            return f"'{value}'"
+            return sql_string_escape(str(value))
 
     def render(
         self,

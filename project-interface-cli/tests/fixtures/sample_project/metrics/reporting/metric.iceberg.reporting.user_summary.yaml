@@ -1,6 +1,5 @@
 # User Analytics - Summary Report
 # SELECT query with user engagement metrics following dbt MetricFlow patterns
-# Legacy spec.*.yaml format with type field for backward compatibility
 
 # ─────────────────────────────────────────────
 # REQUIRED FIELDS

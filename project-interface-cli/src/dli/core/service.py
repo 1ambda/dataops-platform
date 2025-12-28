@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from dli.core.discovery import load_project
+from dli.core.types import RenderResult
 from dli.core.executor import BaseExecutor, DatasetExecutor
 from dli.core.models import (
     DatasetExecutionResult,
@@ -170,7 +171,7 @@ class DatasetService:
         self,
         dataset_name: str,
         params: dict[str, Any],
-    ) -> dict[str, str | list[str]] | None:
+    ) -> RenderResult | None:
         """Render all SQL for a dataset.
 
         Args:
@@ -188,7 +189,7 @@ class DatasetService:
         if not spec:
             return None
 
-        rendered_sqls: dict[str, str | list[str]] = {}
+        rendered_sqls: RenderResult = {}
 
         # Pre Statements
         if spec.pre_statements:
@@ -342,7 +343,7 @@ class DatasetService:
         dataset_name: str,
         params: dict[str, Any],
         pretty: bool = True,
-    ) -> dict[str, str | list[str]] | None:
+    ) -> RenderResult | None:
         """Format all SQL for a dataset.
 
         Args:
@@ -357,7 +358,7 @@ class DatasetService:
         if not rendered:
             return None
 
-        formatted: dict[str, str | list[str]] = {}
+        formatted: RenderResult = {}
 
         for phase, sqls in rendered.items():
             if isinstance(sqls, list):

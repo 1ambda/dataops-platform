@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 import time
 from typing import Any
 
+from dli.core.types import DryRunResult
 from dli.core.models import (
     DatasetExecutionResult,
     DatasetSpec,
@@ -39,7 +40,7 @@ class BaseExecutor(ABC):
         """
 
     @abstractmethod
-    def dry_run(self, sql: str) -> dict[str, Any]:
+    def dry_run(self, sql: str) -> DryRunResult:
         """Perform a dry run of the query without executing.
 
         This is useful for validating queries and estimating costs
@@ -49,7 +50,7 @@ class BaseExecutor(ABC):
             sql: SQL query to validate
 
         Returns:
-            Dictionary with validation status and metadata
+            DryRunResult with validation status and metadata
             (e.g., bytes_processed, estimated_cost)
         """
 
@@ -122,7 +123,7 @@ class MockExecutor(BaseExecutor):
             execution_time_ms=10,
         )
 
-    def dry_run(self, sql: str) -> dict[str, Any]:
+    def dry_run(self, sql: str) -> DryRunResult:
         """Simulate dry run.
 
         Args:

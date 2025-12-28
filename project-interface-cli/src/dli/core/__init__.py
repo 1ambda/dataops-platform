@@ -11,12 +11,14 @@ This module provides the core functionality for the DLI CLI:
 - service: Unified service layer
 """
 
-from dli.core.discovery import (
-    DatasetDiscovery,
+from dli.core.config import (
     ProjectConfig,
-    SpecDiscovery,
     get_dli_home,
     load_project,
+)
+from dli.core.discovery import (
+    DatasetDiscovery,
+    SpecDiscovery,
 )
 from dli.core.executor import (
     BaseExecutor,
@@ -34,6 +36,7 @@ from dli.core.models import (
     ExecutionConfig,
     ExecutionResult,
     MetricDefinition,
+    MetricExecutionResult,
     MetricSpec,
     ParameterType,
     QueryParameter,
@@ -44,15 +47,39 @@ from dli.core.models import (
     StatementDefinition,
     ValidationResult,
 )
-from dli.core.registry import DatasetRegistry
+from dli.core.metric_service import MetricService
+from dli.core.registry import DatasetRegistry, MetricRegistry
 from dli.core.renderer import SQLRenderer
 from dli.core.service import DatasetService
+from dli.core.sql_filters import (
+    sql_identifier_escape,
+    sql_list_escape,
+    sql_string_escape,
+)
 from dli.core.templates import (
     SafeJinjaEnvironment,
     SafeTemplateRenderer,
     TemplateContext,
 )
+from dli.core.types import (
+    DryRunResult,
+    EnvironmentConfig,
+    ParameterDict,
+    ProjectDefaults,
+    ReferenceDict,
+    RenderResult,
+    SQLPhaseDict,
+    TemplateContextDict,
+)
 from dli.core.validator import SQLValidator
+
+# Client for server communication
+from dli.core.client import (
+    BasecampClient,
+    ServerConfig,
+    ServerResponse,
+    create_client,
+)
 
 __all__ = [  # noqa: RUF022 - Grouped by module for readability
     # Models - Core Types
@@ -65,6 +92,7 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "ExecutionConfig",
     "ExecutionResult",
     "MetricDefinition",
+    "MetricExecutionResult",
     "MetricSpec",
     "ParameterType",
     "QueryParameter",
@@ -82,8 +110,13 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "load_project",
     # Registry
     "DatasetRegistry",
+    "MetricRegistry",
     # Renderer
     "SQLRenderer",
+    # SQL Filters
+    "sql_identifier_escape",
+    "sql_list_escape",
+    "sql_string_escape",
     # Templates
     "SafeJinjaEnvironment",
     "SafeTemplateRenderer",
@@ -97,4 +130,19 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "MockExecutor",
     # Service
     "DatasetService",
+    "MetricService",
+    # Types
+    "DryRunResult",
+    "EnvironmentConfig",
+    "ParameterDict",
+    "ProjectDefaults",
+    "ReferenceDict",
+    "RenderResult",
+    "SQLPhaseDict",
+    "TemplateContextDict",
+    # Client
+    "BasecampClient",
+    "ServerConfig",
+    "ServerResponse",
+    "create_client",
 ]

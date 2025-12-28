@@ -84,3 +84,33 @@ class DatasetExecutionResult(BaseModel):
     post_results: list[ExecutionResult] = Field(default_factory=list)
     total_execution_time_ms: int = 0
     error_message: str | None = None
+
+
+class MetricExecutionResult(BaseModel):
+    """Result of executing a metric (SELECT query).
+
+    Metrics are read-only queries that return analytical results.
+    Unlike DatasetExecutionResult, metrics only have a single SELECT query
+    (no pre/post statements) and return data rows.
+
+    Attributes:
+        metric_name: Name of the metric that was executed
+        success: Whether execution was successful
+        rows: List of result row dictionaries
+        row_count: Number of rows returned
+        columns: List of column names in the result
+        error_message: Error message if execution failed
+        execution_time_ms: Execution time in milliseconds
+        rendered_sql: The SQL that was executed
+        executed_at: Timestamp of execution
+    """
+
+    metric_name: str
+    success: bool
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    row_count: int = 0
+    columns: list[str] = Field(default_factory=list)
+    error_message: str | None = None
+    execution_time_ms: float | None = None
+    rendered_sql: str | None = None
+    executed_at: datetime = Field(default_factory=_utc_now)

@@ -1,15 +1,17 @@
-"""Dataset registry with caching and search capabilities.
+"""Registry with caching and search capabilities.
 
-This module provides the DatasetRegistry class which manages
-dataset specs with caching, filtering, and search functionality.
+This module provides registry classes which manage
+specs with caching, filtering, and search functionality:
+- DatasetRegistry: Registry for DatasetSpec (type: Dataset)
+- MetricRegistry: Registry for MetricSpec (type: Metric)
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 
-from dli.core.discovery import DatasetDiscovery, ProjectConfig
-from dli.core.models import DatasetSpec
+from dli.core.discovery import ProjectConfig, SpecDiscovery
+from dli.core.models import DatasetSpec, MetricSpec
 
 
 class DatasetRegistry:
@@ -29,13 +31,13 @@ class DatasetRegistry:
             project_config: Project configuration
         """
         self.config = project_config
-        self._discovery = DatasetDiscovery(project_config)
+        self._discovery = SpecDiscovery(project_config)
         self._cache: dict[str, DatasetSpec] = {}
         self._load_all()
 
     def _load_all(self) -> None:
         """Load all dataset specs into the cache."""
-        for spec in self._discovery.discover_all():
+        for spec in self._discovery.discover_datasets():
             self._cache[spec.name] = spec
 
     def get(self, name: str) -> DatasetSpec | None:
@@ -241,4 +243,242 @@ class DatasetRegistry:
 
     def __iter__(self) -> Iterator[DatasetSpec]:
         """Iterate over all dataset specs."""
+        return iter(self._cache.values())
+
+
+class MetricRegistry:
+    """Registry for managing metric specs with caching and search.
+
+    The registry loads all metric specs from the project directory
+    and provides filtering and search capabilities.
+
+    Attributes:
+        config: Project configuration
+
+    Example:
+        >>> from dli.core import MetricRegistry, load_project
+        >>> config = load_project("/path/to/project")
+        >>> registry = MetricRegistry(config)
+        >>> metrics = registry.search(domain="analytics")
+    """
+
+    def __init__(self, project_config: ProjectConfig):
+        """Initialize the registry with a project configuration.
+
+        Args:
+            project_config: Project configuration
+        """
+        self.config = project_config
+        self._discovery = SpecDiscovery(project_config)
+        self._cache: dict[str, MetricSpec] = {}
+        self._load_all()
+
+    def _load_all(self) -> None:
+        """Load all metric specs into the cache."""
+        for spec in self._discovery.discover_metrics():
+            self._cache[spec.name] = spec
+
+    def get(self, name: str) -> MetricSpec | None:
+        """Get a metric spec by name.
+
+        Args:
+            name: Fully qualified metric name (catalog.schema.table)
+
+        Returns:
+            MetricSpec if found, None otherwise
+        """
+        return self._cache.get(name)
+
+    def list_all(self) -> list[MetricSpec]:
+        """Get all registered metric specs.
+
+        Returns:
+            List of all metric specs
+        """
+        return list(self._cache.values())
+
+    def search(
+        self,
+        *,
+        tag: str | None = None,
+        domain: str | None = None,
+        owner: str | None = None,
+        team: str | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        name_pattern: str | None = None,
+    ) -> list[MetricSpec]:
+        """Search for metrics with optional filters.
+
+        All filters are ANDed together.
+
+        Args:
+            tag: Filter by tag
+            domain: Filter by domain
+            owner: Filter by owner email
+            team: Filter by team
+            catalog: Filter by catalog name
+            schema: Filter by schema name
+            name_pattern: Filter by name pattern (substring match)
+
+        Returns:
+            List of matching metric specs
+        """
+        results = self.list_all()
+
+        if tag:
+            results = [s for s in results if tag in s.tags]
+
+        if domain:
+            results = [s for s in results if domain in s.domains]
+
+        if owner:
+            results = [s for s in results if s.owner == owner]
+
+        if team:
+            results = [s for s in results if s.team == team]
+
+        if catalog:
+            results = [s for s in results if s.catalog == catalog]
+
+        if schema:
+            results = [s for s in results if s.schema_name == schema]
+
+        if name_pattern:
+            pattern_lower = name_pattern.lower()
+            results = [s for s in results if pattern_lower in s.name.lower()]
+
+        return results
+
+    def get_by_catalog(self, catalog: str) -> list[MetricSpec]:
+        """Get all metrics in a catalog.
+
+        Args:
+            catalog: Catalog name
+
+        Returns:
+            List of metrics in the catalog
+        """
+        return self.search(catalog=catalog)
+
+    def get_by_schema(self, catalog: str, schema: str) -> list[MetricSpec]:
+        """Get all metrics in a schema.
+
+        Args:
+            catalog: Catalog name
+            schema: Schema name
+
+        Returns:
+            List of metrics in the schema
+        """
+        return self.search(catalog=catalog, schema=schema)
+
+    def get_by_domain(self, domain: str) -> list[MetricSpec]:
+        """Get all metrics in a domain.
+
+        Args:
+            domain: Domain name
+
+        Returns:
+            List of metrics in the domain
+        """
+        return self.search(domain=domain)
+
+    def get_by_tag(self, tag: str) -> list[MetricSpec]:
+        """Get all metrics with a tag.
+
+        Args:
+            tag: Tag name
+
+        Returns:
+            List of metrics with the tag
+        """
+        return self.search(tag=tag)
+
+    def get_by_owner(self, owner: str) -> list[MetricSpec]:
+        """Get all metrics owned by someone.
+
+        Args:
+            owner: Owner email
+
+        Returns:
+            List of metrics owned by the owner
+        """
+        return self.search(owner=owner)
+
+    def get_catalogs(self) -> list[str]:
+        """Get all unique catalog names.
+
+        Returns:
+            Sorted list of catalog names
+        """
+        return sorted({s.catalog for s in self.list_all() if s.catalog})
+
+    def get_schemas(self, catalog: str | None = None) -> list[str]:
+        """Get all unique schema names.
+
+        Args:
+            catalog: Optional catalog to filter by
+
+        Returns:
+            Sorted list of schema names
+        """
+        specs = self.list_all()
+        if catalog:
+            specs = [s for s in specs if s.catalog == catalog]
+        return sorted({s.schema_name for s in specs if s.schema_name})
+
+    def get_domains(self) -> list[str]:
+        """Get all unique domain names.
+
+        Returns:
+            Sorted list of domain names
+        """
+        domains: set[str] = set()
+        for spec in self.list_all():
+            domains.update(spec.domains)
+        return sorted(domains)
+
+    def get_tags(self) -> list[str]:
+        """Get all unique tag names.
+
+        Returns:
+            Sorted list of tag names
+        """
+        tags: set[str] = set()
+        for spec in self.list_all():
+            tags.update(spec.tags)
+        return sorted(tags)
+
+    def get_owners(self) -> list[str]:
+        """Get all unique owners.
+
+        Returns:
+            Sorted list of owner emails
+        """
+        return sorted({s.owner for s in self.list_all() if s.owner})
+
+    def get_teams(self) -> list[str]:
+        """Get all unique teams.
+
+        Returns:
+            Sorted list of team names
+        """
+        return sorted({s.team for s in self.list_all() if s.team})
+
+    def reload(self) -> None:
+        """Reload all metric specs from disk."""
+        self._cache.clear()
+        self._load_all()
+
+    def __len__(self) -> int:
+        """Return the number of registered metrics."""
+        return len(self._cache)
+
+    def __contains__(self, name: str) -> bool:
+        """Check if a metric is registered."""
+        return name in self._cache
+
+    def __iter__(self) -> Iterator[MetricSpec]:
+        """Iterate over all metric specs."""
         return iter(self._cache.values())

@@ -31,7 +31,7 @@ def temp_project(tmp_path):
     datasets_dir = tmp_path / "datasets"
     datasets_dir.mkdir(parents=True)
 
-    # Spec with inline SQL (type: Dataset, query_type: DML)
+    # Dataset with inline SQL (type: Dataset, query_type: DML)
     spec = {
         "name": "iceberg.analytics.test",
         "owner": "owner@example.com",
@@ -46,7 +46,7 @@ def temp_project(tmp_path):
         ],
         "query_statement": "INSERT INTO results SELECT * FROM users WHERE dt = '{{ date }}' LIMIT {{ limit }}",
     }
-    (datasets_dir / "spec.iceberg.analytics.test.yaml").write_text(yaml.dump(spec))
+    (datasets_dir / "dataset.iceberg.analytics.test.yaml").write_text(yaml.dump(spec))
 
     return tmp_path
 
@@ -186,7 +186,7 @@ class TestDatasetService:
 
     def test_reload(self, service, temp_project):
         """Test reloading dataset specs."""
-        # Add a new spec (type: Dataset, query_type: DML)
+        # Add a new dataset (type: Dataset, query_type: DML)
         new_spec = {
             "name": "iceberg.new.dataset",
             "owner": "owner@example.com",
@@ -195,7 +195,7 @@ class TestDatasetService:
             "query_type": "DML",
             "query_statement": "INSERT INTO t SELECT 1",
         }
-        (temp_project / "datasets" / "spec.iceberg.new.dataset.yaml").write_text(
+        (temp_project / "datasets" / "dataset.iceberg.new.dataset.yaml").write_text(
             yaml.dump(new_spec)
         )
 
@@ -233,13 +233,19 @@ class TestDatasetServiceFromFixture:
     """
 
     def test_list_datasets(self, fixture_service):
-        """Test listing datasets from fixture."""
+        """Test listing datasets from fixture.
+
+        The fixture contains 2 datasets:
+        - iceberg.analytics.daily_clicks (from dataset.*.yaml pattern)
+        - iceberg.reporting.daily_summary (from dataset.*.yaml pattern)
+        """
         datasets = fixture_service.list_datasets()
-        # Only 1 dataset (daily_clicks) - user_summary is now a Metric, not Dataset
-        assert len(datasets) == 1
+        # 2 datasets using dataset.*.yaml pattern
+        assert len(datasets) == 2
 
         names = {d.name for d in datasets}
         assert "iceberg.analytics.daily_clicks" in names
+        assert "iceberg.reporting.daily_summary" in names
 
     def test_validate_daily_clicks(self, fixture_service):
         """Test validating daily_clicks dataset."""
@@ -248,7 +254,7 @@ class TestDatasetServiceFromFixture:
             {"execution_date": "2024-01-01"},
         )
         # Should have pre, main, and post results
-        assert len(results) == 3  # 1 pre + 1 main + 1 post
+        assert len(results) == 5  # 2 pre + 1 main + 2 post
 
         # Check that all are valid
         for result in results:
@@ -280,9 +286,9 @@ class TestDatasetServiceFromFixture:
             {"execution_date": "2024-01-01"},
         )
         assert result.success is True
-        assert len(result.pre_results) == 1
+        assert len(result.pre_results) == 2
         assert result.main_result is not None
-        assert len(result.post_results) == 1
+        assert len(result.post_results) == 2
 
     def test_get_catalogs(self, fixture_service):
         """Test getting catalogs."""

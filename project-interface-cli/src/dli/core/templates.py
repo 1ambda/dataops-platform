@@ -14,88 +14,27 @@ import os
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
+from dli.core.types import TemplateContextDict
+
+# Import SQL filters from dedicated module
+from dli.core.sql_filters import (
+    sql_identifier_escape,
+    sql_list_escape,
+    sql_string_escape,
+)
+
 if TYPE_CHECKING:
     from jinja2 import Environment
 
-
-# =============================================================================
-# Shared SQL Filters (used by both SafeJinjaEnvironment and SQLRenderer)
-# =============================================================================
-
-
-def sql_string_escape(value: Any) -> str:
-    """Escape a value for safe use in SQL strings.
-
-    Args:
-        value: The value to escape.
-
-    Returns:
-        SQL-safe escaped string with single quotes, or NULL for None.
-
-    Example:
-        >>> sql_string_escape("O'Brien")
-        "'O''Brien'"
-        >>> sql_string_escape(None)
-        'NULL'
-    """
-    if value is None:
-        return "NULL"
-    escaped = str(value).replace("'", "''")
-    return f"'{escaped}'"
-
-
-def sql_list_escape(values: list[Any]) -> str:
-    """Convert a list to a SQL IN clause format.
-
-    Args:
-        values: List of values to format.
-
-    Returns:
-        Comma-separated values in parentheses, suitable for IN clauses.
-
-    Example:
-        >>> sql_list_escape([1, 2, 3])
-        '(1, 2, 3)'
-        >>> sql_list_escape(["a", "b"])
-        "('a', 'b')"
-        >>> sql_list_escape([])
-        '(NULL)'
-    """
-    if not values:
-        return "(NULL)"
-
-    formatted = []
-    for v in values:
-        if isinstance(v, str):
-            escaped = v.replace("'", "''")
-            formatted.append(f"'{escaped}'")
-        elif v is None:
-            formatted.append("NULL")
-        else:
-            formatted.append(str(v))
-
-    return f"({', '.join(formatted)})"
-
-
-def sql_identifier_escape(value: Any) -> str:
-    """Quote a SQL identifier with double quotes.
-
-    Args:
-        value: Identifier to quote.
-
-    Returns:
-        Double-quoted identifier.
-
-    Example:
-        >>> sql_identifier_escape("users")
-        '"users"'
-        >>> sql_identifier_escape('my"table')
-        '"my""table"'
-    """
-    if value is None:
-        return '""'
-    escaped = str(value).replace('"', '""')
-    return f'"{escaped}"'
+# Re-export for backward compatibility
+__all__ = [
+    "SafeJinjaEnvironment",
+    "SafeTemplateRenderer",
+    "TemplateContext",
+    "sql_identifier_escape",
+    "sql_list_escape",
+    "sql_string_escape",
+]
 
 
 class TemplateContext:
@@ -296,11 +235,11 @@ class TemplateContext:
         key = f"{source_name}.{table_name}"
         return self._refs.get(key, key)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> TemplateContextDict:
         """Export context as dictionary for Jinja2.
 
         Returns:
-            Dictionary with all variables and functions for template rendering.
+            TemplateContextDict with all variables and functions for template rendering.
         """
         return {
             # Date variables

@@ -40,16 +40,17 @@ def temp_project(tmp_path):
     datasets_dir = tmp_path / "datasets" / "feed"
     datasets_dir.mkdir(parents=True)
 
-    # Spec file
+    # Dataset spec file (using dataset.*.yaml pattern)
     spec = {
         "name": "iceberg.analytics.daily_clicks",
         "owner": "henry@example.com",
         "team": "@analytics",
+        "type": "Dataset",
         "domains": ["feed"],
         "query_type": "DML",
         "query_file": "daily_clicks.sql",
     }
-    (datasets_dir / "spec.iceberg.analytics.daily_clicks.yaml").write_text(
+    (datasets_dir / "dataset.iceberg.analytics.daily_clicks.yaml").write_text(
         yaml.dump(spec)
     )
 
@@ -85,11 +86,17 @@ class TestProjectConfig:
         config = load_project(temp_project)
         assert config.project_description == "Test Project"
 
-    def test_spec_patterns(self, temp_project):
-        """Test spec patterns."""
+    def test_metric_patterns(self, temp_project):
+        """Test metric patterns."""
         config = load_project(temp_project)
-        patterns = config.spec_patterns
-        assert "spec.*.yaml" in patterns
+        patterns = config.metric_patterns
+        assert "metric.*.yaml" in patterns
+
+    def test_dataset_patterns(self, temp_project):
+        """Test dataset patterns."""
+        config = load_project(temp_project)
+        patterns = config.dataset_patterns
+        assert "dataset.*.yaml" in patterns
 
     def test_defaults(self, temp_project):
         """Test default settings."""
@@ -144,11 +151,12 @@ class TestDatasetDiscovery:
         discovery = DatasetDiscovery(config)
 
         specs = list(discovery.discover_all())
-        # Only daily_clicks is a Dataset; user_summary is a Metric
-        assert len(specs) == 1
+        # 2 datasets: daily_clicks and daily_summary
+        assert len(specs) == 2
 
         names = {s.name for s in specs}
         assert "iceberg.analytics.daily_clicks" in names
+        assert "iceberg.reporting.daily_summary" in names
         # user_summary is type=Metric, so it's not discovered by DatasetDiscovery
         assert "iceberg.reporting.user_summary" not in names
 
@@ -242,11 +250,12 @@ class TestSpecDiscovery:
         discovery = SpecDiscovery(config)
 
         metrics = list(discovery.discover_metrics())
-        assert len(metrics) == 2  # user_engagement and revenue_summary
+        assert len(metrics) == 3  # user_engagement, revenue_summary, and user_summary
 
         names = {m.name for m in metrics}
         assert "iceberg.analytics.user_engagement" in names
         assert "iceberg.analytics.revenue_summary" in names
+        assert "iceberg.reporting.user_summary" in names
 
         # Verify all are metrics
         for metric in metrics:

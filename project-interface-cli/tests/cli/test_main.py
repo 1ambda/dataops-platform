@@ -223,22 +223,51 @@ class TestRenderCommand:
         assert result.exit_code != 0
 
 
-class TestListCommand:
-    """Tests for the list command."""
+class TestMetricSubcommand:
+    """Tests for the metric subcommand."""
 
-    def test_list_no_config(self, tmp_path: Path):
-        """Test listing when no dli.yaml config exists."""
-        result = runner.invoke(app, ["list", "--path", str(tmp_path)])
-        # Should exit 0 but show message about no config
+    def test_metric_help(self):
+        """Test 'dli metric --help' shows command help."""
+        result = runner.invoke(app, ["metric", "--help"])
         assert result.exit_code == 0
-        assert "No dli.yaml" in result.stdout or "configuration" in result.stdout
+        assert "list" in result.stdout
+        assert "get" in result.stdout
+        assert "run" in result.stdout
 
-    def test_list_help(self):
-        """Test 'dli list --help' shows command help."""
-        result = runner.invoke(app, ["list", "--help"])
+    def test_metric_list_help(self):
+        """Test 'dli metric list --help' shows command help."""
+        result = runner.invoke(app, ["metric", "list", "--help"])
         assert result.exit_code == 0
-        assert "--type" in result.stdout
         assert "--format" in result.stdout
+
+
+class TestDatasetSubcommand:
+    """Tests for the dataset subcommand."""
+
+    def test_dataset_help(self):
+        """Test 'dli dataset --help' shows command help."""
+        result = runner.invoke(app, ["dataset", "--help"])
+        assert result.exit_code == 0
+        assert "list" in result.stdout
+        assert "get" in result.stdout
+        assert "run" in result.stdout
+
+    def test_dataset_list_help(self):
+        """Test 'dli dataset list --help' shows command help."""
+        result = runner.invoke(app, ["dataset", "list", "--help"])
+        assert result.exit_code == 0
+        assert "--format" in result.stdout
+
+
+class TestServerSubcommand:
+    """Tests for the server subcommand."""
+
+    def test_server_help(self):
+        """Test 'dli server --help' shows command help."""
+        result = runner.invoke(app, ["server", "--help"])
+        assert result.exit_code == 0
+        assert "config" in result.stdout
+        assert "status" in result.stdout
 
 
 class TestInfoCommand:

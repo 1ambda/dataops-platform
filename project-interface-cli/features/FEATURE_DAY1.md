@@ -8,8 +8,8 @@ Day 1에서는 DLI_HOME 기반의 Dataset Spec 시스템과 Core Engine을 구�
 
 | 항목 | 상태 |
 |------|------|
-| 완료일 | 2025-12-28 |
-| 테스트 | 328 tests passed (core + CLI) |
+| 완료일 | 2025-12-29 |
+| 테스트 | 393 tests passed (core + CLI + library) |
 | 코드 품질 | pyright 0 errors, ruff 0 errors |
 
 ### 주요 변경사항 (v1 → v2 → v3)
@@ -51,9 +51,6 @@ metric.{catalog}.{schema}.{name}.yaml
 # DatasetSpec
 dataset.{catalog}.{schema}.{name}.yaml
 예: dataset.iceberg.analytics.daily_clicks.yaml
-
-# Legacy (하위 호환)
-spec.{catalog}.{schema}.{name}.yaml
 ```
 
 ### 디렉토리 구조
@@ -82,18 +79,12 @@ discovery:
   datasets_dir: "datasets"
   metrics_dir: "metrics"
 
-  # 신규 패턴
   metric_patterns:
     - "metric.*.yaml"
     - "metric.yaml"
   dataset_patterns:
     - "dataset.*.yaml"
     - "dataset.yaml"
-
-  # Legacy 패턴 (하위 호환)
-  spec_patterns:
-    - "spec.*.yaml"
-    - "spec.yaml"
 ```
 
 ### 모델 클래스
@@ -144,9 +135,9 @@ for metric in spec_discovery.discover_metrics(): # MetricSpec만
 for dataset in spec_discovery.discover_datasets(): # DatasetSpec만
     print(f"Dataset: {dataset.name}")
 
-# Legacy Discovery (하위 호환)
+# DatasetDiscovery (DatasetSpec 전용)
 dataset_discovery = DatasetDiscovery(config)
-for dataset in dataset_discovery.discover_all(): # DatasetSpec만
+for dataset in dataset_discovery.discover_all():
     print(f"Dataset: {dataset.name}")
 ```
 
@@ -243,12 +234,12 @@ $DLI_HOME/
 ├── datasets/                         # 데이터셋 루트
 │   │
 │   │  # 옵션 A: Flat 구조 (소규모)
-│   ├── spec.iceberg.analytics.daily_clicks.yaml
+│   ├── dataset.iceberg.analytics.daily_clicks.yaml
 │   ├── daily_clicks.sql
 │   │
 │   │  # 옵션 B: Domain 기반 구조 (권장)
 │   ├── feed/
-│   │   ├── spec.iceberg.analytics.daily_clicks.yaml
+│   │   ├── dataset.iceberg.analytics.daily_clicks.yaml
 │   │   ├── daily_clicks.sql
 │   │   ├── daily_clicks_pre.sql
 │   │   └── daily_clicks_post.sql
@@ -257,7 +248,7 @@ $DLI_HOME/
 │   └── iceberg/
 │       └── analytics/
 │           └── daily_clicks/
-│               ├── spec.yaml
+│               ├── dataset.yaml
 │               ├── main.sql
 │               ├── pre.sql
 │               └── post.sql
@@ -277,10 +268,13 @@ project:
 
 discovery:
   datasets_dir: "datasets"
-  spec_patterns:
-    - "spec.*.yaml"
-    - "spec.yaml"
-    - "*.spec.yaml"
+  metrics_dir: "metrics"
+  dataset_patterns:
+    - "dataset.*.yaml"
+    - "dataset.yaml"
+  metric_patterns:
+    - "metric.*.yaml"
+    - "metric.yaml"
   sql_patterns:
     - "*.sql"
 
@@ -301,7 +295,7 @@ environments:
 ## Spec 파일 스키마
 
 ```yaml
-# spec.{catalog}.{schema}.{table}.yaml
+# dataset.{catalog}.{schema}.{table}.yaml 또는 metric.{catalog}.{schema}.{table}.yaml
 
 # ─────────────────────────────────────────────
 # 1. 기본 식별자 (Required)
@@ -578,6 +572,157 @@ result = service.execute(
 )
 ```
 
+### 8. metric_service.py
+
+메트릭 실행 서비스 (SELECT 쿼리 전용):
+
+```python
+from dli.core import MetricService, MockExecutor
+
+service = MetricService(
+    project_path=Path("/path/to/dli_home"),
+    executor=MockExecutor(),
+)
+
+# 메트릭 목록
+metrics = service.list_metrics(domain="reporting")
+
+# 검증
+results = service.validate("iceberg.reporting.user_summary", {"date": "2025-01-01"})
+
+# 실행 (SELECT 결과 반환)
+result = service.execute(
+    "iceberg.reporting.user_summary",
+    {"date": "2025-01-01"},
+)
+
+if result.success:
+    print(f"Rows: {result.rows}")
+    print(f"Columns: {result.columns}")
+    print(f"Row count: {result.row_count}")
+```
+
+---
+
+## Library API (Airflow 연동)
+
+dli는 CLI 뿐만 아니라 **Python 라이브러리**로도 사용 가능합니다.
+Airflow의 PythonOperator에서 직접 호출하여 사용할 수 있습니다.
+
+### 설치
+
+```bash
+# 기본 설치
+pip install dataops-cli
+
+# Airflow 환경에서 사용 시
+pip install dataops-cli[airflow]
+
+# BigQuery 실행 시
+pip install dataops-cli[bigquery]
+```
+
+### Airflow DAG 예시
+
+```python
+from datetime import datetime
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+
+from dli.core import DatasetService, MetricService
+
+def run_dataset(ds: str, **context):
+    """Dataset 실행 (INSERT/UPDATE/DELETE/MERGE)."""
+    service = DatasetService(project_path="/opt/airflow/dli_home")
+    result = service.execute(
+        "iceberg.analytics.daily_clicks",
+        {"execution_date": ds},
+    )
+    if not result.success:
+        raise Exception(result.error_message)
+    return {"success": True, "main_rows": result.main_result.row_count}
+
+def run_metric(ds: str, **context):
+    """Metric 실행 (SELECT)."""
+    service = MetricService(project_path="/opt/airflow/dli_home")
+    result = service.execute(
+        "iceberg.reporting.user_summary",
+        {"date": ds},
+    )
+    if not result.success:
+        raise Exception(result.error_message)
+    # XCom으로 결과 전달
+    return {"rows": result.rows, "row_count": result.row_count}
+
+with DAG(
+    dag_id="dli_example",
+    start_date=datetime(2025, 1, 1),
+    schedule="@daily",
+) as dag:
+
+    dataset_task = PythonOperator(
+        task_id="run_daily_clicks",
+        python_callable=run_dataset,
+    )
+
+    metric_task = PythonOperator(
+        task_id="run_user_summary",
+        python_callable=run_metric,
+    )
+
+    dataset_task >> metric_task
+```
+
+### 주요 API
+
+| 클래스 | 용도 | 쿼리 타입 |
+|--------|------|----------|
+| `DatasetService` | Dataset 실행 (데이터 처리) | DML (INSERT/UPDATE/DELETE/MERGE) |
+| `MetricService` | Metric 실행 (분석 쿼리) | SELECT |
+
+### DatasetService 메서드
+
+| 메서드 | 설명 |
+|--------|------|
+| `list_datasets()` | 데이터셋 목록 (필터링 지원) |
+| `get_dataset(name)` | 데이터셋 조회 |
+| `validate(name, params)` | SQL 검증 (Pre, Main, Post) |
+| `render_sql(name, params)` | SQL 렌더링 |
+| `execute(name, params)` | 실행 (skip_pre, skip_post, dry_run 옵션) |
+
+### MetricService 메서드
+
+| 메서드 | 설명 |
+|--------|------|
+| `list_metrics()` | 메트릭 목록 (필터링 지원) |
+| `get_metric(name)` | 메트릭 조회 |
+| `validate(name, params)` | SQL 검증 |
+| `render_sql(name, params)` | SQL 렌더링 |
+| `execute(name, params)` | 실행 (결과 행 반환) |
+
+### 실행 결과 모델
+
+```python
+# Dataset 실행 결과
+class DatasetExecutionResult:
+    dataset_name: str
+    success: bool
+    pre_results: list[ExecutionResult]
+    main_result: ExecutionResult | None
+    post_results: list[ExecutionResult]
+    error_message: str | None
+
+# Metric 실행 결과
+class MetricExecutionResult:
+    metric_name: str
+    success: bool
+    rows: list[dict[str, Any]]      # SELECT 결과
+    row_count: int
+    columns: list[str]
+    error_message: str | None
+    execution_time_ms: float | None
+```
+
 ---
 
 ## 테스트 Fixtures
@@ -586,30 +731,33 @@ result = service.execute(
 
 ```
 sample_project/
-├── dli.yaml                                           # 프로젝트 설정
-├── datasets/
-│   ├── feed/
-│   │   ├── spec.iceberg.analytics.daily_clicks.yaml   # DML Spec
-│   │   └── daily_clicks.sql                           # SQL 파일
+├── dli.yaml                                              # 프로젝트 설정
+├── metrics/
 │   └── reporting/
-│       ├── spec.iceberg.reporting.user_summary.yaml   # SELECT Spec
-│       └── user_summary.sql                           # SQL 파일
+│       ├── metric.iceberg.reporting.user_summary.yaml    # Metric Spec
+│       └── user_summary.sql                              # SQL 파일
+├── datasets/
+│   └── feed/
+│       ├── dataset.iceberg.analytics.daily_clicks.yaml   # Dataset Spec
+│       └── daily_clicks.sql                              # SQL 파일
 ```
 
 ### 테스트 현황
 
 | 파일 | 테스트 수 | 설명 |
 |------|----------|------|
-| `cli/test_main.py` | 32 | CLI 커맨드 테스트 (version, validate, render, list, info) |
+| `cli/test_main.py` | 32 | CLI 커맨드 테스트 (version, validate, render, info) |
+| `cli/test_list_cmd.py` | 28 | List 커맨드 테스트 (필터, 포맷, 에러) |
 | `test_models.py` | 69 | 데이터 모델 + SpecType/MetricSpec/DatasetSpec + Name Validation |
 | `test_discovery.py` | 30 | ProjectConfig + SpecDiscovery + DatasetDiscovery |
-| `test_registry.py` | 30 | 레지스트리 테스트 (DatasetSpec 전용) |
+| `test_registry.py` | 30 | 레지스트리 테스트 (DatasetSpec + MetricSpec) |
 | `test_renderer.py` | 19 | SQL 렌더링 테스트 |
 | `test_templates.py` | 71 | Safe 템플릿 컨텍스트 테스트 |
 | `test_validator.py` | 26 | SQL 검증 테스트 |
 | `test_executor.py` | 20 | 실행 엔진 테스트 |
-| `test_service.py` | 31 | 통합 서비스 테스트 (DatasetSpec 전용) |
-| **합계** | **328** | core + CLI 테스트 |
+| `test_service.py` | 31 | DatasetService 통합 테스트 |
+| `test_metric_service.py` | 37 | MetricService 통합 테스트 (Airflow 연동) |
+| **합계** | **393** | core + CLI + library 테스트 |
 
 ---
 
@@ -646,12 +794,6 @@ FROM {{ ref('raw_events') }}
 WHERE dt BETWEEN '{{ date_sub(ds, 7) }}' AND '{{ ds }}'
   AND country = '{{ var("target_country", "KR") }}'
 ```
-
-### TODO (Phase 2)
-
-- SQLMesh `@DEF`, `@VAR` 스타일 매크로 지원
-- `source()` 함수 (외부 소스 테이블 참조)
-- 커스텀 매크로 정의
 
 ---
 
@@ -719,14 +861,6 @@ metric = MetricDefinition(
 )
 print(metric.to_sql())  # COUNT(DISTINCT user_id)
 ```
-
-### TODO (Phase 2)
-
-- derived metrics (다른 메트릭 조합)
-- ratio metrics (비율 계산)
-- cumulative metrics (누적 집계)
-- conversion metrics (전환 퍼널)
-- `time_grain` 세부 설정 (day, week, month)
 
 ---
 
@@ -850,6 +984,45 @@ from dli.core import QueryType, ValidationResult
 
 ---
 
+## 프로젝트 구조 평가 (Senior Engineer Analysis)
+
+### 현재 상태 평가
+
+| 지표 | 값 | 평가 |
+|------|---|------|
+| 소스 코드 | 4,551 lines / 27 files | **적정** |
+| 테스트 코드 | 3,500+ lines / 11 files | **양호** |
+| 평균 파일 크기 | 169 lines | **건강함** |
+| 가장 큰 파일 | templates.py (505 lines) | **허용 범위** |
+| 테스트 커버리지 | 86% | **양호** |
+
+### 업계 기준 비교
+
+| CLI 도구 | Lines | Files | Avg Size |
+|----------|-------|-------|----------|
+| httpie | ~15,000 | 40+ | 375 |
+| typer | ~8,000 | 30 | 267 |
+| **dli (현재)** | **4,551** | **27** | **169** |
+
+### 판단: ✅ 현재 구조 적절함
+
+**추가 리팩토링 불필요** - 다음 조건을 모두 충족:
+
+1. **파일 크기가 건강한 범위** (최대 505 lines < 700 lines 기준)
+2. **모듈 응집도 높음** (관련 클래스가 함께 위치)
+3. **관심사 분리 완료** (commands/, core/, adapters/)
+4. **하위 호환성 유지** (models/__init__.py re-exports)
+
+### 보안 개선사항 (적용 완료)
+
+| 이슈 | 심각도 | 상태 |
+|------|-------|------|
+| SQL date filter injection | Critical | ✅ 수정됨 |
+| Type hints for dict returns | High | 🔄 개선 권장 |
+| Error context in file loading | Medium | 🔄 개선 권장 |
+
+---
+
 ## Day 1 체크리스트
 
 - [x] models.py → **models/ 패키지 분리**
@@ -860,16 +1033,19 @@ from dli.core import QueryType, ValidationResult
 - [x] validator.py (SQLValidator)
 - [x] executor.py (BaseExecutor, MockExecutor, DatasetExecutor)
 - [x] service.py (DatasetService)
+- [x] **metric_service.py (MetricService) - Airflow 연동용**
 - [x] **main.py (Typer CLI 엔트리포인트)**
 - [x] **__main__.py (python -m dli 지원)**
-- [x] 샘플 파일 (dli.yaml, spec.yaml, .sql)
+- [x] 샘플 파일 (dli.yaml, dataset.yaml, metric.yaml, .sql)
 - [x] Safe Templating (dbt/SQLMesh 호환 변수 및 함수)
 - [x] Metric 정의 (MetricDefinition, DimensionDefinition)
 - [x] **Metric/Dataset 분리 (SpecType, MetricSpec, DatasetSpec)**
 - [x] **metrics_dir 설정 및 metric/dataset 파일 패턴**
 - [x] **metrics/ 및 datasets/ 샘플 파일**
-- [x] **CLI 커맨드 테스트 (32 tests)**
-- [x] 전체 테스트 (328 tests passed)
+- [x] **CLI 커맨드 테스트 (60 tests)**
+- [x] **Library API 테스트 (37 tests)**
+- [x] **TypedDict 타입 힌트 추가**
+- [x] 전체 테스트 (393 tests passed)
 - [x] 코드 리뷰 및 리팩토링
 
 ---

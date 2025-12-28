@@ -101,7 +101,9 @@
       "mcp__serena__read_memory",
       "mcp__serena__get_symbols_overview",
       "mcp__context7__resolve-library-id",
-      "WebFetch(domain:sqlmesh.readthedocs.io)"
+      "WebFetch(domain:sqlmesh.readthedocs.io)",
+      "mcp__plugin_claude-mem_mem-search__search",
+      "mcp__plugin_claude-mem_mem-search__get_observations"
     ],
     "deny": [
       "Bash(rm -rf:*)",

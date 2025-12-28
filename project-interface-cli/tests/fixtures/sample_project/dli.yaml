@@ -9,12 +9,7 @@ discovery:
   datasets_dir: "datasets"
   metrics_dir: "metrics"
 
-  # Legacy patterns (backward compatibility)
-  spec_patterns:
-    - "spec.*.yaml"
-    - "spec.yaml"
-
-  # New metric/dataset patterns
+  # Metric and dataset patterns
   metric_patterns:
     - "metric.*.yaml"
     - "metric.yaml"
@@ -32,3 +27,9 @@ environments:
     connection_string: "trino://localhost:8080/iceberg"
   prod:
     connection_string: "trino://trino-prod:8080/iceberg"
+
+# Basecamp server configuration
+server:
+  url: "http://localhost:8081"
+  timeout: 30
+  # api_key: "your-api-key-here"  # Optional authentication

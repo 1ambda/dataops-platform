@@ -44,6 +44,7 @@ from dli.core.models.metric import (
 from dli.core.models.results import (
     DatasetExecutionResult,
     ExecutionResult,
+    MetricExecutionResult,
     ValidationResult,
 )
 
@@ -76,6 +77,7 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "ValidationResult",
     "ExecutionResult",
     "DatasetExecutionResult",
+    "MetricExecutionResult",
     # Type alias
     "Spec",
 ]
