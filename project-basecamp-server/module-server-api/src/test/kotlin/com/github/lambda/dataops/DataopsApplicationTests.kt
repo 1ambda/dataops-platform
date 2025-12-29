@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-@Disabled("Temporarily disabled: OAuth2 auto-configuration issue with Spring Boot 4.x - needs proper test configuration")
+@Disabled("OAuth2 config issue with Spring Boot 4.x")
 class DataopsApplicationTests {
     @Test
     fun contextLoads() {

@@ -7,7 +7,7 @@ import org.springframework.test.context.ActiveProfiles
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Disabled("Temporarily disabled: OAuth2 auto-configuration issue with Spring Boot 4.x - needs proper test configuration")
+@Disabled("OAuth2 config issue with Spring Boot 4.x")
 class DataOpsBasecampServerApplicationTests {
     @Test
     fun contextLoads() {

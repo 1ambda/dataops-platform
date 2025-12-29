@@ -33,6 +33,7 @@ permissions:
 
 env:
   PYTHON_VERSION: '3.12'
+  NO_COLOR: '1'  # Disable Rich ANSI colors for consistent test output
 
 jobs:
   build:
