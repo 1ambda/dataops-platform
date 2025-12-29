@@ -77,7 +77,7 @@ jobs:
 
       - name: Sync dependencies with uv
         working-directory: project-interface-cli
-        run: uv sync --frozen
+        run: uv sync --frozen --extra build
 
       - name: Run linting with ruff (Linux only)
         if: matrix.os == 'ubuntu-latest'
