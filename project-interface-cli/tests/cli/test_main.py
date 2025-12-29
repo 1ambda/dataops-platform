@@ -8,6 +8,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from tests.conftest import strip_ansi
+
 from dli import __version__
 from dli.main import app
 
@@ -238,7 +240,7 @@ class TestMetricSubcommand:
         """Test 'dli metric list --help' shows command help."""
         result = runner.invoke(app, ["metric", "list", "--help"])
         assert result.exit_code == 0
-        assert "--format" in result.stdout
+        assert "--format" in strip_ansi(result.stdout)
 
 
 class TestDatasetSubcommand:
@@ -256,7 +258,7 @@ class TestDatasetSubcommand:
         """Test 'dli dataset list --help' shows command help."""
         result = runner.invoke(app, ["dataset", "list", "--help"])
         assert result.exit_code == 0
-        assert "--format" in result.stdout
+        assert "--format" in strip_ansi(result.stdout)
 
 
 class TestServerSubcommand:

@@ -17,6 +17,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from tests.conftest import strip_ansi
+
 from dli.core.lineage import (
     LineageDirection,
     LineageEdge,
@@ -191,20 +193,21 @@ class TestLineageHelp:
         """Test 'dli lineage show --help' shows command help."""
         result = runner.invoke(app, ["lineage", "show", "--help"])
         assert result.exit_code == 0
-        assert "--depth" in result.stdout
-        assert "--format" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "--depth" in output
+        assert "--format" in output
 
     def test_lineage_upstream_help(self) -> None:
         """Test 'dli lineage upstream --help' shows command help."""
         result = runner.invoke(app, ["lineage", "upstream", "--help"])
         assert result.exit_code == 0
-        assert "--depth" in result.stdout
+        assert "--depth" in strip_ansi(result.stdout)
 
     def test_lineage_downstream_help(self) -> None:
         """Test 'dli lineage downstream --help' shows command help."""
         result = runner.invoke(app, ["lineage", "downstream", "--help"])
         assert result.exit_code == 0
-        assert "--depth" in result.stdout
+        assert "--depth" in strip_ansi(result.stdout)
 
 
 class TestLineageShow:

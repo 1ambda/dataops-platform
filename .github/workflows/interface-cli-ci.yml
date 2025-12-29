@@ -33,7 +33,10 @@ permissions:
 
 env:
   PYTHON_VERSION: '3.12'
-  NO_COLOR: '1'  # Disable Rich ANSI colors for consistent test output
+  # Disable Rich/Typer ANSI formatting for consistent test output
+  NO_COLOR: '1'
+  TERM: dumb
+  FORCE_COLOR: '0'
 
 jobs:
   build:

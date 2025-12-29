@@ -1,6 +1,7 @@
 """Pytest configuration and shared fixtures for dli tests."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -9,6 +10,29 @@ import pytest
 
 if TYPE_CHECKING:
     from dli.core.client import BasecampClient
+
+
+# =============================================================================
+# ANSI Code Utilities
+# =============================================================================
+
+# Regex pattern to match ANSI escape codes
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    This is useful for comparing CLI output in tests where
+    Rich may output formatting codes depending on terminal settings.
+
+    Args:
+        text: Text potentially containing ANSI escape codes.
+
+    Returns:
+        Text with all ANSI codes removed.
+    """
+    return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
 # =============================================================================

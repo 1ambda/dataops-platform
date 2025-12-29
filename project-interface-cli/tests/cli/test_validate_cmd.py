@@ -17,6 +17,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests.conftest import strip_ansi
+
 from dli.main import app
 
 runner = CliRunner()
@@ -348,10 +350,11 @@ class TestValidateHelp:
         """Test validate --help shows command help."""
         result = runner.invoke(app, ["validate", "--help"])
         assert result.exit_code == 0
-        assert "validate" in result.stdout.lower()
-        assert "--dialect" in result.stdout
-        assert "--strict" in result.stdout
-        assert "--all" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "validate" in output.lower()
+        assert "--dialect" in output
+        assert "--strict" in output
+        assert "--all" in output
 
 
 # =============================================================================

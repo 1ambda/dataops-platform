@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from tests.conftest import strip_ansi
+
 from dli.core.quality import (
     DqSeverity,
     DqStatus,
@@ -145,23 +147,26 @@ class TestQualityHelp:
         """Test 'dli quality list --help' shows command help."""
         result = runner.invoke(app, ["quality", "list", "--help"])
         assert result.exit_code == 0
-        assert "--resource" in result.stdout
-        assert "--format" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "--resource" in output
+        assert "--format" in output
 
     def test_quality_run_help(self) -> None:
         """Test 'dli quality run --help' shows command help."""
         result = runner.invoke(app, ["quality", "run", "--help"])
         assert result.exit_code == 0
-        assert "--all" in result.stdout
-        assert "--server" in result.stdout
-        assert "--fail-fast" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "--all" in output
+        assert "--server" in output
+        assert "--fail-fast" in output
 
     def test_quality_show_help(self) -> None:
         """Test 'dli quality show --help' shows command help."""
         result = runner.invoke(app, ["quality", "show", "--help"])
         assert result.exit_code == 0
-        assert "--test" in result.stdout
-        assert "--format" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "--test" in output
+        assert "--format" in output
 
 
 class TestQualityList:
