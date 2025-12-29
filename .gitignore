@@ -419,6 +419,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# Exception: PyInstaller spec file for CLI
+!project-interface-cli/dli.spec
 
 # Installer logs
 pip-log.txt
