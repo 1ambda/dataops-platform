@@ -76,7 +76,7 @@ Complete command reference: `make help`
 
 ### interface-cli (Python + Typer)
 **Development**: `cd project-interface-cli && uv run python -m src.main --help`
-**Commands**: `dli metric`, `dli dataset`, `dli server`, `dli validate`, `dli lineage`, `dli quality`, `dli workflow`
+**Commands**: `dli metric`, `dli dataset`, `dli catalog`, `dli workflow`, `dli validate`, `dli lineage`, `dli quality`
 **Structure**: Uses `metrics/` and `datasets/` directories for resource definitions (YAML specs)
 **Pattern**: Rich CLI with library API (DatasetService, MetricService) for Airflow integration
 

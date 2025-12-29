@@ -10,13 +10,25 @@ skills:
   - performance
 ---
 
-## Token Efficiency (MCP-First)
+## Single Source of Truth (CRITICAL)
 
-ALWAYS use MCP tools before file reads:
-- `serena.get_symbols_overview("src/components/...")` - understand component structure
-- `serena.find_symbol("useQuery")` - find existing hook patterns
-- `context7.get-library-docs("/facebook/react", "hooks")` - React best practices
-- `context7.get-library-docs("/tanstack/query", "useQuery")` - TanStack Query patterns
+> **패턴은 Serena Memory에 통합되어 있습니다. 구현 전 먼저 읽으세요.**
+
+### 1순위: Serena Memory (토큰 최소)
+
+```
+mcp__serena__read_memory("ui_patterns")    # 핵심 패턴 요약
+```
+
+### 2순위: MCP 탐색 (기존 코드 확인)
+
+```
+serena.get_symbols_overview("project-basecamp-ui/src/components/...")
+serena.find_symbol("useQuery")
+context7.get-library-docs("/tanstack/query", "useQuery")
+```
+
+---
 
 ## When to Use Skills
 

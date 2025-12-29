@@ -9,13 +9,25 @@ skills:
   - debugging
 ---
 
-## Token Efficiency (MCP-First)
+## Single Source of Truth (CRITICAL)
 
-ALWAYS use MCP tools before file reads:
-- `serena.get_symbols_overview("src/parser/...")` - understand parser structure
-- `serena.find_symbol("SqlParserService")` - find existing service patterns
-- `context7.get-library-docs("/tobymao/sqlglot")` - SQLglot best practices
-- `context7.get-library-docs("/pallets/flask")` - Flask patterns
+> **패턴은 Serena Memory에 통합되어 있습니다. 구현 전 먼저 읽으세요.**
+
+### 1순위: Serena Memory (토큰 최소)
+
+```
+mcp__serena__read_memory("parser_patterns")    # 핵심 패턴 요약
+```
+
+### 2순위: MCP 탐색 (기존 코드 확인)
+
+```
+serena.get_symbols_overview("project-basecamp-parser/src/parser/...")
+serena.find_symbol("SqlParserService")
+context7.get-library-docs("/tobymao/sqlglot")
+```
+
+---
 
 ## When to Use Skills
 

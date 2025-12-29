@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, validation, lineage, quality testing)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow, validation, lineage, quality testing)
 - 🚧 **project-interface-library** - Planned shared library (placeholder)
 
 ---
@@ -202,24 +202,26 @@ class UserRepositoryJpaImpl(
 
 ## project-interface-cli Development Guide
 
-**IMPORTANT FOR AI AGENTS:** Reference patterns before implementing new CLI features.
+**IMPORTANT FOR AI AGENTS:** 단일 패턴 문서를 참조하여 구현하세요.
 
-### Pattern References
+### Quick Reference (토큰 효율 순)
 
-| Task | Reference File |
-|------|----------------|
-| CRUD CLI command | `src/dli/commands/dataset.py` |
-| Server-based CLI command | `src/dli/commands/workflow.py` |
-| Data models (Pydantic) | `src/dli/core/workflow/models.py` |
-| Client methods | `src/dli/core/client.py` |
-| CLI tests | `tests/cli/test_workflow_cmd.py` |
-| Model tests | `tests/core/workflow/test_models.py` |
+| 우선순위 | 참조 | 용도 |
+|----------|------|------|
+| 1️⃣ | `mcp__serena__read_memory("cli_patterns")` | 핵심 패턴 요약 |
+| 2️⃣ | `mcp__serena__read_memory("cli_test_patterns")` | 테스트 패턴 요약 |
+| 3️⃣ | `project-interface-cli/docs/PATTERNS.md` | 상세 패턴 (필요시만) |
+
+### 참조 불필요 (위 문서에 통합됨)
+
+- ❌ `dataset.py`, `workflow.py` → 코드 템플릿이 PATTERNS.md에 있음
+- ❌ `test_workflow_cmd.py` → 테스트 패턴이 cli_test_patterns에 있음
 
 ### Pre-Implementation Checklist
 
-1. **Check existing enums** in `client.py` before creating new ones
-2. **Follow model patterns** from `workflow/models.py` (Pydantic, `__all__` export)
-3. **Test patterns** from existing test files (CliRunner for CLI, pytest fixtures)
+1. **Read Serena memory** (`cli_patterns`) or PATTERNS.md
+2. **Check existing enums** in `client.py` before creating new ones
+3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
 ### Directory Structure
 
@@ -231,6 +233,7 @@ project-interface-cli/src/dli/
 │   ├── utils.py          # Rich output helpers (console, print_*)
 │   ├── metric.py         # Metric CRUD commands
 │   ├── dataset.py        # Dataset CRUD commands
+│   ├── catalog.py        # Catalog browsing (tables, search)
 │   ├── validate.py       # Validation commands
 │   ├── lineage.py        # Lineage commands
 │   ├── quality.py        # Quality test commands
@@ -242,7 +245,8 @@ project-interface-cli/src/dli/
 │   ├── validation/       # Spec and dependency validation
 │   ├── lineage/          # Lineage client and models
 │   ├── quality/          # Quality test executor, registry, builtin tests
-│   └── workflow/         # Workflow models and operations
+│   ├── workflow/         # Workflow models and operations
+│   └── catalog/          # Catalog models (TableInfo, TableDetail)
 └── main.py               # Register subcommand apps here
 ```
 

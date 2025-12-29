@@ -9,290 +9,122 @@ skills:
   - debugging
 ---
 
-## Pattern References (CRITICAL)
+## Single Source of Truth (CRITICAL)
 
-**Before implementing ANY new feature, check these reference files:**
+> **모든 패턴은 단일 문서로 통합되어 있습니다. 여러 파일을 읽지 마세요.**
 
-| Task | Reference File | Key Pattern |
-|------|----------------|-------------|
-| New CLI command | `src/dli/commands/dataset.py` | Typer subcommand app |
-| Data models | `src/dli/core/workflow/models.py` | Pydantic BaseModel |
-| Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
-| CLI tests | `tests/cli/test_dataset_cmd.py` | CliRunner |
-| Model tests | `tests/core/workflow/test_models.py` | pytest + Pydantic |
-| Full patterns | `docs/PATTERNS.md` | Complete templates |
+### 1순위: Serena Memory (토큰 최소)
 
-### Pre-Implementation Checklist
+```
+mcp__serena__read_memory("cli_patterns")        # 핵심 패턴 요약
+mcp__serena__read_memory("cli_test_patterns")   # 테스트 패턴 요약
+```
 
-- [ ] **Check `client.py`** for existing enums before creating new ones
-- [ ] **Check `commands/base.py`** for shared utilities
-- [ ] **Check `commands/utils.py`** for Rich output helpers
-- [ ] **Review similar command** (dataset.py, workflow.py) for structure
+### 2순위: PATTERNS.md (상세 필요시)
 
----
+```
+Read: project-interface-cli/docs/PATTERNS.md
+```
 
-## Token Efficiency (MCP-First)
+### 참조 불필요 (위 문서에 통합됨)
 
-ALWAYS use MCP tools before file reads:
-- `serena.get_symbols_overview("project-interface-cli/src/dli/commands/...")` - understand CLI structure
-- `serena.search_for_pattern("@.*_app.command")` - find existing commands
-- `context7.get-library-docs("/tiangolo/typer")` - Typer best practices
-- `context7.get-library-docs("/encode/httpx", "async")` - httpx async patterns
-
-## When to Use Skills
-
-- **code-search**: Explore existing command patterns
-- **testing**: Write tests for CLI behavior
-- **refactoring**: Improve command structure
-- **debugging**: Trace CLI errors
+- ❌ `dataset.py`, `workflow.py` → 코드 템플릿이 문서에 있음
+- ❌ `test_workflow_cmd.py` → 테스트 패턴이 문서에 있음
+- ❌ `workflow/models.py` → 모델 패턴이 문서에 있음
 
 ---
 
-## Core Work Principles
+## Pre-Implementation Checklist
 
-1. **Clarify**: Understand requirements fully. Ask if ambiguous. No over-engineering.
-2. **Pattern Check**: Review reference files BEFORE implementation.
-3. **Design**: Verify approach against patterns. Check Typer/Rich docs if complex.
-4. **TDD**: Write test → implement → refine. `uv run pytest` must pass.
-5. **Document**: Update relevant docs (README, --help text) when behavior changes.
-6. **Self-Review**: Critique your own work. Iterate 1-4 if issues found.
+```
+□ Read Serena memory (cli_patterns) OR PATTERNS.md
+□ Check client.py for existing enums → 재사용, 중복 생성 금지
+□ Check commands/utils.py for shared helpers → format_datetime 등
+□ Plan: models → client methods → CLI commands → tests
+```
 
 ---
 
-## Project Structure
+## Token-Efficient Workflow
+
+### 구현 순서
+
+1. **Serena Memory 읽기** (필수)
+   ```
+   mcp__serena__read_memory("cli_patterns")
+   ```
+
+2. **기존 코드 확인** (MCP 사용)
+   ```
+   serena.get_symbols_overview("project-interface-cli/src/dli/commands/...")
+   serena.find_symbol("{feature}_app", include_body=False)
+   mcp__jetbrains__search_in_files_by_text("existing_enum", fileMask="*.py")
+   ```
+
+3. **상세 필요시만 파일 읽기**
+   - 복잡한 로직 구현 시 `PATTERNS.md` 전체 읽기
+   - 특정 섹션만 필요하면 해당 부분만 읽기
+
+---
+
+## Project Structure (간략)
 
 ```
 project-interface-cli/
 ├── src/dli/
-│   ├── __init__.py          # Package with version
-│   ├── __main__.py          # Entry point
-│   ├── main.py              # Typer app, register subcommands
+│   ├── main.py              # Register subcommands here
 │   ├── commands/
 │   │   ├── __init__.py      # Export all *_app
-│   │   ├── base.py          # Shared: get_client, get_project_path
-│   │   ├── utils.py         # Rich: console, print_error, print_success
-│   │   ├── dataset.py       # CRUD pattern reference
-│   │   ├── metric.py        # Similar to dataset
-│   │   ├── workflow.py      # Server operations pattern
-│   │   ├── quality.py       # Testing subcommand
-│   │   └── lineage.py       # Query subcommand
-│   ├── core/
-│   │   ├── client.py        # BasecampClient (mock mode)
-│   │   ├── workflow/        # Feature module pattern
-│   │   │   ├── __init__.py
-│   │   │   └── models.py    # Pydantic models
-│   │   ├── quality/
-│   │   ├── lineage/
-│   │   └── validation/
-│   └── adapters/
+│   │   ├── base.py          # get_client, get_project_path
+│   │   ├── utils.py         # console, print_*, format_datetime
+│   │   └── {feature}.py     # Feature commands
+│   └── core/
+│       ├── client.py        # BasecampClient (add methods here)
+│       └── {feature}/       # Feature module
+│           ├── __init__.py
+│           └── models.py
 ├── tests/
-│   ├── cli/                 # CLI command tests
-│   │   ├── test_dataset_cmd.py
-│   │   ├── test_workflow_cmd.py
-│   │   └── ...
-│   ├── core/                # Core logic tests
-│   │   ├── workflow/
-│   │   │   ├── test_models.py
-│   │   │   └── test_client.py
-│   │   └── ...
-│   └── fixtures/            # Test fixtures
-├── docs/
-│   └── PATTERNS.md          # Development patterns guide
-├── features/                # Feature specifications
-│   ├── FEATURE_WORKFLOW.md
-│   └── RELEASE_WORKFLOW.md
-└── pyproject.toml
+│   ├── cli/test_{feature}_cmd.py
+│   └── core/{feature}/test_models.py
+├── docs/PATTERNS.md         # ⭐ 모든 패턴 통합 문서
+└── features/                # Feature specs (FEATURE_*.md, RELEASE_*.md)
 ```
 
 ---
 
-## Technology Stack
+## Registration Checklist (새 커맨드 추가)
 
-| Category | Technology |
-|----------|------------|
-| Runtime | Python 3.12+ |
-| CLI Framework | Typer |
-| Terminal UI | Rich |
-| HTTP Client | httpx (async) |
-| Validation | Pydantic |
-| SQL Parsing | SQLGlot |
-| Package Manager | uv |
-| Testing | pytest |
+1. `commands/__init__.py` → `feature_app` export 추가
+2. `main.py` → `app.add_typer(feature_app, name="feature")` 등록
+3. `main.py` docstring → Commands 목록 업데이트
 
 ---
 
-## Common Code Patterns
-
-### 1. Subcommand App Creation
-
-```python
-from typer import Typer
-
-feature_app = Typer(
-    name="feature",
-    help="Feature management commands.",
-    no_args_is_help=True,
-)
-```
-
-### 2. Command with Options
-
-```python
-from typing import Annotated
-from pathlib import Path
-import typer
-
-from dli.commands.base import ListOutputFormat, get_client, get_project_path
-from dli.commands.utils import console, print_error
-
-@feature_app.command("list")
-def list_items(
-    format_output: Annotated[
-        ListOutputFormat,
-        typer.Option("--format", "-f", help="Output format."),
-    ] = "table",
-    path: Annotated[
-        Path | None,
-        typer.Option("--path", "-p", help="Project path."),
-    ] = None,
-) -> None:
-    """List items from server."""
-    project_path = get_project_path(path)
-    client = get_client(project_path)
-
-    response = client.feature_list()
-    if not response.success:
-        print_error(response.error or "Failed")
-        raise typer.Exit(1)
-
-    # Output handling...
-```
-
-### 3. Rich Table Output
-
-```python
-from rich.table import Table
-
-table = Table(title="Items", show_header=True)
-table.add_column("Name", style="cyan")
-table.add_column("Status", style="green")
-
-for item in items:
-    table.add_row(item["name"], item["status"])
-
-console.print(table)
-```
-
-### 4. JSON Output Option
-
-```python
-import json
-
-if format_output == "json":
-    console.print_json(json.dumps(data, default=str))
-    return
-```
-
-### 5. Client Method (Mock Mode)
-
-```python
-def feature_action(self, name: str) -> ServerResponse:
-    """Perform action on feature."""
-    if self.mock_mode:
-        return ServerResponse(
-            success=True,
-            data={"name": name, "status": "completed"},
-        )
-
-    return ServerResponse(
-        success=False,
-        error="Real API not implemented yet",
-        status_code=501,
-    )
-```
-
-### 6. Pydantic Model with Enum
-
-```python
-from enum import Enum
-from pydantic import BaseModel, Field
-
-class FeatureStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-
-class FeatureInfo(BaseModel):
-    name: str = Field(..., description="Feature name")
-    status: FeatureStatus = Field(default=FeatureStatus.ACTIVE)
-
-    @property
-    def is_active(self) -> bool:
-        return self.status == FeatureStatus.ACTIVE
-```
-
----
-
-## Registration Checklist
-
-When adding a new subcommand:
-
-1. **`commands/__init__.py`**: Add export
-   ```python
-   from dli.commands.feature import feature_app
-   __all__ = [..., "feature_app"]
-   ```
-
-2. **`main.py`**: Register subcommand
-   ```python
-   from dli.commands import feature_app
-   app.add_typer(feature_app, name="feature")
-   ```
-
-3. **`main.py` docstring**: Update commands list
-
----
-
-## Naming Conventions
-
-| Type | Convention | Example |
-|------|------------|---------|
-| Subcommand app | `{feature}_app` | `workflow_app` |
-| CLI command | kebab-case | `dli workflow list` |
-| Python function | snake_case | `list_workflows` |
-| Model class | PascalCase | `WorkflowInfo` |
-| Enum | PascalCase + UPPER | `Status.ACTIVE` |
-| Test class | `Test{Feature}{Action}` | `TestWorkflowList` |
-
----
-
-## Quality Checklist
-
-- [ ] `uv run pytest` - all tests pass
-- [ ] `uv run pyright src/` - no type errors
-- [ ] `--help` output is clear
-- [ ] Error messages include hints
-- [ ] Exit codes: 0 success, 1 error
-- [ ] Checked existing enums in client.py
-
----
-
-## Essential Commands
+## Quality Verification
 
 ```bash
 cd project-interface-cli
 
-# Development
-uv sync                           # Install dependencies
-uv run dli --help                 # Show help
-uv run dli workflow list          # Test command
+# Test (구현 후 필수)
+uv run pytest tests/cli/test_{feature}_cmd.py -v
+uv run pytest tests/core/{feature}/ -v
 
-# Testing
-uv run pytest                     # Run all tests
-uv run pytest tests/cli/ -v       # CLI tests only
-uv run pytest -k "workflow" -v    # Specific tests
+# Type check
+uv run pyright src/
 
-# Quality
-uv run ruff format                # Format code
-uv run ruff check --fix           # Lint and fix
-uv run pyright src/               # Type check
+# Format & Lint
+uv run ruff format && uv run ruff check --fix
+
+# CLI 확인
+uv run dli {feature} --help
 ```
+
+---
+
+## Core Principles
+
+1. **Single Reference**: Serena memory 또는 PATTERNS.md 하나만 읽고 구현
+2. **Enum 재사용**: client.py 확인 후 기존 Enum 재사용
+3. **DRY**: utils.py 공유 함수 활용 (format_datetime 등)
+4. **TDD**: 테스트 먼저 작성, pytest 통과 확인
+5. **Self-Review**: pyright + ruff 검증 후 완료
