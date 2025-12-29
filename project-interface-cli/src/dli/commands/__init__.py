@@ -11,22 +11,31 @@ Commands:
 - metric: Metric management and execution subcommand
 - dataset: Dataset management and execution subcommand
 - server: Server management subcommand
+- lineage: Data lineage commands (table-level, server-based)
+- quality: Data quality testing subcommand
+- workflow: Workflow execution and management (server-based via Airflow)
 """
 
 from dli.commands.dataset import dataset_app
 from dli.commands.info import info
+from dli.commands.lineage import lineage_app
 from dli.commands.metric import metric_app
+from dli.commands.quality import quality_app
 from dli.commands.render import render
 from dli.commands.server import server_app
 from dli.commands.validate import validate
 from dli.commands.version import version
+from dli.commands.workflow import workflow_app
 
 __all__ = [
     "dataset_app",
     "info",
+    "lineage_app",
     "metric_app",
+    "quality_app",
     "render",
     "server_app",
     "validate",
     "version",
+    "workflow_app",
 ]

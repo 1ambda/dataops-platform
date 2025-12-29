@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli`)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, validation, lineage, quality testing)
 - 🚧 **project-interface-library** - Planned shared library (placeholder)
 
 ---
@@ -200,6 +200,58 @@ class UserRepositoryJpaImpl(
 
 ---
 
+## project-interface-cli Development Guide
+
+**IMPORTANT FOR AI AGENTS:** Reference patterns before implementing new CLI features.
+
+### Pattern References
+
+| Task | Reference File |
+|------|----------------|
+| CRUD CLI command | `src/dli/commands/dataset.py` |
+| Server-based CLI command | `src/dli/commands/workflow.py` |
+| Data models (Pydantic) | `src/dli/core/workflow/models.py` |
+| Client methods | `src/dli/core/client.py` |
+| CLI tests | `tests/cli/test_workflow_cmd.py` |
+| Model tests | `tests/core/workflow/test_models.py` |
+
+### Pre-Implementation Checklist
+
+1. **Check existing enums** in `client.py` before creating new ones
+2. **Follow model patterns** from `workflow/models.py` (Pydantic, `__all__` export)
+3. **Test patterns** from existing test files (CliRunner for CLI, pytest fixtures)
+
+### Directory Structure
+
+```
+project-interface-cli/src/dli/
+├── commands/
+│   ├── __init__.py       # Export all *_app
+│   ├── base.py           # Shared utilities (get_client, get_project_path)
+│   ├── utils.py          # Rich output helpers (console, print_*)
+│   ├── metric.py         # Metric CRUD commands
+│   ├── dataset.py        # Dataset CRUD commands
+│   ├── validate.py       # Validation commands
+│   ├── lineage.py        # Lineage commands
+│   ├── quality.py        # Quality test commands
+│   └── workflow.py       # Workflow operations (run, backfill, status, etc.)
+├── core/
+│   ├── __init__.py
+│   ├── client.py         # BasecampClient (mock + real API)
+│   ├── models/           # Shared data models (metric, dataset specs)
+│   ├── validation/       # Spec and dependency validation
+│   ├── lineage/          # Lineage client and models
+│   ├── quality/          # Quality test executor, registry, builtin tests
+│   └── workflow/         # Workflow models and operations
+└── main.py               # Register subcommand apps here
+```
+
+### Full Patterns Documentation
+
+See [project-interface-cli/docs/PATTERNS.md](./project-interface-cli/docs/PATTERNS.md) for complete templates and examples.
+
+---
+
 ## Claude Code Agent System
 
 This project uses a structured agent/skill system for AI-assisted development:
@@ -250,5 +302,5 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 
 ---
 
-**Last Updated:** 2025-12-27
+**Last Updated:** 2025-12-30
 

@@ -1,21 +1,17 @@
 # DataOps CLI (dli)
 
-**DataOps CLI** is a command-line interface for the DataOps platform, providing easy access to platform operations, pipeline management, and SQL utilities.
+**DataOps CLI** is a command-line interface for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
 ## Features
 
-- 🚀 **Health Checking**: Check the status of DataOps server with detailed response
-- 📊 **Pipeline Management**: List and manage data pipelines with rich table display
-- 🔍 **SQL Parsing**: Parse and format SQL queries with SQLGlot (multiple output formats)
-- ⚙️ **Configuration Management**: Persistent configuration with JSON storage
-- 🎨 **Rich Output**: Beautiful terminal output with colors, panels, and tables
-- ⚡ **Async Operations**: Non-blocking API calls with proper timeout handling
-- 📝 **Structured Logging**: Configurable logging with Rich formatting
-- 🛡️ **Robust Error Handling**: Custom exceptions with meaningful error messages
-- 🔧 **Environment Configuration**: Support for environment variables
-- 📦 **Standalone Builds**: Create single-file executables for easy deployment
-- 🧪 **Comprehensive Testing**: Full test coverage with async testing support
-- 🎯 **Type Safety**: Full type hints with static type checking
+- **Resource Management**: Discover, validate, and register metrics and datasets
+- **Spec File System**: YAML-based specifications with safe templating
+- **Validation**: Schema validation and dependency checking
+- **Lineage Tracking**: Visualize upstream/downstream dependencies
+- **Quality Testing**: 6 built-in tests (not_null, unique, accepted_values, relationships, range_check, row_count)
+- **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
+- **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
+- **Library API**: DatasetService, MetricService for Airflow/orchestrator integration
 
 ## Installation
 
@@ -27,308 +23,308 @@
 ### Using uv (Recommended)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
 cd project-interface-cli
-
-# Install dependencies
 uv sync
-
-# Install in development mode
 uv pip install -e .
 ```
 
 ### Using pip
 
 ```bash
-# Clone the repository
-git clone <repository-url>
 cd project-interface-cli
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate
 pip install -e .
 ```
 
 ## Usage
 
-Once installed, you can use the `dli` command:
-
-### Basic Commands
+### Core Commands
 
 ```bash
-# Show version
+# Show version and environment info
 dli version
+dli info
 
-# Check server health
-dli health
+# Validate all specs in current directory
+dli validate --all
+dli validate --all --strict --check-deps
+dli validate --all --type metric
 
-# Check health with custom server URL
-dli health --url http://localhost:9090
-
-# List all pipelines
-dli pipelines
-
-# List pipelines from custom server
-dli pipelines --url http://localhost:9090
+# Render a spec file with template variables
+dli render path/to/spec.yaml --ds 2024-01-15
 ```
 
-### SQL Utilities
+### Resource Management
 
 ```bash
-# Parse and format SQL (pretty format)
-dli sql-parse "SELECT * FROM users WHERE id = 1"
+# Metrics
+dli metric list                           # List all metrics
+dli metric get <name>                     # Get metric details
+dli metric validate <name>                # Validate metric spec
+dli metric run <name> --ds 2024-01-15     # Execute metric query
+dli metric register <name>                # Register with server
 
-# Parse SQL with specific dialect  
-dli sql-parse "SELECT * FROM users" --dialect mysql
+# Datasets
+dli dataset list                          # List all datasets
+dli dataset get <name>                    # Get dataset details
+dli dataset validate <name>               # Validate dataset spec
+dli dataset run <name> --ds 2024-01-15    # Execute dataset query
+dli dataset register <name>               # Register with server
 
-# Parse SQL with compact output format
-dli sql-parse "SELECT col1, col2 FROM table1" --format compact
-
-# Parse complex SQL with joins
-dli sql-parse "SELECT u.id, p.name FROM users u JOIN profiles p ON u.id = p.user_id"
+# Server
+dli server config                         # Show server configuration
+dli server status                         # Check server health
 ```
 
-### Configuration Management
+### Lineage
 
 ```bash
-# Show current configuration
-dli config --show
+# Show lineage graph for a resource
+dli lineage show <resource_name>
+dli lineage show <resource_name> --depth 3
 
-# Set base URL for API calls
-dli config --set-url http://localhost:9090
+# Get upstream/downstream dependencies
+dli lineage upstream <resource_name>
+dli lineage downstream <resource_name>
+```
 
-# Set request timeout
-dli config --set-timeout 60
+### Quality Testing
 
-# Reset configuration to defaults
-dli config --reset
+```bash
+# List available quality tests
+dli quality list
 
-# Use custom config file
-dli config --config ~/.my-dli-config.json --show
+# Run quality tests
+dli quality run                           # Run all tests
+dli quality run --resource <name>         # Run tests for specific resource
+dli quality run --test not_null           # Run specific test type
+dli quality run --server                  # Fetch test definitions from server
+```
+
+### Workflow Management
+
+Unlike `dli dataset run` (local execution), workflow commands trigger server-based execution via Airflow.
+
+```bash
+# Trigger adhoc execution
+dli workflow run <dataset_name> -p execution_date=2024-01-15
+dli workflow run <dataset_name> --dry-run
+
+# Backfill date range
+dli workflow backfill <dataset_name> -s 2024-01-01 -e 2024-01-07
+
+# Manage running workflows
+dli workflow stop <run_id>
+dli workflow status <run_id>
+
+# List and history
+dli workflow list                         # List all workflows
+dli workflow list --source code           # Filter by source (code/manual)
+dli workflow list --running               # Show only running
+dli workflow history -d <dataset_name>    # Execution history
+
+# Pause/unpause schedules
+dli workflow pause <dataset_name>
+dli workflow unpause <dataset_name>
 ```
 
 ### Environment Variables
 
-You can configure the CLI using environment variables:
-
 ```bash
-# Logging configuration
 export DLI_LOG_LEVEL=DEBUG
 export DLI_DEBUG=true
+export DLI_CONFIG_FILE=~/.my-dli-config.json
+```
 
-# Configuration file location
-export DLI_CONFIG_FILE=~/.my-custom-dli-config.json
+## Spec File Format
 
-# Run CLI with environment config
-dli health
+### Directory Structure
+
+```
+your-project/
+├── metrics/
+│   └── metric.catalog.schema.metric_name.yaml
+└── datasets/
+    └── dataset.catalog.schema.dataset_name.yaml
+```
+
+### Metric Spec Example
+
+```yaml
+version: "1.0"
+kind: metric
+metadata:
+  name: daily_active_users
+  catalog: analytics
+  schema: core
+  owner: data-team
+  tags: [kpi, daily]
+spec:
+  sql: |
+    SELECT COUNT(DISTINCT user_id) as value
+    FROM {{ ref('events') }}
+    WHERE event_date = '{{ ds }}'
+  schedule: "0 6 * * *"
+  quality_tests:
+    - test: row_count
+      params:
+        min: 1
+```
+
+### Dataset Spec Example
+
+```yaml
+version: "1.0"
+kind: dataset
+metadata:
+  name: user_events
+  catalog: warehouse
+  schema: raw
+  owner: data-team
+spec:
+  sql: |
+    SELECT * FROM source_events
+    WHERE dt = '{{ ds }}'
+  materialization: table
+  quality_tests:
+    - test: not_null
+      column: user_id
+    - test: unique
+      column: event_id
+```
+
+### Template Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{ ds }}` | Execution date (YYYY-MM-DD) | 2024-01-15 |
+| `{{ ds_nodash }}` | Execution date (YYYYMMDD) | 20240115 |
+| `{{ var('key') }}` | User-defined variable | var('env') |
+| `{{ date_add(ds, -1) }}` | Date arithmetic | 2024-01-14 |
+| `{{ ref('name') }}` | Resource reference | catalog.schema.name |
+| `{{ env_var('KEY') }}` | Environment variable | - |
+
+## Library API
+
+For programmatic access (e.g., Airflow operators):
+
+```python
+from dli.core.service import DatasetService, MetricService
+
+# Initialize services
+dataset_service = DatasetService(base_path="./datasets")
+metric_service = MetricService(base_path="./metrics")
+
+# Get all resources
+datasets = dataset_service.list_all()
+metrics = metric_service.list_all()
+
+# Get specific resource
+dataset = dataset_service.get("catalog.schema.name")
+
+# Render SQL with variables
+rendered_sql = dataset_service.render(
+    "catalog.schema.name",
+    ds="2024-01-15",
+    vars={"env": "prod"}
+)
+
+# Validate resource
+result = dataset_service.validate("catalog.schema.name")
 ```
 
 ## Development
 
-### Local Development Setup
+### Setup
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd project-interface-cli
-
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create virtual environment and install dependencies
-uv sync
-
-# Install development dependencies
 uv sync --group dev
-
-# Install in editable mode
 uv pip install -e .
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-uv run pytest
-
-# Run tests with coverage
-uv run pytest --cov=dli
-
-# Run specific test file
-uv run pytest tests/test_main.py
-
-# Run tests in verbose mode
-uv run pytest -v
+uv run pytest                    # Run all tests
+uv run pytest --cov=dli          # With coverage
+uv run pytest -v                 # Verbose
 ```
 
-### Code Quality Tools
+### Code Quality
 
-This project uses several tools to maintain high code quality:
-
-#### Linting with Ruff
 ```bash
-# Check for linting issues
-uv run ruff check
-
-# Check and auto-fix issues
-uv run ruff check --fix
-
-# Format code
-uv run ruff format
+uv run ruff check --fix          # Lint and fix
+uv run ruff format               # Format
+uv run pyright src/              # Type check
 ```
 
-#### Type Checking with Pyright
-```bash
-# Run type checking
-uv run pyright src/ main.py
-```
-
-#### Code Formatting with Black
-```bash
-# Format code
-uv run black src/ tests/ main.py
-
-# Check formatting without changes
-uv run black --check src/ tests/ main.py
-```
-
-#### Run All Quality Checks
-```bash
-# Run all checks in sequence
-uv run ruff check && uv run pyright src/ main.py && uv run black --check src/ tests/ main.py
-```
-
-### Building the Package
-
-#### Standard Package Build
+### Building
 
 ```bash
-# Build wheel and source distribution
+# Standard package
 uv build
 
-# The built packages will be in dist/
-ls dist/
-```
-
-#### Standalone Executable Build
-
-For creating a single executable file that includes all dependencies (no Python installation required):
-
-```bash
-# Install build dependencies
+# Standalone executable (includes Python runtime)
 uv sync --group build
-
-# Run the standalone builder script
 uv run python build_standalone.py
-
-# The executable will be in dist_standalone/
-# On macOS/Linux: dist_standalone/dli
-# On Windows: dist_standalone/dli.exe
 ```
-
-**Benefits of Standalone Build:**
-- ✅ No Python installation required on target machines
-- ✅ No dependency conflicts
-- ✅ Single file distribution
-- ✅ Easy deployment to production servers
-
-**Note:** Standalone executables are larger (~50-100MB) as they include the Python runtime and all dependencies.
 
 ## Project Structure
 
 ```
 project-interface-cli/
-├── src/
-│   └── dli/
-│       ├── __init__.py          # Package initialization with version
-│       ├── config.py            # Configuration management and persistence
-│       ├── exceptions.py        # Custom exception definitions
-│       ├── logging_config.py    # Rich logging setup and configuration
-│       └── main.py              # Main CLI application with Typer
-├── tests/
-│   ├── __init__.py              # Test package
-│   └── test_main.py             # Comprehensive CLI tests
-├── .env.example                 # Environment variable template
-├── build_standalone.py          # PyInstaller build script
-├── dli.spec                     # PyInstaller specification
-├── main.py                      # Entry point that delegates to CLI
-├── pyproject.toml              # Project configuration and dependencies
-├── pytest.ini                 # Pytest configuration
-├── README.md                   # This file
-└── .python-version            # Python version specification
+├── src/dli/
+│   ├── commands/                # CLI commands
+│   │   ├── metric.py            # dli metric subcommands
+│   │   ├── dataset.py           # dli dataset subcommands
+│   │   ├── server.py            # dli server subcommands
+│   │   ├── validate.py          # dli validate command
+│   │   ├── lineage.py           # dli lineage subcommands
+│   │   ├── quality.py           # dli quality subcommands
+│   │   ├── workflow.py          # dli workflow subcommands
+│   │   └── utils.py             # Shared CLI utilities
+│   ├── core/                    # Core library
+│   │   ├── models/              # Pydantic models
+│   │   │   ├── spec.py          # Spec file models
+│   │   │   ├── metric.py        # Metric-specific models
+│   │   │   ├── dataset.py       # Dataset-specific models
+│   │   │   └── results.py       # Execution result models
+│   │   ├── validation/          # Validators
+│   │   │   ├── spec_validator.py
+│   │   │   └── dep_validator.py
+│   │   ├── lineage/             # Lineage client
+│   │   ├── quality/             # Quality testing
+│   │   │   ├── builtin_tests.py # 6 built-in tests
+│   │   │   ├── executor.py      # Test executor
+│   │   │   └── registry.py      # Test registry
+│   │   ├── workflow/            # Workflow models
+│   │   │   └── models.py        # WorkflowRun, WorkflowStatus
+│   │   ├── service.py           # DatasetService, MetricService
+│   │   ├── discovery.py         # Spec file discovery
+│   │   ├── registry.py          # Resource registry
+│   │   ├── renderer.py          # Template rendering
+│   │   └── templates.py         # Template functions
+│   ├── adapters/                # External integrations
+│   ├── main.py                  # CLI entry point
+│   └── config.py                # Configuration
+├── tests/                       # Test suite
+├── metrics/                     # Example metrics (optional)
+├── datasets/                    # Example datasets (optional)
+└── pyproject.toml
 ```
 
-## Dependencies
+## Built-in Quality Tests
 
-### Core Dependencies
-
-- **[Typer](https://typer.tiangolo.com/)**: Modern CLI framework with rich features
-- **[Rich](https://rich.readthedocs.io/)**: Beautiful terminal output
-- **[SQLGlot](https://sqlglot.com/)**: SQL parser and transpiler
-- **[httpx](https://www.python-httpx.org/)**: Modern async HTTP client
-- **[Pydantic](https://pydantic.dev/)**: Data validation and settings
-
-### Development Dependencies
-
-- **pytest**: Testing framework
-- **pytest-asyncio**: Async testing support
-- **pytest-httpx**: HTTP testing utilities
-- **black**: Code formatter
-- **ruff**: Fast Python linter and formatter
-- **pyright**: Static type checker
-
-## Configuration
-
-The CLI supports configuration through a JSON file (default: `~/.dli/config.json`):
-
-```json
-{
-  "base_url": "http://localhost:8080"
-}
-```
-
-You can specify a custom config file location using the `--config` option.
-
-## API Integration
-
-The CLI integrates with the DataOps platform server through REST APIs:
-
-- `GET /api/health` - Health check endpoint
-- `GET /api/pipelines` - List pipelines endpoint
-
-Default server URL is `http://localhost:8080`, but can be customized via:
-- Command-line options (`--url`)
-- Configuration file
-- Environment variables (planned)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run tests: `uv run pytest`
-6. Run code quality checks:
-   ```bash
-   uv run ruff check --fix
-   uv run ruff format
-   uv run pyright src/ main.py
-   uv run black --check src/ tests/ main.py
-   ```
-7. Verify all checks pass
-8. Submit a pull request
+| Test | Description | Parameters |
+|------|-------------|------------|
+| `not_null` | Check column has no NULL values | `column` |
+| `unique` | Check column values are unique | `column` |
+| `accepted_values` | Check column values are in allowed list | `column`, `values` |
+| `relationships` | Check foreign key relationship exists | `column`, `to`, `field` |
+| `range_check` | Check numeric column is within range | `column`, `min`, `max` |
+| `row_count` | Check table has expected row count | `min`, `max` (optional) |
 
 ## License
 
 [License information to be added]
-
-## Support
-
-For issues and questions:
-- Create an issue in the project repository
-- Check existing documentation
-- Review test cases for usage examples

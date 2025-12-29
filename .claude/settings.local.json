@@ -105,7 +105,12 @@
       "mcp__plugin_claude-mem_mem-search__search",
       "mcp__plugin_claude-mem_mem-search__get_observations",
       "mcp__plugin_claude-mem_mem-search__get_observation",
-      "WebFetch(domain:docs.getdbt.com)"
+      "WebFetch(domain:docs.getdbt.com)",
+      "WebFetch(domain:docs.sqlglot.com)",
+      "WebFetch(domain:sqlglot.com)",
+      "WebFetch(domain:openlineage.io)",
+      "Bash(timeout 60 uv run pytest:*)",
+      "WebFetch(domain:airflow.apache.org)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

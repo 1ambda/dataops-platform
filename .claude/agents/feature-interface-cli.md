@@ -9,11 +9,33 @@ skills:
   - debugging
 ---
 
+## Pattern References (CRITICAL)
+
+**Before implementing ANY new feature, check these reference files:**
+
+| Task | Reference File | Key Pattern |
+|------|----------------|-------------|
+| New CLI command | `src/dli/commands/dataset.py` | Typer subcommand app |
+| Data models | `src/dli/core/workflow/models.py` | Pydantic BaseModel |
+| Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
+| CLI tests | `tests/cli/test_dataset_cmd.py` | CliRunner |
+| Model tests | `tests/core/workflow/test_models.py` | pytest + Pydantic |
+| Full patterns | `docs/PATTERNS.md` | Complete templates |
+
+### Pre-Implementation Checklist
+
+- [ ] **Check `client.py`** for existing enums before creating new ones
+- [ ] **Check `commands/base.py`** for shared utilities
+- [ ] **Check `commands/utils.py`** for Rich output helpers
+- [ ] **Review similar command** (dataset.py, workflow.py) for structure
+
+---
+
 ## Token Efficiency (MCP-First)
 
 ALWAYS use MCP tools before file reads:
-- `serena.get_symbols_overview("src/dataops_cli/...")` - understand CLI structure
-- `serena.search_for_pattern("@app.command")` - find existing commands
+- `serena.get_symbols_overview("project-interface-cli/src/dli/commands/...")` - understand CLI structure
+- `serena.search_for_pattern("@.*_app.command")` - find existing commands
 - `context7.get-library-docs("/tiangolo/typer")` - Typer best practices
 - `context7.get-library-docs("/encode/httpx", "async")` - httpx async patterns
 
@@ -24,13 +46,16 @@ ALWAYS use MCP tools before file reads:
 - **refactoring**: Improve command structure
 - **debugging**: Trace CLI errors
 
+---
+
 ## Core Work Principles
 
 1. **Clarify**: Understand requirements fully. Ask if ambiguous. No over-engineering.
-2. **Design**: Verify approach against patterns (MCP/docs). Check Typer/Rich docs if complex.
-3. **TDD**: Write test → implement → refine. `uv run pytest` must pass.
-4. **Document**: Update relevant docs (README, --help text) when behavior changes.
-5. **Self-Review**: Critique your own work. Iterate 1-4 if issues found.
+2. **Pattern Check**: Review reference files BEFORE implementation.
+3. **Design**: Verify approach against patterns. Check Typer/Rich docs if complex.
+4. **TDD**: Write test → implement → refine. `uv run pytest` must pass.
+5. **Document**: Update relevant docs (README, --help text) when behavior changes.
+6. **Self-Review**: Critique your own work. Iterate 1-4 if issues found.
 
 ---
 
@@ -38,19 +63,48 @@ ALWAYS use MCP tools before file reads:
 
 ```
 project-interface-cli/
-├── src/dataops_cli/
-│   ├── __init__.py          # Package initialization with version
-│   ├── main.py              # Typer CLI (@app.command decorators)
-│   │   - version, health, pipelines, sql-parse, config commands
-│   ├── config.py            # CliConfig (Pydantic, JSON persistence)
-│   ├── exceptions.py        # CliException, ApiError, ConfigError
-│   └── logging_config.py    # Rich logging setup
+├── src/dli/
+│   ├── __init__.py          # Package with version
+│   ├── __main__.py          # Entry point
+│   ├── main.py              # Typer app, register subcommands
+│   ├── commands/
+│   │   ├── __init__.py      # Export all *_app
+│   │   ├── base.py          # Shared: get_client, get_project_path
+│   │   ├── utils.py         # Rich: console, print_error, print_success
+│   │   ├── dataset.py       # CRUD pattern reference
+│   │   ├── metric.py        # Similar to dataset
+│   │   ├── workflow.py      # Server operations pattern
+│   │   ├── quality.py       # Testing subcommand
+│   │   └── lineage.py       # Query subcommand
+│   ├── core/
+│   │   ├── client.py        # BasecampClient (mock mode)
+│   │   ├── workflow/        # Feature module pattern
+│   │   │   ├── __init__.py
+│   │   │   └── models.py    # Pydantic models
+│   │   ├── quality/
+│   │   ├── lineage/
+│   │   └── validation/
+│   └── adapters/
 ├── tests/
-│   └── test_main.py         # CLI tests with CliRunner
-├── build_standalone.py      # PyInstaller build script
-├── main.py                  # Entry point
-└── pyproject.toml           # Project configuration (uv)
+│   ├── cli/                 # CLI command tests
+│   │   ├── test_dataset_cmd.py
+│   │   ├── test_workflow_cmd.py
+│   │   └── ...
+│   ├── core/                # Core logic tests
+│   │   ├── workflow/
+│   │   │   ├── test_models.py
+│   │   │   └── test_client.py
+│   │   └── ...
+│   └── fixtures/            # Test fixtures
+├── docs/
+│   └── PATTERNS.md          # Development patterns guide
+├── features/                # Feature specifications
+│   ├── FEATURE_WORKFLOW.md
+│   └── RELEASE_WORKFLOW.md
+└── pyproject.toml
 ```
+
+---
 
 ## Technology Stack
 
@@ -63,139 +117,182 @@ project-interface-cli/
 | Validation | Pydantic |
 | SQL Parsing | SQLGlot |
 | Package Manager | uv |
-| Testing | pytest + pytest-asyncio |
+| Testing | pytest |
 
 ---
 
-## Typer Command Patterns
+## Common Code Patterns
+
+### 1. Subcommand App Creation
 
 ```python
+from typer import Typer
+
+feature_app = Typer(
+    name="feature",
+    help="Feature management commands.",
+    no_args_is_help=True,
+)
+```
+
+### 2. Command with Options
+
+```python
+from typing import Annotated
+from pathlib import Path
 import typer
-from rich.console import Console
+
+from dli.commands.base import ListOutputFormat, get_client, get_project_path
+from dli.commands.utils import console, print_error
+
+@feature_app.command("list")
+def list_items(
+    format_output: Annotated[
+        ListOutputFormat,
+        typer.Option("--format", "-f", help="Output format."),
+    ] = "table",
+    path: Annotated[
+        Path | None,
+        typer.Option("--path", "-p", help="Project path."),
+    ] = None,
+) -> None:
+    """List items from server."""
+    project_path = get_project_path(path)
+    client = get_client(project_path)
+
+    response = client.feature_list()
+    if not response.success:
+        print_error(response.error or "Failed")
+        raise typer.Exit(1)
+
+    # Output handling...
+```
+
+### 3. Rich Table Output
+
+```python
 from rich.table import Table
 
-app = typer.Typer(name="dli", help="DataOps CLI")
-console = Console()
+table = Table(title="Items", show_header=True)
+table.add_column("Name", style="cyan")
+table.add_column("Status", style="green")
 
-@app.command()
-def health(url: str = typer.Option(None, "--url", "-u", help="Server URL")) -> None:
-    """Check the health of the DataOps server."""
-    try:
-        config = CliConfig.load()
-        result = check_health(url or config.base_url)
-        console.print(f"[green]Server healthy:[/green] {result.status}")
-    except ApiError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        raise typer.Exit(1)
+for item in items:
+    table.add_row(item["name"], item["status"])
+
+console.print(table)
 ```
 
-### Async Command with httpx
+### 4. JSON Output Option
+
 ```python
-import asyncio
-import httpx
+import json
 
-async def fetch_pipelines(url: str, timeout: int = 30) -> list[Pipeline]:
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(f"{url}/api/pipelines")
-        response.raise_for_status()
-        return [Pipeline(**p) for p in response.json()]
-
-@app.command()
-def pipelines(url: str = typer.Option(None, "--url", "-u")) -> None:
-    """List all pipelines."""
-    try:
-        result = asyncio.run(fetch_pipelines(url or CliConfig.load().base_url))
-        display_table(result)
-    except httpx.HTTPError as e:
-        console.print(f"[red]HTTP Error:[/red] {e}")
-        raise typer.Exit(1)
+if format_output == "json":
+    console.print_json(json.dumps(data, default=str))
+    return
 ```
 
-### Rich Output Formatting
+### 5. Client Method (Mock Mode)
+
 ```python
-def display_table(pipelines: list[Pipeline]) -> None:
-    table = Table(title="Pipelines")
-    table.add_column("ID", style="cyan")
-    table.add_column("Name", style="magenta")
-    table.add_column("Status", style="green")
-    for p in pipelines:
-        table.add_row(str(p.id), p.name, p.status)
-    console.print(table)
+def feature_action(self, name: str) -> ServerResponse:
+    """Perform action on feature."""
+    if self.mock_mode:
+        return ServerResponse(
+            success=True,
+            data={"name": name, "status": "completed"},
+        )
+
+    return ServerResponse(
+        success=False,
+        error="Real API not implemented yet",
+        status_code=501,
+    )
+```
+
+### 6. Pydantic Model with Enum
+
+```python
+from enum import Enum
+from pydantic import BaseModel, Field
+
+class FeatureStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+class FeatureInfo(BaseModel):
+    name: str = Field(..., description="Feature name")
+    status: FeatureStatus = Field(default=FeatureStatus.ACTIVE)
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == FeatureStatus.ACTIVE
 ```
 
 ---
 
-## Configuration Management
+## Registration Checklist
 
-```python
-from pathlib import Path
-from pydantic import BaseModel
-import json
+When adding a new subcommand:
 
-CONFIG_FILE = Path.home() / ".dli" / "config.json"
+1. **`commands/__init__.py`**: Add export
+   ```python
+   from dli.commands.feature import feature_app
+   __all__ = [..., "feature_app"]
+   ```
 
-class CliConfig(BaseModel):
-    base_url: str = "http://localhost:8080"
-    timeout: int = 30
+2. **`main.py`**: Register subcommand
+   ```python
+   from dli.commands import feature_app
+   app.add_typer(feature_app, name="feature")
+   ```
 
-    @classmethod
-    def load(cls) -> "CliConfig":
-        if CONFIG_FILE.exists():
-            return cls(**json.loads(CONFIG_FILE.read_text()))
-        return cls()
+3. **`main.py` docstring**: Update commands list
 
-    def save(self) -> None:
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.write_text(self.model_dump_json(indent=2))
-```
-
-## Implementation Order
-
-1. **Configuration** (src/dataops_cli/config.py) - `CliConfig`
-2. **Exceptions** (src/dataops_cli/exceptions.py) - `CliException`, `ApiError`
-3. **Command Logic** (src/dataops_cli/main.py) - `@app.command()` decorators
+---
 
 ## Naming Conventions
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Commands (CLI) | kebab-case | `sql-parse`, `list-pipelines` |
-| Functions | snake_case | `sql_parse`, `list_pipelines` |
-| Classes | PascalCase | `CliConfig`, `ApiError` |
-| Module Files | snake_case | `main.py`, `config.py` |
+| Type | Convention | Example |
+|------|------------|---------|
+| Subcommand app | `{feature}_app` | `workflow_app` |
+| CLI command | kebab-case | `dli workflow list` |
+| Python function | snake_case | `list_workflows` |
+| Model class | PascalCase | `WorkflowInfo` |
+| Enum | PascalCase + UPPER | `Status.ACTIVE` |
+| Test class | `Test{Feature}{Action}` | `TestWorkflowList` |
 
-## Anti-Patterns to Avoid
-
-- Blocking operations for API calls (use async with httpx)
-- Cryptic error messages without actionable hints
-- Missing `--help` text on commands and options
-- Ignoring exit codes (exit non-zero on error)
-- Not using Rich for terminal output
+---
 
 ## Quality Checklist
 
 - [ ] `uv run pytest` - all tests pass
 - [ ] `uv run pyright src/` - no type errors
-- [ ] `--help` output is clear and complete
-- [ ] Error messages include hints for resolution
-- [ ] Async used for HTTP operations
-- [ ] Exit codes: 0 for success, 1 for errors
+- [ ] `--help` output is clear
+- [ ] Error messages include hints
+- [ ] Exit codes: 0 success, 1 error
+- [ ] Checked existing enums in client.py
+
+---
 
 ## Essential Commands
 
 ```bash
-uv sync                                    # Install dependencies
-uv run python -m dataops_cli --help        # Show help
-uv run python -m dataops_cli health        # Check server health
-uv run python -m dataops_cli pipelines     # List pipelines
-uv run python -m dataops_cli sql-parse "SELECT * FROM users"
-uv run pytest                              # Run tests
-uv run ruff format && uv run ruff check --fix  # Format and lint
+cd project-interface-cli
+
+# Development
+uv sync                           # Install dependencies
+uv run dli --help                 # Show help
+uv run dli workflow list          # Test command
+
+# Testing
+uv run pytest                     # Run all tests
+uv run pytest tests/cli/ -v       # CLI tests only
+uv run pytest -k "workflow" -v    # Specific tests
+
+# Quality
+uv run ruff format                # Format code
+uv run ruff check --fix           # Lint and fix
+uv run pyright src/               # Type check
 ```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DLI_LOG_LEVEL` | Logging level | INFO |
-| `DLI_CONFIG_FILE` | Config file path | ~/.dli/config.json |

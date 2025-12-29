@@ -81,6 +81,19 @@ from dli.core.client import (
     create_client,
 )
 
+# Lineage
+from dli.core.lineage import (
+    LineageDirection,
+    LineageDirectionType,
+    LineageEdge,
+    LineageNode,
+    LineageResult,
+)
+from dli.core.lineage.client import (
+    LineageClient,
+    LineageClientError,
+)
+
 __all__ = [  # noqa: RUF022 - Grouped by module for readability
     # Models - Core Types
     "AggregationType",
@@ -145,4 +158,12 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "ServerConfig",
     "ServerResponse",
     "create_client",
+    # Lineage
+    "LineageClient",
+    "LineageClientError",
+    "LineageDirection",
+    "LineageDirectionType",
+    "LineageEdge",
+    "LineageNode",
+    "LineageResult",
 ]

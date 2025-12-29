@@ -11,12 +11,18 @@ Commands:
     metric: Metric management (list, get, run, validate, register)
     dataset: Dataset management (list, get, run, validate, register)
     server: Server connection management (config, status)
+    lineage: Data lineage queries (upstream, downstream, table-level)
+    quality: Data quality testing (list, run, show)
+    workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
 
 Example:
     $ dli --help
     $ dli version
     $ dli metric list
     $ dli dataset run iceberg.analytics.daily_clicks -p date=2024-01-01
+    $ dli lineage show iceberg.analytics.daily_clicks
+    $ dli quality run iceberg.analytics.daily_clicks --server
+    $ dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
 """
 
 from __future__ import annotations
@@ -30,11 +36,14 @@ import typer
 # Import command implementations
 from dli.commands import dataset_app
 from dli.commands import info as info_cmd
+from dli.commands import lineage_app
 from dli.commands import metric_app
+from dli.commands import quality_app
 from dli.commands import render as render_cmd
 from dli.commands import server_app
 from dli.commands import validate as validate_cmd
 from dli.commands import version as version_cmd
+from dli.commands import workflow_app
 
 # Create the main Typer app
 app = typer.Typer(
@@ -94,6 +103,9 @@ app.command()(info_cmd)
 app.add_typer(metric_app, name="metric")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(server_app, name="server")
+app.add_typer(lineage_app, name="lineage")
+app.add_typer(quality_app, name="quality")
+app.add_typer(workflow_app, name="workflow")
 
 
 # Entry point for the CLI

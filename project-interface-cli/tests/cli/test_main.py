@@ -325,13 +325,31 @@ class TestValidateEdgeCases:
 
     def test_validate_yaml_file(self, tmp_path: Path):
         """Test validating a YAML spec file."""
+        yaml_file = tmp_path / "dataset.test.spec.yaml"
+        # Provide a valid dataset spec with all required fields
+        yaml_file.write_text("""name: iceberg.test.example
+owner: test@example.com
+team: "@test-team"
+type: Dataset
+query_type: DML
+query_statement: "INSERT INTO table SELECT * FROM source"
+""")
+
+        result = runner.invoke(app, ["validate", str(yaml_file)])
+        # YAML validation is now implemented, should succeed
+        assert result.exit_code == 0
+        assert "Valid spec" in result.stdout
+
+    def test_validate_invalid_yaml_file(self, tmp_path: Path):
+        """Test validating an invalid YAML spec file."""
         yaml_file = tmp_path / "spec.yaml"
+        # Missing required fields: team, type, query_type
         yaml_file.write_text("name: test\nowner: test@example.com")
 
         result = runner.invoke(app, ["validate", str(yaml_file)])
-        # YAML validation not yet implemented, should exit 0
-        assert result.exit_code == 0
-        assert "not yet implemented" in result.stdout
+        # Should fail due to missing required fields
+        assert result.exit_code == 1
+        assert "Invalid spec" in result.output
 
 
 class TestRenderEdgeCases:
