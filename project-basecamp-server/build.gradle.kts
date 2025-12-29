@@ -16,10 +16,10 @@ plugins {
 ext {
     set("kotestVersion", "5.9.1")
     set("mockkVersion", "1.13.12")
-    set("springMockkVersion", "4.0.2")
+    set("springMockkVersion", "5.0.1")
     set("testcontainersVersion", "1.19.3")
     set("restAssuredVersion", "5.4.0")
-    set("springdocVersion", "2.6.0")
+    set("springdocVersion", "3.0.0")
     set("kotlinLoggingVersion", "3.0.5")
     set("commonsCollectionsVersion", "4.4")
     set("commonsLang3Version", "3.15.0")

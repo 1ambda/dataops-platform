@@ -11,6 +11,12 @@ import org.springframework.boot.runApplication
         "com.github.lambda.api",
         "com.github.lambda.infra",
         "com.github.lambda.domain",
+        "com.github.lambda.controller",
+        "com.github.lambda.mapper",
+        "com.github.lambda.dto",
+        "com.github.lambda.security",
+        "com.github.lambda.config",
+        "com.github.lambda.common",
     ],
 )
 class BasecampServerApplication

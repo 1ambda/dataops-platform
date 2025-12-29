@@ -322,11 +322,73 @@ make dev-all
 
 ---
 
-## Testing Strategy
+## Testing (Spring Boot 4.x)
 
-- **Unit Tests**: Service layer with mocked repository interfaces
-- **Integration Tests**: Repository implementations with Testcontainers
-- **Coverage Goals**: Service layer >90%, Overall >80%
+### Quick Reference
+
+| Task | Reference | Key Pattern |
+|------|-----------|-------------|
+| Controller test | [docs/PATTERNS.md](./docs/PATTERNS.md#1-controller-test-pattern) | @SpringBootTest + @AutoConfigureMockMvc |
+| Service test | [docs/PATTERNS.md](./docs/PATTERNS.md#2-service-test-pattern) | @MockkBean + Kotest |
+| Troubleshooting | [docs/TESTING.md](./docs/TESTING.md#troubleshooting) | Common errors & solutions |
+
+### Controller Test Template
+
+```kotlin
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Execution(ExecutionMode.SAME_THREAD)
+@WithMockUser(username = "testuser", roles = ["USER"])
+class MyControllerTest {
+    @Autowired
+    private lateinit var mockMvc: MockMvc
+
+    @Autowired
+    private lateinit var jsonMapper: JsonMapper  // Jackson 3, NOT ObjectMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var myService: MyService
+}
+```
+
+### Critical Imports (Spring Boot 4.x)
+
+```kotlin
+// Jackson 3 (NOT Jackson 2)
+import tools.jackson.databind.json.JsonMapper
+
+// Web MVC Test (NEW package)
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+
+// MockK (requires springmockk 5.0.1+)
+import com.ninjasquad.springmockk.MockkBean
+
+// Parallel execution control
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+```
+
+### Required Dependency Versions
+
+```kotlin
+// build.gradle.kts - REQUIRED for Spring Boot 4.x
+set("springMockkVersion", "5.0.1")  // NOT 4.x
+set("springdocVersion", "3.0.0")     // NOT 2.x
+```
+
+### Test Commands
+
+```bash
+./gradlew test                        # All tests
+./gradlew :module-server-api:test     # API module only
+./gradlew :module-core-domain:test    # Domain module only
+```
+
+### Documentation
+
+- **[docs/PATTERNS.md](./docs/PATTERNS.md)** - Development patterns & templates
+- **[docs/TESTING.md](./docs/TESTING.md)** - Detailed testing guide & troubleshooting
 
 ---
 
