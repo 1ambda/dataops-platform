@@ -5,6 +5,7 @@
 ## Features
 
 - **Resource Management**: Discover, validate, and register metrics and datasets
+- **Data Catalog**: Browse and explore table metadata, schema, quality, and impact analysis
 - **Spec File System**: YAML-based specifications with safe templating
 - **Validation**: Schema validation and dependency checking
 - **Lineage Tracking**: Visualize upstream/downstream dependencies
@@ -127,6 +128,23 @@ dli workflow history -d <dataset_name>    # Execution history
 # Pause/unpause schedules
 dli workflow pause <dataset_name>
 dli workflow unpause <dataset_name>
+```
+
+### Data Catalog
+
+Browse and explore table metadata from Basecamp Server.
+
+```bash
+# Implicit routing (by identifier parts)
+dli catalog my-project                           # List tables in project
+dli catalog my-project.analytics                 # List tables in dataset
+dli catalog my-project.analytics.users           # Table detail
+dli catalog bigquery.my-project.analytics.users  # Engine-specific
+
+# Explicit commands
+dli catalog list --owner data@example.com
+dli catalog list --tag tier::critical
+dli catalog search user --project my-project
 ```
 
 ### Environment Variables
@@ -283,6 +301,7 @@ project-interface-cli/
 │   │   ├── lineage.py           # dli lineage subcommands
 │   │   ├── quality.py           # dli quality subcommands
 │   │   ├── workflow.py          # dli workflow subcommands
+│   │   ├── catalog.py           # dli catalog subcommands
 │   │   └── utils.py             # Shared CLI utilities
 │   ├── core/                    # Core library
 │   │   ├── models/              # Pydantic models
@@ -300,6 +319,8 @@ project-interface-cli/
 │   │   │   └── registry.py      # Test registry
 │   │   ├── workflow/            # Workflow models
 │   │   │   └── models.py        # WorkflowRun, WorkflowStatus
+│   │   ├── catalog/             # Catalog models
+│   │   │   └── models.py        # TableInfo, TableDetail
 │   │   ├── service.py           # DatasetService, MetricService
 │   │   ├── discovery.py         # Spec file discovery
 │   │   ├── registry.py          # Resource registry

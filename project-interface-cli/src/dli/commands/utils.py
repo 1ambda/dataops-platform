@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from rich.console import Console
@@ -122,3 +123,36 @@ def print_validation_result(
         console.print("\n[yellow]Warnings:[/yellow]")
         for w in warnings:
             console.print(f"  • {w}")
+
+
+def format_datetime(
+    dt: datetime | str | None,
+    *,
+    include_seconds: bool = False,
+) -> str:
+    """Format datetime for CLI display.
+
+    Args:
+        dt: A datetime object, ISO format string, or None.
+        include_seconds: Whether to include seconds in the output.
+
+    Returns:
+        Formatted date string or "-" if None.
+
+    Examples:
+        >>> format_datetime(datetime(2024, 1, 15, 10, 30, 45))
+        "2024-01-15 10:30"
+        >>> format_datetime("2024-01-15T10:30:45Z")
+        "2024-01-15 10:30"
+        >>> format_datetime(None)
+        "-"
+    """
+    if dt is None:
+        return "-"
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except ValueError:
+            return dt
+    fmt = "%Y-%m-%d %H:%M:%S" if include_seconds else "%Y-%m-%d %H:%M"
+    return dt.strftime(fmt)

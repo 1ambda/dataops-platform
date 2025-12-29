@@ -98,6 +98,7 @@ class BasecampClient:
         """Initialize mock data for testing."""
         now = datetime.now()
         return {
+            "catalog_tables": self._init_mock_catalog_tables(now),
             "metrics": [
                 {
                     "name": "iceberg.reporting.user_summary",
@@ -216,6 +217,183 @@ class BasecampClient:
                 },
             ],
         }
+
+    def _init_mock_catalog_tables(self, now: datetime) -> list[dict[str, Any]]:
+        """Initialize mock catalog table data for testing."""
+        return [
+            {
+                "name": "my-project.analytics.users",
+                "engine": "bigquery",
+                "owner": "data-team@example.com",
+                "team": "@data-eng",
+                "description": "User dimension table with profile information",
+                "tags": ["tier::critical", "domain::analytics", "pii"],
+                "row_count": 1500000,
+                "last_updated": (now - timedelta(hours=2)).isoformat(),
+                "basecamp_url": "https://basecamp.example.com/catalog/my-project.analytics.users",
+                "columns": [
+                    {"name": "user_id", "data_type": "STRING", "description": "Unique user identifier", "is_pii": False, "fill_rate": 1.0, "distinct_count": 1500000},
+                    {"name": "email", "data_type": "STRING", "description": "User email address", "is_pii": True, "fill_rate": 0.98, "distinct_count": 1470000},
+                    {"name": "name", "data_type": "STRING", "description": "Full name", "is_pii": True, "fill_rate": 0.95, "distinct_count": 1200000},
+                    {"name": "created_at", "data_type": "TIMESTAMP", "description": "Account creation time", "is_pii": False, "fill_rate": 1.0, "distinct_count": 1000000},
+                    {"name": "country", "data_type": "STRING", "description": "User country code", "is_pii": False, "fill_rate": 0.92, "distinct_count": 195},
+                ],
+                "ownership": {
+                    "owner": "data-team@example.com",
+                    "team": "@data-eng",
+                    "stewards": ["alice@example.com", "bob@example.com"],
+                    "consumers": ["@analytics", "@marketing", "@product"],
+                },
+                "freshness": {
+                    "last_updated": (now - timedelta(hours=2)).isoformat(),
+                    "avg_update_lag_hours": 1.5,
+                    "update_frequency": "hourly",
+                    "is_stale": False,
+                    "stale_threshold_hours": 6,
+                },
+                "quality": {
+                    "score": 92,
+                    "total_tests": 15,
+                    "passed_tests": 14,
+                    "failed_tests": 1,
+                    "warnings": 0,
+                    "recent_tests": [
+                        {"test_name": "user_id_not_null", "test_type": "not_null", "status": "pass", "failed_rows": 0},
+                        {"test_name": "email_unique", "test_type": "unique", "status": "pass", "failed_rows": 0},
+                        {"test_name": "country_in_set", "test_type": "accepted_values", "status": "fail", "failed_rows": 42},
+                    ],
+                },
+                "sample_queries": [
+                    {"title": "Active users by country", "sql": "SELECT country, COUNT(*) FROM `my-project.analytics.users` WHERE last_login > DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) GROUP BY 1", "author": "analyst@example.com", "run_count": 156, "last_run": (now - timedelta(hours=1)).isoformat()},
+                    {"title": "User growth trend", "sql": "SELECT DATE(created_at) as date, COUNT(*) as new_users FROM `my-project.analytics.users` GROUP BY 1 ORDER BY 1", "author": "growth@example.com", "run_count": 89, "last_run": (now - timedelta(hours=3)).isoformat()},
+                ],
+            },
+            {
+                "name": "my-project.analytics.orders",
+                "engine": "bigquery",
+                "owner": "commerce@example.com",
+                "team": "@commerce",
+                "description": "Order transaction fact table",
+                "tags": ["tier::critical", "domain::commerce", "fact"],
+                "row_count": 25000000,
+                "last_updated": (now - timedelta(hours=1)).isoformat(),
+                "basecamp_url": "https://basecamp.example.com/catalog/my-project.analytics.orders",
+                "columns": [
+                    {"name": "order_id", "data_type": "STRING", "description": "Unique order identifier", "is_pii": False, "fill_rate": 1.0, "distinct_count": 25000000},
+                    {"name": "user_id", "data_type": "STRING", "description": "Customer user ID", "is_pii": False, "fill_rate": 1.0, "distinct_count": 1200000},
+                    {"name": "total_amount", "data_type": "FLOAT64", "description": "Order total in USD", "is_pii": False, "fill_rate": 1.0, "distinct_count": 50000},
+                    {"name": "status", "data_type": "STRING", "description": "Order status", "is_pii": False, "fill_rate": 1.0, "distinct_count": 5},
+                    {"name": "created_at", "data_type": "TIMESTAMP", "description": "Order creation time", "is_pii": False, "fill_rate": 1.0, "distinct_count": 20000000},
+                ],
+                "ownership": {
+                    "owner": "commerce@example.com",
+                    "team": "@commerce",
+                    "stewards": ["commerce-data@example.com"],
+                    "consumers": ["@finance", "@analytics", "@fulfillment"],
+                },
+                "freshness": {
+                    "last_updated": (now - timedelta(hours=1)).isoformat(),
+                    "avg_update_lag_hours": 0.5,
+                    "update_frequency": "hourly",
+                    "is_stale": False,
+                    "stale_threshold_hours": 4,
+                },
+                "quality": {
+                    "score": 98,
+                    "total_tests": 20,
+                    "passed_tests": 20,
+                    "failed_tests": 0,
+                    "warnings": 0,
+                    "recent_tests": [
+                        {"test_name": "order_id_unique", "test_type": "unique", "status": "pass", "failed_rows": 0},
+                        {"test_name": "total_amount_positive", "test_type": "expression", "status": "pass", "failed_rows": 0},
+                    ],
+                },
+                "sample_queries": [],
+            },
+            {
+                "name": "my-project.warehouse.events",
+                "engine": "bigquery",
+                "owner": "platform@example.com",
+                "team": "@data-platform",
+                "description": "Raw event stream from mobile and web",
+                "tags": ["tier::standard", "domain::platform", "raw"],
+                "row_count": 500000000,
+                "last_updated": (now - timedelta(minutes=15)).isoformat(),
+                "basecamp_url": "https://basecamp.example.com/catalog/my-project.warehouse.events",
+                "columns": [
+                    {"name": "event_id", "data_type": "STRING", "description": "Unique event identifier", "is_pii": False, "fill_rate": 1.0, "distinct_count": 500000000},
+                    {"name": "event_type", "data_type": "STRING", "description": "Event type name", "is_pii": False, "fill_rate": 1.0, "distinct_count": 150},
+                    {"name": "user_id", "data_type": "STRING", "description": "User identifier", "is_pii": False, "fill_rate": 0.85, "distinct_count": 2000000},
+                    {"name": "properties", "data_type": "JSON", "description": "Event properties", "is_pii": True, "fill_rate": 0.95, "distinct_count": None},
+                    {"name": "timestamp", "data_type": "TIMESTAMP", "description": "Event timestamp", "is_pii": False, "fill_rate": 1.0, "distinct_count": 400000000},
+                ],
+                "ownership": {
+                    "owner": "platform@example.com",
+                    "team": "@data-platform",
+                    "stewards": [],
+                    "consumers": ["@analytics", "@data-science", "@product"],
+                },
+                "freshness": {
+                    "last_updated": (now - timedelta(minutes=15)).isoformat(),
+                    "avg_update_lag_hours": 0.1,
+                    "update_frequency": "streaming",
+                    "is_stale": False,
+                    "stale_threshold_hours": 1,
+                },
+                "quality": {
+                    "score": 85,
+                    "total_tests": 10,
+                    "passed_tests": 8,
+                    "failed_tests": 1,
+                    "warnings": 1,
+                    "recent_tests": [
+                        {"test_name": "event_id_not_null", "test_type": "not_null", "status": "pass", "failed_rows": 0},
+                        {"test_name": "timestamp_recent", "test_type": "expression", "status": "warn", "failed_rows": 100},
+                    ],
+                },
+                "sample_queries": [],
+            },
+            {
+                "name": "other-project.reporting.sales_summary",
+                "engine": "trino",
+                "owner": "sales@example.com",
+                "team": "@sales",
+                "description": "Daily sales summary by region",
+                "tags": ["tier::standard", "domain::sales", "aggregated"],
+                "row_count": 50000,
+                "last_updated": (now - timedelta(hours=6)).isoformat(),
+                "basecamp_url": "https://basecamp.example.com/catalog/other-project.reporting.sales_summary",
+                "columns": [
+                    {"name": "date", "data_type": "DATE", "description": "Report date", "is_pii": False, "fill_rate": 1.0, "distinct_count": 365},
+                    {"name": "region", "data_type": "VARCHAR", "description": "Sales region", "is_pii": False, "fill_rate": 1.0, "distinct_count": 12},
+                    {"name": "total_sales", "data_type": "DECIMAL", "description": "Total sales amount", "is_pii": False, "fill_rate": 1.0, "distinct_count": 45000},
+                    {"name": "order_count", "data_type": "INTEGER", "description": "Number of orders", "is_pii": False, "fill_rate": 1.0, "distinct_count": 1000},
+                ],
+                "ownership": {
+                    "owner": "sales@example.com",
+                    "team": "@sales",
+                    "stewards": ["sales-ops@example.com"],
+                    "consumers": ["@executive", "@finance"],
+                },
+                "freshness": {
+                    "last_updated": (now - timedelta(hours=6)).isoformat(),
+                    "avg_update_lag_hours": 6.0,
+                    "update_frequency": "daily",
+                    "is_stale": False,
+                    "stale_threshold_hours": 24,
+                },
+                "quality": {
+                    "score": 100,
+                    "total_tests": 5,
+                    "passed_tests": 5,
+                    "failed_tests": 0,
+                    "warnings": 0,
+                    "recent_tests": [],
+                },
+                "sample_queries": [],
+            },
+        ]
 
     def health_check(self) -> ServerResponse:
         """Check server health status.
@@ -1073,6 +1251,278 @@ class BasecampClient:
             return ServerResponse(
                 success=False,
                 error=f"Workflow for dataset '{dataset_name}' not found",
+                status_code=404,
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    # Catalog operations
+
+    def catalog_list(
+        self,
+        *,
+        project: str | None = None,
+        dataset: str | None = None,
+        owner: str | None = None,
+        team: str | None = None,
+        tags: list[str] | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> ServerResponse:
+        """List tables from the catalog.
+
+        Args:
+            project: Filter by project name
+            dataset: Filter by dataset name
+            owner: Filter by owner
+            team: Filter by team
+            tags: Filter by tags (AND condition)
+            limit: Maximum number of results
+            offset: Pagination offset
+
+        Returns:
+            ServerResponse with list of TableInfo dicts
+        """
+        if self.mock_mode:
+            tables = self._mock_data["catalog_tables"].copy()
+
+            # Apply filters
+            if project:
+                project_lower = project.lower()
+                tables = [
+                    t for t in tables
+                    if t["name"].lower().startswith(project_lower + ".")
+                ]
+
+            if dataset:
+                dataset_lower = dataset.lower()
+                tables = [
+                    t for t in tables
+                    if dataset_lower in t["name"].lower().split(".")[1]
+                    if len(t["name"].split(".")) > 1
+                ]
+
+            if owner:
+                owner_lower = owner.lower()
+                tables = [
+                    t for t in tables
+                    if owner_lower in (t.get("owner") or "").lower()
+                ]
+
+            if team:
+                team_lower = team.lower()
+                tables = [
+                    t for t in tables
+                    if team_lower in (t.get("team") or "").lower()
+                ]
+
+            if tags:
+                # AND condition for tags
+                for tag in tags:
+                    tag_lower = tag.lower()
+                    tables = [
+                        t for t in tables
+                        if any(tag_lower in table_tag.lower() for table_tag in t.get("tags", []))
+                    ]
+
+            # Apply pagination
+            total = len(tables)
+            tables = tables[offset:offset + limit]
+
+            # Return lightweight TableInfo format
+            result = [
+                {
+                    "name": t["name"],
+                    "engine": t["engine"],
+                    "owner": t.get("owner"),
+                    "team": t.get("team"),
+                    "tags": t.get("tags", []),
+                    "row_count": t.get("row_count"),
+                    "last_updated": t.get("last_updated"),
+                }
+                for t in tables
+            ]
+
+            return ServerResponse(
+                success=True,
+                data=result,
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def catalog_search(
+        self,
+        keyword: str,
+        *,
+        project: str | None = None,
+        limit: int = 20,
+    ) -> ServerResponse:
+        """Search tables by keyword.
+
+        Searches in table names, column names, descriptions, and tags.
+
+        Args:
+            keyword: Search keyword
+            project: Optional project filter
+            limit: Maximum number of results
+
+        Returns:
+            ServerResponse with list of TableInfo dicts
+        """
+        if self.mock_mode:
+            tables = self._mock_data["catalog_tables"].copy()
+            keyword_lower = keyword.lower()
+
+            # Filter by project first if specified
+            if project:
+                project_lower = project.lower()
+                tables = [
+                    t for t in tables
+                    if t["name"].lower().startswith(project_lower + ".")
+                ]
+
+            # Search in name, description, columns, and tags
+            matching_tables = []
+            for t in tables:
+                match = False
+
+                # Check table name
+                if keyword_lower in t["name"].lower():
+                    match = True
+
+                # Check description
+                if not match and keyword_lower in (t.get("description") or "").lower():
+                    match = True
+
+                # Check column names and descriptions
+                if not match:
+                    for col in t.get("columns", []):
+                        if keyword_lower in col.get("name", "").lower():
+                            match = True
+                            break
+                        if keyword_lower in (col.get("description") or "").lower():
+                            match = True
+                            break
+
+                # Check tags
+                if not match:
+                    for tag in t.get("tags", []):
+                        if keyword_lower in tag.lower():
+                            match = True
+                            break
+
+                if match:
+                    matching_tables.append(t)
+
+            # Apply limit
+            matching_tables = matching_tables[:limit]
+
+            # Return lightweight TableInfo format
+            result = [
+                {
+                    "name": t["name"],
+                    "engine": t["engine"],
+                    "owner": t.get("owner"),
+                    "team": t.get("team"),
+                    "tags": t.get("tags", []),
+                    "row_count": t.get("row_count"),
+                    "last_updated": t.get("last_updated"),
+                }
+                for t in matching_tables
+            ]
+
+            return ServerResponse(
+                success=True,
+                data=result,
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def catalog_get(
+        self,
+        table_ref: str,
+        *,
+        include_sample: bool = False,
+    ) -> ServerResponse:
+        """Get table details from the catalog.
+
+        Args:
+            table_ref: Table reference (project.dataset.table)
+            include_sample: Whether to include sample data
+
+        Returns:
+            ServerResponse with TableDetail dict
+        """
+        if self.mock_mode:
+            table_ref_lower = table_ref.lower()
+
+            for t in self._mock_data["catalog_tables"]:
+                if t["name"].lower() == table_ref_lower:
+                    result = t.copy()
+                    if not include_sample:
+                        result["sample_data"] = None
+                    else:
+                        # Mock sample data with PII masked
+                        if t["name"] == "my-project.analytics.users":
+                            result["sample_data"] = [
+                                {"user_id": "user_001", "email": "***@example.com", "name": "***", "created_at": "2024-01-15T10:30:00Z", "country": "US"},
+                                {"user_id": "user_002", "email": "***@example.com", "name": "***", "created_at": "2024-01-14T08:15:00Z", "country": "UK"},
+                                {"user_id": "user_003", "email": "***@example.com", "name": "***", "created_at": "2024-01-13T14:20:00Z", "country": "DE"},
+                            ]
+                        else:
+                            result["sample_data"] = []
+                    return ServerResponse(success=True, data=result)
+
+            return ServerResponse(
+                success=False,
+                error=f"Table '{table_ref}' not found.",
+                status_code=404,
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def catalog_sample_queries(
+        self,
+        table_ref: str,
+        *,
+        limit: int = 5,
+    ) -> ServerResponse:
+        """Get sample queries for a table.
+
+        Args:
+            table_ref: Table reference (project.dataset.table)
+            limit: Maximum number of queries to return
+
+        Returns:
+            ServerResponse with list of SampleQuery dicts
+        """
+        if self.mock_mode:
+            table_ref_lower = table_ref.lower()
+
+            for t in self._mock_data["catalog_tables"]:
+                if t["name"].lower() == table_ref_lower:
+                    queries = t.get("sample_queries", [])[:limit]
+                    return ServerResponse(success=True, data=queries)
+
+            return ServerResponse(
+                success=False,
+                error=f"Table '{table_ref}' not found.",
                 status_code=404,
             )
 

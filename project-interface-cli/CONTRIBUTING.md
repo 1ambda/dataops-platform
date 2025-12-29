@@ -29,6 +29,7 @@ src/dli/
 │   ├── lineage.py              # lineage_app subcommand
 │   ├── quality.py              # quality_app subcommand
 │   ├── workflow.py             # workflow_app subcommand
+│   ├── catalog.py              # catalog_app subcommand
 │   ├── render.py               # render command (SQL rendering)
 │   ├── info.py                 # info command (project information)
 │   └── version.py              # version command
@@ -66,9 +67,12 @@ src/dli/
 │   │   ├── builtin_tests.py    # SQL generators (not_null, unique, etc.)
 │   │   ├── registry.py         # QualityRegistry for test discovery
 │   │   └── executor.py         # QualityExecutor for running tests
-│   └── workflow/               # Workflow management
+│   ├── workflow/               # Workflow management
+│   │   ├── __init__.py
+│   │   └── models.py           # WorkflowSpec, WorkflowStatus, etc.
+│   └── catalog/                # Catalog browsing
 │       ├── __init__.py
-│       └── models.py           # WorkflowSpec, WorkflowStatus, etc.
+│       └── models.py           # TableInfo, TableDetail, etc.
 └── adapters/                   # External system adapters
     └── bigquery.py
 ```
@@ -86,7 +90,8 @@ tests/
 │   ├── test_validate_cmd.py    # validate command tests
 │   ├── test_lineage_cmd.py     # lineage subcommand tests
 │   ├── test_quality_cmd.py     # quality subcommand tests
-│   └── test_workflow_cmd.py    # workflow subcommand tests
+│   ├── test_workflow_cmd.py    # workflow subcommand tests
+│   └── test_catalog_cmd.py     # catalog subcommand tests
 ├── core/                       # Core library tests
 │   ├── validation/             # Validation module tests
 │   │   ├── test_spec_validator.py
@@ -99,6 +104,8 @@ tests/
 │   │   ├── test_registry.py
 │   │   └── test_executor.py
 │   ├── workflow/               # Workflow module tests
+│   │   └── test_models.py
+│   ├── catalog/                # Catalog module tests
 │   │   └── test_models.py
 │   ├── test_client.py          # BasecampClient tests
 │   ├── test_discovery.py       # Spec discovery tests

@@ -14,8 +14,10 @@ Commands:
 - lineage: Data lineage commands (table-level, server-based)
 - quality: Data quality testing subcommand
 - workflow: Workflow execution and management (server-based via Airflow)
+- catalog: Data catalog browsing and search (server-based)
 """
 
+from dli.commands.catalog import catalog_app
 from dli.commands.dataset import dataset_app
 from dli.commands.info import info
 from dli.commands.lineage import lineage_app
@@ -28,6 +30,7 @@ from dli.commands.version import version
 from dli.commands.workflow import workflow_app
 
 __all__ = [
+    "catalog_app",
     "dataset_app",
     "info",
     "lineage_app",

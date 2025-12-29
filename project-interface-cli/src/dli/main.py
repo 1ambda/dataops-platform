@@ -14,6 +14,7 @@ Commands:
     lineage: Data lineage queries (upstream, downstream, table-level)
     quality: Data quality testing (list, run, show)
     workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
+    catalog: Data catalog browsing and search
 
 Example:
     $ dli --help
@@ -23,6 +24,7 @@ Example:
     $ dli lineage show iceberg.analytics.daily_clicks
     $ dli quality run iceberg.analytics.daily_clicks --server
     $ dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
+    $ dli catalog my-project.analytics.users
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from rich.panel import Panel
 import typer
 
 # Import command implementations
+from dli.commands import catalog_app
 from dli.commands import dataset_app
 from dli.commands import info as info_cmd
 from dli.commands import lineage_app
@@ -100,6 +103,7 @@ app.command()(render_cmd)
 app.command()(info_cmd)
 
 # Register subcommand apps
+app.add_typer(catalog_app, name="catalog")
 app.add_typer(metric_app, name="metric")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(server_app, name="server")

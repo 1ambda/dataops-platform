@@ -24,6 +24,7 @@ from dli.commands.base import (
 )
 from dli.commands.utils import (
     console,
+    format_datetime,
     parse_params,
     print_error,
     print_success,
@@ -57,25 +58,6 @@ workflow_app = typer.Typer(
     help="Workflow management and execution commands (server-based via Airflow).",
     no_args_is_help=True,
 )
-
-
-def _format_datetime(dt: datetime | str | None) -> str:
-    """Format datetime for display.
-
-    Args:
-        dt: A datetime object, ISO format string, or None.
-
-    Returns:
-        Formatted date string (YYYY-MM-DD HH:MM:SS) or "-" if None.
-    """
-    if dt is None:
-        return "-"
-    if isinstance(dt, str):
-        try:
-            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
-        except ValueError:
-            return dt
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _get_status_style(status: str) -> str:
@@ -333,9 +315,9 @@ def status_workflow(
     console.print(f"[dim]Source:[/dim] {result.get('source', '-')}")
     console.print(f"[dim]Triggered By:[/dim] {result.get('triggered_by', '-')}")
     console.print(
-        f"[dim]Started At:[/dim] {_format_datetime(result.get('started_at'))}"
+        f"[dim]Started At:[/dim] {format_datetime(result.get('started_at'), include_seconds=True)}"
     )
-    console.print(f"[dim]Ended At:[/dim] {_format_datetime(result.get('ended_at'))}")
+    console.print(f"[dim]Ended At:[/dim] {format_datetime(result.get('ended_at'), include_seconds=True)}")
 
     if result.get("duration_seconds"):
         console.print(f"[dim]Duration:[/dim] {result['duration_seconds']}s")
@@ -431,7 +413,7 @@ def list_workflows(
         if is_paused or not is_enabled:
             next_run_display = "-"
         else:
-            next_run_display = _format_datetime(next_run)
+            next_run_display = format_datetime(next_run, include_seconds=True)
 
         table.add_row(
             wf.get("dataset_name", "-"),
@@ -518,8 +500,8 @@ def history_workflow(
             run.get("dataset_name", "-"),
             run.get("source", "-"),
             f"[{_get_status_style(run_status)}]{run_status}[/]",
-            _format_datetime(run.get("started_at")),
-            _format_datetime(run.get("ended_at")),
+            format_datetime(run.get("started_at"), include_seconds=True),
+            format_datetime(run.get("ended_at"), include_seconds=True),
         )
 
     console.print(table)
