@@ -1,12 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+
+# Get the directory where the spec file is located
+spec_dir = os.path.dirname(os.path.abspath(SPEC))
 
 a = Analysis(
-    ['/Users/kun/github/1ambda/dataops-platform/project-interface-cli/src/dataops_cli/main.py'],
-    pathex=[],
+    [os.path.join(spec_dir, 'src', 'dli', 'main.py')],
+    pathex=[os.path.join(spec_dir, 'src')],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['typer', 'rich', 'click'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
