@@ -110,7 +110,12 @@
       "WebFetch(domain:sqlglot.com)",
       "WebFetch(domain:openlineage.io)",
       "Bash(timeout 60 uv run pytest:*)",
-      "WebFetch(domain:airflow.apache.org)"
+      "WebFetch(domain:airflow.apache.org)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)",
+      "Bash(npm ci:*)",
+      "Bash(git add:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
