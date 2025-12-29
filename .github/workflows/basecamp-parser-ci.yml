@@ -1,19 +1,19 @@
 name: CI - Basecamp Parser
 
 on:
+  # Push to main/develop: Always run (no path filter)
   push:
     branches:
       - main
       - develop
-    paths:
-      - 'project-basecamp-parser/**'
-      - '.github/workflows/basecamp-parser-ci.yml'
+  # Pull requests: Only run when related files change
   pull_request:
     branches:
       - main
       - develop
     paths:
       - 'project-basecamp-parser/**'
+      - '.github/workflows/basecamp-parser-ci.yml'
   workflow_dispatch:
     inputs:
       skip_tests:

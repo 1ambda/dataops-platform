@@ -33,6 +33,9 @@ env:
 
 jobs:
   build:
+    # TEMPORARILY DISABLED: GHCR image repository not yet configured
+    # Remove this condition when ready to push Docker images
+    if: false
     name: Docker Build - project-basecamp-parser
     runs-on: ubuntu-latest
     timeout-minutes: 20

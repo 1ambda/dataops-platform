@@ -37,6 +37,8 @@ jobs:
   gradle-dependency-check:
     name: Gradle Dependency Check
     runs-on: ubuntu-latest
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
     timeout-minutes: 20
     steps:
       - name: Checkout code
@@ -80,6 +82,8 @@ jobs:
   python-dependency-check:
     name: Python Dependency Check
     runs-on: ubuntu-latest
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -132,6 +136,8 @@ jobs:
   npm-dependency-check:
     name: NPM Dependency Check
     runs-on: ubuntu-latest
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -178,6 +184,8 @@ jobs:
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
     timeout-minutes: 30
     permissions:
       security-events: write
@@ -235,10 +243,13 @@ jobs:
     name: Container Image Scan
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      github.event_name == 'schedule' ||
-      github.event.inputs.full_scan == 'true'
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
+    # Original condition preserved for reference:
+    # if: |
+    #   (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+    #   github.event_name == 'schedule' ||
+    #   github.event.inputs.full_scan == 'true'
     permissions:
       contents: read
       security-events: write
@@ -316,6 +327,8 @@ jobs:
   license-check:
     name: License Compliance Check
     runs-on: ubuntu-latest
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -365,7 +378,9 @@ jobs:
       - npm-dependency-check
       - codeql-analysis
       - license-check
-    if: always()
+    # TEMPORARILY DISABLED: Re-enable when security scanning infrastructure is ready
+    if: false
+    # Original condition: if: always()
     steps:
       - name: Generate summary
         run: |

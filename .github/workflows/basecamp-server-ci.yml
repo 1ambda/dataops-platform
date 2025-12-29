@@ -1,19 +1,19 @@
 name: CI - Basecamp Server
 
 on:
+  # Push to main/develop: Always run (no path filter)
   push:
     branches:
       - main
       - develop
-    paths:
-      - 'project-basecamp-server/**'
-      - '.github/workflows/basecamp-server-ci.yml'
+  # Pull requests: Only run when related files change
   pull_request:
     branches:
       - main
       - develop
     paths:
       - 'project-basecamp-server/**'
+      - '.github/workflows/basecamp-server-ci.yml'
   workflow_dispatch:
     inputs:
       skip_tests:
