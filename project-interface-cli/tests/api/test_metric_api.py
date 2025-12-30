@@ -19,7 +19,7 @@ import pytest
 
 from dli import ExecutionContext, MetricAPI
 from dli.exceptions import ConfigurationError
-from dli.models.common import ResultStatus, ValidationResult
+from dli.models.common import ExecutionMode, ResultStatus, ValidationResult
 
 
 class TestMetricAPIInit:
@@ -34,11 +34,11 @@ class TestMetricAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         api = MetricAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
 
     def test_init_with_project_path(self) -> None:
         """Test initialization with project path."""
@@ -49,7 +49,7 @@ class TestMetricAPIInit:
 
     def test_repr(self) -> None:
         """Test __repr__ returns descriptive string."""
-        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        ctx = ExecutionContext(server_url="https://test.com", execution_mode=ExecutionMode.MOCK)
         api = MetricAPI(context=ctx)
 
         result = repr(api)
@@ -59,7 +59,7 @@ class TestMetricAPIInit:
 
     def test_lazy_service_init(self) -> None:
         """Test that service is not created until needed."""
-        api = MetricAPI(context=ExecutionContext(mock_mode=True))
+        api = MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _service should be None before any operation
         assert api._service is None
@@ -71,7 +71,7 @@ class TestMetricAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> MetricAPI:
         """Create MetricAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return MetricAPI(context=ctx)
 
     def test_list_metrics_returns_empty(self, mock_api: MetricAPI) -> None:
@@ -145,7 +145,7 @@ class TestMetricAPIRun:
     @pytest.fixture
     def mock_api(self) -> MetricAPI:
         """Create MetricAPI in mock mode."""
-        return MetricAPI(context=ExecutionContext(mock_mode=True))
+        return MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_run_basic(self, mock_api: MetricAPI) -> None:
         """Test basic run execution."""
@@ -173,7 +173,7 @@ class TestMetricAPIRun:
     def test_run_context_parameters_merged(self) -> None:
         """Test that context parameters are merged with run parameters."""
         ctx = ExecutionContext(
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
             parameters={"env": "prod", "date": "default"},
         )
         api = MetricAPI(context=ctx)
@@ -184,7 +184,7 @@ class TestMetricAPIRun:
 
     def test_run_uses_context_dry_run(self) -> None:
         """Test that context dry_run is used if not explicitly set."""
-        ctx = ExecutionContext(mock_mode=True, dry_run=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, dry_run=True)
         api = MetricAPI(context=ctx)
 
         result = api.run("my_metric")
@@ -206,7 +206,7 @@ class TestMetricAPIValidation:
     @pytest.fixture
     def mock_api(self) -> MetricAPI:
         """Create MetricAPI in mock mode."""
-        return MetricAPI(context=ExecutionContext(mock_mode=True))
+        return MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_validate_basic(self, mock_api: MetricAPI) -> None:
         """Test basic validation."""
@@ -233,7 +233,7 @@ class TestMetricAPIConfiguration:
 
     def test_requires_project_path_in_non_mock_mode(self) -> None:
         """Test that project_path is required in non-mock mode."""
-        ctx = ExecutionContext(mock_mode=False, project_path=None)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL, project_path=None)
         api = MetricAPI(context=ctx)
 
         # Should raise ConfigurationError when trying to get service
@@ -244,7 +244,7 @@ class TestMetricAPIConfiguration:
 
     def test_project_path_not_required_in_mock_mode(self) -> None:
         """Test that project_path is not required in mock mode."""
-        ctx = ExecutionContext(mock_mode=True, project_path=None)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, project_path=None)
         api = MetricAPI(context=ctx)
 
         # Should not raise - mock mode doesn't need project_path
@@ -258,7 +258,7 @@ class TestMetricAPIListMetrics:
     @pytest.fixture
     def mock_api(self) -> MetricAPI:
         """Create MetricAPI in mock mode."""
-        return MetricAPI(context=ExecutionContext(mock_mode=True))
+        return MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_list_basic(self, mock_api: MetricAPI) -> None:
         """Test basic list operation."""
@@ -303,7 +303,7 @@ class TestMetricAPIRenderSQL:
     @pytest.fixture
     def mock_api(self) -> MetricAPI:
         """Create MetricAPI in mock mode."""
-        return MetricAPI(context=ExecutionContext(mock_mode=True))
+        return MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_render_basic(self, mock_api: MetricAPI) -> None:
         """Test basic SQL rendering."""
@@ -333,7 +333,7 @@ class TestMetricAPIVsDatasetAPI:
 
     def test_metric_result_has_data_field(self) -> None:
         """Test that metric result has data field (unlike dataset)."""
-        api = MetricAPI(context=ExecutionContext(mock_mode=True))
+        api = MetricAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
         result = api.run("my_metric")
 
         # Metric results have data (SELECT query results)
@@ -345,7 +345,7 @@ class TestMetricAPIVsDatasetAPI:
         from dli import DatasetAPI
 
         ctx = ExecutionContext(
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
             dialect="bigquery",
             parameters={"date": "2025-01-01"},
         )
@@ -355,4 +355,4 @@ class TestMetricAPIVsDatasetAPI:
 
         # Both use same context type
         assert dataset_api.context.dialect == metric_api.context.dialect
-        assert dataset_api.context.mock_mode == metric_api.context.mock_mode
+        assert dataset_api.context.execution_mode == metric_api.context.execution_mode

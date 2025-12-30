@@ -259,6 +259,43 @@ v0.2.0 provides a full-featured Library API for programmatic access from Airflow
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |
 
+### ExecutionMode
+
+`ExecutionMode` determines where SQL queries are executed:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `LOCAL` | Direct execution on Query Engine (BigQuery, Trino) | Production data pipelines |
+| `SERVER` | Execution via Basecamp Server API | Centralized execution management |
+| `MOCK` | Test mode with no actual execution | Unit tests, CI/CD |
+
+```python
+from dli import DatasetAPI, ExecutionContext
+from dli.models.common import ExecutionMode
+
+# Local execution (default)
+ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL)
+
+# Server execution
+ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER)
+
+# Mock mode for testing
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+api = DatasetAPI(context=ctx)
+result = api.run("my_dataset")  # No actual execution
+```
+
+**Dependency Injection Support:**
+
+```python
+from dli import DatasetAPI
+from dli.core.executor import MockExecutor
+
+# Inject custom executor for testing
+mock_executor = MockExecutor(mock_data=[{"id": 1, "value": 100}])
+api = DatasetAPI(context=ctx, executor=mock_executor)
+```
+
 ### ExecutionContext
 
 `ExecutionContext` auto-loads environment variables with `DLI_` prefix:
@@ -266,7 +303,8 @@ v0.2.0 provides a full-featured Library API for programmatic access from Airflow
 ```bash
 export DLI_SERVER_URL="https://basecamp.example.com"
 export DLI_PROJECT_PATH="/path/to/models"
-export DLI_MOCK_MODE="true"
+export DLI_EXECUTION_MODE="local"   # local, server, or mock
+export DLI_TIMEOUT="300"
 export DLI_DIALECT="trino"
 ```
 
@@ -277,6 +315,8 @@ from dli import DatasetAPI, ExecutionContext
 ctx = ExecutionContext()
 api = DatasetAPI(context=ctx)
 ```
+
+**Migration Note:** `mock_mode` parameter is deprecated. Use `execution_mode=ExecutionMode.MOCK` instead.
 
 ### Airflow PythonOperator Example
 

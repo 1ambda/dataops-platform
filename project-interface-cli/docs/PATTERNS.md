@@ -566,9 +566,10 @@ class FeatureAPI:
         """
         if self._service is None:
             from dli.core.service import FeatureService as FeatureServiceImpl
+            from dli.models.common import ExecutionMode
 
             project_path = self.context.project_path
-            if project_path is None and not self.context.mock_mode:
+            if project_path is None and self.context.execution_mode != ExecutionMode.MOCK:
                 msg = "project_path is required for FeatureAPI"
                 raise ConfigurationError(message=msg, code=ErrorCode.CONFIG_INVALID)
 
@@ -593,7 +594,8 @@ class FeatureAPI:
         Returns:
             List of FeatureSpec objects.
         """
-        if self.context.mock_mode:
+        from dli.models.common import ExecutionMode
+        if self.context.execution_mode == ExecutionMode.MOCK:
             return []
 
         service = self._get_service()
@@ -608,7 +610,8 @@ class FeatureAPI:
         Returns:
             FeatureSpec if found, None otherwise.
         """
-        if self.context.mock_mode:
+        from dli.models.common import ExecutionMode
+        if self.context.execution_mode == ExecutionMode.MOCK:
             return None
 
         service = self._get_service()
@@ -645,7 +648,8 @@ class FeatureAPI:
         # Merge parameters
         merged_params = {**self.context.parameters, **(parameters or {})}
 
-        if self.context.mock_mode:
+        from dli.models.common import ExecutionMode
+        if self.context.execution_mode == ExecutionMode.MOCK:
             return FeatureResult(
                 name=name,
                 status=ResultStatus.SUCCESS,
@@ -710,7 +714,8 @@ class FeatureAPI:
         Returns:
             ValidationResult with validation status.
         """
-        if self.context.mock_mode:
+        from dli.models.common import ExecutionMode
+        if self.context.execution_mode == ExecutionMode.MOCK:
             return ValidationResult(valid=True)
 
         try:
@@ -748,32 +753,78 @@ class FeatureAPI:
 __all__ = ["FeatureAPI"]
 ```
 
+### ExecutionMode
+
+`ExecutionMode` determines where SQL queries are executed:
+
+```python
+from dli.models.common import ExecutionMode
+
+class ExecutionMode(str, Enum):
+    LOCAL = "local"    # Direct Query Engine execution
+    SERVER = "server"  # Via Basecamp Server API
+    MOCK = "mock"      # Test mode (no execution)
+```
+
+| Mode | Use Case |
+|------|----------|
+| `LOCAL` | Production: direct BigQuery/Trino execution |
+| `SERVER` | Centralized: execution via Basecamp Server |
+| `MOCK` | Testing: unit tests, CI/CD pipelines |
+
 ### ExecutionContext Usage
 
 ```python
 from dli import ExecutionContext
+from dli.models.common import ExecutionMode
 
 # Default: loads from environment variables (DLI_* prefix)
 ctx = ExecutionContext()
 
-# Explicit configuration
+# Explicit configuration (recommended)
 ctx = ExecutionContext(
     project_path=Path("/opt/airflow/dags/models"),
     server_url="https://basecamp.example.com",
-    mock_mode=False,
+    execution_mode=ExecutionMode.LOCAL,  # LOCAL, SERVER, or MOCK
+    timeout=300,                          # seconds (default: 300)
     dry_run=False,
     dialect="trino",
     parameters={"execution_date": "2025-01-01"},
     verbose=True,
 )
 
+# Mock mode for testing
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+
 # Key attributes
 ctx.project_path     # Path | None - project root for local specs
 ctx.server_url       # str | None - Basecamp server URL
-ctx.mock_mode        # bool - enable mock mode for testing
+ctx.execution_mode   # ExecutionMode - query execution location
+ctx.timeout          # int - execution timeout in seconds
 ctx.dry_run          # bool - dry-run mode (no actual execution)
 ctx.dialect          # SQLDialect - default SQL dialect
 ctx.parameters       # dict[str, Any] - Jinja template parameters
+```
+
+**Deprecation:** `mock_mode` parameter is deprecated. Use `execution_mode=ExecutionMode.MOCK`.
+
+### Dependency Injection Pattern
+
+For advanced testing, inject custom executors:
+
+```python
+from dli import DatasetAPI, ExecutionContext
+from dli.core.executor import MockExecutor
+from dli.models.common import ExecutionMode
+
+# Create context
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+
+# Inject custom executor
+mock_executor = MockExecutor(mock_data=[{"id": 1, "value": 100}])
+api = DatasetAPI(context=ctx, executor=mock_executor)
+
+result = api.run("my_dataset")
 ```
 
 ### Exception Handling Pattern
@@ -881,11 +932,12 @@ class TestFeatureAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True)
+        from dli.models.common import ExecutionMode
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         api = FeatureAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
 
     def test_init_with_project_path(self) -> None:
         """Test initialization with project path."""
@@ -906,7 +958,8 @@ class TestFeatureAPIInit:
 
     def test_lazy_service_init(self) -> None:
         """Test that service is not created until needed."""
-        api = FeatureAPI(context=ExecutionContext(mock_mode=True))
+        from dli.models.common import ExecutionMode
+        api = FeatureAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _service should be None before any operation
         assert api._service is None
@@ -918,7 +971,8 @@ class TestFeatureAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> FeatureAPI:
         """Create FeatureAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        from dli.models.common import ExecutionMode
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return FeatureAPI(context=ctx)
 
     def test_list_returns_empty(self, mock_api: FeatureAPI) -> None:
@@ -961,7 +1015,8 @@ class TestFeatureAPIRun:
     @pytest.fixture
     def mock_api(self) -> FeatureAPI:
         """Create FeatureAPI in mock mode."""
-        return FeatureAPI(context=ExecutionContext(mock_mode=True))
+        from dli.models.common import ExecutionMode
+        return FeatureAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_run_basic(self, mock_api: FeatureAPI) -> None:
         """Test basic run execution."""
@@ -988,8 +1043,9 @@ class TestFeatureAPIRun:
 
     def test_run_context_parameters_merged(self) -> None:
         """Test that context parameters are merged with run parameters."""
+        from dli.models.common import ExecutionMode
         ctx = ExecutionContext(
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
             parameters={"env": "prod", "date": "default"},
         )
         api = FeatureAPI(context=ctx)

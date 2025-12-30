@@ -10,9 +10,10 @@ CLI Usage:
 
 Library Usage:
     >>> from dli import DatasetAPI, MetricAPI, ExecutionContext
+    >>> from dli.models.common import ExecutionMode
     >>> ctx = ExecutionContext(
     ...     project_path="/path/to/project",
-    ...     mock_mode=True,
+    ...     execution_mode=ExecutionMode.MOCK,
     ... )
     >>> api = DatasetAPI(context=ctx)
     >>> result = api.run("catalog.schema.dataset", dry_run=True)
@@ -75,7 +76,7 @@ from dli.exceptions import (
 )
 
 # Context and Configuration
-from dli.models.common import ExecutionContext
+from dli.models.common import ExecutionContext, ExecutionMode
 
 __all__ = [
     "CatalogAPI",
@@ -90,6 +91,7 @@ __all__ = [
     "ErrorCode",
     # Context
     "ExecutionContext",
+    "ExecutionMode",
     "ExecutionError",
     "MetricAPI",
     "MetricNotFoundError",

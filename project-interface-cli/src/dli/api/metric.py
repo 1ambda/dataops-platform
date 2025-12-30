@@ -4,11 +4,16 @@ This module provides the MetricAPI class which wraps the MetricService
 for programmatic access to metric (SELECT query) operations.
 
 Example:
-    >>> from dli import MetricAPI, ExecutionContext
+    >>> from dli import MetricAPI, ExecutionContext, ExecutionMode
     >>> ctx = ExecutionContext(project_path="/path/to/project")
     >>> api = MetricAPI(context=ctx)
     >>> result = api.run("catalog.schema.metric", parameters={"date": "2025-01-01"})
     >>> print(result.data)
+
+    >>> # With mock executor injection (for testing)
+    >>> from dli.core.executor import MockExecutor
+    >>> mock_executor = MockExecutor(mock_data=[{"id": 1}])
+    >>> api = MetricAPI(context=ctx, executor=mock_executor)
 """
 
 from __future__ import annotations
@@ -26,12 +31,14 @@ from dli.exceptions import (
 from dli.models.common import (
     DataSource,
     ExecutionContext,
+    ExecutionMode,
     MetricResult,
     ResultStatus,
     ValidationResult,
 )
 
 if TYPE_CHECKING:
+    from dli.core.executor import QueryExecutor
     from dli.core.metric_service import MetricService
     from dli.core.models.metric import MetricSpec
 
@@ -64,19 +71,44 @@ class MetricAPI:
         >>> print(result.data)
     """
 
-    def __init__(self, context: ExecutionContext | None = None) -> None:
+    def __init__(
+        self,
+        context: ExecutionContext | None = None,
+        executor: QueryExecutor | None = None,
+    ) -> None:
         """Initialize MetricAPI.
 
         Args:
             context: Execution context with settings. If None, creates
                      default context from environment variables.
+            executor: Optional query executor for DI (dependency injection).
+                     If provided, this executor will be used instead of
+                     creating one based on execution_mode.
+
+        Example:
+            >>> # Normal usage
+            >>> api = MetricAPI(context=ExecutionContext())
+
+            >>> # With injected mock executor (for testing)
+            >>> from dli.core.executor import MockExecutor
+            >>> mock = MockExecutor(mock_data=[{"id": 1}])
+            >>> api = MetricAPI(context=ctx, executor=mock)
         """
         self.context = context or ExecutionContext()
+        # TODO(Phase 2): Use _executor for actual query execution
+        # When execution_mode is LOCAL/SERVER and executor is provided,
+        # use the injected executor instead of creating one via ExecutorFactory.
+        self._executor = executor
         self._service: MetricService | None = None
 
     def __repr__(self) -> str:
         """Return concise representation."""
         return f"MetricAPI(context={self.context!r})"
+
+    @property
+    def _is_mock_mode(self) -> bool:
+        """Check if running in mock mode."""
+        return self.context.execution_mode == ExecutionMode.MOCK
 
     def _get_service(self) -> MetricService:
         """Get or create MetricService instance (lazy initialization).
@@ -91,7 +123,7 @@ class MetricAPI:
             from dli.core.metric_service import MetricService as MetricServiceImpl
 
             project_path = self.context.project_path
-            if project_path is None and not self.context.mock_mode:
+            if project_path is None and not self._is_mock_mode:
                 msg = "project_path is required for MetricAPI"
                 raise ConfigurationError(message=msg, code=ErrorCode.CONFIG_INVALID)
 
@@ -129,7 +161,7 @@ class MetricAPI:
         """
         # TODO: Implement path override and server source
         _ = path, source  # Suppress unused variable warnings
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -154,7 +186,7 @@ class MetricAPI:
         Returns:
             MetricSpec if found, None otherwise.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return None
 
         service = self._get_service()
@@ -190,7 +222,7 @@ class MetricAPI:
         # Merge parameters
         merged_params = {**self.context.parameters, **(parameters or {})}
 
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return MetricResult(
                 name=name,
                 status=ResultStatus.SUCCESS,
@@ -274,7 +306,7 @@ class MetricAPI:
         Returns:
             ValidationResult with validation status.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return ValidationResult(valid=True)
 
         try:
@@ -333,7 +365,7 @@ class MetricAPI:
             MetricNotFoundError: If metric not found locally.
             ServerError: If server registration fails.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return
 
         raise NotImplementedError("Server registration not implemented")
@@ -360,7 +392,7 @@ class MetricAPI:
         Raises:
             MetricNotFoundError: If metric not found.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return f"-- Mock SQL for {name}"
 
         service = self._get_service()
@@ -392,7 +424,7 @@ class MetricAPI:
         Returns:
             List of table names.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -407,7 +439,7 @@ class MetricAPI:
         Returns:
             List of column names.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -419,7 +451,7 @@ class MetricAPI:
         Returns:
             True if connection is successful.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return True
 
         service = self._get_service()

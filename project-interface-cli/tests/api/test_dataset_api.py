@@ -19,7 +19,7 @@ import pytest
 
 from dli import DatasetAPI, ExecutionContext
 from dli.exceptions import ConfigurationError
-from dli.models.common import ResultStatus, ValidationResult
+from dli.models.common import ExecutionMode, ResultStatus, ValidationResult
 
 
 class TestDatasetAPIInit:
@@ -34,11 +34,11 @@ class TestDatasetAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         api = DatasetAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
 
     def test_init_with_project_path(self) -> None:
         """Test initialization with project path."""
@@ -49,7 +49,7 @@ class TestDatasetAPIInit:
 
     def test_repr(self) -> None:
         """Test __repr__ returns descriptive string."""
-        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        ctx = ExecutionContext(server_url="https://test.com", execution_mode=ExecutionMode.MOCK)
         api = DatasetAPI(context=ctx)
 
         result = repr(api)
@@ -59,7 +59,7 @@ class TestDatasetAPIInit:
 
     def test_lazy_service_init(self) -> None:
         """Test that service is not created until needed."""
-        api = DatasetAPI(context=ExecutionContext(mock_mode=True))
+        api = DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _service should be None before any operation
         assert api._service is None
@@ -71,7 +71,7 @@ class TestDatasetAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return DatasetAPI(context=ctx)
 
     def test_list_datasets_returns_empty(self, mock_api: DatasetAPI) -> None:
@@ -151,7 +151,7 @@ class TestDatasetAPIRun:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        return DatasetAPI(context=ExecutionContext(mock_mode=True))
+        return DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_run_basic(self, mock_api: DatasetAPI) -> None:
         """Test basic run execution."""
@@ -179,7 +179,7 @@ class TestDatasetAPIRun:
     def test_run_context_parameters_merged(self) -> None:
         """Test that context parameters are merged with run parameters."""
         ctx = ExecutionContext(
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
             parameters={"env": "prod", "date": "default"},
         )
         api = DatasetAPI(context=ctx)
@@ -191,7 +191,7 @@ class TestDatasetAPIRun:
 
     def test_run_uses_context_dry_run(self) -> None:
         """Test that context dry_run is used if not explicitly set."""
-        ctx = ExecutionContext(mock_mode=True, dry_run=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, dry_run=True)
         api = DatasetAPI(context=ctx)
 
         result = api.run("my_dataset")
@@ -205,7 +205,7 @@ class TestDatasetAPIValidation:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        return DatasetAPI(context=ExecutionContext(mock_mode=True))
+        return DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_validate_basic(self, mock_api: DatasetAPI) -> None:
         """Test basic validation."""
@@ -232,7 +232,7 @@ class TestDatasetAPIConfiguration:
 
     def test_requires_project_path_in_non_mock_mode(self) -> None:
         """Test that project_path is required in non-mock mode."""
-        ctx = ExecutionContext(mock_mode=False, project_path=None)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL, project_path=None)
         api = DatasetAPI(context=ctx)
 
         # Should raise ConfigurationError when trying to get service
@@ -243,7 +243,7 @@ class TestDatasetAPIConfiguration:
 
     def test_project_path_not_required_in_mock_mode(self) -> None:
         """Test that project_path is not required in mock mode."""
-        ctx = ExecutionContext(mock_mode=True, project_path=None)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, project_path=None)
         api = DatasetAPI(context=ctx)
 
         # Should not raise - mock mode doesn't need project_path
@@ -257,7 +257,7 @@ class TestDatasetAPIListDatasets:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        return DatasetAPI(context=ExecutionContext(mock_mode=True))
+        return DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_list_basic(self, mock_api: DatasetAPI) -> None:
         """Test basic list operation."""
@@ -302,7 +302,7 @@ class TestDatasetAPIRenderSQL:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        return DatasetAPI(context=ExecutionContext(mock_mode=True))
+        return DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_render_basic(self, mock_api: DatasetAPI) -> None:
         """Test basic SQL rendering."""
@@ -333,7 +333,7 @@ class TestDatasetAPIRunSQL:
     @pytest.fixture
     def mock_api(self) -> DatasetAPI:
         """Create DatasetAPI in mock mode."""
-        return DatasetAPI(context=ExecutionContext(mock_mode=True))
+        return DatasetAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_run_sql_basic(self, mock_api: DatasetAPI) -> None:
         """Test basic SQL execution."""

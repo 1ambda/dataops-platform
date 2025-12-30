@@ -59,11 +59,14 @@ class ErrorCode(str, Enum):
     EXECUTION_FAILED = "DLI-401"
     TIMEOUT = "DLI-402"
     CONNECTION_FAILED = "DLI-403"
+    EXECUTION_PERMISSION = "DLI-404"  # No execution permission
+    EXECUTION_QUERY = "DLI-405"  # SQL execution error
 
     # Server Errors (DLI-5xx)
     SERVER_UNREACHABLE = "DLI-501"
     SERVER_AUTH_FAILED = "DLI-502"
     SERVER_ERROR = "DLI-503"
+    SERVER_EXECUTION = "DLI-504"  # Server-side execution error
 
 
 @dataclass

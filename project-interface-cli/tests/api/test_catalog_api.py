@@ -16,6 +16,7 @@ import pytest
 
 from dli import CatalogAPI, ExecutionContext
 from dli.core.catalog import TableDetail, TableInfo
+from dli.models.common import ExecutionMode
 
 
 class TestCatalogAPIInit:
@@ -30,15 +31,15 @@ class TestCatalogAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True, server_url="https://test.com")
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, server_url="https://test.com")
         api = CatalogAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
 
     def test_repr(self) -> None:
         """Test __repr__ returns descriptive string."""
-        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        ctx = ExecutionContext(server_url="https://test.com", execution_mode=ExecutionMode.MOCK)
         api = CatalogAPI(context=ctx)
 
         result = repr(api)
@@ -48,7 +49,7 @@ class TestCatalogAPIInit:
 
     def test_lazy_client_init(self) -> None:
         """Test that client is not created until needed."""
-        api = CatalogAPI(context=ExecutionContext(mock_mode=True))
+        api = CatalogAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _client should be None before any operation
         assert api._client is None
@@ -60,7 +61,7 @@ class TestCatalogAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> CatalogAPI:
         """Create CatalogAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return CatalogAPI(context=ctx)
 
     def test_list_tables_no_identifier(self, mock_api: CatalogAPI) -> None:
@@ -113,7 +114,7 @@ class TestCatalogAPIListTables:
     @pytest.fixture
     def mock_api(self) -> CatalogAPI:
         """Create CatalogAPI in mock mode."""
-        return CatalogAPI(context=ExecutionContext(mock_mode=True))
+        return CatalogAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_implicit_routing_no_parts(self, mock_api: CatalogAPI) -> None:
         """Test implicit routing with no identifier parts."""
@@ -154,7 +155,7 @@ class TestCatalogAPIGet:
     @pytest.fixture
     def mock_api(self) -> CatalogAPI:
         """Create CatalogAPI in mock mode."""
-        return CatalogAPI(context=ExecutionContext(mock_mode=True))
+        return CatalogAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_get_with_full_reference(self, mock_api: CatalogAPI) -> None:
         """Test get with full table reference."""
@@ -177,7 +178,7 @@ class TestCatalogAPISearch:
     @pytest.fixture
     def mock_api(self) -> CatalogAPI:
         """Create CatalogAPI in mock mode."""
-        return CatalogAPI(context=ExecutionContext(mock_mode=True))
+        return CatalogAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_search_basic(self, mock_api: CatalogAPI) -> None:
         """Test basic search."""
@@ -215,7 +216,7 @@ class TestCatalogAPIClientInit:
         """Test that client uses server_url from context."""
         ctx = ExecutionContext(
             server_url="https://custom.server.com",
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
         )
         api = CatalogAPI(context=ctx)
 
@@ -226,7 +227,7 @@ class TestCatalogAPIClientInit:
 
     def test_client_default_server_url(self) -> None:
         """Test that client uses default URL when not specified."""
-        ctx = ExecutionContext(server_url=None, mock_mode=True)
+        ctx = ExecutionContext(server_url=None, execution_mode=ExecutionMode.MOCK)
         api = CatalogAPI(context=ctx)
 
         client = api._get_client()
@@ -235,7 +236,7 @@ class TestCatalogAPIClientInit:
 
     def test_client_mock_mode_propagated(self) -> None:
         """Test that mock_mode is propagated to client."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         api = CatalogAPI(context=ctx)
 
         client = api._get_client()
@@ -280,7 +281,7 @@ class TestCatalogAPIHelperMethods:
     @pytest.fixture
     def api(self) -> CatalogAPI:
         """Create CatalogAPI in mock mode."""
-        return CatalogAPI(context=ExecutionContext(mock_mode=True))
+        return CatalogAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_dict_to_table_info(self, api: CatalogAPI) -> None:
         """Test _dict_to_table_info conversion."""

@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing, **Library API v0.2.0**)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing, **Library API v0.2.1** with ExecutionMode)
 
 ---
 
@@ -212,6 +212,7 @@ class UserRepositoryJpaImpl(
 | 2 | `mcp__serena__read_memory("cli_test_patterns")` | 테스트 패턴 요약 |
 | 3 | `project-interface-cli/docs/PATTERNS.md` | 상세 패턴 (필요시만) |
 | 4 | `project-interface-cli/features/RELEASE_LIBRARY.md` | Library API 구현 상세 |
+| 5 | `project-interface-cli/features/RELEASE_EXECUTION.md` | ExecutionMode 구현 상세 |
 
 ### 참조 불필요 (위 문서에 통합됨)
 
@@ -251,13 +252,29 @@ class UserRepositoryJpaImpl(
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
 
-**Usage Example (Airflow PythonOperator):**
-```python
-from dli import DatasetAPI, ExecutionContext
+**ExecutionMode (v0.2.1):**
 
-ctx = ExecutionContext(project_path="/opt/airflow/dags/models")
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `LOCAL` | 로컬 Query Engine 직접 실행 | BigQuery/Trino 직접 연결 |
+| `SERVER` | Basecamp Server API 실행 | 프로덕션 환경 |
+| `MOCK` | 테스트용 Mock 실행 | 단위 테스트 |
+
+```python
+from dli import DatasetAPI, ExecutionContext, ExecutionMode
+
+# 로컬 실행
+ctx = ExecutionContext(
+    execution_mode=ExecutionMode.LOCAL,
+    project_path=Path("/opt/airflow/dags/models"),
+)
 api = DatasetAPI(context=ctx)
 result = api.run("my_dataset", parameters={"date": "2025-01-01"})
+
+# Mock 테스트 (DI 지원)
+from dli.core.executor import MockExecutor
+mock_executor = MockExecutor(mock_data=[{"id": 1}])
+api = DatasetAPI(context=ctx, executor=mock_executor)
 ```
 
 **Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-601)

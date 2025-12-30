@@ -16,7 +16,7 @@ import os
 import pytest
 
 from dli import ConfigAPI, ExecutionContext
-from dli.models.common import ConfigValue, EnvironmentInfo
+from dli.models.common import ConfigValue, EnvironmentInfo, ExecutionMode
 
 
 class TestConfigAPIInit:
@@ -31,15 +31,15 @@ class TestConfigAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True, server_url="https://test.com")
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, server_url="https://test.com")
         api = ConfigAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
 
     def test_repr(self) -> None:
         """Test __repr__ returns descriptive string."""
-        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        ctx = ExecutionContext(server_url="https://test.com", execution_mode=ExecutionMode.MOCK)
         api = ConfigAPI(context=ctx)
 
         result = repr(api)
@@ -49,7 +49,7 @@ class TestConfigAPIInit:
 
     def test_lazy_client_init(self) -> None:
         """Test that client is not created until needed."""
-        api = ConfigAPI(context=ExecutionContext(mock_mode=True))
+        api = ConfigAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _client should be None before server operations
         assert api._client is None
@@ -61,7 +61,7 @@ class TestConfigAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> ConfigAPI:
         """Create ConfigAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return ConfigAPI(context=ctx)
 
     def test_list_environments_returns_mock(self, mock_api: ConfigAPI) -> None:
@@ -172,7 +172,7 @@ class TestConfigAPIListEnvironments:
     @pytest.fixture
     def mock_api(self) -> ConfigAPI:
         """Create ConfigAPI in mock mode."""
-        return ConfigAPI(context=ExecutionContext(mock_mode=True))
+        return ConfigAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_list_returns_environment_info(self, mock_api: ConfigAPI) -> None:
         """Test that list returns EnvironmentInfo objects."""
@@ -186,7 +186,7 @@ class TestConfigAPIListEnvironments:
 
     def test_list_without_project_path(self) -> None:
         """Test list_environments without project path returns empty in non-mock."""
-        ctx = ExecutionContext(mock_mode=False, project_path=None)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL, project_path=None)
         api = ConfigAPI(context=ctx)
 
         result = api.list_environments()
@@ -200,7 +200,7 @@ class TestConfigAPIServerStatus:
     @pytest.fixture
     def mock_api(self) -> ConfigAPI:
         """Create ConfigAPI in mock mode."""
-        return ConfigAPI(context=ExecutionContext(mock_mode=True))
+        return ConfigAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_get_server_status_returns_dict(self, mock_api: ConfigAPI) -> None:
         """Test that get_server_status returns a dictionary."""
@@ -229,7 +229,7 @@ class TestConfigAPIClientInit:
         """Test that client uses server_url from context."""
         ctx = ExecutionContext(
             server_url="https://custom.server.com",
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
         )
         api = ConfigAPI(context=ctx)
 
@@ -239,7 +239,7 @@ class TestConfigAPIClientInit:
 
     def test_client_default_server_url(self) -> None:
         """Test that client uses default URL when not specified."""
-        ctx = ExecutionContext(server_url=None, mock_mode=True)
+        ctx = ExecutionContext(server_url=None, execution_mode=ExecutionMode.MOCK)
         api = ConfigAPI(context=ctx)
 
         client = api._get_client()

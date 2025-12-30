@@ -1,23 +1,98 @@
 """Execution engine for the DLI Core Engine.
 
 This module provides:
-- BaseExecutor: Abstract base class for SQL executors
+- QueryExecutor: Protocol for query executors (DI interface for Library API)
+- BaseExecutor: Abstract base class for SQL executors (internal)
 - MockExecutor: Mock executor for testing
 - DatasetExecutor: 3-stage execution engine (Pre -> Main -> Post)
+- ExecutorFactory: Factory for creating executors based on ExecutionMode
+
+Architecture Note:
+    There are two executor interfaces in this module:
+
+    1. QueryExecutor (Protocol) - For Library API dependency injection
+       - Used by DatasetAPI, MetricAPI for DI
+       - Methods: execute(sql, params), test_connection()
+
+    2. BaseExecutor (ABC) - For internal 3-stage execution
+       - Used by DatasetExecutor for Pre/Main/Post stages
+       - Methods: execute_sql(sql, timeout), dry_run(sql), test_connection()
+
+    In Phase 2, these may be unified when actual database execution is implemented.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from dli.core.types import DryRunResult
 from dli.core.models import (
     DatasetExecutionResult,
     DatasetSpec,
     ExecutionResult,
 )
+from dli.core.types import DryRunResult
+
+if TYPE_CHECKING:
+    from dli.models.common import ExecutionContext, ExecutionMode
+
+
+# =============================================================================
+# Protocol for Library API DI (Dependency Injection)
+# =============================================================================
+
+
+@runtime_checkable
+class QueryExecutor(Protocol):
+    """Protocol for query executors (DI interface for Library API).
+
+    This protocol defines the minimal interface for dependency injection
+    in DatasetAPI and MetricAPI. Use this when you need to inject a
+    custom executor for testing or alternative execution backends.
+
+    Note:
+        This is different from BaseExecutor which is used internally
+        for the 3-stage execution engine (Pre -> Main -> Post).
+
+    Example:
+        >>> class MyExecutor:
+        ...     def execute(self, sql: str, params: dict | None = None) -> ExecutionResult:
+        ...         # Custom execution logic
+        ...         ...
+        ...     def test_connection(self) -> bool:
+        ...         return True
+        >>>
+        >>> executor: QueryExecutor = MyExecutor()
+        >>> api = DatasetAPI(context=ctx, executor=executor)
+    """
+
+    def execute(
+        self, sql: str, params: dict[str, Any] | None = None
+    ) -> ExecutionResult:
+        """Execute a SQL query.
+
+        Args:
+            sql: SQL query to execute.
+            params: Optional parameters for the query.
+
+        Returns:
+            ExecutionResult with query results.
+        """
+        ...
+
+    def test_connection(self) -> bool:
+        """Test the database connection.
+
+        Returns:
+            True if connection is successful.
+        """
+        ...
+
+
+# =============================================================================
+# Abstract Base Class for Internal Executors
+# =============================================================================
 
 
 class BaseExecutor(ABC):
@@ -273,9 +348,7 @@ class DatasetExecutor:
                 pre_sqls = [pre_sqls]
 
             for i, sql in enumerate(pre_sqls):
-                stmt = (
-                    spec.pre_statements[i] if i < len(spec.pre_statements) else None
-                )
+                stmt = spec.pre_statements[i] if i < len(spec.pre_statements) else None
                 stmt_name = stmt.name if stmt else f"pre_{i}"
 
                 result = self.executor.execute_sql(sql, timeout)
@@ -380,3 +453,114 @@ class DatasetExecutor:
             case _:  # main
                 # Only run main (no pre or post in phase_sqls)
                 return self.execute(spec, phase_sqls, skip_pre=True, skip_post=True)
+
+
+class ServerExecutor:
+    """Executor for server-side query execution via Basecamp API.
+
+    This executor sends queries to the Basecamp server for execution,
+    which is useful in environments where direct database access is
+    not available or not permitted.
+
+    Note: This is a stub implementation. Full implementation will be
+    added in Phase 2.
+    """
+
+    def __init__(
+        self,
+        server_url: str | None = None,
+        api_token: str | None = None,
+    ) -> None:
+        """Initialize the server executor.
+
+        Args:
+            server_url: Basecamp server URL.
+            api_token: API authentication token.
+        """
+        self.server_url = server_url
+        self.api_token = api_token
+
+    def execute(
+        self, sql: str, params: dict[str, Any] | None = None
+    ) -> ExecutionResult:
+        """Execute query via Basecamp server.
+
+        Args:
+            sql: SQL query to execute.
+            params: Optional parameters for the query.
+
+        Returns:
+            ExecutionResult with query results.
+
+        Raises:
+            NotImplementedError: Server execution not yet implemented.
+        """
+        # Stub implementation
+        raise NotImplementedError("Server execution not yet implemented")
+
+    def test_connection(self) -> bool:
+        """Test server connection.
+
+        Returns:
+            True if server is reachable.
+        """
+        # Stub implementation
+        return self.server_url is not None
+
+
+class ExecutorFactory:
+    """Factory for creating executors based on ExecutionMode.
+
+    This factory provides a centralized way to create the appropriate
+    executor based on the execution mode specified in the context.
+
+    Example:
+        >>> from dli.models.common import ExecutionContext, ExecutionMode
+        >>> ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL, dialect="bigquery")
+        >>> executor = ExecutorFactory.create(ctx.execution_mode, ctx)
+    """
+
+    @staticmethod
+    def create(
+        mode: ExecutionMode,
+        context: ExecutionContext,
+    ) -> BaseExecutor | ServerExecutor | MockExecutor:
+        """Create an executor based on the execution mode.
+
+        Args:
+            mode: Execution mode (LOCAL, SERVER, or MOCK).
+            context: Execution context with configuration.
+
+        Returns:
+            Appropriate executor instance.
+
+        Raises:
+            ValueError: If the engine/mode combination is not supported.
+        """
+        # Import here to avoid circular imports
+        from dli.models.common import ExecutionMode
+
+        match mode:
+            case ExecutionMode.LOCAL:
+                engine = context.dialect
+                if engine == "bigquery":
+                    from dli.adapters.bigquery import BigQueryExecutor
+
+                    return BigQueryExecutor(
+                        project=context.parameters.get("project", ""),
+                        location=context.parameters.get("location", "US"),
+                    )
+                # Add more engines here (trino, snowflake, etc.)
+                raise ValueError(f"Unsupported engine for LOCAL mode: {engine}")
+
+            case ExecutionMode.SERVER:
+                return ServerExecutor(
+                    server_url=context.server_url,
+                    api_token=context.api_token,
+                )
+
+            case ExecutionMode.MOCK:
+                return MockExecutor()
+
+            case _:
+                raise ValueError(f"Unknown execution mode: {mode}")

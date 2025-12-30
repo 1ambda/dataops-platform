@@ -21,6 +21,7 @@ from dli.models.common import (
     ConfigValue,
     EnvironmentInfo,
     ExecutionContext,
+    ExecutionMode,
 )
 
 
@@ -63,6 +64,11 @@ class ConfigAPI:
         """Return concise representation."""
         return f"ConfigAPI(context={self.context!r})"
 
+    @property
+    def _is_mock_mode(self) -> bool:
+        """Check if running in mock mode."""
+        return self.context.execution_mode == ExecutionMode.MOCK
+
     def _get_client(self) -> BasecampClient:
         """Get or create BasecampClient instance."""
         if self._client is None:
@@ -71,7 +77,7 @@ class ConfigAPI:
             )
             self._client = BasecampClient(
                 config=config,
-                mock_mode=self.context.mock_mode,
+                mock_mode=self._is_mock_mode,
             )
         return self._client
 
@@ -153,7 +159,7 @@ class ConfigAPI:
         Returns:
             List of EnvironmentInfo objects.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return [
                 EnvironmentInfo(name="dev", is_active=True),
                 EnvironmentInfo(name="staging", is_active=False),

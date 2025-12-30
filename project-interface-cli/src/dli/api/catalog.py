@@ -17,7 +17,7 @@ from typing import Any
 
 from dli.core.catalog import TableDetail, TableInfo
 from dli.core.client import BasecampClient, ServerConfig
-from dli.models.common import ExecutionContext
+from dli.models.common import ExecutionContext, ExecutionMode
 
 
 class CatalogAPI:
@@ -57,6 +57,11 @@ class CatalogAPI:
         """Return concise representation."""
         return f"CatalogAPI(context={self.context!r})"
 
+    @property
+    def _is_mock_mode(self) -> bool:
+        """Check if running in mock mode."""
+        return self.context.execution_mode == ExecutionMode.MOCK
+
     def _get_client(self) -> BasecampClient:
         """Get or create BasecampClient instance (lazy initialization).
 
@@ -69,7 +74,7 @@ class CatalogAPI:
             )
             self._client = BasecampClient(
                 config=config,
-                mock_mode=self.context.mock_mode,
+                mock_mode=self._is_mock_mode,
             )
 
         return self._client

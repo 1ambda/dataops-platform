@@ -69,23 +69,38 @@ class FeatureAPI:
             self._service = FeatureServiceImpl(project_path=self.context.project_path)
         return self._service
 
+    @property
+    def _is_mock_mode(self) -> bool:
+        return self.context.execution_mode == ExecutionMode.MOCK
+
     def run(self, name: str, *, parameters: dict = None, dry_run: bool = False) -> FeatureResult:
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return FeatureResult(name=name, status=ResultStatus.SUCCESS, ...)
         # Real execution...
 ```
 
-**ExecutionContext:**
+**ExecutionMode (v0.2.1):**
 ```python
-from dli import ExecutionContext
+from dli import ExecutionContext, ExecutionMode
 
+# ExecutionMode enum: LOCAL, SERVER, MOCK
 ctx = ExecutionContext(
+    execution_mode=ExecutionMode.LOCAL,  # or SERVER, MOCK
     project_path=Path("/opt/airflow/dags/models"),
-    mock_mode=False,
-    dry_run=False,
+    timeout=300,  # 1-3600 초
     dialect="trino",
     parameters={"execution_date": "2025-01-01"},
 )
+
+# Deprecated: mock_mode=True → execution_mode=ExecutionMode.MOCK
+```
+
+**DI (Dependency Injection):**
+```python
+from dli.core.executor import MockExecutor
+
+mock_executor = MockExecutor(mock_data=[{"id": 1}])
+api = DatasetAPI(context=ctx, executor=mock_executor)
 ```
 
 **Exception Handling:**

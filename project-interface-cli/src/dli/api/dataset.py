@@ -4,11 +4,16 @@ This module provides the DatasetAPI class which wraps the DatasetService
 for programmatic access to dataset operations.
 
 Example:
-    >>> from dli import DatasetAPI, ExecutionContext
+    >>> from dli import DatasetAPI, ExecutionContext, ExecutionMode
     >>> ctx = ExecutionContext(project_path="/path/to/project")
     >>> api = DatasetAPI(context=ctx)
     >>> datasets = api.list_datasets()
     >>> result = api.run("catalog.schema.my_dataset", dry_run=True)
+
+    >>> # With mock executor injection (for testing)
+    >>> from dli.core.executor import MockExecutor
+    >>> mock_executor = MockExecutor(mock_data=[{"id": 1}])
+    >>> api = DatasetAPI(context=ctx, executor=mock_executor)
 """
 
 from __future__ import annotations
@@ -27,12 +32,14 @@ from dli.models.common import (
     DatasetResult,
     DataSource,
     ExecutionContext,
+    ExecutionMode,
     ResultStatus,
     SQLDialect,
     ValidationResult,
 )
 
 if TYPE_CHECKING:
+    from dli.core.executor import QueryExecutor
     from dli.core.models.dataset import DatasetSpec
     from dli.core.service import DatasetService
 
@@ -62,19 +69,44 @@ class DatasetAPI:
         >>> print(result.status)
     """
 
-    def __init__(self, context: ExecutionContext | None = None) -> None:
+    def __init__(
+        self,
+        context: ExecutionContext | None = None,
+        executor: QueryExecutor | None = None,
+    ) -> None:
         """Initialize DatasetAPI.
 
         Args:
             context: Execution context with settings. If None, creates
                      default context from environment variables.
+            executor: Optional query executor for DI (dependency injection).
+                     If provided, this executor will be used instead of
+                     creating one based on execution_mode.
+
+        Example:
+            >>> # Normal usage
+            >>> api = DatasetAPI(context=ExecutionContext())
+
+            >>> # With injected mock executor (for testing)
+            >>> from dli.core.executor import MockExecutor
+            >>> mock = MockExecutor(mock_data=[{"id": 1}])
+            >>> api = DatasetAPI(context=ctx, executor=mock)
         """
         self.context = context or ExecutionContext()
+        # TODO(Phase 2): Use _executor for actual query execution
+        # When execution_mode is LOCAL/SERVER and executor is provided,
+        # use the injected executor instead of creating one via ExecutorFactory.
+        self._executor = executor
         self._service: DatasetService | None = None
 
     def __repr__(self) -> str:
         """Return concise representation."""
         return f"DatasetAPI(context={self.context!r})"
+
+    @property
+    def _is_mock_mode(self) -> bool:
+        """Check if running in mock mode."""
+        return self.context.execution_mode == ExecutionMode.MOCK
 
     def _get_service(self) -> DatasetService:
         """Get or create DatasetService instance (lazy initialization).
@@ -90,7 +122,7 @@ class DatasetAPI:
             from dli.core.service import DatasetService as DatasetServiceImpl
 
             project_path = self.context.project_path
-            if project_path is None and not self.context.mock_mode:
+            if project_path is None and not self._is_mock_mode:
                 msg = "project_path is required for DatasetAPI"
                 raise ConfigurationError(message=msg, code=ErrorCode.CONFIG_INVALID)
 
@@ -131,7 +163,7 @@ class DatasetAPI:
         """
         # TODO: Implement path override and server source
         _ = path, source  # Suppress unused variable warnings
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -156,7 +188,7 @@ class DatasetAPI:
         Returns:
             DatasetSpec if found, None otherwise.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return None
 
         service = self._get_service()
@@ -193,7 +225,7 @@ class DatasetAPI:
         # Merge parameters
         merged_params = {**self.context.parameters, **(parameters or {})}
 
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return DatasetResult(
                 name=name,
                 status=ResultStatus.SUCCESS,
@@ -283,7 +315,7 @@ class DatasetAPI:
         """
         started_at = datetime.now(tz=UTC)
 
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return DatasetResult(
                 name="<inline>",
                 status=ResultStatus.SUCCESS,
@@ -322,7 +354,7 @@ class DatasetAPI:
         Returns:
             ValidationResult with validation status.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return ValidationResult(valid=True)
 
         try:
@@ -381,7 +413,7 @@ class DatasetAPI:
             DatasetNotFoundError: If dataset not found locally.
             ServerError: If server registration fails.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return
 
         # Implementation would call BasecampClient
@@ -410,7 +442,7 @@ class DatasetAPI:
         Raises:
             DatasetNotFoundError: If dataset not found.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return f"-- Mock SQL for {name}"
 
         service = self._get_service()
@@ -446,7 +478,7 @@ class DatasetAPI:
         Returns:
             List of table names.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -461,7 +493,7 @@ class DatasetAPI:
         Returns:
             List of column names.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return []
 
         service = self._get_service()
@@ -473,7 +505,7 @@ class DatasetAPI:
         Returns:
             True if connection is successful.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return True
 
         service = self._get_service()

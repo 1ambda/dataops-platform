@@ -19,6 +19,7 @@ from typing import Any
 from dli.exceptions import TranspileError
 from dli.models.common import (
     ExecutionContext,
+    ExecutionMode,
     TranspileResult,
     TranspileRule,
     TranspileWarning,
@@ -66,6 +67,11 @@ class TranspileAPI:
     def __repr__(self) -> str:
         """Return concise representation."""
         return f"TranspileAPI(context={self.context!r})"
+
+    @property
+    def _is_mock_mode(self) -> bool:
+        """Check if running in mock mode."""
+        return self.context.execution_mode == ExecutionMode.MOCK
 
     def _get_engine(self) -> Any:
         """Get or create TranspileEngine instance (lazy initialization).
@@ -121,7 +127,7 @@ class TranspileAPI:
         """
         start_time = time.time()
 
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             duration_ms = int((time.time() - start_time) * 1000)
             return TranspileResult(
                 original_sql=sql,
@@ -213,7 +219,7 @@ class TranspileAPI:
         Returns:
             ValidationResult with validation status.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             # Basic mock validation
             if not sql.strip():
                 return ValidationResult(
@@ -245,7 +251,7 @@ class TranspileAPI:
         Returns:
             List of TranspileRule objects.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return [
                 TranspileRule(
                     source_table="raw.events",
@@ -291,7 +297,7 @@ class TranspileAPI:
         Returns:
             Formatted SQL string.
         """
-        if self.context.mock_mode:
+        if self._is_mock_mode:
             return sql
 
         try:

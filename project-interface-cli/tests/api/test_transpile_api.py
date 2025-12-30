@@ -15,6 +15,7 @@ import pytest
 
 from dli import ExecutionContext, TranspileAPI
 from dli.models.common import (
+    ExecutionMode,
     TranspileResult,
     TranspileRule,
     TranspileWarning,
@@ -34,16 +35,16 @@ class TestTranspileAPIInit:
 
     def test_init_with_context(self) -> None:
         """Test initialization with explicit context."""
-        ctx = ExecutionContext(mock_mode=True, dialect="bigquery")
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK, dialect="bigquery")
         api = TranspileAPI(context=ctx)
 
         assert api.context is ctx
-        assert api.context.mock_mode is True
+        assert api.context.execution_mode == ExecutionMode.MOCK
         assert api.context.dialect == "bigquery"
 
     def test_repr(self) -> None:
         """Test __repr__ returns descriptive string."""
-        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        ctx = ExecutionContext(server_url="https://test.com", execution_mode=ExecutionMode.MOCK)
         api = TranspileAPI(context=ctx)
 
         result = repr(api)
@@ -53,7 +54,7 @@ class TestTranspileAPIInit:
 
     def test_lazy_engine_init(self) -> None:
         """Test that engine is not created until needed."""
-        api = TranspileAPI(context=ExecutionContext(mock_mode=True))
+        api = TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
         # _engine should be None before any operation
         assert api._engine is None
@@ -65,7 +66,7 @@ class TestTranspileAPIMockMode:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        ctx = ExecutionContext(mock_mode=True)
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return TranspileAPI(context=ctx)
 
     def test_transpile_returns_original(self, mock_api: TranspileAPI) -> None:
@@ -122,7 +123,7 @@ class TestTranspileAPITranspile:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_transpile_basic(self, mock_api: TranspileAPI) -> None:
         """Test basic transpilation."""
@@ -187,7 +188,7 @@ class TestTranspileAPIValidation:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_validate_valid_sql(self, mock_api: TranspileAPI) -> None:
         """Test validation of valid SQL."""
@@ -212,7 +213,7 @@ class TestTranspileAPIFormatSQL:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_format_basic(self, mock_api: TranspileAPI) -> None:
         """Test basic SQL formatting."""
@@ -242,7 +243,7 @@ class TestTranspileAPIGetRules:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_get_rules_returns_list(self, mock_api: TranspileAPI) -> None:
         """Test that get_rules returns a list."""
@@ -268,7 +269,7 @@ class TestTranspileAPIStrictMode:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_strict_false_does_not_raise(self, mock_api: TranspileAPI) -> None:
         """Test that strict=False doesn't raise on warnings."""
@@ -291,7 +292,7 @@ class TestTranspileResultModel:
     @pytest.fixture
     def mock_api(self) -> TranspileAPI:
         """Create TranspileAPI in mock mode."""
-        return TranspileAPI(context=ExecutionContext(mock_mode=True))
+        return TranspileAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
     def test_result_is_frozen(self, mock_api: TranspileAPI) -> None:
         """Test that result is immutable."""

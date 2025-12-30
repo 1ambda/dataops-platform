@@ -2,15 +2,16 @@
 
 This module provides shared data models used across all API classes:
 - ExecutionContext: Configuration and runtime settings
+- ExecutionMode: Query execution location enum
 - ResultStatus: Execution result status enum
 - BaseResult: Base class for execution results
 - ValidationResult: Validation operation result
 
 Example:
-    >>> from dli.models.common import ExecutionContext
+    >>> from dli.models.common import ExecutionContext, ExecutionMode
     >>> ctx = ExecutionContext(
     ...     project_path="/path/to/project",
-    ...     mock_mode=True,
+    ...     execution_mode=ExecutionMode.MOCK,
     ... )
     >>> print(ctx.dialect)
     trino
@@ -22,8 +23,9 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, TypeAlias
+import warnings
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Type aliases for clarity (explicit TypeAlias for static analysis)
@@ -35,17 +37,40 @@ SQLDialect: TypeAlias = Literal["trino", "bigquery", "snowflake", "duckdb", "spa
 DataSource: TypeAlias = Literal["local", "server"]
 
 
+class ExecutionMode(str, Enum):
+    """Query execution location.
+
+    Determines where SQL queries are executed:
+    - LOCAL: Direct execution on Query Engine (BigQuery, Trino, etc.)
+    - SERVER: Execution via Basecamp Server API
+    - MOCK: Test mode with no actual execution
+
+    Note: This is different from DataSource which determines where
+    spec files are loaded from.
+
+    Example:
+        >>> ctx = ExecutionContext(execution_mode=ExecutionMode.LOCAL)
+        >>> if ctx.execution_mode == ExecutionMode.MOCK:
+        ...     print("Running in mock mode")
+    """
+
+    LOCAL = "local"
+    SERVER = "server"
+    MOCK = "mock"
+
+
 class ExecutionContext(BaseSettings):
     """Library API execution context.
 
     Loads configuration from environment variables with DLI_ prefix.
-    For example: DLI_SERVER_URL, DLI_PROJECT_PATH, DLI_MOCK_MODE
+    For example: DLI_SERVER_URL, DLI_PROJECT_PATH, DLI_EXECUTION_MODE
 
     Attributes:
         project_path: Project root directory path.
         server_url: Basecamp server URL for API calls.
         api_token: API authentication token.
-        mock_mode: Enable mock mode for testing.
+        execution_mode: Query execution mode (local/server/mock).
+        timeout: Query execution timeout in seconds.
         dry_run: Dry-run mode (no actual execution).
         dialect: Default SQL dialect.
         parameters: Runtime parameters for Jinja rendering.
@@ -54,14 +79,21 @@ class ExecutionContext(BaseSettings):
     Example:
         >>> # From environment variables
         >>> ctx = ExecutionContext()
-        >>> print(ctx.mock_mode)  # Uses DLI_MOCK_MODE env var
-        False
+        >>> print(ctx.execution_mode)  # Uses DLI_EXECUTION_MODE env var
+        ExecutionMode.LOCAL
 
         >>> # Explicit configuration
         >>> ctx = ExecutionContext(
         ...     server_url="https://basecamp.example.com",
-        ...     mock_mode=True,
+        ...     execution_mode=ExecutionMode.SERVER,
         ... )
+
+        >>> # Mock mode for testing
+        >>> ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+
+    Migration from mock_mode:
+        The `mock_mode` parameter is deprecated. Use `execution_mode=ExecutionMode.MOCK`
+        instead. Passing `mock_mode=True` will automatically set execution_mode to MOCK.
     """
 
     model_config = SettingsConfigDict(
@@ -87,9 +119,15 @@ class ExecutionContext(BaseSettings):
     )
 
     # Execution options
-    mock_mode: bool = Field(
-        default=False,
-        description="Enable mock mode for testing",
+    execution_mode: ExecutionMode = Field(
+        default=ExecutionMode.LOCAL,
+        description="Query execution mode (local/server/mock)",
+    )
+    timeout: int = Field(
+        default=300,
+        ge=1,
+        le=3600,
+        description="Query execution timeout in seconds",
     )
     dry_run: bool = Field(
         default=False,
@@ -112,11 +150,39 @@ class ExecutionContext(BaseSettings):
         description="Enable verbose logging",
     )
 
+    @property
+    def mock_mode(self) -> bool:
+        """Deprecated. Use execution_mode == ExecutionMode.MOCK instead.
+
+        Returns:
+            True if execution_mode is MOCK.
+        """
+        warnings.warn(
+            "mock_mode is deprecated. Use execution_mode == ExecutionMode.MOCK",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.execution_mode == ExecutionMode.MOCK
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_mock_mode(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Migrate legacy mock_mode=True to execution_mode=MOCK.
+
+        This validator provides backward compatibility for users who still
+        use the old mock_mode parameter.
+        """
+        if isinstance(data, dict) and data.get("mock_mode") is True:
+            data.setdefault("execution_mode", ExecutionMode.MOCK)
+            # Remove mock_mode to avoid pydantic validation error
+            data.pop("mock_mode", None)
+        return data
+
     def __repr__(self) -> str:
         """Return concise representation."""
         return (
             f"ExecutionContext(server_url={self.server_url!r}, "
-            f"mock_mode={self.mock_mode}, dialect={self.dialect!r})"
+            f"execution_mode={self.execution_mode.value!r}, dialect={self.dialect!r})"
         )
 
 
@@ -345,6 +411,7 @@ __all__ = [
     "EnvironmentInfo",
     # Context
     "ExecutionContext",
+    "ExecutionMode",
     "MetricResult",
     # Enums
     "ResultStatus",

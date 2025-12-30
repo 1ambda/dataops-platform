@@ -2,6 +2,7 @@
 
 Covers:
 - ExecutionContext: Configuration and env var loading
+- ExecutionMode: Query execution location enum
 - ResultStatus: Enum values and string conversion
 - ValidationResult: Validation result model
 - BaseResult: Base execution result model
@@ -10,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from dli.models.common import (
     DatasetResult,
     EnvironmentInfo,
     ExecutionContext,
+    ExecutionMode,
     MetricResult,
     ResultStatus,
     TranspileResult,
@@ -61,6 +64,33 @@ class TestResultStatus:
             ResultStatus("invalid")
 
 
+class TestExecutionMode:
+    """Tests for ExecutionMode enum."""
+
+    def test_values(self) -> None:
+        """Test enum values match expected strings."""
+        assert ExecutionMode.LOCAL.value == "local"
+        assert ExecutionMode.SERVER.value == "server"
+        assert ExecutionMode.MOCK.value == "mock"
+
+    def test_string_conversion(self) -> None:
+        """Test string conversion via .value property."""
+        assert ExecutionMode.LOCAL.value == "local"
+        assert ExecutionMode.SERVER.value == "server"
+        assert ExecutionMode.MOCK.value == "mock"
+
+    def test_enum_membership(self) -> None:
+        """Test that string values map to enum members."""
+        assert ExecutionMode("local") is ExecutionMode.LOCAL
+        assert ExecutionMode("server") is ExecutionMode.SERVER
+        assert ExecutionMode("mock") is ExecutionMode.MOCK
+
+    def test_invalid_value_raises(self) -> None:
+        """Test that invalid values raise ValueError."""
+        with pytest.raises(ValueError):
+            ExecutionMode("invalid")
+
+
 class TestExecutionContext:
     """Tests for ExecutionContext (pydantic-settings based)."""
 
@@ -71,7 +101,8 @@ class TestExecutionContext:
         assert ctx.project_path is None
         assert ctx.server_url is None
         assert ctx.api_token is None
-        assert ctx.mock_mode is False
+        assert ctx.execution_mode == ExecutionMode.LOCAL
+        assert ctx.timeout == 300
         assert ctx.dry_run is False
         assert ctx.dialect == "trino"
         assert ctx.parameters == {}
@@ -83,7 +114,8 @@ class TestExecutionContext:
             project_path=Path("/test/path"),
             server_url="https://example.com",
             api_token="secret-token",
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
+            timeout=600,
             dry_run=True,
             dialect="bigquery",
             parameters={"key": "value"},
@@ -93,7 +125,8 @@ class TestExecutionContext:
         assert ctx.project_path == Path("/test/path")
         assert ctx.server_url == "https://example.com"
         assert ctx.api_token == "secret-token"
-        assert ctx.mock_mode is True
+        assert ctx.execution_mode == ExecutionMode.MOCK
+        assert ctx.timeout == 600
         assert ctx.dry_run is True
         assert ctx.dialect == "bigquery"
         assert ctx.parameters == {"key": "value"}
@@ -102,13 +135,13 @@ class TestExecutionContext:
     def test_env_var_loading(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test loading from environment variables with DLI_ prefix."""
         monkeypatch.setenv("DLI_SERVER_URL", "https://env.example.com")
-        monkeypatch.setenv("DLI_MOCK_MODE", "true")
+        monkeypatch.setenv("DLI_EXECUTION_MODE", "mock")
         monkeypatch.setenv("DLI_DIALECT", "snowflake")
 
         ctx = ExecutionContext()
 
         assert ctx.server_url == "https://env.example.com"
-        assert ctx.mock_mode is True
+        assert ctx.execution_mode == ExecutionMode.MOCK
         assert ctx.dialect == "snowflake"
 
     def test_explicit_overrides_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,7 +156,7 @@ class TestExecutionContext:
         """Test __repr__ returns concise representation."""
         ctx = ExecutionContext(
             server_url="https://test.com",
-            mock_mode=True,
+            execution_mode=ExecutionMode.MOCK,
             dialect="trino",
         )
 
@@ -131,7 +164,7 @@ class TestExecutionContext:
 
         assert "ExecutionContext" in repr_str
         assert "server_url='https://test.com'" in repr_str
-        assert "mock_mode=True" in repr_str
+        assert "execution_mode='mock'" in repr_str
         assert "dialect='trino'" in repr_str
 
     def test_dialect_literal_values(self) -> None:
@@ -145,6 +178,50 @@ class TestExecutionContext:
         # This should not raise due to extra="ignore"
         ctx = ExecutionContext(unknown_field="value")  # type: ignore[call-arg]
         assert not hasattr(ctx, "unknown_field")
+
+    def test_mock_mode_migration(self) -> None:
+        """Test that legacy mock_mode=True migrates to execution_mode=MOCK."""
+        # This tests backward compatibility with old API
+        ctx = ExecutionContext(mock_mode=True)  # type: ignore[call-arg]
+        assert ctx.execution_mode == ExecutionMode.MOCK
+
+    def test_mock_mode_deprecation_warning(self) -> None:
+        """Test that accessing mock_mode property raises DeprecationWarning."""
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+
+        with pytest.warns(DeprecationWarning, match="mock_mode is deprecated"):
+            result = ctx.mock_mode
+
+        assert result is True
+
+    def test_mock_mode_property_returns_correct_value(self) -> None:
+        """Test mock_mode property returns True when execution_mode is MOCK."""
+        ctx_mock = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+        ctx_local = ExecutionContext(execution_mode=ExecutionMode.LOCAL)
+        ctx_server = ExecutionContext(execution_mode=ExecutionMode.SERVER)
+
+        # Suppress deprecation warnings for this test
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            assert ctx_mock.mock_mode is True
+            assert ctx_local.mock_mode is False
+            assert ctx_server.mock_mode is False
+
+    def test_timeout_validation(self) -> None:
+        """Test timeout field validation (1-3600 seconds)."""
+        # Valid values
+        ctx = ExecutionContext(timeout=1)
+        assert ctx.timeout == 1
+
+        ctx = ExecutionContext(timeout=3600)
+        assert ctx.timeout == 3600
+
+        # Invalid values
+        with pytest.raises(ValidationError):
+            ExecutionContext(timeout=0)
+
+        with pytest.raises(ValidationError):
+            ExecutionContext(timeout=3601)
 
 
 class TestValidationResult:

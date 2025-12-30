@@ -5,11 +5,11 @@ Use these APIs for integration with Airflow, scripts, or applications.
 
 Example:
     >>> from dli.api import DatasetAPI, MetricAPI, TranspileAPI
-    >>> from dli.models import ExecutionContext
+    >>> from dli.models import ExecutionContext, ExecutionMode
     >>>
     >>> ctx = ExecutionContext(
     ...     project_path="/path/to/project",
-    ...     mock_mode=True,
+    ...     execution_mode=ExecutionMode.MOCK,
     ... )
     >>>
     >>> # Dataset operations
