@@ -131,6 +131,66 @@ sequenceDiagram
     S-->>C: Response
 ```
 
+## Documentation Structure Convention
+
+### Hierarchy
+
+```
+dataops-platform/
+├── README.md                 # Platform overview + quick start
+├── CLAUDE.md                 # AI agent instructions
+├── docs/                     # TOP-LEVEL: Cross-cutting concerns
+│   ├── architecture.md       # System-wide architecture
+│   ├── development.md        # Development environment setup
+│   ├── deployment.md         # Deployment & CI/CD
+│   └── troubleshooting.md    # Cross-project issues
+│
+├── project-basecamp-server/
+│   ├── README.md             # BRIEF: Quick start + inline essentials
+│   └── docs/
+│       ├── PATTERNS.md       # Development patterns & templates
+│       └── TESTING.md        # Testing guide & troubleshooting
+│
+├── project-interface-cli/
+│   ├── README.md             # BRIEF: Quick start + inline essentials
+│   └── docs/
+│       └── PATTERNS.md       # CLI patterns & templates
+│
+└── project-*/
+    ├── README.md             # Same pattern
+    └── docs/                 # Project-specific details
+```
+
+### Rules
+
+**1. Project README.md - Keep Brief**
+- Quick start (copy-paste ready)
+- Essential code snippets inline
+- Reference `docs/` for details
+- Example: Testing section with template + link to `docs/TESTING.md`
+
+**2. Project docs/ - Detailed Reference**
+- `PATTERNS.md` - Development patterns, templates, checklists
+- `TESTING.md` - Testing guide, troubleshooting (if complex)
+- Feature-specific docs as needed
+
+**3. Top-level docs/ - Architecture Perspective**
+| File | Content |
+|------|---------|
+| `architecture.md` | System design, components, data flow |
+| `development.md` | Local setup, environment, contribution |
+| `deployment.md` | Docker, K8s, CI/CD, production |
+| `troubleshooting.md` | Cross-project issues & solutions |
+
+### When Creating Documentation
+
+1. **New project feature** → Update project's `docs/PATTERNS.md`
+2. **Testing patterns** → Update project's `docs/TESTING.md`
+3. **Cross-project concern** → Update top-level `docs/`
+4. **Quick reference** → Add to project `README.md` inline
+
+---
+
 ## Anti-Patterns to Avoid
 - Documenting implementation details that change frequently
 - Writing docs without reading the actual code

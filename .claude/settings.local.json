@@ -115,7 +115,19 @@
       "Bash(gh run view:*)",
       "Bash(gh api:*)",
       "Bash(npm ci:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(jar -tf:*)",
+      "Bash(while read jar)",
+      "Bash(do jar:*)",
+      "Bash(done)",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep -i oauth2.*auto')",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep -i autoconfigure')",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep \"\"AutoConfiguration\"\" | head -20')",
+      "Bash(xargs -I {} sh -c 'unzip -p {} META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports 2>/dev/null')",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep -i \"\"WebMvcTest\"\"')",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep -i \"\"webmvc\"\"')",
+      "Bash(xargs -I {} sh -c 'jar -tf {} 2>/dev/null | grep -i \"\"AutoConfigureJson\"\"')",
+      "Bash(do echo \"=== $jar ===\" jar -tf \"$jar\")"
     ],
     "deny": [
       "Bash(rm -rf:*)",
