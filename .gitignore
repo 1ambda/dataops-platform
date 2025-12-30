@@ -802,6 +802,8 @@ plugins/marketplaces/
 plugins/known_marketplaces.json
 .update.lock
 plans/*.md
+.claude/settings.local.json
+
 
 # CLI
 test_install_env/
