@@ -17,8 +17,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from tests.conftest import strip_ansi
-
 from dli.core.lineage import (
     LineageDirection,
     LineageEdge,
@@ -27,19 +25,10 @@ from dli.core.lineage import (
 )
 from dli.core.lineage.client import LineageClientError
 from dli.main import app
+from tests.cli.conftest import get_output
+from tests.conftest import strip_ansi
 
 runner = CliRunner()
-
-
-def get_output(result) -> str:
-    """Get combined output (Typer mixes stdout/stderr by default)."""
-    return result.output or result.stdout or ""
-
-
-@pytest.fixture
-def sample_project_path() -> Path:
-    """Return path to sample project fixture."""
-    return Path(__file__).parent.parent / "fixtures" / "sample_project"
 
 
 @pytest.fixture

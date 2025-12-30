@@ -20,36 +20,8 @@ from dli.core.transpile.models import (
     WarningType,
 )
 
-# =============================================================================
-# Fixtures
-# =============================================================================
-
-
-@pytest.fixture
-def mock_client() -> MockTranspileClient:
-    """Create a mock transpile client."""
-    return MockTranspileClient()
-
-
-@pytest.fixture
-def empty_client() -> MockTranspileClient:
-    """Create an empty mock client (no rules/metrics)."""
-    client = MockTranspileClient()
-    client.clear()
-    return client
-
-
-@pytest.fixture
-def default_engine(mock_client: MockTranspileClient) -> TranspileEngine:
-    """Create engine with default config."""
-    return TranspileEngine(client=mock_client)
-
-
-@pytest.fixture
-def strict_engine(mock_client: MockTranspileClient) -> TranspileEngine:
-    """Create engine with strict mode."""
-    config = TranspileConfig(strict_mode=True)
-    return TranspileEngine(client=mock_client, config=config)
+# Note: Fixtures (mock_client, empty_client, default_engine, strict_engine)
+# are provided by tests/core/transpile/conftest.py
 
 
 # =============================================================================

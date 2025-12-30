@@ -128,3 +128,42 @@ uv run dli {feature} --help
 3. **DRY**: utils.py 공유 함수 활용 (format_datetime 등)
 4. **TDD**: 테스트 먼저 작성, pytest 통과 확인
 5. **Self-Review**: pyright + ruff 검증 후 완료
+
+---
+
+## Collaboration Insights (from Test Refactoring 2025-12-30)
+
+### Strengths Observed
+
+- **CLI Pattern Expertise**: Strong at identifying test file naming conventions (`test_{module}_cmd.py`) and Typer testing patterns
+- **Coverage Analysis**: Practical assessment of test coverage gaps (identified 83% CLI, 86% Core coverage)
+- **Prioritization**: Good at distinguishing HIGH priority (missing core tests) from LOW priority (optional dependency adapters)
+- **Project Structure**: Clear understanding of monorepo structure and module organization
+
+### Areas for Improvement
+
+- **Fixture Awareness**: Initially missed duplicate fixture definitions (`sample_project_path`) that expert-python caught
+- **conftest.py Planning**: Should proactively suggest conftest.py structure when creating new test directories
+- **pytest Best Practices**: Delegate DRY concerns and fixture design to expert-python when collaborating
+- **Helper Function Scope**: Check for duplicated helpers (like `get_output()`) across test files
+
+### Optimal Input Patterns
+
+For best results, requests should include:
+- **CLI command scope**: Specific command groups or features to implement/test
+- **Coverage targets**: Which modules need testing
+- **Integration context**: How the feature connects to existing commands
+
+### Collaboration Protocol with expert-python
+
+1. **feature-interface-cli leads on**:
+   - Test file naming and location
+   - CLI command testing patterns
+   - Typer-specific assertions
+   - Coverage gap identification
+
+2. **Defer to expert-python on**:
+   - Fixture design and conftest.py structure
+   - pytest marker configuration
+   - DRY principle violations in test code
+   - Cross-review of pytest patterns

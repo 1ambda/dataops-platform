@@ -5,12 +5,10 @@ for CLI design with rich terminal output.
 
 Commands:
     version: Display CLI version information
-    validate: Validate SQL files or spec files
-    render: Render SQL templates with parameters
     info: Display CLI and environment information
     metric: Metric management (list, get, run, validate, register)
     dataset: Dataset management (list, get, run, validate, register)
-    server: Server connection management (config, status)
+    config: Configuration management (show, status)
     lineage: Data lineage queries (upstream, downstream, table-level)
     quality: Data quality testing (list, run, show)
     workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
@@ -21,7 +19,9 @@ Example:
     $ dli --help
     $ dli version
     $ dli metric list
+    $ dli metric validate iceberg.reporting.user_summary -p date=2024-01-01
     $ dli dataset run iceberg.analytics.daily_clicks -p date=2024-01-01
+    $ dli dataset validate iceberg.analytics.daily_clicks -p date=2024-01-01
     $ dli lineage show iceberg.analytics.daily_clicks
     $ dli quality run iceberg.analytics.daily_clicks --server
     $ dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
@@ -39,15 +39,13 @@ import typer
 
 # Import command implementations
 from dli.commands import catalog_app
+from dli.commands import config_app
 from dli.commands import dataset_app
 from dli.commands import info as info_cmd
 from dli.commands import lineage_app
 from dli.commands import metric_app
 from dli.commands import quality_app
-from dli.commands import render as render_cmd
-from dli.commands import server_app
 from dli.commands import transpile_app
-from dli.commands import validate as validate_cmd
 from dli.commands import version as version_cmd
 from dli.commands import workflow_app
 
@@ -101,19 +99,17 @@ def main(
 
 # Register commands
 app.command()(version_cmd)
-app.command()(validate_cmd)
-app.command()(render_cmd)
 app.command()(info_cmd)
 
 # Register subcommand apps
 app.add_typer(catalog_app, name="catalog")
-app.add_typer(metric_app, name="metric")
+app.add_typer(config_app, name="config")
 app.add_typer(dataset_app, name="dataset")
-app.add_typer(server_app, name="server")
 app.add_typer(lineage_app, name="lineage")
+app.add_typer(metric_app, name="metric")
 app.add_typer(quality_app, name="quality")
-app.add_typer(workflow_app, name="workflow")
 app.add_typer(transpile_app, name="transpile")
+app.add_typer(workflow_app, name="workflow")
 
 
 # Entry point for the CLI

@@ -1,6 +1,24 @@
 # DLI CLI Development Patterns
 
 > **Purpose:** Accelerate new feature development by providing reference patterns for common tasks.
+> **Last Updated:** 2025-12-30
+
+---
+
+## CLI Command Structure
+
+```
+dli
+├── version / info              # Basic info commands
+├── config (show, status)       # Configuration management
+├── metric (list, get, run, validate, register)
+├── dataset (list, get, run, validate, register)
+├── workflow (run, backfill, stop, status, list, history, pause, unpause)
+├── quality (list, run, show)
+├── lineage (show, upstream, downstream)   # Top-level
+├── catalog                                # Top-level
+└── transpile                              # Top-level
+```
 
 ---
 
@@ -9,6 +27,7 @@
 | Task | Reference File | Key Pattern |
 |------|----------------|-------------|
 | New CLI command | `src/dli/commands/dataset.py` | Typer subcommand app |
+| Config subcommand | `src/dli/commands/config.py` | Simple settings management |
 | Data models | `src/dli/core/workflow/models.py` | Pydantic BaseModel |
 | Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
 | CLI tests | `tests/cli/test_dataset_cmd.py` | CliRunner |
@@ -411,13 +430,13 @@ from dli.commands.utils import (
 
 | Type | Convention | Example |
 |------|------------|---------|
-| CLI subcommand | `{feature}_app` | `workflow_app`, `quality_app` |
-| CLI command | kebab-case | `dli workflow list`, `dli workflow run` |
-| Python function | snake_case | `list_workflows`, `run_workflow` |
+| CLI subcommand | `{feature}_app` | `workflow_app`, `config_app` |
+| CLI command | kebab-case | `dli workflow list`, `dli config show` |
+| Python function | snake_case | `list_workflows`, `show_config` |
 | Model class | PascalCase | `WorkflowInfo`, `RunStatus` |
 | Enum | PascalCase + UPPER values | `class Status(Enum): ACTIVE = "active"` |
-| Test class | `Test{Feature}{Action}` | `TestWorkflowList`, `TestWorkflowRun` |
-| Test file | `test_{feature}_cmd.py` | `test_workflow_cmd.py` |
+| Test class | `Test{Feature}{Action}` | `TestWorkflowList`, `TestConfigShow` |
+| Test file | `test_{feature}_cmd.py` | `test_workflow_cmd.py`, `test_config_cmd.py` |
 
 ---
 
@@ -433,8 +452,19 @@ Before starting a new feature:
 
 ---
 
+## 8. Deprecated/Removed Commands
+
+| Command | Status | Migration |
+|---------|--------|-----------|
+| `dli render` | Removed (v1.0.0) | Use `dli dataset run --dry-run --show-sql` |
+| `dli validate` (top-level) | Removed (v1.0.0) | Use `dli dataset validate` or `dli metric validate` |
+| `dli server` | Renamed (v1.0.0) | Use `dli config` |
+
+---
+
 ## Related Documents
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [README.md](../README.md) - CLI documentation
 - [features/](../features/) - Feature specifications
+- [features/FEATURE_MODEL.md](../features/FEATURE_MODEL.md) - MODEL abstraction spec

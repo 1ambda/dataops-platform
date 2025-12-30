@@ -1,6 +1,6 @@
-"""Server subcommand for DLI CLI.
+"""Config subcommand for DLI CLI.
 
-Provides commands for managing Basecamp server connection and status.
+Provides commands for managing DLI configuration and server connection.
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ import typer
 
 from dli.commands.utils import console, print_error, print_success, print_warning
 
-# Create server subcommand app
-server_app = typer.Typer(
-    name="server",
-    help="Basecamp server management commands.",
+# Create config subcommand app
+config_app = typer.Typer(
+    name="config",
+    help="Configuration management commands.",
     no_args_is_help=True,
 )
 
@@ -42,7 +42,7 @@ def _get_project_config(path: Path | None) -> "ProjectConfig | None":
     return None
 
 
-@server_app.command("config")
+@config_app.command("show")
 def show_config(
     path: Annotated[
         Path | None,
@@ -53,11 +53,11 @@ def show_config(
         typer.Option("--format", "-f", help="Output format (table or json)."),
     ] = "table",
 ) -> None:
-    """Show server configuration.
+    """Show current configuration.
 
     Examples:
-        dli server config
-        dli server config --format json
+        dli config show
+        dli config show --format json
     """
     config = _get_project_config(path)
 
@@ -71,20 +71,22 @@ def show_config(
 
     if format_output == "json":
         data = {
-            "url": server_url,
-            "timeout": server_timeout,
-            "api_key_configured": server_api_key is not None,
+            "server": {
+                "url": server_url,
+                "timeout": server_timeout,
+                "api_key_configured": server_api_key is not None,
+            },
         }
         console.print_json(json.dumps(data))
         return
 
     # Table output
-    table = Table(title="Server Configuration", show_header=True)
+    table = Table(title="DLI Configuration", show_header=True)
     table.add_column("Setting", style="cyan")
     table.add_column("Value", style="green")
 
-    table.add_row("URL", server_url or "[dim]Not configured[/dim]")
-    table.add_row("Timeout", f"{server_timeout}s")
+    table.add_row("Server URL", server_url or "[dim]Not configured[/dim]")
+    table.add_row("Server Timeout", f"{server_timeout}s")
     table.add_row("API Key", "[green]✓ Configured[/green]" if server_api_key else "[dim]Not set[/dim]")
 
     console.print(table)
@@ -100,7 +102,7 @@ def show_config(
         )
 
 
-@server_app.command("status")
+@config_app.command("status")
 def check_status(
     path: Annotated[
         Path | None,
@@ -110,7 +112,7 @@ def check_status(
     """Check server connection status.
 
     Examples:
-        dli server status
+        dli config status
     """
     from dli.core.client import create_client
 

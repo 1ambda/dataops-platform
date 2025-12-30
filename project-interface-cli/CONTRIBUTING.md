@@ -22,15 +22,14 @@ src/dli/
 │   ├── __init__.py             # Exports all commands and sub-apps
 │   ├── base.py                 # Shared CLI utilities (get_project_path, get_client)
 │   ├── utils.py                # Output helpers (console, print_error, print_success)
-│   ├── metric.py               # metric_app subcommand (list, get, run)
-│   ├── dataset.py              # dataset_app subcommand
-│   ├── server.py               # server_app subcommand
-│   ├── validate.py             # validate command (top-level)
+│   ├── metric.py               # metric_app subcommand (list, get, run, validate, register)
+│   ├── dataset.py              # dataset_app subcommand (list, get, run, validate, register)
+│   ├── config.py               # config_app subcommand (show, status)
 │   ├── lineage.py              # lineage_app subcommand
 │   ├── quality.py              # quality_app subcommand
 │   ├── workflow.py             # workflow_app subcommand
 │   ├── catalog.py              # catalog_app subcommand
-│   ├── render.py               # render command (SQL rendering)
+│   ├── transpile.py            # transpile_app subcommand
 │   ├── info.py                 # info command (project information)
 │   └── version.py              # version command
 ├── core/                       # Core library
@@ -86,12 +85,12 @@ tests/
 │   ├── test_utils.py           # Output helper tests
 │   ├── test_metric_cmd.py      # metric subcommand tests
 │   ├── test_dataset_cmd.py     # dataset subcommand tests
-│   ├── test_server_cmd.py      # server subcommand tests
-│   ├── test_validate_cmd.py    # validate command tests
+│   ├── test_config_cmd.py      # config subcommand tests
 │   ├── test_lineage_cmd.py     # lineage subcommand tests
 │   ├── test_quality_cmd.py     # quality subcommand tests
 │   ├── test_workflow_cmd.py    # workflow subcommand tests
-│   └── test_catalog_cmd.py     # catalog subcommand tests
+│   ├── test_catalog_cmd.py     # catalog subcommand tests
+│   └── test_transpile_cmd.py   # transpile subcommand tests
 ├── core/                       # Core library tests
 │   ├── validation/             # Validation module tests
 │   │   ├── test_spec_validator.py

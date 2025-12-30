@@ -8,19 +8,9 @@ import pytest
 from typer.testing import CliRunner
 
 from dli.main import app
+from tests.cli.conftest import get_output
 
 runner = CliRunner()
-
-
-def get_output(result) -> str:
-    """Get combined output (Typer mixes stdout/stderr by default)."""
-    return result.output or result.stdout or ""
-
-
-@pytest.fixture
-def sample_project_path() -> Path:
-    """Return path to sample project fixture."""
-    return Path(__file__).parent.parent / "fixtures" / "sample_project"
 
 
 class TestDatasetList:
