@@ -15,6 +15,7 @@ Language-neutral capabilities loaded by agents. See [../.claude/README.md](../RE
 | [performance](./performance/SKILL.md) | Bottleneck detection and optimization |
 | [documentation](./documentation/SKILL.md) | API docs, READMEs, changelogs |
 | [git-workflow](./git-workflow/SKILL.md) | Commits, PRs, branch management |
+| [requirements-discovery](./requirements-discovery/SKILL.md) | Stakeholder interviews, PRD writing, feature specs |
 
 ## Design Principle
 

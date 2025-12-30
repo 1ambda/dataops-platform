@@ -33,6 +33,11 @@ from dli.commands.utils import (
     print_validation_result,
     print_warning,
 )
+from dli.core.transpile import (
+    MockTranspileClient,
+    TranspileConfig,
+    TranspileEngine,
+)
 
 # Create dataset subcommand app
 dataset_app = typer.Typer(
@@ -207,7 +212,28 @@ def get_dataset(
 
 @dataset_app.command("run")
 def run_dataset(
-    name: Annotated[str, typer.Argument(help="Dataset name to run.")],
+    name: Annotated[
+        str | None,
+        typer.Argument(help="Dataset name to run (mutually exclusive with --sql/-f)."),
+    ] = None,
+    sql: Annotated[
+        str | None,
+        typer.Option("--sql", help="Ad-hoc SQL to run (mutually exclusive with name)."),
+    ] = None,
+    file: Annotated[
+        Path | None,
+        typer.Option(
+            "--file", "-f", help="SQL file path (mutually exclusive with name)."
+        ),
+    ] = None,
+    transpile_strict: Annotated[
+        bool,
+        typer.Option("--transpile-strict", help="Enable strict transpile mode."),
+    ] = False,
+    no_transpile: Annotated[
+        bool,
+        typer.Option("--no-transpile", help="Disable SQL transpilation."),
+    ] = False,
     params: Annotated[
         list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
@@ -233,12 +259,41 @@ def run_dataset(
         typer.Option("--path", help="Project path."),
     ] = None,
 ) -> None:
-    """Execute a dataset (DML operations).
+    """Execute a dataset (DML operations) or ad-hoc SQL.
 
     Examples:
         dli dataset run iceberg.analytics.daily_clicks -p execution_date=2024-01-01
-        dli dataset run iceberg.analytics.daily_clicks -p execution_date=2024-01-01 --dry-run
+        dli dataset run iceberg.analytics.daily_clicks --dry-run
+        dli dataset run --sql "SELECT * FROM raw.events LIMIT 10"
+        dli dataset run -f query.sql
+        dli dataset run --sql "SELECT * FROM t" --no-transpile
+        dli dataset run --sql "SELECT * FROM t" --transpile-strict
     """
+    # Validate mutual exclusivity
+    has_adhoc = sql is not None or file is not None
+    if name and has_adhoc:
+        print_error("Cannot use both spec name and --sql/--file options.")
+        raise typer.Exit(1)
+    if not name and not has_adhoc:
+        print_error("Either spec name or --sql/--file option is required.")
+        raise typer.Exit(1)
+    if sql is not None and file is not None:
+        print_error("Cannot use both --sql and --file options.")
+        raise typer.Exit(1)
+
+    # Handle ad-hoc SQL mode
+    if has_adhoc:
+        _run_adhoc_sql(
+            sql=sql,
+            file=file,
+            transpile_strict=transpile_strict,
+            no_transpile=no_transpile,
+            dry_run=dry_run,
+            show_sql=show_sql,
+        )
+        return
+
+    # Existing spec-based run
     project_path = get_project_path(path)
 
     # Fix: Handle None default for mutable list argument
@@ -256,6 +311,8 @@ def run_dataset(
         print_error(f"Failed to initialize: {e}")
         raise typer.Exit(1)
 
+    # name is guaranteed to be non-None here
+    assert name is not None
     dataset = service.get_dataset(name)
     if not dataset:
         print_error(f"Dataset '{name}' not found")
@@ -294,6 +351,108 @@ def run_dataset(
     if show_sql and result.main_result and result.main_result.rendered_sql:
         console.print()
         print_sql(result.main_result.rendered_sql)
+
+
+def _run_adhoc_sql(
+    *,
+    sql: str | None,
+    file: Path | None,
+    transpile_strict: bool,
+    no_transpile: bool,
+    dry_run: bool,
+    show_sql: bool,
+) -> None:
+    """Run ad-hoc SQL with optional transpilation.
+
+    Args:
+        sql: Ad-hoc SQL string.
+        file: Path to SQL file.
+        transpile_strict: Enable strict transpile mode.
+        no_transpile: Disable SQL transpilation.
+        dry_run: Only validate, don't execute.
+        show_sql: Show the final SQL.
+    """
+    # Load SQL from option or file
+    if file is not None:
+        if not file.exists():
+            print_error(f"SQL file not found: {file}")
+            raise typer.Exit(1)
+        try:
+            sql_content = file.read_text(encoding="utf-8").strip()
+        except Exception as e:
+            print_error(f"Failed to read SQL file: {e}")
+            raise typer.Exit(1)
+        if not sql_content:
+            print_error("SQL file is empty.")
+            raise typer.Exit(1)
+        source_desc = str(file)
+    else:
+        assert sql is not None
+        sql_content = sql.strip()
+        if not sql_content:
+            print_error("SQL is empty.")
+            raise typer.Exit(1)
+        source_desc = "ad-hoc SQL"
+
+    # Apply transpile if enabled
+    final_sql = sql_content
+    transpile_result = None
+
+    if not no_transpile:
+        with console.status("[bold green]Transpiling SQL..."):
+            config = TranspileConfig(strict_mode=transpile_strict)
+            engine = TranspileEngine(client=MockTranspileClient(), config=config)
+            try:
+                transpile_result = engine.transpile(sql_content)
+            except Exception as e:
+                print_error(f"Transpile failed: {e}")
+                raise typer.Exit(1)
+
+        if not transpile_result.success:
+            if transpile_strict:
+                print_error(transpile_result.error or "Transpile failed")
+                raise typer.Exit(1)
+            print_warning(f"Transpile warning: {transpile_result.error}")
+            # Continue with original SQL in non-strict mode
+
+        final_sql = transpile_result.sql
+
+        # Show transpile info
+        console.print("\n[bold cyan]Transpile Result[/bold cyan]")
+        console.print(f"  [dim]Source:[/dim] {source_desc}")
+        console.print(
+            f"  [dim]Success:[/dim] {'Yes' if transpile_result.success else 'No'}"
+        )
+        console.print(
+            f"  [dim]Rules applied:[/dim] {len(transpile_result.applied_rules)}"
+        )
+        if transpile_result.applied_rules:
+            for rule in transpile_result.applied_rules:
+                console.print(
+                    f"    - {rule.type.value}: {rule.source} -> {rule.target}"
+                )
+        if transpile_result.warnings:
+            console.print(f"  [dim]Warnings:[/dim] {len(transpile_result.warnings)}")
+            for warning in transpile_result.warnings:
+                console.print(f"    - {warning.type.value}: {warning.message}")
+        console.print(
+            f"  [dim]Duration:[/dim] {transpile_result.metadata.duration_ms}ms"
+        )
+
+    # Show SQL if requested or in dry-run mode
+    if show_sql or dry_run:
+        console.print()
+        print_sql(final_sql)
+
+    # Execute (mock execution for now)
+    if dry_run:
+        print_success("Dry-run completed (no execution)")
+    else:
+        with console.status("[bold green]Executing SQL..."):
+            # Mock execution - in real implementation would execute via client
+            pass
+        print_success("Ad-hoc SQL executed successfully (mock)")
+        console.print(f"  [dim]SQL length:[/dim] {len(final_sql)} chars")
 
 
 @dataset_app.command("validate")

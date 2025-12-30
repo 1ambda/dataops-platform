@@ -1532,6 +1532,94 @@ class BasecampClient:
             status_code=501,
         )
 
+    # Transpile operations
+
+    def transpile_get_rules(self) -> ServerResponse:
+        """Fetch transpile rules from server.
+
+        Returns rules for SQL transpilation including table substitutions,
+        dialect conversions, and other transformation rules.
+
+        Returns:
+            ServerResponse with transpile rules data containing:
+            - rules: List of transpile rule objects
+            - version: Rule set version identifier
+        """
+        if self.mock_mode:
+            mock_rules = [
+                {
+                    "id": "rule-001",
+                    "type": "table_substitution",
+                    "source": "raw.events",
+                    "target": "warehouse.events_v2",
+                    "enabled": True,
+                    "description": "Events table migration",
+                },
+                {
+                    "id": "rule-002",
+                    "type": "table_substitution",
+                    "source": "analytics.users",
+                    "target": "analytics.users_v2",
+                    "enabled": True,
+                    "description": "Users table v2 migration",
+                },
+            ]
+            return ServerResponse(
+                success=True,
+                data={"rules": mock_rules, "version": "2025-01-01-001"},
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Not implemented",
+            status_code=501,
+        )
+
+    def transpile_get_metric_sql(self, metric_name: str) -> ServerResponse:
+        """Fetch metric SQL expression from server.
+
+        Retrieves the SQL expression and metadata for a registered metric,
+        which can be used for SQL transpilation and analysis.
+
+        Args:
+            metric_name: Name of the metric to fetch
+
+        Returns:
+            ServerResponse with metric SQL data containing:
+            - name: Metric name
+            - sql_expression: The SQL expression
+            - source_table: Source table for the metric
+            - description: Metric description
+        """
+        if self.mock_mode:
+            mock_metrics = {
+                "revenue": {
+                    "name": "revenue",
+                    "sql_expression": "SUM(amount * quantity)",
+                    "source_table": "analytics.orders",
+                    "description": "Total revenue",
+                },
+                "total_orders": {
+                    "name": "total_orders",
+                    "sql_expression": "COUNT(DISTINCT order_id)",
+                    "source_table": "analytics.orders",
+                    "description": "Total order count",
+                },
+            }
+            if metric_name in mock_metrics:
+                return ServerResponse(success=True, data=mock_metrics[metric_name])
+            return ServerResponse(
+                success=False,
+                error=f"Metric '{metric_name}' not found",
+                status_code=404,
+            )
+
+        return ServerResponse(
+            success=False,
+            error="Not implemented",
+            status_code=501,
+        )
+
 
 def create_client(
     url: str | None = None,

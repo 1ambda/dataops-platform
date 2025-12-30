@@ -15,6 +15,7 @@ Commands:
     quality: Data quality testing (list, run, show)
     workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
     catalog: Data catalog browsing and search
+    transpile: SQL transpile operations (table substitution, METRIC expansion, warnings)
 
 Example:
     $ dli --help
@@ -25,6 +26,7 @@ Example:
     $ dli quality run iceberg.analytics.daily_clicks --server
     $ dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
     $ dli catalog my-project.analytics.users
+    $ dli transpile "SELECT * FROM analytics.users"
 """
 
 from __future__ import annotations
@@ -44,6 +46,7 @@ from dli.commands import metric_app
 from dli.commands import quality_app
 from dli.commands import render as render_cmd
 from dli.commands import server_app
+from dli.commands import transpile_app
 from dli.commands import validate as validate_cmd
 from dli.commands import version as version_cmd
 from dli.commands import workflow_app
@@ -110,6 +113,7 @@ app.add_typer(server_app, name="server")
 app.add_typer(lineage_app, name="lineage")
 app.add_typer(quality_app, name="quality")
 app.add_typer(workflow_app, name="workflow")
+app.add_typer(transpile_app, name="transpile")
 
 
 # Entry point for the CLI
