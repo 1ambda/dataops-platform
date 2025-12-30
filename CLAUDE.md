@@ -35,7 +35,7 @@ Each project directory contains its own `README.md` with detailed technical info
 - **[project-basecamp-parser/README.md](./project-basecamp-parser/README.md)** - SQL parsing API, SQLglot integration
 - **[project-basecamp-ui/README.md](./project-basecamp-ui/README.md)** - Component structure, routing, styling
 - **[project-basecamp-connect/README.md](./project-basecamp-connect/README.md)** - Integration APIs, GitHub/Jira/Slack workflows
-- **[project-interface-cli/README.md](./project-interface-cli/README.md)** - CLI commands, configuration, installation
+- **[project-interface-cli/README.md](./project-interface-cli/README.md)** - CLI commands, Library API, configuration
 
 ---
 
@@ -88,6 +88,7 @@ cd project-basecamp-server && ./gradlew test
 cd project-basecamp-parser && uv run pytest
 cd project-basecamp-ui && pnpm test
 cd project-basecamp-connect && uv run pytest
+cd project-interface-cli && uv run pytest
 ```
 
 ---
@@ -244,8 +245,8 @@ class UserRepositoryJpaImpl(
 
 | API Class | Methods | Description |
 |-----------|---------|-------------|
-| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql | Dataset CRUD + 실행 |
-| `MetricAPI` | list_metrics, get, run, validate, register, render_sql | Metric CRUD + 실행 |
+| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection | Dataset CRUD + 실행 + 스키마 조회 |
+| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection | Metric CRUD + 실행 + 스키마 조회 |
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL 변환 |
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
@@ -352,7 +353,7 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 | SQL parser details | [project-basecamp-parser/README.md](./project-basecamp-parser/README.md) |
 | UI details | [project-basecamp-ui/README.md](./project-basecamp-ui/README.md) |
 | Integration service details | [project-basecamp-connect/README.md](./project-basecamp-connect/README.md) |
-| CLI details | [project-interface-cli/README.md](./project-interface-cli/README.md) |
+| CLI & Library API | [project-interface-cli/README.md](./project-interface-cli/README.md) |
 | Development commands | [Makefile](./Makefile) (run `make help`) |
 
 ---

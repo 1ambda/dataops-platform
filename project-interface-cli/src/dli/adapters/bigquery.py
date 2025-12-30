@@ -65,7 +65,7 @@ class BigQueryExecutor(BaseExecutor):
         self.location = location
         self.client = _bigquery_module.Client(project=project, location=location)
 
-    def execute(self, sql: str, timeout: int = 300) -> ExecutionResult:
+    def execute_sql(self, sql: str, timeout: int = 300) -> ExecutionResult:
         """Execute a SQL query on BigQuery.
 
         Args:
@@ -90,7 +90,8 @@ class BigQueryExecutor(BaseExecutor):
             )
 
             return ExecutionResult(
-                query_name="",
+                dataset_name="",
+                phase="main",
                 success=True,
                 row_count=len(rows),
                 columns=columns,
@@ -101,7 +102,8 @@ class BigQueryExecutor(BaseExecutor):
 
         except FuturesTimeoutError:
             return ExecutionResult(
-                query_name="",
+                dataset_name="",
+                phase="main",
                 success=False,
                 error_message=f"Query timed out after {timeout} seconds",
                 rendered_sql=sql,
@@ -110,7 +112,8 @@ class BigQueryExecutor(BaseExecutor):
         except Exception as e:
             # Catch BigQuery API errors and other unexpected errors
             return ExecutionResult(
-                query_name="",
+                dataset_name="",
+                phase="main",
                 success=False,
                 error_message=str(e),
                 rendered_sql=sql,

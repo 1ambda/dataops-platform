@@ -253,8 +253,8 @@ v0.2.0 provides a full-featured Library API for programmatic access from Airflow
 
 | API Class | Methods | Description |
 |-----------|---------|-------------|
-| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql | Dataset CRUD + execution |
-| `MetricAPI` | list_metrics, get, run, validate, register, render_sql | Metric CRUD + execution |
+| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection | Dataset CRUD + execution + introspection |
+| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection | Metric CRUD + execution + introspection |
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL transpilation |
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |

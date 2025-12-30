@@ -60,10 +60,23 @@ src/dli/
 └── api/                     # Library API (programmatic access)
 
 tests/
-├── cli/                     # CLI command tests
+├── api/                     # Library API tests
+├── cli/                     # CLI command tests (maps to src/dli/commands/)
 ├── core/                    # Core module tests
-└── api/                     # Library API tests
+├── adapters/                # External adapter tests
+└── fixtures/                # Test data
 ```
+
+### Test Directory Naming Convention
+
+| Source | Tests | Rationale |
+|--------|-------|-----------|
+| `commands/` | `cli/` | Tests user-facing CLI behavior, not internal command modules |
+| `api/` | `api/` | Direct 1:1 mapping |
+| `core/` | `core/` | Direct 1:1 mapping |
+| `adapters/` | `adapters/` | Direct 1:1 mapping |
+
+> **Note**: The `tests/cli/` directory tests the CLI **interface** (user behavior), not the `commands/` module implementation. This semantic naming is intentional and follows pytest/FastAPI conventions.
 
 ---
 

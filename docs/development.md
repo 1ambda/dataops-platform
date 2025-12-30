@@ -75,11 +75,12 @@ Complete command reference: `make help`
 **Pattern**: Component-based architecture with TypeScript type safety
 
 ### interface-cli (Python + Typer)
-**Development**: `cd project-interface-cli && uv run python -m src.main --help`
+**Development**: `cd project-interface-cli && uv run dli --help`
+**Testing**: `cd project-interface-cli && uv run pytest` (1580+ tests)
 **Commands**: `dli config`, `dli metric`, `dli dataset`, `dli workflow`, `dli catalog`, `dli transpile`, `dli lineage`, `dli quality`
 **Structure**: Uses `metrics/` and `datasets/` directories for resource definitions (YAML specs)
-**Pattern**: Rich CLI with library API (DatasetService, MetricService) for Airflow integration
-**Note**: Validation is now per-resource (`dli metric validate`, `dli dataset validate`), not a top-level command
+**Pattern**: Rich CLI with Library API (DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI) for Airflow integration
+**Note**: Validation is per-resource (`dli metric validate`, `dli dataset validate`), not a top-level command
 
 See [project-interface-cli/README.md](../project-interface-cli/README.md) for complete documentation.
 
