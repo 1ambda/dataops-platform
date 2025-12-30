@@ -11,6 +11,7 @@
 - **Lineage Tracking**: Visualize upstream/downstream dependencies
 - **Quality Testing**: 6 built-in tests (not_null, unique, accepted_values, relationships, range_check, row_count)
 - **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
+- **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
 - **Library API**: DatasetService, MetricService for Airflow/orchestrator integration
 
@@ -137,6 +138,33 @@ dli catalog bigquery.my-project.analytics.users  # Engine-specific
 dli catalog list --owner data@example.com
 dli catalog list --tag tier::critical
 dli catalog search user --project my-project
+```
+
+### SQL Transpilation
+
+Transpile SQL with table substitution and METRIC expansion.
+
+```bash
+# Inline SQL transpilation
+dli transpile "SELECT * FROM analytics.users"
+
+# Transpile from file
+dli transpile -f query.sql
+
+# Strict mode (fail on any error)
+dli transpile "SELECT * FROM analytics.users" --strict
+
+# Show applied rules detail
+dli transpile "SELECT * FROM raw.events" --show-rules
+
+# JSON output
+dli transpile "SELECT * FROM analytics.users" --format json
+
+# Validate SQL syntax
+dli transpile "SELECT * FROM users" --validate
+
+# Specify dialect
+dli transpile "SELECT * FROM users" --dialect bigquery
 ```
 
 ### Environment Variables

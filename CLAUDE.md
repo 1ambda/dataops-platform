@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow, validation, lineage, quality testing)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing)
 - 🚧 **project-interface-library** - Planned shared library (placeholder)
 
 ---
@@ -223,6 +223,20 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
+### CLI Commands (v1.0.0)
+
+| Command | Description |
+|---------|-------------|
+| `dli version/info` | CLI version and environment |
+| `dli config` | Settings management (show, status) |
+| `dli metric` | Metric CRUD (list, get, run, validate, register) |
+| `dli dataset` | Dataset CRUD (list, get, run, validate, register) |
+| `dli workflow` | Server-based Airflow execution (run, backfill, stop, status, list, history, pause, unpause) |
+| `dli catalog` | Data catalog browsing with implicit routing (1-4 part identifiers) |
+| `dli transpile` | SQL transpilation (table substitution, METRIC expansion, SQLGlot) |
+| `dli lineage` | Dependency visualization (show, upstream, downstream) |
+| `dli quality` | Data quality testing (6 built-in tests) |
+
 ### Directory Structure
 
 ```
@@ -231,13 +245,14 @@ project-interface-cli/src/dli/
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)
 │   ├── utils.py          # Rich output helpers (console, print_*)
-│   ├── metric.py         # Metric CRUD commands
-│   ├── dataset.py        # Dataset CRUD commands
+│   ├── metric.py         # Metric CRUD commands (list, get, run, validate, register)
+│   ├── dataset.py        # Dataset CRUD commands (list, get, run, validate, register)
 │   ├── catalog.py        # Catalog browsing (tables, search)
-│   ├── validate.py       # Validation commands
+│   ├── config.py         # Settings management (show, status)
+│   ├── transpile.py      # SQL transpilation commands
 │   ├── lineage.py        # Lineage commands
 │   ├── quality.py        # Quality test commands
-│   └── workflow.py       # Workflow operations (run, backfill, status, etc.)
+│   └── workflow.py       # Workflow operations (run, backfill, stop, status, list, history, pause, unpause)
 ├── core/
 │   ├── __init__.py
 │   ├── client.py         # BasecampClient (mock + real API)
