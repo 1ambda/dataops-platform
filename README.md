@@ -33,7 +33,7 @@ make health                 # Verify services
 - **basecamp-parser** (5000): Python 3.12 + Flask - SQL parsing & validation
 - **basecamp-ui** (3000): React 19 + TypeScript - Web dashboard
 - **basecamp-connect** (5001): Python 3.12 + Flask - GitHub/Jira/Slack integration
-- **interface-cli**: Python 3.12 + Typer - CLI (`dli`) for metric/dataset management, workflow orchestration, catalog browsing, SQL transpilation, lineage analysis, quality testing
+- **interface-cli**: Python 3.12 + Typer - CLI (`dli`) and Library API for metric/dataset management, workflow orchestration, catalog browsing, SQL transpilation, lineage analysis, quality testing
 
 **Infrastructure**: MySQL (3306), Redis (6379), PostgreSQL (5432), Keycloak (8080)
 
@@ -68,7 +68,7 @@ dataops-platform/
 ├── project-basecamp-parser/    # SQL parser service
 ├── project-basecamp-ui/        # React dashboard
 ├── project-basecamp-connect/   # Integration service
-├── project-interface-cli/      # CLI tools
+├── project-interface-cli/      # CLI and Library
 ├── docs/                       # System documentation
 ├── docker-compose*.yaml        # Docker configurations
 ├── Makefile                    # Development automation

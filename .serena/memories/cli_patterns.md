@@ -50,7 +50,59 @@ def feature_list(self, *, filter: str | None = None) -> ServerResponse:
     return ServerResponse(success=False, error="Not implemented", status_code=501)
 ```
 
-## 4. Test 핵심 패턴
+## 4. Library API 핵심 패턴 (NEW)
+
+**API 클래스 (Facade Pattern):**
+```python
+from dli.models.common import ExecutionContext, ResultStatus, ValidationResult
+from dli.exceptions import ConfigurationError, FeatureNotFoundError, ErrorCode
+
+class FeatureAPI:
+    def __init__(self, context: ExecutionContext | None = None) -> None:
+        self.context = context or ExecutionContext()
+        self._service: FeatureService | None = None  # Lazy init
+
+    def _get_service(self) -> FeatureService:
+        if self._service is None:
+            if self.context.project_path is None and not self.context.mock_mode:
+                raise ConfigurationError(message="project_path required", code=ErrorCode.CONFIG_INVALID)
+            self._service = FeatureServiceImpl(project_path=self.context.project_path)
+        return self._service
+
+    def run(self, name: str, *, parameters: dict = None, dry_run: bool = False) -> FeatureResult:
+        if self.context.mock_mode:
+            return FeatureResult(name=name, status=ResultStatus.SUCCESS, ...)
+        # Real execution...
+```
+
+**ExecutionContext:**
+```python
+from dli import ExecutionContext
+
+ctx = ExecutionContext(
+    project_path=Path("/opt/airflow/dags/models"),
+    mock_mode=False,
+    dry_run=False,
+    dialect="trino",
+    parameters={"execution_date": "2025-01-01"},
+)
+```
+
+**Exception Handling:**
+```python
+from dli.exceptions import DLIError, DatasetNotFoundError, ExecutionError
+
+try:
+    result = api.run("catalog.schema.dataset")
+except DatasetNotFoundError as e:
+    print(f"[{e.code.value}] {e.name}")  # Error code: DLI-101
+except ExecutionError as e:
+    print(f"Caused by: {e.cause}")
+except DLIError as e:
+    print(f"[{e.code.value}] {e.message}")
+```
+
+## 5. Test 핵심 패턴
 
 **CLI Test:**
 ```python
@@ -63,14 +115,22 @@ def test_list():
     assert result.exit_code == 0
 ```
 
-**Model Test:**
+**API Test:**
 ```python
-def test_model_creation():
-    info = FeatureInfo(name="test")
-    assert info.name == "test"
+from dli import FeatureAPI, ExecutionContext
+from dli.models.common import ResultStatus
+
+@pytest.fixture
+def mock_api() -> FeatureAPI:
+    return FeatureAPI(context=ExecutionContext(mock_mode=True))
+
+def test_run_mock(mock_api):
+    result = mock_api.run("my_feature")
+    assert result.status == ResultStatus.SUCCESS
+    assert result.duration_ms == 0
 ```
 
-## 5. 공유 유틸리티 (commands/utils.py)
+## 6. 공유 유틸리티 (commands/utils.py)
 
 | 함수 | 용도 |
 |------|------|
@@ -81,13 +141,18 @@ def test_model_creation():
 | `format_datetime(dt)` | datetime 포맷팅 |
 | `parse_params(["k=v"])` | CLI 파라미터 파싱 |
 
-## 6. Registration Checklist
+## 7. Error Code Reference
 
-1. `commands/__init__.py` → export 추가
-2. `main.py` → `app.add_typer()` 등록
-3. `main.py` docstring → Commands 목록 업데이트
+| Code | Category | Exception |
+|------|----------|-----------|
+| DLI-0xx | Configuration | `ConfigurationError` |
+| DLI-1xx | Not Found | `DatasetNotFoundError`, `MetricNotFoundError` |
+| DLI-2xx | Validation | `DLIValidationError` |
+| DLI-3xx | Transpile | `TranspileError` |
+| DLI-4xx | Execution | `ExecutionError` |
+| DLI-5xx | Server | `ServerError` |
 
-## 7. Naming Conventions
+## 8. Naming Conventions
 
 | Type | Convention | Example |
 |------|------------|---------|
@@ -95,4 +160,5 @@ def test_model_creation():
 | CLI command | kebab-case | `dli catalog list` |
 | Python function | snake_case | `list_items` |
 | Model class | PascalCase | `TableInfo` |
-| Test class | `Test{Feature}{Action}` | `TestCatalogList` |
+| API class | `{Feature}API` | `DatasetAPI`, `MetricAPI` |
+| Test class | `Test{Feature}{Action}` | `TestDatasetAPIRun` |

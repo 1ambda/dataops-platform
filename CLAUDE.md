@@ -10,8 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing)
-- 🚧 **project-interface-library** - Planned shared library (placeholder)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing, **Library API v0.2.0**)
 
 ---
 
@@ -50,7 +49,7 @@ Each project directory contains its own `README.md` with detailed technical info
 | basecamp-parser | Python 3.12 | Flask 3.1.2, SQLglot | uv |
 | basecamp-ui | TypeScript | React 19.2.3, Vite 7.3.0 | npm/pnpm |
 | basecamp-connect | Python 3.12 | Flask 3.1+, SQLAlchemy 2.0+ | uv |
-| interface-cli | Python 3.12 | Typer, Rich | uv |
+| interface-cli | Python 3.12 | Typer, Rich, Pydantic | uv |
 
 ### Port Configuration (Docker Full Stack Mode)
 
@@ -208,14 +207,16 @@ class UserRepositoryJpaImpl(
 
 | 우선순위 | 참조 | 용도 |
 |----------|------|------|
-| 1️⃣ | `mcp__serena__read_memory("cli_patterns")` | 핵심 패턴 요약 |
-| 2️⃣ | `mcp__serena__read_memory("cli_test_patterns")` | 테스트 패턴 요약 |
-| 3️⃣ | `project-interface-cli/docs/PATTERNS.md` | 상세 패턴 (필요시만) |
+| 1 | `mcp__serena__read_memory("cli_patterns")` | 핵심 패턴 요약 |
+| 2 | `mcp__serena__read_memory("cli_test_patterns")` | 테스트 패턴 요약 |
+| 3 | `project-interface-cli/docs/PATTERNS.md` | 상세 패턴 (필요시만) |
+| 4 | `project-interface-cli/features/RELEASE_LIBRARY.md` | Library API 구현 상세 |
 
 ### 참조 불필요 (위 문서에 통합됨)
 
-- ❌ `dataset.py`, `workflow.py` → 코드 템플릿이 PATTERNS.md에 있음
-- ❌ `test_workflow_cmd.py` → 테스트 패턴이 cli_test_patterns에 있음
+- `dataset.py`, `workflow.py` - 코드 템플릿이 PATTERNS.md에 있음
+- `test_workflow_cmd.py` - 테스트 패턴이 cli_test_patterns에 있음
+- `api/*.py` - Library API 패턴이 RELEASE_LIBRARY.md에 있음
 
 ### Pre-Implementation Checklist
 
@@ -223,7 +224,7 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v1.0.0)
+### CLI Commands (v0.2.0)
 
 | Command | Description |
 |---------|-------------|
@@ -237,22 +238,57 @@ class UserRepositoryJpaImpl(
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
 | `dli quality` | Data quality testing (6 built-in tests) |
 
+### Library API (v0.2.0)
+
+프로그래매틱 호출을 위한 Python Library Interface:
+
+| API Class | Methods | Description |
+|-----------|---------|-------------|
+| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql | Dataset CRUD + 실행 |
+| `MetricAPI` | list_metrics, get, run, validate, register, render_sql | Metric CRUD + 실행 |
+| `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL 변환 |
+| `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
+| `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
+
+**Usage Example (Airflow PythonOperator):**
+```python
+from dli import DatasetAPI, ExecutionContext
+
+ctx = ExecutionContext(project_path="/opt/airflow/dags/models")
+api = DatasetAPI(context=ctx)
+result = api.run("my_dataset", parameters={"date": "2025-01-01"})
+```
+
+**Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-601)
+
 ### Directory Structure
 
 ```
 project-interface-cli/src/dli/
-├── commands/
+├── __init__.py           # Public exports (API classes, exceptions, models)
+├── exceptions.py         # DLIError hierarchy (ErrorCode, typed exceptions)
+├── models/
+│   ├── __init__.py       # Model exports
+│   └── common.py         # ExecutionContext, ResultStatus, *Result models
+├── api/                  # Library API (v0.2.0)
+│   ├── __init__.py       # API exports
+│   ├── dataset.py        # DatasetAPI
+│   ├── metric.py         # MetricAPI
+│   ├── transpile.py      # TranspileAPI
+│   ├── catalog.py        # CatalogAPI
+│   └── config.py         # ConfigAPI
+├── commands/             # CLI commands (Typer)
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)
 │   ├── utils.py          # Rich output helpers (console, print_*)
-│   ├── metric.py         # Metric CRUD commands (list, get, run, validate, register)
-│   ├── dataset.py        # Dataset CRUD commands (list, get, run, validate, register)
-│   ├── catalog.py        # Catalog browsing (tables, search)
-│   ├── config.py         # Settings management (show, status)
+│   ├── metric.py         # Metric CRUD commands
+│   ├── dataset.py        # Dataset CRUD commands
+│   ├── catalog.py        # Catalog browsing
+│   ├── config.py         # Settings management
 │   ├── transpile.py      # SQL transpilation commands
 │   ├── lineage.py        # Lineage commands
 │   ├── quality.py        # Quality test commands
-│   └── workflow.py       # Workflow operations (run, backfill, stop, status, list, history, pause, unpause)
+│   └── workflow.py       # Workflow operations
 ├── core/
 │   ├── __init__.py
 │   ├── client.py         # BasecampClient (mock + real API)

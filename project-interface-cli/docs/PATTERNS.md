@@ -32,6 +32,10 @@ dli
 | Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
 | CLI tests | `tests/cli/test_dataset_cmd.py` | CliRunner |
 | Model tests | `tests/core/workflow/test_models.py` | pytest + Pydantic |
+| **Library API** | `src/dli/api/dataset.py` | Facade + ExecutionContext |
+| **API models** | `src/dli/models/common.py` | Pydantic + BaseSettings |
+| **Exceptions** | `src/dli/exceptions.py` | Dataclass + ErrorCode |
+| **API tests** | `tests/api/test_dataset_api.py` | Mock mode + pytest fixture |
 
 ---
 
@@ -459,6 +463,617 @@ Before starting a new feature:
 | `dli render` | Removed (v1.0.0) | Use `dli dataset run --dry-run --show-sql` |
 | `dli validate` (top-level) | Removed (v1.0.0) | Use `dli dataset validate` or `dli metric validate` |
 | `dli server` | Renamed (v1.0.0) | Use `dli config` |
+
+---
+
+## 9. Library API Pattern
+
+The Library API provides programmatic access to DLI functionality, designed for Airflow DAGs and external integrations.
+
+### Architecture Overview
+
+```
+Library API Layer (src/dli/api/)
+├── dataset.py        # DatasetAPI (Facade)
+├── metric.py         # MetricAPI (Facade)
+├── transpile.py      # TranspileAPI (Facade)
+└── __init__.py       # Public exports
+
+Shared Models (src/dli/models/)
+├── common.py         # ExecutionContext, Result models
+└── __init__.py       # Public exports
+
+Exceptions (src/dli/exceptions.py)
+└── Structured exception hierarchy with error codes
+```
+
+### API Class Template (Facade Pattern)
+
+```python
+"""FeatureAPI - Library API for Feature operations.
+
+Example:
+    >>> from dli import FeatureAPI, ExecutionContext
+    >>> ctx = ExecutionContext(project_path="/path/to/project")
+    >>> api = FeatureAPI(context=ctx)
+    >>> items = api.list_items()
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from dli.exceptions import (
+    ConfigurationError,
+    FeatureNotFoundError,
+    ErrorCode,
+    ExecutionError,
+)
+from dli.models.common import (
+    DataSource,
+    ExecutionContext,
+    FeatureResult,
+    ResultStatus,
+    ValidationResult,
+)
+
+if TYPE_CHECKING:
+    from dli.core.models.feature import FeatureSpec
+    from dli.core.service import FeatureService
+
+
+class FeatureAPI:
+    """Feature management Library API.
+
+    Thread Safety:
+        This class is NOT thread-safe. Create separate instances for
+        concurrent operations (standard pattern for Kubernetes Airflow).
+
+    Example:
+        >>> from dli import FeatureAPI, ExecutionContext
+        >>> ctx = ExecutionContext(
+        ...     project_path="/opt/airflow/dags/models",
+        ...     parameters={"execution_date": "2025-01-01"},
+        ... )
+        >>> api = FeatureAPI(context=ctx)
+        >>> result = api.run("catalog.schema.feature", dry_run=True)
+    """
+
+    def __init__(self, context: ExecutionContext | None = None) -> None:
+        """Initialize FeatureAPI.
+
+        Args:
+            context: Execution context with settings. If None, creates
+                     default context from environment variables.
+        """
+        self.context = context or ExecutionContext()
+        self._service: FeatureService | None = None
+
+    def __repr__(self) -> str:
+        """Return concise representation."""
+        return f"FeatureAPI(context={self.context!r})"
+
+    def _get_service(self) -> FeatureService:
+        """Get or create FeatureService instance (lazy initialization).
+
+        Returns:
+            FeatureService instance.
+
+        Raises:
+            ConfigurationError: If project_path is required but not set.
+        """
+        if self._service is None:
+            from dli.core.service import FeatureService as FeatureServiceImpl
+
+            project_path = self.context.project_path
+            if project_path is None and not self.context.mock_mode:
+                msg = "project_path is required for FeatureAPI"
+                raise ConfigurationError(message=msg, code=ErrorCode.CONFIG_INVALID)
+
+            self._service = FeatureServiceImpl(project_path=project_path)
+
+        return self._service
+
+    # === CRUD Operations ===
+
+    def list_items(
+        self,
+        *,
+        source: DataSource = "local",
+        domain: str | None = None,
+    ) -> list[FeatureSpec]:
+        """List items with optional filtering.
+
+        Args:
+            source: Data source ("local" for disk, "server" for API).
+            domain: Filter by domain.
+
+        Returns:
+            List of FeatureSpec objects.
+        """
+        if self.context.mock_mode:
+            return []
+
+        service = self._get_service()
+        return service.list_items(domain=domain)
+
+    def get(self, name: str) -> FeatureSpec | None:
+        """Get item by name.
+
+        Args:
+            name: Fully qualified name (catalog.schema.name).
+
+        Returns:
+            FeatureSpec if found, None otherwise.
+        """
+        if self.context.mock_mode:
+            return None
+
+        service = self._get_service()
+        return service.get_item(name)
+
+    # === Execution ===
+
+    def run(
+        self,
+        name: str,
+        *,
+        parameters: dict[str, Any] | None = None,
+        dry_run: bool = False,
+        show_sql: bool = False,
+    ) -> FeatureResult:
+        """Execute a feature.
+
+        Args:
+            name: Fully qualified name.
+            parameters: Runtime parameters (merged with context.parameters).
+            dry_run: If True, validate and render SQL without execution.
+            show_sql: If True, include rendered SQL in result.
+
+        Returns:
+            FeatureResult with execution status and details.
+
+        Raises:
+            FeatureNotFoundError: If feature not found.
+            DLIValidationError: If validation fails.
+            ExecutionError: If execution fails.
+        """
+        started_at = datetime.now(tz=UTC)
+
+        # Merge parameters
+        merged_params = {**self.context.parameters, **(parameters or {})}
+
+        if self.context.mock_mode:
+            return FeatureResult(
+                name=name,
+                status=ResultStatus.SUCCESS,
+                started_at=started_at,
+                ended_at=datetime.now(tz=UTC),
+                duration_ms=0,
+                sql="-- Mock SQL" if show_sql else None,
+            )
+
+        try:
+            service = self._get_service()
+
+            # Check if exists
+            spec = service.get_item(name)
+            if spec is None:
+                raise FeatureNotFoundError(
+                    message=f"Feature '{name}' not found",
+                    name=name,
+                )
+
+            # Use dry_run from context if not explicitly set
+            actual_dry_run = dry_run or self.context.dry_run
+
+            result = service.execute(name, merged_params, dry_run=actual_dry_run)
+            ended_at = datetime.now(tz=UTC)
+            duration_ms = int((ended_at - started_at).total_seconds() * 1000)
+
+            return FeatureResult(
+                name=name,
+                status=ResultStatus.SUCCESS if result.success else ResultStatus.FAILURE,
+                started_at=started_at,
+                ended_at=ended_at,
+                duration_ms=duration_ms,
+                error_message=result.error_message,
+            )
+
+        except FeatureNotFoundError:
+            raise
+        except Exception as e:
+            ended_at = datetime.now(tz=UTC)
+            duration_ms = int((ended_at - started_at).total_seconds() * 1000)
+
+            raise ExecutionError(
+                message=f"Feature execution failed: {e}",
+                cause=e,
+            ) from e
+
+    # === Validation ===
+
+    def validate(
+        self,
+        name: str,
+        *,
+        strict: bool = False,
+    ) -> ValidationResult:
+        """Validate spec and SQL.
+
+        Args:
+            name: Fully qualified name.
+            strict: If True, treat warnings as errors.
+
+        Returns:
+            ValidationResult with validation status.
+        """
+        if self.context.mock_mode:
+            return ValidationResult(valid=True)
+
+        try:
+            service = self._get_service()
+
+            spec = service.get_item(name)
+            if spec is None:
+                return ValidationResult(
+                    valid=False,
+                    errors=[f"Feature '{name}' not found"],
+                )
+
+            results = service.validate(name, self.context.parameters)
+            errors: list[str] = []
+            warnings: list[str] = []
+
+            for result in results:
+                errors.extend(result.errors)
+                warnings.extend(result.warnings)
+
+            if strict and warnings:
+                errors.extend(warnings)
+                warnings = []
+
+            return ValidationResult(
+                valid=len(errors) == 0,
+                errors=errors,
+                warnings=warnings,
+            )
+
+        except Exception as e:
+            return ValidationResult(valid=False, errors=[str(e)])
+
+
+__all__ = ["FeatureAPI"]
+```
+
+### ExecutionContext Usage
+
+```python
+from dli import ExecutionContext
+
+# Default: loads from environment variables (DLI_* prefix)
+ctx = ExecutionContext()
+
+# Explicit configuration
+ctx = ExecutionContext(
+    project_path=Path("/opt/airflow/dags/models"),
+    server_url="https://basecamp.example.com",
+    mock_mode=False,
+    dry_run=False,
+    dialect="trino",
+    parameters={"execution_date": "2025-01-01"},
+    verbose=True,
+)
+
+# Key attributes
+ctx.project_path     # Path | None - project root for local specs
+ctx.server_url       # str | None - Basecamp server URL
+ctx.mock_mode        # bool - enable mock mode for testing
+ctx.dry_run          # bool - dry-run mode (no actual execution)
+ctx.dialect          # SQLDialect - default SQL dialect
+ctx.parameters       # dict[str, Any] - Jinja template parameters
+```
+
+### Exception Handling Pattern
+
+```python
+from dli import DatasetAPI, ExecutionContext
+from dli.exceptions import (
+    DLIError,
+    ConfigurationError,
+    DatasetNotFoundError,
+    DLIValidationError,
+    ExecutionError,
+    ErrorCode,
+)
+
+ctx = ExecutionContext(project_path=Path("/path/to/project"))
+api = DatasetAPI(context=ctx)
+
+try:
+    result = api.run("catalog.schema.dataset")
+except DatasetNotFoundError as e:
+    # Access structured error info
+    print(f"Error code: {e.code.value}")  # "DLI-101"
+    print(f"Dataset: {e.name}")
+    print(f"Searched: {e.searched_paths}")
+except DLIValidationError as e:
+    print(f"Validation errors: {e.errors}")
+    print(f"Warnings: {e.warnings}")
+except ExecutionError as e:
+    print(f"Execution failed: {e.message}")
+    if e.cause:
+        print(f"Caused by: {e.cause}")
+except DLIError as e:
+    # Catch any DLI error
+    print(f"[{e.code.value}] {e.message}")
+```
+
+### Error Code Reference
+
+| Code | Category | Exception |
+|------|----------|-----------|
+| DLI-0xx | Configuration | `ConfigurationError` |
+| DLI-1xx | Not Found | `DatasetNotFoundError`, `MetricNotFoundError` |
+| DLI-2xx | Validation | `DLIValidationError` |
+| DLI-3xx | Transpile | `TranspileError` |
+| DLI-4xx | Execution | `ExecutionError` |
+| DLI-5xx | Server | `ServerError` |
+
+### Module Exports (`__init__.py`)
+
+```python
+"""DLI API module exports."""
+
+from dli.api.dataset import DatasetAPI
+from dli.api.metric import MetricAPI
+from dli.models.common import ExecutionContext, ResultStatus, ValidationResult
+
+__all__ = [
+    "DatasetAPI",
+    "ExecutionContext",
+    "MetricAPI",
+    "ResultStatus",
+    "ValidationResult",
+]
+```
+
+---
+
+## 10. API Test Patterns
+
+### API Test Template
+
+```python
+"""Tests for dli.api.feature module.
+
+Covers:
+- FeatureAPI initialization with context
+- Mock mode operations
+- CRUD operations (list, get)
+- Execution (run)
+- Validation
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+
+from dli import FeatureAPI, ExecutionContext
+from dli.exceptions import ConfigurationError
+from dli.models.common import ResultStatus, ValidationResult
+
+
+class TestFeatureAPIInit:
+    """Tests for FeatureAPI initialization."""
+
+    def test_init_default_context(self) -> None:
+        """Test initialization with default context."""
+        api = FeatureAPI()
+
+        assert api.context is not None
+        assert isinstance(api.context, ExecutionContext)
+
+    def test_init_with_context(self) -> None:
+        """Test initialization with explicit context."""
+        ctx = ExecutionContext(mock_mode=True)
+        api = FeatureAPI(context=ctx)
+
+        assert api.context is ctx
+        assert api.context.mock_mode is True
+
+    def test_init_with_project_path(self) -> None:
+        """Test initialization with project path."""
+        ctx = ExecutionContext(project_path=Path("/test/project"))
+        api = FeatureAPI(context=ctx)
+
+        assert api.context.project_path == Path("/test/project")
+
+    def test_repr(self) -> None:
+        """Test __repr__ returns descriptive string."""
+        ctx = ExecutionContext(server_url="https://test.com", mock_mode=True)
+        api = FeatureAPI(context=ctx)
+
+        result = repr(api)
+
+        assert "FeatureAPI" in result
+        assert "ExecutionContext" in result
+
+    def test_lazy_service_init(self) -> None:
+        """Test that service is not created until needed."""
+        api = FeatureAPI(context=ExecutionContext(mock_mode=True))
+
+        # _service should be None before any operation
+        assert api._service is None
+
+
+class TestFeatureAPIMockMode:
+    """Tests for FeatureAPI in mock mode."""
+
+    @pytest.fixture
+    def mock_api(self) -> FeatureAPI:
+        """Create FeatureAPI in mock mode."""
+        ctx = ExecutionContext(mock_mode=True)
+        return FeatureAPI(context=ctx)
+
+    def test_list_returns_empty(self, mock_api: FeatureAPI) -> None:
+        """Test list returns empty list in mock mode."""
+        result = mock_api.list_items()
+
+        assert result == []
+
+    def test_get_returns_none(self, mock_api: FeatureAPI) -> None:
+        """Test get returns None in mock mode."""
+        result = mock_api.get("catalog.schema.feature")
+
+        assert result is None
+
+    def test_run_returns_success(self, mock_api: FeatureAPI) -> None:
+        """Test run returns success result in mock mode."""
+        result = mock_api.run("catalog.schema.feature")
+
+        assert result.status == ResultStatus.SUCCESS
+        assert result.name == "catalog.schema.feature"
+        assert result.duration_ms == 0
+
+    def test_run_with_show_sql(self, mock_api: FeatureAPI) -> None:
+        """Test run with show_sql flag in mock mode."""
+        result = mock_api.run("my_feature", show_sql=True)
+
+        assert result.sql == "-- Mock SQL"
+
+    def test_validate_returns_valid(self, mock_api: FeatureAPI) -> None:
+        """Test validate returns valid in mock mode."""
+        result = mock_api.validate("my_feature")
+
+        assert result.valid is True
+        assert result.errors == []
+
+
+class TestFeatureAPIRun:
+    """Tests for FeatureAPI.run method."""
+
+    @pytest.fixture
+    def mock_api(self) -> FeatureAPI:
+        """Create FeatureAPI in mock mode."""
+        return FeatureAPI(context=ExecutionContext(mock_mode=True))
+
+    def test_run_basic(self, mock_api: FeatureAPI) -> None:
+        """Test basic run execution."""
+        result = mock_api.run("catalog.schema.feature")
+
+        assert result.name == "catalog.schema.feature"
+        assert result.status == ResultStatus.SUCCESS
+        assert isinstance(result.started_at, datetime)
+
+    def test_run_with_parameters(self, mock_api: FeatureAPI) -> None:
+        """Test run with parameters."""
+        result = mock_api.run(
+            "my_feature",
+            parameters={"date": "2025-01-01", "limit": 100},
+        )
+
+        assert result.status == ResultStatus.SUCCESS
+
+    def test_run_with_dry_run(self, mock_api: FeatureAPI) -> None:
+        """Test run with dry_run flag."""
+        result = mock_api.run("my_feature", dry_run=True)
+
+        assert result.status == ResultStatus.SUCCESS
+
+    def test_run_context_parameters_merged(self) -> None:
+        """Test that context parameters are merged with run parameters."""
+        ctx = ExecutionContext(
+            mock_mode=True,
+            parameters={"env": "prod", "date": "default"},
+        )
+        api = FeatureAPI(context=ctx)
+
+        result = api.run("my_feature", parameters={"date": "2025-01-01"})
+
+        assert result.status == ResultStatus.SUCCESS
+
+
+class TestFeatureAPIConfiguration:
+    """Tests for FeatureAPI configuration requirements."""
+
+    def test_requires_project_path_in_non_mock_mode(self) -> None:
+        """Test that project_path is required in non-mock mode."""
+        ctx = ExecutionContext(mock_mode=False, project_path=None)
+        api = FeatureAPI(context=ctx)
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            api._get_service()
+
+        assert "project_path is required" in exc_info.value.message
+
+    def test_project_path_not_required_in_mock_mode(self) -> None:
+        """Test that project_path is not required in mock mode."""
+        ctx = ExecutionContext(mock_mode=True, project_path=None)
+        api = FeatureAPI(context=ctx)
+
+        result = api.list_items()
+        assert result == []
+
+
+class TestFeatureAPIValidation:
+    """Tests for FeatureAPI.validate method."""
+
+    @pytest.fixture
+    def mock_api(self) -> FeatureAPI:
+        """Create FeatureAPI in mock mode."""
+        return FeatureAPI(context=ExecutionContext(mock_mode=True))
+
+    def test_validate_basic(self, mock_api: FeatureAPI) -> None:
+        """Test basic validation."""
+        result = mock_api.validate("my_feature")
+
+        assert isinstance(result, ValidationResult)
+        assert result.valid is True
+
+    def test_validate_with_strict(self, mock_api: FeatureAPI) -> None:
+        """Test validation with strict mode."""
+        result = mock_api.validate("my_feature", strict=True)
+
+        assert result.valid is True
+```
+
+### API Test Fixture Pattern
+
+```python
+@pytest.fixture
+def mock_api() -> FeatureAPI:
+    """Create FeatureAPI in mock mode for testing."""
+    ctx = ExecutionContext(mock_mode=True)
+    return FeatureAPI(context=ctx)
+
+
+@pytest.fixture
+def configured_api(tmp_path: Path) -> FeatureAPI:
+    """Create FeatureAPI with real project path for integration tests."""
+    # Create minimal project structure
+    spec_dir = tmp_path / "specs"
+    spec_dir.mkdir()
+
+    ctx = ExecutionContext(
+        project_path=tmp_path,
+        mock_mode=False,
+    )
+    return FeatureAPI(context=ctx)
+```
+
+### Test Organization
+
+| Test File | Coverage |
+|-----------|----------|
+| `tests/api/test_feature_api.py` | API class tests |
+| `tests/api/test_common_models.py` | ExecutionContext, Result models |
+| `tests/api/test_exceptions.py` | Exception hierarchy tests |
 
 ---
 
