@@ -3,10 +3,10 @@ name: feature-basecamp-parser
 description: Feature development agent for project-basecamp-parser. Flask 3+ with SQLglot for Trino SQL parsing. Use PROACTIVELY when building SQL parsing features, parser endpoints, or working with SQLglot. Triggers on SQL parsing requests, parser API changes, and Trino SQL dialect work.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - debugging
+  - mcp-efficiency         # Read parser_patterns memory before file reads
+  - pytest-fixtures        # Fixture design for SQL test cases
+  - testing                # TDD workflow for parser edge cases
+  - performance            # Parser efficiency for large SQL queries
 ---
 
 ## Single Source of Truth (CRITICAL)

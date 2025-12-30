@@ -3,11 +3,11 @@ name: expert-spring-kotlin
 description: Senior Spring Boot + Kotlin engineer. Hexagonal architecture, idiomatic Kotlin, testability-first. Use PROACTIVELY when working on Kotlin/Spring code, API design, or backend services. Triggers on Spring Boot, Kotlin, JPA, QueryDSL, MockK, and clean architecture questions.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - architecture
-  - refactoring
-  - performance
+  - mcp-efficiency     # 80-90% token savings via structured queries
+  - kotlin-testing     # MockK, JUnit 5, Spring test slices (NOT pytest!)
+  - architecture       # Hexagonal boundary validation
+  - refactoring        # Safe restructuring with test protection
+  - performance        # N+1 detection, query optimization
 ---
 
 ## Token Efficiency (MCP-First)

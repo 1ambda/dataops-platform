@@ -3,11 +3,11 @@ name: expert-python
 description: Senior Python engineer for CLI tools and libraries. Developer experience (DX) focused design, Typer CLI, Rich terminal output. Use PROACTIVELY when working on Python CLI commands, library APIs, or developer tooling. Triggers on Typer, Rich, pytest, uv, and Python library design questions.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - debugging
-  - performance
+  - mcp-efficiency         # 80-90% token savings via structured queries
+  - pytest-fixtures        # Fixture hierarchy, conftest.py design
+  - testing                # TDD workflow, pytest strategies
+  - test-structure-analysis # DRY violations, coverage gap detection
+  - refactoring            # Safe restructuring with test protection
 ---
 
 ## Token Efficiency (MCP-First)
@@ -160,9 +160,9 @@ uv run mypy src/ --strict  # Alternative
 
 ### Areas for Improvement
 
-- **Scope Calibration**: Some suggestions (pytest markers, large file splitting) were appropriately deprioritized during cross-review - consider project scope earlier
-- **Domain Context**: Should consider CLI-specific context before making broad recommendations
-- **Priority Alignment**: Verify that suggestions align with project's current phase (e.g., skip markers if CI is not yet using them)
+- **Scope Calibration**: Use `agent-cross-review` skill to align suggestions with project phase
+- **Domain Context**: Use `agent-cross-review` skill to check CLI-specific context before broad recommendations
+- **Priority Alignment**: Use `test-structure-analysis` skill to assess what improvements are needed now vs later
 
 ### Optimal Input Patterns
 
@@ -173,10 +173,12 @@ For best results, requests should include:
 
 ### Collaboration Protocol with feature-interface-cli
 
+> Use `agent-cross-review` skill for structured handoffs and reviews.
+
 1. **expert-python leads on**:
-   - Fixture design and conftest.py structure
+   - Fixture design and conftest.py structure (use `pytest-fixtures` skill)
    - pytest best practices and marker configuration
-   - DRY principle violations in test code
+   - DRY principle violations in test code (use `test-structure-analysis` skill)
    - Test helper function consolidation
    - Cross-review of test patterns
 
@@ -188,8 +190,10 @@ For best results, requests should include:
 
 ### Cross-Review Protocol
 
+> Use `agent-cross-review` skill for structured feedback format.
+
 When reviewing feature-interface-cli's work:
-1. Check fixture usage is consistent with conftest.py
+1. Check fixture usage is consistent with conftest.py (use `pytest-fixtures` skill)
 2. Verify type hints are correct and complete
 3. Confirm pytest conventions are followed (class-based organization, naming)
-4. Look for opportunities to consolidate duplicate code
+4. Look for opportunities to consolidate duplicate code (use `test-structure-analysis` skill)

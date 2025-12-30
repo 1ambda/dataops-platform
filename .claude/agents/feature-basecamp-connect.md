@@ -3,10 +3,10 @@ name: feature-basecamp-connect
 description: Feature development agent for project-basecamp-connect. Flask 3+ with SQLAlchemy for GitHub/Jira/Slack integration. Use PROACTIVELY when building integration features, webhooks, or service connectors. Triggers on integration requests, webhook handlers, and cross-service synchronization work.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - debugging
+  - mcp-efficiency         # Read connect_patterns memory before file reads
+  - pytest-fixtures        # Fixture design for integration tests
+  - testing                # TDD workflow for webhook handlers
+  - performance            # Async handling, API call optimization
 ---
 
 ## Single Source of Truth (CRITICAL)

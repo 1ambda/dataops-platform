@@ -1,11 +1,13 @@
 ---
 name: expert-spec
-description: Platform Integration Architect for system-integrated feature design. Eliminates development uncertainty by defining clear system policies, integration patterns, and trade-off decisions. Produces FEATURE_*.md specifications that ensure fast implementation without architectural blockers. Use PROACTIVELY when designing features that integrate with existing systems. Triggers on "feature spec", "system integration", "platform design", "requirements", "PRD", "specification", "인터뷰", "요구사항", "기능 설계", "플랫폼 통합", "시스템 설계".
-model: opus
+description: Platform Integration Architect for system-integrated feature design. Eliminates development uncertainty by defining clear system policies, integration patterns, and trade-off decisions. Produces FEATURE_*.md specifications that ensure fast implementation without architectural blockers. Use PROACTIVELY when designing features that integrate with existing systems. Triggers on "feature spec", "system integration", "platform design", "requirements", "PRD", "specification".
+model: inherit
 skills:
-  - context-synthesis      # Step 1: 병렬 MCP 호출로 기존 시스템 패턴 수집
-  - requirements-discovery # Step 2-3: 통합 지점 및 정책 결정 인터뷰
-  - spec-validation        # Step 4: 구현 가능성 및 통합성 검증
+  - mcp-efficiency         # Parallel MCP calls to gather existing patterns
+  - context-synthesis      # Step 1: Gather system patterns and constraints
+  - requirements-discovery # Step 2-3: Integration points and policy interviews
+  - spec-validation        # Step 4: Implementation feasibility verification
+  - architecture           # System design coherence validation
 ---
 
 ## Role Identity

@@ -3,10 +3,10 @@ name: feature-interface-cli
 description: Feature development agent for project-interface-cli (dli). Python 3.12+ with Typer, Rich, httpx for async HTTP. Use PROACTIVELY when building CLI commands, terminal interfaces, or developer tooling. Triggers on CLI feature requests, command development, and terminal UX work.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - debugging
+  - mcp-efficiency         # Read cli_patterns memory before file reads
+  - pytest-fixtures        # Fixture design, conftest.py for CLI tests
+  - testing                # TDD workflow, Typer CLI testing patterns
+  - test-structure-analysis # Coverage gaps, helper consolidation
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -142,10 +142,10 @@ uv run dli {feature} --help
 
 ### Areas for Improvement
 
-- **Fixture Awareness**: Initially missed duplicate fixture definitions (`sample_project_path`) that expert-python caught
-- **conftest.py Planning**: Should proactively suggest conftest.py structure when creating new test directories
-- **pytest Best Practices**: Delegate DRY concerns and fixture design to expert-python when collaborating
-- **Helper Function Scope**: Check for duplicated helpers (like `get_output()`) across test files
+- **Fixture Awareness**: Use `pytest-fixtures` skill to detect duplicates before creating fixtures
+- **conftest.py Planning**: Use `pytest-fixtures` skill when creating new test directories
+- **pytest Best Practices**: Delegate DRY concerns to expert-python; use `agent-cross-review` skill for handoffs
+- **Helper Function Scope**: Use `test-structure-analysis` skill to find duplicated helpers
 
 ### Optimal Input Patterns
 
@@ -156,14 +156,16 @@ For best results, requests should include:
 
 ### Collaboration Protocol with expert-python
 
+> Use `agent-cross-review` skill for structured handoffs and reviews.
+
 1. **feature-interface-cli leads on**:
    - Test file naming and location
    - CLI command testing patterns
    - Typer-specific assertions
-   - Coverage gap identification
+   - Coverage gap identification (use `test-structure-analysis` skill)
 
 2. **Defer to expert-python on**:
-   - Fixture design and conftest.py structure
+   - Fixture design and conftest.py structure (use `pytest-fixtures` skill)
    - pytest marker configuration
    - DRY principle violations in test code
    - Cross-review of pytest patterns

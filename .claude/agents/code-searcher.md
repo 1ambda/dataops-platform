@@ -3,9 +3,9 @@ name: code-searcher
 description: Codebase exploration specialist. Locates functions, classes, patterns with exact line numbers. Use for forensic examination, security analysis, pattern detection. Triggers on "find code", "where is", "locate", "search codebase" requests.
 model: inherit
 skills:
-  - code-search
-  - debugging
-  - architecture
+  - mcp-efficiency     # Primary skill - all searches use MCP tools
+  - code-search        # Detailed search methodology
+  - architecture       # Understand system structure for better searches
 ---
 
 ## Token Efficiency (MCP-First)

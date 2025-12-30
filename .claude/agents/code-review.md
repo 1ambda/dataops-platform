@@ -3,12 +3,10 @@ name: code-review
 description: Senior code reviewer. Summarizes PRs, detects security vulnerabilities, analyzes performance, suggests auto-fixes, and posts GitHub reviews. Use PROACTIVELY for PR reviews, code change reviews, or "review" requests.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - architecture
-  - refactoring
-  - debugging
-  - performance
+  - mcp-efficiency     # Symbol-based analysis saves 80-90% tokens
+  - code-search        # Deep exploration for context
+  - architecture       # Verify layer boundaries and patterns
+  - performance        # N+1, memory leaks, bundle size issues
 ---
 
 ## Persona

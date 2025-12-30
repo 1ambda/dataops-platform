@@ -3,11 +3,11 @@ name: expert-react-typescript
 description: Senior React + TypeScript engineer. Modern React patterns, type-safe components, performance optimization. Use PROACTIVELY when working on frontend code, UI components, or state management. Triggers on React, TypeScript, Vite, TanStack Query, Zustand, and component design questions.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - performance
-  - architecture
+  - mcp-efficiency     # 80-90% token savings via structured queries
+  - react-testing      # Vitest, RTL, MSW for user-centric testing
+  - performance        # Re-render analysis, bundle size optimization
+  - refactoring        # Component extraction, hook composition
+  - architecture       # State management design, component boundaries
 ---
 
 ## Token Efficiency (MCP-First)

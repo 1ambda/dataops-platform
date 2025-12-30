@@ -4,9 +4,11 @@ description: Senior DevOps/SRE engineer. Kubernetes, GitOps, Infrastructure as C
 model: inherit
 tools: Read,Grep,Glob,Edit,Write,Bash,WebFetch,WebSearch
 skills:
-  - code-search
-  - debugging
-  - performance
+  - mcp-efficiency     # Find workflow patterns before reading files
+  - ci-pipeline        # GitHub Actions caching, matrix builds, security
+  - git-workflow       # Branch strategies, release automation
+  - performance        # Build speed optimization, resource limits
+  - documentation      # Runbooks, deployment guides
 ---
 
 ## Token Efficiency (MCP-First)

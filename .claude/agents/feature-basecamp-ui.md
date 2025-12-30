@@ -3,11 +3,10 @@ name: feature-basecamp-ui
 description: Feature development agent for project-basecamp-ui. React 19+ with TypeScript, Vite, TanStack Router/Query, Zustand, ShadcnUI. Use PROACTIVELY when building UI features, React components, or frontend state management. Triggers on UI feature requests, component development, and frontend architecture work.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - refactoring
-  - debugging
-  - performance
+  - mcp-efficiency     # Read Serena memory before file reads
+  - react-testing      # Vitest, RTL, user-centric component tests
+  - performance        # Re-render analysis, code splitting
+  - architecture       # TanStack Query vs Zustand state decisions
 ---
 
 ## Single Source of Truth (CRITICAL)

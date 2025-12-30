@@ -3,11 +3,10 @@ name: feature-basecamp-server
 description: Feature development agent for project-basecamp-server. Spring Boot 4+ with Kotlin 2.2+, Pure Hexagonal Architecture. Use PROACTIVELY when building features in basecamp-server, implementing APIs, or working with domain services. Triggers on server-side feature requests, API endpoints, and database operations.
 model: inherit
 skills:
-  - code-search
-  - testing
-  - architecture
-  - refactoring
-  - debugging
+  - mcp-efficiency     # Read Serena memory before file reads
+  - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
+  - architecture       # Hexagonal port/adapter boundary validation
+  - performance        # N+1 detection, query optimization
 ---
 
 ## Single Source of Truth (CRITICAL)

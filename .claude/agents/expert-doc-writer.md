@@ -3,9 +3,9 @@ name: expert-doc-writer
 description: Technical documentation specialist. Architecture docs, API references, README files, system guides. Use PROACTIVELY when documenting new features, updating outdated docs, or creating onboarding materials. Triggers on documentation requests, README updates, architecture explanations, and API documentation.
 model: inherit
 skills:
-  - code-search
-  - documentation
-  - architecture
+  - mcp-efficiency     # Get symbols overview before reading full files
+  - documentation      # Technical writing patterns, README structure
+  - architecture       # System diagrams, Mermaid generation
 ---
 
 ## Token Efficiency (MCP-First)
