@@ -116,3 +116,66 @@ jobs:
 - [ ] CI/CD pipeline passes before merge
 - [ ] Rollback procedure documented
 - [ ] `make help` documents all automation commands
+
+---
+
+## Post-Implementation Checklist (필수)
+
+인프라/배포 작업 완료 후 반드시 수행:
+
+```
+□ docs/deployment.md 업데이트 (배포 절차 변경 시)
+□ Makefile help 명령 업데이트
+□ docker-compose.yaml 변경사항 반영
+□ .github/workflows/ 수정 시 CI 테스트 통과 확인
+□ README.md의 Quick Start 섹션 동기화
+```
+
+---
+
+## MCP 활용 가이드 (상세)
+
+### Serena MCP - 인프라 패턴 분석
+
+```python
+# 기존 Dockerfile 패턴 확인
+mcp__serena__search_for_pattern(substring_pattern="FROM.*python|gradle", relative_path=".")
+
+# GitHub Actions 워크플로우 분석
+mcp__serena__list_dir(relative_path=".github/workflows", recursive=True)
+
+# Makefile 명령 구조 파악
+mcp__serena__get_symbols_overview(relative_path="Makefile")
+```
+
+### claude-mem MCP - 과거 배포 결정 조회
+
+```python
+# 과거 배포 관련 결정 검색
+mcp__plugin_claude-mem_mem-search__search(
+    query="deployment kubernetes docker",
+    project="dataops-platform"
+)
+
+# CI/CD 관련 히스토리
+mcp__plugin_claude-mem_mem-search__search(
+    query="GitHub Actions CI pipeline",
+    obs_type="decision"
+)
+
+# 특정 observation 상세 조회
+mcp__plugin_claude-mem_mem-search__get_observations(ids=[...])
+```
+
+### JetBrains MCP - IDE 통합 검색
+
+```python
+# 워크플로우 파일 검색
+mcp__jetbrains__find_files_by_glob(globPattern="**/*.yaml")
+
+# Docker 관련 파일 검색
+mcp__jetbrains__search_in_files_by_text(searchText="docker-compose", fileMask="*.md")
+
+# Kubernetes 매니페스트 검색
+mcp__jetbrains__find_files_by_glob(globPattern="**/k8s/**/*.yaml")
+```

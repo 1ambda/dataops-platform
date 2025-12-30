@@ -614,3 +614,65 @@ FEATURE_*.md 하단에 리뷰 결과를 기록:
 3. **참조 기반 설계 (Reference-Driven Design)**: 구체적인 기존 파일을 참조 패턴으로 명시
 4. **통합 우선 구현 (Integration-First Implementation)**: Phase 1은 플랫폼 통합, Phase 2는 기능 완성
 5. **불확실성 제거 (Uncertainty Elimination)**: 개발 중 막힐 수 있는 모든 요소 사전 해결
+
+---
+
+## Post-Specification Checklist (필수)
+
+FEATURE_*.md 작성 완료 후 반드시 수행:
+
+```
+□ FEATURE_*.md를 project-*/features/에 저장
+□ 기존 FEATURE 문서와 일관성 확인
+□ 프로젝트별 담당 Agent 리뷰 완료 (feature-* + expert-*)
+□ Implementation Agent Review 섹션에 리뷰 결과 기재
+□ claude-mem에 주요 결정사항 기록
+```
+
+---
+
+## MCP 활용 가이드 (상세)
+
+### Serena MCP - 코드 패턴 분석
+
+```python
+# 기존 FEATURE 문서 패턴 분석
+mcp__serena__read_memory(memory_file_name="cli_patterns")
+mcp__serena__read_memory(memory_file_name="server_patterns")
+
+# 기존 코드 구조 파악
+mcp__serena__get_symbols_overview(relative_path="project-interface-cli/src/dli/api/")
+mcp__serena__find_symbol(name_path_pattern="DatasetAPI", include_body=True)
+
+# 기존 패턴 검색
+mcp__serena__search_for_pattern(substring_pattern="class.*Service", relative_path="project-basecamp-server/")
+```
+
+### claude-mem MCP - 과거 결정사항 조회
+
+```python
+# 과거 아키텍처 결정 검색
+mcp__plugin_claude-mem_mem-search__search(
+    query="architecture decision",
+    project="dataops-platform"
+)
+
+# 특정 기능 관련 히스토리
+mcp__plugin_claude-mem_mem-search__search(
+    query="ExecutionMode design",
+    obs_type="decision"
+)
+
+# 관련 observation 상세 조회
+mcp__plugin_claude-mem_mem-search__get_observations(ids=[...])
+```
+
+### JetBrains MCP - IDE 통합 검색
+
+```python
+# 기존 FEATURE 문서 검색
+mcp__jetbrains__find_files_by_glob(globPattern="**/features/FEATURE_*.md")
+
+# 패턴 검색
+mcp__jetbrains__search_in_files_by_text(searchText="핵심 결정 사항", fileMask="*.md")
+```

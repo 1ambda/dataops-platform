@@ -228,3 +228,47 @@ uv run ruff format && uv run ruff check --fix  # Format and lint
 | GitHub REST API | https://docs.github.com/en/rest |
 | Jira REST API | https://developer.atlassian.com/cloud/jira/platform/rest/v3 |
 | Slack Web API | https://api.slack.com/methods |
+
+---
+
+## Post-Implementation Checklist (필수)
+
+구현 완료 후 반드시 수행:
+
+```
+□ Serena memory 업데이트 (connect_patterns)
+□ 테스트 통과 확인 (uv run pytest)
+□ README.md 변경사항 반영
+```
+
+---
+
+## MCP 활용 가이드
+
+### Serena MCP (코드 탐색/편집)
+
+```python
+# 1. 메모리 읽기 (구현 전 필수)
+mcp__serena__read_memory("connect_patterns")
+
+# 2. 심볼 탐색
+mcp__serena__get_symbols_overview("src/connect/database.py", depth=1)
+mcp__serena__find_symbol("IntegrationLog", include_body=True)
+
+# 3. 패턴 검색
+mcp__serena__search_for_pattern("@app.route", restrict_search_to_code_files=True)
+```
+
+### claude-mem MCP (과거 작업 검색)
+
+```python
+mcp__plugin_claude-mem_mem-search__search(query="webhook", project="dataops-platform")
+mcp__plugin_claude-mem_mem-search__get_observations(ids=[1234, 1235])
+```
+
+### JetBrains MCP (IDE 연동)
+
+```python
+mcp__jetbrains__get_file_text_by_path("src/connect/database.py")
+mcp__jetbrains__search_in_files_by_text("IntegrationService", fileMask="*.py")
+```

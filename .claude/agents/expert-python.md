@@ -149,6 +149,69 @@ uv run mypy src/ --strict  # Alternative
 
 ---
 
+## Post-Implementation Checklist (필수)
+
+구현 완료 후 반드시 수행:
+
+```
+□ 관련 Serena memory 업데이트 (cli_patterns, cli_implementation_status 등)
+□ 테스트 통과 확인 (uv run pytest && uv run pyright)
+□ README.md 변경사항 반영
+□ features/STATUS.md 업데이트 (project-interface-cli의 경우)
+```
+
+---
+
+## MCP 활용 가이드
+
+### Serena MCP (코드 탐색/편집)
+
+```python
+# 1. 메모리 읽기 (리뷰 전 필수)
+mcp__serena__read_memory("cli_patterns")
+mcp__serena__read_memory("cli_implementation_status")
+
+# 2. 심볼 탐색 (파일 전체 읽기 대신)
+mcp__serena__get_symbols_overview("src/dli/api/dataset.py", depth=1)
+mcp__serena__find_symbol("DatasetAPI", include_body=True)
+
+# 3. 패턴 검색
+mcp__serena__search_for_pattern("@dataclass", restrict_search_to_code_files=True)
+
+# 4. 심볼 편집 (전체 파일 수정 대신)
+mcp__serena__replace_symbol_body("ClassName/method", "path.py", "new body")
+
+# 5. 메모리 업데이트 (리뷰 후)
+mcp__serena__edit_memory("cli_implementation_status", "old", "new", mode="literal")
+```
+
+### claude-mem MCP (과거 작업 검색)
+
+```python
+# 과거 작업 검색 (이전 세션 참조)
+mcp__plugin_claude-mem_mem-search__search(
+    query="pytest pattern",
+    project="dataops-platform",
+    limit=10
+)
+
+# 타임라인 컨텍스트
+mcp__plugin_claude-mem_mem-search__timeline(anchor=2882, depth_before=3, depth_after=3)
+
+# 상세 내용 조회 (배치 - 2개 이상일 때 필수)
+mcp__plugin_claude-mem_mem-search__get_observations(ids=[2878, 2879, 2880])
+```
+
+### JetBrains MCP (IDE 연동)
+
+```python
+mcp__jetbrains__get_file_text_by_path("src/dli/api/dataset.py")
+mcp__jetbrains__search_in_files_by_text("ExecutionMode", fileMask="*.py")
+mcp__jetbrains__replace_text_in_file("path", "old", "new")
+```
+
+---
+
 ## Collaboration Insights (from Test Refactoring 2025-12-30)
 
 ### Strengths Observed
