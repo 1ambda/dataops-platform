@@ -1,6 +1,6 @@
 # project-interface-cli Implementation Status
 
-> Last Updated: 2025-12-31 | Version: 0.2.2
+> Last Updated: 2025-12-31 | Version: 0.3.0
 
 ## Quick Check
 

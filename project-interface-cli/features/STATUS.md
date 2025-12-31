@@ -124,6 +124,7 @@
 - DLI-6xx 에러 코드 (601-606)
 - 47개 신규 테스트 (API 19 + CLI 28)
 - registry.py 삭제, QualityRegistry 제거
+- CatalogAPI Result 모델 (v1.2.0): CatalogListResult, TableDetailResult, CatalogSearchResult
 
 ### v0.2.1 (2025-12-30)
 - ExecutionMode enum 추가 (LOCAL, SERVER, MOCK)

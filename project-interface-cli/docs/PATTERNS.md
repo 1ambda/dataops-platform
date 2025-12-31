@@ -14,7 +14,7 @@ dli
 ├── metric (list, get, run, validate, register)
 ├── dataset (list, get, run, validate, register)
 ├── workflow (run, backfill, stop, status, list, history, pause, unpause)
-├── quality (list, run, show)
+├── quality (list, get, run, validate)
 ├── lineage (show, upstream, downstream)   # Top-level
 ├── catalog                                # Top-level
 └── transpile                              # Top-level
@@ -897,6 +897,7 @@ except DLIError as e:
 | DLI-4xx | Execution | `ExecutionError` |
 | DLI-5xx | Server | `ServerError` |
 | DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
+| DLI-7xx | Catalog | `CatalogError`, `CatalogNotFoundError` |
 
 ### Module Exports (`__init__.py`)
 

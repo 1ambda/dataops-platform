@@ -254,6 +254,97 @@ dataops-platform/
 
 ---
 
+## Documentation Synchronization
+
+> **핵심 원칙**: STATUS.md, RELEASE_*.md, FEATURE_*.md 는 서로 연결된 문서입니다. 하나를 수정하면 관련 문서도 확인하세요.
+
+### Document Relationships
+
+```
+features/
+├── STATUS.md           # Central dashboard (Quick Status + Changelog)
+├── FEATURE_*.md        # Feature specifications (requirements, design)
+└── RELEASE_*.md        # Implementation details (what was built, how)
+```
+
+| Document | Purpose | Updates When |
+|----------|---------|--------------|
+| `STATUS.md` | Overall progress dashboard | Any feature status changes |
+| `FEATURE_*.md` | What to build (spec) | Requirements change |
+| `RELEASE_*.md` | What was built (impl) | Implementation complete |
+
+### Synchronization Rules
+
+**1. RELEASE_*.md 수정 시**
+- STATUS.md Changelog 섹션에 버전/날짜 반영
+- Quick Status 테이블의 상태 업데이트 (In Progress -> Complete)
+- 버전 번호 일관성 확인 (v0.2.0 등)
+
+**2. Feature 완료 시**
+- RELEASE_*.md 에 구현 상세 기록
+- STATUS.md Quick Status 를 "Complete" 로 변경
+- STATUS.md Changelog 에 날짜별 항목 추가
+
+**3. 버전 번호 일관성**
+- RELEASE_*.md 헤더의 버전
+- STATUS.md Changelog 의 버전
+- CLAUDE.md 의 버전 참조 (해당 시)
+
+### Sync Checklist (문서 수정 전)
+
+```bash
+# 1. 관련 문서 스캔 (MCP 활용)
+serena.search_for_pattern("v0\\.3\\.0", relative_path="features/")
+serena.list_dir("features/", recursive=False)
+
+# 2. STATUS.md 현재 상태 확인
+serena.get_symbols_overview("features/STATUS.md")
+
+# 3. 동기화 필요 여부 판단
+grep -r "Complete\|In Progress" features/STATUS.md
+```
+
+### MCP 기반 동기화 워크플로우
+
+```python
+# Step 1: 현재 상태 파악
+mcp__serena__list_dir("features/", recursive=False)
+mcp__serena__search_for_pattern(
+    "## Changelog|Quick Status",
+    relative_path="features/STATUS.md"
+)
+
+# Step 2: RELEASE 문서 버전 확인
+mcp__serena__search_for_pattern(
+    "^# .* v[0-9]",
+    relative_path="features/",
+    paths_include_glob="RELEASE_*.md"
+)
+
+# Step 3: 불일치 발견 시 업데이트
+mcp__jetbrains__replace_text_in_file(
+    "features/STATUS.md",
+    "In Progress",
+    "Complete"
+)
+```
+
+### Anti-Pattern: 동기화 누락
+
+```
+❌ RELEASE_LIBRARY.md 에 v0.3.0 추가 → STATUS.md Changelog 미반영
+❌ 기능 완료 표시 → STATUS.md Quick Status 여전히 "In Progress"
+❌ 버전 번호 불일치 (RELEASE: v0.3.0, STATUS: v0.2.0)
+
+✅ 올바른 순서:
+1. RELEASE_*.md 업데이트
+2. STATUS.md Changelog 에 동일 버전/내용 반영
+3. STATUS.md Quick Status 상태 변경
+4. grep 으로 버전 일관성 검증
+```
+
+---
+
 ## MCP 활용 가이드
 
 ### Serena MCP (문서화 대상 탐색)

@@ -226,7 +226,7 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.2.0)
+### CLI Commands (v0.3.0)
 
 | Command | Description |
 |---------|-------------|
@@ -278,7 +278,7 @@ mock_executor = MockExecutor(mock_data=[{"id": 1}])
 api = DatasetAPI(context=ctx, executor=mock_executor)
 ```
 
-**Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-601)
+**Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-7xx)
 
 ### Directory Structure
 
@@ -289,13 +289,14 @@ project-interface-cli/src/dli/
 ├── models/
 │   ├── __init__.py       # Model exports
 │   └── common.py         # ExecutionContext, ResultStatus, *Result models
-├── api/                  # Library API (v0.2.0)
+├── api/                  # Library API (v0.3.0)
 │   ├── __init__.py       # API exports
 │   ├── dataset.py        # DatasetAPI
 │   ├── metric.py         # MetricAPI
 │   ├── transpile.py      # TranspileAPI
 │   ├── catalog.py        # CatalogAPI
-│   └── config.py         # ConfigAPI
+│   ├── config.py         # ConfigAPI
+│   └── quality.py        # QualityAPI
 ├── commands/             # CLI commands (Typer)
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)
