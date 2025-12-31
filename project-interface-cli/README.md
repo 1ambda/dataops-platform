@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.3.0 | **Python:** 3.12+
+> **Version:** 0.4.0 | **Python:** 3.12+
 
 ## Features
 
@@ -15,7 +15,7 @@
 - **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
-- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI for Airflow/orchestrator integration
+- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI for Airflow/orchestrator integration
 
 ## Installation
 
@@ -250,7 +250,7 @@ spec:
 
 ## Library API
 
-v0.3.0 provides a full-featured Library API for programmatic access from Airflow, Basecamp Parser, and other systems.
+v0.4.0 provides a full-featured Library API for programmatic access from Airflow, Basecamp Parser, and other systems.
 
 ### API Classes
 
@@ -262,6 +262,7 @@ v0.3.0 provides a full-featured Library API for programmatic access from Airflow
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |
 | `QualityAPI` | list_qualities, get, run, validate | Quality spec 실행 및 검증 |
+| `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 
 ### ExecutionMode
 
@@ -373,6 +374,28 @@ result = api.run("quality.iceberg.analytics.daily_clicks.yaml")
 validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml")
 ```
 
+### WorkflowAPI Example
+
+```python
+from dli import WorkflowAPI, ExecutionContext, ExecutionMode
+
+ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER)
+api = WorkflowAPI(context=ctx)
+
+# Trigger adhoc run
+result = api.run("my_dataset", parameters={"date": "2025-01-15"})
+
+# Backfill date range
+result = api.backfill("my_dataset", start_date="2025-01-01", end_date="2025-01-07")
+
+# Check status
+status = api.get_status(run_id="abc123")
+
+# List and manage workflows
+workflows = api.list_workflows(source="code", running=True)
+api.pause("my_dataset")
+```
+
 ### Exception Handling
 
 ```python
@@ -428,17 +451,18 @@ uv run python build_standalone.py
 ```
 project-interface-cli/
 ├── src/dli/
-│   ├── __init__.py              # Public API exports (v0.3.0)
+│   ├── __init__.py              # Public API exports (v0.4.0)
 │   ├── exceptions.py            # DLIError hierarchy
-│   ├── api/                     # Library API (v0.3.0)
+│   ├── api/                     # Library API (v0.4.0)
 │   │   ├── __init__.py          # API exports
 │   │   ├── dataset.py           # DatasetAPI
 │   │   ├── metric.py            # MetricAPI
 │   │   ├── transpile.py         # TranspileAPI
 │   │   ├── catalog.py           # CatalogAPI
 │   │   ├── config.py            # ConfigAPI
-│   │   └── quality.py           # QualityAPI
-│   ├── models/                  # Shared models (v0.3.0)
+│   │   ├── quality.py           # QualityAPI
+│   │   └── workflow.py          # WorkflowAPI
+│   ├── models/                  # Shared models (v0.4.0)
 │   │   ├── __init__.py          # Model exports
 │   │   └── common.py            # ExecutionContext, Results
 │   ├── commands/                # CLI commands
@@ -471,7 +495,7 @@ project-interface-cli/
 │   ├── main.py                  # CLI entry point
 │   └── config.py                # Configuration
 ├── tests/
-│   ├── api/                     # Library API tests (252 tests)
+│   ├── api/                     # Library API tests (330 tests)
 │   └── ...                      # CLI and core tests
 ├── metrics/                     # Example metrics (optional)
 ├── datasets/                    # Example datasets (optional)

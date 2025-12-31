@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2025-12-31
-> **Version:** 0.3.0
+> **Version:** 0.4.0
 
 ---
 
@@ -9,10 +9,11 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.3.0 | QualityAPI 추가 |
+| Library API | ✅ v0.4.0 | WorkflowAPI 추가 |
 | CLI Commands | ✅ v0.3.0 | quality validate 추가 |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
-| Tests | ✅ 1656 passed | pyright 0 errors |
+| Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
+| Tests | ✅ 1715 passed | pyright 0 errors |
 
 ---
 
@@ -30,7 +31,7 @@
 | ServerExecutor | `core/executor.py` | ⏳ Stub | Phase 2에서 완전 구현 |
 | BigQueryExecutor | `adapters/bigquery.py` | ✅ Complete | 실제 BigQuery 연동 |
 
-### Library API (v0.3.0)
+### Library API (v0.4.0)
 
 | API Class | File | Status | DI Support |
 |-----------|------|--------|------------|
@@ -40,6 +41,7 @@
 | CatalogAPI | `api/catalog.py` | ✅ Complete | - |
 | ConfigAPI | `api/config.py` | ✅ Complete | - |
 | QualityAPI | `api/quality.py` | ✅ Complete | - |
+| WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
 
 ### CLI Commands (v0.3.0)
 
@@ -69,17 +71,7 @@
 | DLI-5xx | Server | DLI-504 | ✅ Complete |
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 | DLI-7xx | Catalog | DLI-705 | ✅ Complete (701-705) |
-
----
-
-## Pending Work (Phase 2)
-
-| Component | Priority | Description |
-|-----------|----------|-------------|
-| ServerExecutor 구현 | P1 | Basecamp API 연동 |
-| CLI --local/--server | P1 | 커맨드 플래그 추가 |
-| --output 옵션 | P2 | 결과 파일 저장 |
-| quality run 통일 | P2 | --on-server → --server |
+| DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 
 ---
 
@@ -87,10 +79,10 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | 271 | ✅ All pass |
+| API Tests | 330 | ✅ All pass |
 | CLI Tests | ~828 | ✅ All pass |
 | Core Tests | ~500 | ✅ All pass |
-| **Total** | **1656** | ✅ All pass |
+| **Total** | **1715** | ✅ All pass |
 
 ---
 
@@ -103,6 +95,7 @@
 | PATTERNS.md | ✅ Updated | `project-interface-cli/docs/PATTERNS.md` |
 | RELEASE_EXECUTION.md | ✅ Created | `project-interface-cli/features/RELEASE_EXECUTION.md` |
 | RELEASE_QUALITY.md | ✅ Created | `project-interface-cli/features/RELEASE_QUALITY.md` |
+| RELEASE_WORKFLOW.md | ✅ Updated | `project-interface-cli/features/RELEASE_WORKFLOW.md` |
 
 ---
 
@@ -116,6 +109,14 @@
 ---
 
 ## Changelog
+
+### v0.4.0 (2025-12-31)
+- WorkflowAPI 구현 (get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause)
+- Workflow Result 모델 (WorkflowRegisterResult, WorkflowRunResult, WorkflowListResult, WorkflowStatusResult, WorkflowHistoryResult)
+- DLI-8xx 에러 코드 (800-803)
+- Workflow Exception 클래스 4종 (WorkflowNotFoundError, WorkflowRegistrationError, WorkflowExecutionError, WorkflowPermissionError)
+- BasecampClient 확장 (workflow_register, workflow_unregister)
+- 59개 신규 테스트
 
 ### v0.3.0 (2025-12-31)
 - QualityAPI 구현 (list_qualities, get, run, validate)

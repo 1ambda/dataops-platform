@@ -40,6 +40,14 @@ from dli.models.quality import (
     QualityTarget,
     QualityTargetType,
 )
+from dli.models.workflow import (
+    # Workflow result models
+    WorkflowHistoryResult,
+    WorkflowListResult,
+    WorkflowRegisterResult,
+    WorkflowRunResult,
+    WorkflowStatusResult,
+)
 
 __all__ = [
     "BaseResult",
@@ -70,4 +78,10 @@ __all__ = [
     "TranspileWarning",
     # Result models
     "ValidationResult",
+    # Workflow result models
+    "WorkflowHistoryResult",
+    "WorkflowListResult",
+    "WorkflowRegisterResult",
+    "WorkflowRunResult",
+    "WorkflowStatusResult",
 ]

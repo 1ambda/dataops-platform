@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.3.0** with QualityAPI)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.4.0** with WorkflowAPI)
 
 ---
 
@@ -226,7 +226,7 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.3.0)
+### CLI Commands (v0.4.0)
 
 | Command | Description |
 |---------|-------------|
@@ -240,7 +240,7 @@ class UserRepositoryJpaImpl(
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
 | `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
 
-### Library API (v0.3.0)
+### Library API (v0.4.0)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
@@ -252,6 +252,7 @@ class UserRepositoryJpaImpl(
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
 | `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
+| `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 
 **ExecutionMode (v0.2.1):**
 
@@ -278,7 +279,7 @@ mock_executor = MockExecutor(mock_data=[{"id": 1}])
 api = DatasetAPI(context=ctx, executor=mock_executor)
 ```
 
-**Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-7xx)
+**Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-8xx)
 
 ### Directory Structure
 
@@ -289,14 +290,15 @@ project-interface-cli/src/dli/
 ├── models/
 │   ├── __init__.py       # Model exports
 │   └── common.py         # ExecutionContext, ResultStatus, *Result models
-├── api/                  # Library API (v0.3.0)
+├── api/                  # Library API (v0.4.0)
 │   ├── __init__.py       # API exports
 │   ├── dataset.py        # DatasetAPI
 │   ├── metric.py         # MetricAPI
 │   ├── transpile.py      # TranspileAPI
 │   ├── catalog.py        # CatalogAPI
 │   ├── config.py         # ConfigAPI
-│   └── quality.py        # QualityAPI
+│   ├── quality.py        # QualityAPI
+│   └── workflow.py       # WorkflowAPI
 ├── commands/             # CLI commands (Typer)
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)

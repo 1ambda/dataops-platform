@@ -63,6 +63,7 @@ from dli.api import (
     MetricAPI,
     QualityAPI,
     TranspileAPI,
+    WorkflowAPI,
 )
 
 # Exceptions
@@ -81,7 +82,10 @@ from dli.exceptions import (
     ServerError,
     TableNotFoundError,
     TranspileError,
+    WorkflowExecutionError,
     WorkflowNotFoundError,
+    WorkflowPermissionError,
+    WorkflowRegistrationError,
 )
 
 # Context and Configuration
@@ -95,6 +99,7 @@ __all__ = [
     "MetricAPI",
     "QualityAPI",
     "TranspileAPI",
+    "WorkflowAPI",
     # Exceptions
     "ConfigurationError",
     "DLIError",
@@ -110,7 +115,10 @@ __all__ = [
     "ServerError",
     "TableNotFoundError",
     "TranspileError",
+    "WorkflowExecutionError",
     "WorkflowNotFoundError",
+    "WorkflowPermissionError",
+    "WorkflowRegistrationError",
     # Context
     "ExecutionContext",
     "ExecutionMode",

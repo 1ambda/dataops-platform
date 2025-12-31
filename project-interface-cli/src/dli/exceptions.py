@@ -44,7 +44,7 @@ class ErrorCode(str, Enum):
     DATASET_NOT_FOUND = "DLI-101"
     METRIC_NOT_FOUND = "DLI-102"
     TABLE_NOT_FOUND = "DLI-103"
-    WORKFLOW_NOT_FOUND = "DLI-104"
+    # Note: WORKFLOW_NOT_FOUND moved to DLI-8xx range (DLI-800)
 
     # Validation Errors (DLI-2xx)
     VALIDATION_FAILED = "DLI-201"
@@ -83,6 +83,17 @@ class ErrorCode(str, Enum):
     CATALOG_INVALID_IDENTIFIER = "DLI-703"
     CATALOG_ACCESS_DENIED = "DLI-704"
     CATALOG_ENGINE_NOT_SUPPORTED = "DLI-705"
+
+    # Workflow Errors (DLI-8xx)
+    WORKFLOW_NOT_FOUND = "DLI-800"
+    WORKFLOW_REGISTRATION_FAILED = "DLI-801"
+    WORKFLOW_EXECUTION_FAILED = "DLI-802"
+    WORKFLOW_PERMISSION_DENIED = "DLI-803"
+    WORKFLOW_ALREADY_EXISTS = "DLI-804"
+    WORKFLOW_INVALID_CRON = "DLI-805"
+    WORKFLOW_OVERRIDDEN = "DLI-806"
+    WORKFLOW_INVALID_STATE = "DLI-807"
+    WORKFLOW_UNREGISTER_FAILED = "DLI-808"
 
 
 @dataclass
@@ -322,8 +333,72 @@ class WorkflowNotFoundError(DLIError):
 
     def __str__(self) -> str:
         """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
         return (
             f"[{self.code.value}] Workflow for dataset '{self.dataset_name}' not found"
+        )
+
+
+@dataclass
+class WorkflowRegistrationError(DLIError):
+    """Error during workflow registration.
+
+    Attributes:
+        dataset_name: The dataset name that failed to register.
+    """
+
+    code: ErrorCode = ErrorCode.WORKFLOW_REGISTRATION_FAILED
+    dataset_name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return (
+            f"[{self.code.value}] Failed to register workflow for '{self.dataset_name}'"
+        )
+
+
+@dataclass
+class WorkflowExecutionError(DLIError):
+    """Error during workflow execution.
+
+    Attributes:
+        dataset_name: The dataset name that failed to execute.
+        run_id: The run ID if available.
+    """
+
+    code: ErrorCode = ErrorCode.WORKFLOW_EXECUTION_FAILED
+    dataset_name: str = ""
+    run_id: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return (
+            f"[{self.code.value}] Workflow execution failed for '{self.dataset_name}'"
+        )
+
+
+@dataclass
+class WorkflowPermissionError(DLIError):
+    """Permission denied for workflow operation.
+
+    Attributes:
+        dataset_name: The dataset name for which permission was denied.
+    """
+
+    code: ErrorCode = ErrorCode.WORKFLOW_PERMISSION_DENIED
+    dataset_name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return (
+            f"[{self.code.value}] Permission denied for workflow '{self.dataset_name}'"
         )
 
 
@@ -541,5 +616,9 @@ __all__ = [
     "TableNotFoundError",
     "TranspileError",
     "UnsupportedEngineError",
+    # Workflow Errors
+    "WorkflowExecutionError",
     "WorkflowNotFoundError",
+    "WorkflowPermissionError",
+    "WorkflowRegistrationError",
 ]

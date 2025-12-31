@@ -47,7 +47,7 @@ class TestErrorCode:
         assert ErrorCode.DATASET_NOT_FOUND.value == "DLI-101"
         assert ErrorCode.METRIC_NOT_FOUND.value == "DLI-102"
         assert ErrorCode.TABLE_NOT_FOUND.value == "DLI-103"
-        assert ErrorCode.WORKFLOW_NOT_FOUND.value == "DLI-104"
+        # Note: WORKFLOW_NOT_FOUND moved to DLI-8xx range (DLI-800)
 
     def test_validation_error_codes(self) -> None:
         """Test validation error codes (DLI-2xx)."""
@@ -445,8 +445,8 @@ class TestWorkflowNotFoundError:
 
         result = str(error)
 
-        assert "[DLI-104]" in result
-        assert "catalog.schema.dataset" in result
+        assert "[DLI-800]" in result  # Updated to DLI-8xx range
+        assert "Not found" in result
 
 
 class TestTranspileError:

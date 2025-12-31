@@ -1260,6 +1260,137 @@ class BasecampClient:
             status_code=501,
         )
 
+    def workflow_register(
+        self,
+        dataset_name: str,
+        cron: str,
+        *,
+        timezone: str = "UTC",
+        enabled: bool = True,
+        retry_max_attempts: int = 1,
+        retry_delay_seconds: int = 300,
+        force: bool = False,
+    ) -> ServerResponse:
+        """Register a local Dataset as MANUAL workflow.
+
+        Uploads the Dataset Spec to S3 manual/ path and registers
+        the schedule with Airflow via Basecamp Server.
+
+        Args:
+            dataset_name: Fully qualified dataset name
+            cron: Cron expression (5-field format, e.g., "0 9 * * *")
+            timezone: IANA timezone (default: "UTC")
+            enabled: Whether to enable schedule immediately (default: True)
+            retry_max_attempts: Max retry attempts on failure (default: 1)
+            retry_delay_seconds: Delay between retries in seconds (default: 300)
+            force: If True, overwrite existing MANUAL registration (default: False)
+
+        Returns:
+            ServerResponse with registered workflow info
+        """
+        if self.mock_mode:
+            # Check if a CODE workflow already exists (simulate permission error)
+            for workflow in self._mock_data["workflows"]:
+                if (
+                    workflow["dataset_name"] == dataset_name
+                    and workflow["source"] == WorkflowSource.CODE.value
+                ):
+                    return ServerResponse(
+                        success=False,
+                        error=f"Cannot register: CODE workflow exists for '{dataset_name}'",
+                        status_code=403,
+                    )
+
+            # Check if MANUAL workflow exists and force is not set
+            for workflow in self._mock_data["workflows"]:
+                if (
+                    workflow["dataset_name"] == dataset_name
+                    and workflow["source"] == WorkflowSource.MANUAL.value
+                    and not force
+                ):
+                    return ServerResponse(
+                        success=False,
+                        error=f"Workflow for '{dataset_name}' already exists. Use --force to overwrite.",
+                        status_code=409,
+                    )
+
+            # Calculate next run time
+            next_run = None
+            if enabled:
+                next_run = (datetime.now() + timedelta(hours=24)).isoformat()
+
+            workflow_info = {
+                "dataset_name": dataset_name,
+                "source_type": "manual",
+                "status": "active" if enabled else "paused",
+                "cron": cron,
+                "timezone": timezone,
+                "next_run": next_run,
+                "retry_max_attempts": retry_max_attempts,
+                "retry_delay_seconds": retry_delay_seconds,
+            }
+
+            return ServerResponse(
+                success=True,
+                data=workflow_info,
+            )
+
+        # Real implementation would call Basecamp Server API
+        # POST /api/v1/workflows/register
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def workflow_unregister(self, dataset_name: str) -> ServerResponse:
+        """Unregister a MANUAL workflow.
+
+        Removes the workflow from S3 manual/ path and unschedules from Airflow.
+        Only MANUAL workflows can be unregistered via CLI/API.
+
+        Args:
+            dataset_name: Fully qualified dataset name
+
+        Returns:
+            ServerResponse indicating success or failure
+        """
+        if self.mock_mode:
+            # Find the workflow
+            for i, workflow in enumerate(self._mock_data["workflows"]):
+                if workflow["dataset_name"] == dataset_name:
+                    # Check if it's a CODE workflow (cannot delete)
+                    if workflow["source"] == WorkflowSource.CODE.value:
+                        return ServerResponse(
+                            success=False,
+                            error=f"Cannot unregister CODE workflow '{dataset_name}'. Use Git to remove.",
+                            status_code=403,
+                        )
+
+                    # Remove the workflow
+                    self._mock_data["workflows"].pop(i)
+                    return ServerResponse(
+                        success=True,
+                        data={
+                            "dataset_name": dataset_name,
+                            "message": f"Workflow '{dataset_name}' unregistered successfully",
+                        },
+                    )
+
+            return ServerResponse(
+                success=False,
+                error=f"Workflow for dataset '{dataset_name}' not found",
+                status_code=404,
+            )
+
+        # Real implementation would call Basecamp Server API
+        # DELETE /api/v1/workflows/{dataset_name}
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
     # Catalog operations
 
     def catalog_list(

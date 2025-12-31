@@ -898,6 +898,7 @@ except DLIError as e:
 | DLI-5xx | Server | `ServerError` |
 | DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
 | DLI-7xx | Catalog | `CatalogError`, `CatalogNotFoundError` |
+| DLI-8xx | Workflow | `WorkflowNotFoundError`, `WorkflowRegistrationError`, `WorkflowExecutionError`, `WorkflowPermissionError` |
 
 ### Module Exports (`__init__.py`)
 

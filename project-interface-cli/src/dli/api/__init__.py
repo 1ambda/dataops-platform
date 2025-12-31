@@ -34,6 +34,7 @@ from dli.api.dataset import DatasetAPI
 from dli.api.metric import MetricAPI
 from dli.api.quality import QualityAPI
 from dli.api.transpile import TranspileAPI
+from dli.api.workflow import WorkflowAPI
 
 __all__ = [
     "CatalogAPI",
@@ -42,4 +43,5 @@ __all__ = [
     "MetricAPI",
     "QualityAPI",
     "TranspileAPI",
+    "WorkflowAPI",
 ]
