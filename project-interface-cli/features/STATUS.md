@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
-> **Auto-generated:** 2025-12-30
-> **Version:** 0.2.1
+> **Auto-generated:** 2025-12-31
+> **Version:** 0.3.0
 
 ---
 
@@ -9,9 +9,10 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.2.1 | ExecutionMode, DI 지원 |
-| CLI Commands | ✅ v0.2.0 | 9 subcommands |
-| Tests | ✅ 1609 passed | pyright 0 errors |
+| Library API | ✅ v0.3.0 | QualityAPI 추가 |
+| CLI Commands | ✅ v0.3.0 | quality validate 추가 |
+| Quality | ✅ v0.3.0 | list, get, run, validate |
+| Tests | ✅ 1656 passed | pyright 0 errors |
 
 ---
 
@@ -29,7 +30,7 @@
 | ServerExecutor | `core/executor.py` | ⏳ Stub | Phase 2에서 완전 구현 |
 | BigQueryExecutor | `adapters/bigquery.py` | ✅ Complete | 실제 BigQuery 연동 |
 
-### Library API (v0.2.0)
+### Library API (v0.3.0)
 
 | API Class | File | Status | DI Support |
 |-----------|------|--------|------------|
@@ -38,8 +39,9 @@
 | TranspileAPI | `api/transpile.py` | ✅ Complete | - |
 | CatalogAPI | `api/catalog.py` | ✅ Complete | - |
 | ConfigAPI | `api/config.py` | ✅ Complete | - |
+| QualityAPI | `api/quality.py` | ✅ Complete | - |
 
-### CLI Commands (v0.2.0)
+### CLI Commands (v0.3.0)
 
 | Command | File | Status |
 |---------|------|--------|
@@ -51,7 +53,7 @@
 | dli catalog | `commands/catalog.py` | ✅ Complete |
 | dli transpile | `commands/transpile.py` | ✅ Complete |
 | dli lineage | `commands/lineage.py` | ✅ Complete |
-| dli quality | `commands/quality.py` | ✅ Complete |
+| dli quality | `commands/quality.py` | ✅ Complete (list, get, run, validate) |
 
 ---
 
@@ -63,8 +65,9 @@
 | DLI-1xx | Not Found | DLI-104 | ✅ Complete |
 | DLI-2xx | Validation | DLI-204 | ✅ Complete |
 | DLI-3xx | Transpile | DLI-303 | ✅ Complete |
-| DLI-4xx | Execution | DLI-405 | ✅ Complete (404, 405 추가) |
-| DLI-5xx | Server | DLI-504 | ✅ Complete (504 추가) |
+| DLI-4xx | Execution | DLI-405 | ✅ Complete |
+| DLI-5xx | Server | DLI-504 | ✅ Complete |
+| DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 
 ---
 
@@ -83,10 +86,10 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | 252 | ✅ All pass |
-| CLI Tests | ~800 | ✅ All pass |
+| API Tests | 271 | ✅ All pass |
+| CLI Tests | ~828 | ✅ All pass |
 | Core Tests | ~500 | ✅ All pass |
-| **Total** | **1609** | ✅ All pass |
+| **Total** | **1656** | ✅ All pass |
 
 ---
 
@@ -98,6 +101,7 @@
 | CONTRIBUTION.md | ✅ Created | `project-interface-cli/CONTRIBUTION.md` |
 | PATTERNS.md | ✅ Updated | `project-interface-cli/docs/PATTERNS.md` |
 | RELEASE_EXECUTION.md | ✅ Created | `project-interface-cli/features/RELEASE_EXECUTION.md` |
+| RELEASE_QUALITY.md | ✅ Created | `project-interface-cli/features/RELEASE_QUALITY.md` |
 
 ---
 
@@ -111,6 +115,14 @@
 ---
 
 ## Changelog
+
+### v0.3.0 (2025-12-31)
+- QualityAPI 구현 (list_qualities, get, run, validate)
+- QualitySpec Pydantic 모델 (YAML 파싱용)
+- CLI 커맨드 업데이트 (list, get, run, validate - show 제거)
+- DLI-6xx 에러 코드 (601-606)
+- 47개 신규 테스트 (API 19 + CLI 28)
+- registry.py 삭제, QualityRegistry 제거
 
 ### v0.2.1 (2025-12-30)
 - ExecutionMode enum 추가 (LOCAL, SERVER, MOCK)

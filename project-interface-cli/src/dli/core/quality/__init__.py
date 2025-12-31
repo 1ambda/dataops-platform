@@ -7,19 +7,13 @@ Modules:
     models: Core data models (DqTestType, DqTestDefinition, DqTestResult, etc.)
     builtin_tests: SQL generators for built-in generic tests
     executor: Test execution engine (local and server)
-    registry: Test definition registry and discovery
 
 Usage:
-    >>> from dli.core.quality import QualityRegistry, QualityExecutor
+    >>> from dli.core.quality import QualityExecutor
     >>> from dli.core.quality import DqTestDefinition, DqTestType, DqStatus
-
-    # Create registry and load tests
-    >>> registry = QualityRegistry(project_path=Path("./my-project"))
-    >>> registry.load_all()
 
     # Execute tests
     >>> executor = QualityExecutor(client=client)
-    >>> tests = registry.get_tests("iceberg.analytics.daily_clicks")
     >>> report = executor.run_all(tests, on_server=True)
 
 Test Philosophy:
@@ -46,7 +40,6 @@ from dli.core.quality.models import (
     DqTestType,
     QualityReport,
 )
-from dli.core.quality.registry import QualityRegistry, create_registry
 
 __all__ = [
     # Models (Dq prefix to avoid pytest collection warnings)
@@ -62,7 +55,4 @@ __all__ = [
     # Executor
     "QualityExecutor",
     "create_executor",
-    # Registry
-    "QualityRegistry",
-    "create_registry",
 ]

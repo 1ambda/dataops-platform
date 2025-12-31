@@ -1,7 +1,7 @@
 # FEATURE: Quality Spec 분리 및 확장
 
 > **Version:** 1.0.0
-> **Status:** Draft
+> **Status:** Phase 1 MVP Implemented
 > **Last Updated:** 2025-12-31
 
 ---
@@ -794,3 +794,91 @@ raise QualityTargetNotFoundError(
 3. **기존 코드 재사용**: `Dq*` enum/dataclass 재사용으로 마이그레이션 부담 최소화
 4. **에러 코드 연속성**: DLI-6xx 범위로 기존 패턴(0xx~5xx) 유지
 5. **Pydantic 변환**: YAML 파싱용 Pydantic 모델 + 기존 dataclass 호환 메서드 제공
+
+---
+
+## Appendix C: 구현 상태 (Implementation Status)
+
+> **Last Updated:** 2025-12-31
+> **Status:** Phase 1 MVP 완료
+
+### C.1 구현 완료 항목
+
+| 구분 | 파일 | 설명 |
+|------|------|------|
+| **Models** | `dli/models/quality.py` | QualitySpec, DqTestDefinitionSpec, DqQualityResult 등 Pydantic 모델 |
+| **API** | `dli/api/quality.py` | QualityAPI (list_qualities, get, run, validate) |
+| **CLI** | `dli/commands/quality.py` | list, get, run, validate 커맨드 |
+| **Exceptions** | `dli/exceptions.py` | DLI-6xx 에러 코드 및 Quality 관련 예외 클래스 |
+| **Tests** | `tests/api/test_quality_api.py` | API 테스트 19개 |
+| **Tests** | `tests/cli/test_quality_cmd.py` | CLI 테스트 28개 |
+| **Fixtures** | `tests/fixtures/sample_project/` | Quality Spec 샘플 3개 |
+
+### C.2 CLI 커맨드 요약
+
+```bash
+# 서버에서 Quality 목록 조회
+dli quality list [--target-type dataset|metric] [--target TEXT] [--format table|json]
+
+# 서버에서 특정 Quality 상세 조회
+dli quality get QUALITY_NAME [--format table|json] [--include-history]
+
+# Quality Spec 실행 (LOCAL/SERVER 모드)
+dli quality run SPEC_PATH [--mode local|server] [--test TEXT] [--fail-fast] [--format table|json]
+
+# Quality Spec YML 유효성 검증
+dli quality validate SPEC_PATH [--strict] [--format table|json] [--test TEXT]
+```
+
+### C.3 Library API 사용 예시
+
+```python
+from dli import QualityAPI, ExecutionContext, ExecutionMode
+from pathlib import Path
+
+# API 인스턴스 생성
+ctx = ExecutionContext(
+    execution_mode=ExecutionMode.MOCK,  # 또는 LOCAL, SERVER
+    project_path=Path("/opt/airflow/dags/models"),
+)
+api = QualityAPI(context=ctx)
+
+# 서버에서 Quality 목록 조회
+qualities = api.list_qualities(target_type="dataset")
+
+# Quality Spec 실행
+result = api.run(
+    spec_path="quality.iceberg.analytics.daily_clicks.yaml",
+    tests=["pk_unique"],
+    parameters={"execution_date": "2025-01-01"},
+)
+
+# Spec 검증
+validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml")
+```
+
+### C.4 테스트 결과
+
+```
+============= 47 passed in 0.90s =============
+pyright: 0 errors, 0 warnings, 0 informations
+ruff: All checks passed!
+```
+
+### C.5 삭제된 파일/코드
+
+| 항목 | 이유 |
+|------|------|
+| `dli/core/quality/registry.py` | 로컬 레지스트리 기반 → SERVER 기반으로 변경 |
+| `QualityRegistry`, `create_registry` | registry.py 삭제에 따른 export 제거 |
+| `show` 커맨드 | `validate` 커맨드로 통합 |
+
+### C.6 향후 구현 예정 (Phase 2)
+
+| 기능 | 설명 | 우선순위 |
+|------|------|----------|
+| SERVER 모드 실행 | Basecamp Server API 연동 구현 | P0 |
+| Airflow DAG 메타데이터 | schedule 섹션 처리 및 DAG 생성 | P1 |
+| 알림 기능 | Slack/Email 발송 (Server에서 처리) | P1 |
+| Git Sync | PR 머지 시 자동 등록 | P2 |
+| Basecamp UI 연동 | Quality Spec 에디터, 결과 대시보드 | P2 |

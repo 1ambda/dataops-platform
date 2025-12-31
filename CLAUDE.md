@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, quality testing, **Library API v0.2.1** with ExecutionMode)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.3.0** with QualityAPI)
 
 ---
 
@@ -238,9 +238,9 @@ class UserRepositoryJpaImpl(
 | `dli catalog` | Data catalog browsing with implicit routing (1-4 part identifiers) |
 | `dli transpile` | SQL transpilation (table substitution, METRIC expansion, SQLGlot) |
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
-| `dli quality` | Data quality testing (6 built-in tests) |
+| `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
 
-### Library API (v0.2.0)
+### Library API (v0.3.0)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
@@ -251,6 +251,7 @@ class UserRepositoryJpaImpl(
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL 변환 |
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
+| `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
 
 **ExecutionMode (v0.2.1):**
 
@@ -375,5 +376,5 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 
 ---
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2025-12-31
 

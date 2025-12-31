@@ -28,17 +28,39 @@ from dli.models.common import (
     TranspileWarning,
     ValidationResult,
 )
+from dli.models.quality import (
+    # Quality models
+    DqQualityResult,
+    DqTestDefinitionSpec,
+    QualityInfo,
+    QualityMetadata,
+    QualityNotifications,
+    QualitySchedule,
+    QualitySpec,
+    QualityTarget,
+    QualityTargetType,
+)
 
 __all__ = [
     "BaseResult",
     "ConfigValue",
     "DataSource",
     "DatasetResult",
+    # Quality models
+    "DqQualityResult",
+    "DqTestDefinitionSpec",
     # Config models
     "EnvironmentInfo",
     # Context
     "ExecutionContext",
     "MetricResult",
+    "QualityInfo",
+    "QualityMetadata",
+    "QualityNotifications",
+    "QualitySchedule",
+    "QualitySpec",
+    "QualityTarget",
+    "QualityTargetType",
     # Enums
     "ResultStatus",
     # Type aliases

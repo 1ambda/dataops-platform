@@ -31,6 +31,7 @@ class ErrorCode(str, Enum):
     - DLI-3xx: Transpile errors
     - DLI-4xx: Execution errors
     - DLI-5xx: Server errors
+    - DLI-6xx: Quality errors
     """
 
     # Configuration Errors (DLI-0xx)
@@ -67,6 +68,13 @@ class ErrorCode(str, Enum):
     SERVER_AUTH_FAILED = "DLI-502"
     SERVER_ERROR = "DLI-503"
     SERVER_EXECUTION = "DLI-504"  # Server-side execution error
+
+    # Quality Errors (DLI-6xx)
+    QUALITY_SPEC_NOT_FOUND = "DLI-601"
+    QUALITY_SPEC_PARSE = "DLI-602"
+    QUALITY_TARGET_NOT_FOUND = "DLI-603"
+    QUALITY_TEST_EXECUTION = "DLI-604"
+    QUALITY_NOT_FOUND = "DLI-606"
 
 
 @dataclass
@@ -311,6 +319,126 @@ class WorkflowNotFoundError(DLIError):
         )
 
 
+# Quality Errors (DLI-6xx)
+
+
+@dataclass
+class QualitySpecNotFoundError(DLIError):
+    """Quality Spec file not found error.
+
+    Raised when a Quality Spec YML file cannot be found.
+
+    Attributes:
+        spec_path: Path to the Quality Spec file that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_SPEC_NOT_FOUND
+    spec_path: Path | str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        return f"[{self.code.value}] Quality Spec not found: {self.spec_path}"
+
+
+@dataclass
+class QualitySpecParseError(DLIError):
+    """Quality Spec parsing error.
+
+    Raised when a Quality Spec YML file cannot be parsed.
+
+    Attributes:
+        spec_path: Path to the Quality Spec file.
+        line: Line number where error occurred (if available).
+        column: Column number where error occurred (if available).
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_SPEC_PARSE
+    spec_path: Path | str = ""
+    line: int | None = None
+    column: int | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message with location."""
+        base = f"[{self.code.value}] {self.message}"
+        if self.spec_path:
+            base += f" in {self.spec_path}"
+        if self.line is not None:
+            base += f" at line {self.line}"
+            if self.column is not None:
+                base += f", column {self.column}"
+        return base
+
+
+@dataclass
+class QualityTargetNotFoundError(DLIError):
+    """Quality target (Dataset/Metric) not found error.
+
+    Raised when the target Dataset or Metric referenced in a Quality Spec
+    cannot be found.
+
+    Attributes:
+        target_urn: The URN of the target that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_TARGET_NOT_FOUND
+    target_urn: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        return f"[{self.code.value}] Target not found: {self.target_urn}"
+
+
+@dataclass
+class QualityNotFoundError(DLIError):
+    """Quality not found on server error.
+
+    Raised when a Quality registered on the server cannot be found.
+
+    Attributes:
+        name: The Quality name that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_NOT_FOUND
+    name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        return f"[{self.code.value}] Quality '{self.name}' not found"
+
+
+@dataclass
+class QualityTestExecutionError(DLIError):
+    """Quality test execution error.
+
+    Raised when a quality test fails to execute (not when it fails validation).
+
+    Attributes:
+        test_name: Name of the test that failed to execute.
+        target_urn: URN of the target being tested.
+        cause: Original exception that caused the failure.
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_TEST_EXECUTION
+    test_name: str = ""
+    target_urn: str = ""
+    cause: Exception | None = None
+
+    def __post_init__(self) -> None:
+        """Chain the cause exception and initialize base class."""
+        super().__post_init__()
+        if self.cause:
+            self.__cause__ = self.cause
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Test '{self.test_name}' execution failed"
+        if self.target_urn:
+            base += f" for {self.target_urn}"
+        if self.cause:
+            base += f": {self.cause}"
+        return base
+
+
 __all__ = [
     "ConfigurationError",
     "DLIError",
@@ -319,6 +447,12 @@ __all__ = [
     "ErrorCode",
     "ExecutionError",
     "MetricNotFoundError",
+    # Quality Errors
+    "QualityNotFoundError",
+    "QualitySpecNotFoundError",
+    "QualitySpecParseError",
+    "QualityTargetNotFoundError",
+    "QualityTestExecutionError",
     "ServerError",
     "TableNotFoundError",
     "TranspileError",

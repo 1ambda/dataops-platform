@@ -2,27 +2,20 @@
 
 This module tests the quality subcommand for managing and executing
 data quality tests. Tests cover:
-- list: List quality tests for a resource or all resources
-- run: Execute quality tests locally or on server
-- show: Show details of a specific test definition
+- list: List quality tests registered on server
+- get: Get details of a specific quality from server
+- run: Execute quality tests from a Quality Spec (LOCAL/SERVER)
+- validate: Validate a Quality Spec YML file
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
-from dli.core.quality import (
-    DqSeverity,
-    DqStatus,
-    DqTestDefinition,
-    DqTestResult,
-    DqTestType,
-    QualityReport,
-)
 from dli.main import app
 from tests.cli.conftest import get_output
 from tests.conftest import strip_ansi
@@ -30,94 +23,8 @@ from tests.conftest import strip_ansi
 runner = CliRunner()
 
 
-@pytest.fixture
-def mock_test_definitions() -> list[DqTestDefinition]:
-    """Create mock test definitions for testing."""
-    return [
-        DqTestDefinition(
-            name="not_null_user_id",
-            test_type=DqTestType.NOT_NULL,
-            resource_name="iceberg.analytics.daily_clicks",
-            columns=["user_id"],
-            severity=DqSeverity.ERROR,
-            enabled=True,
-        ),
-        DqTestDefinition(
-            name="unique_user_dt",
-            test_type=DqTestType.UNIQUE,
-            resource_name="iceberg.analytics.daily_clicks",
-            columns=["user_id", "dt"],
-            severity=DqSeverity.ERROR,
-            enabled=True,
-        ),
-        DqTestDefinition(
-            name="accepted_device_type",
-            test_type=DqTestType.ACCEPTED_VALUES,
-            resource_name="iceberg.analytics.daily_clicks",
-            columns=["device_type"],
-            params={"values": ["mobile", "desktop", "tablet"]},
-            severity=DqSeverity.WARN,
-            enabled=True,
-        ),
-    ]
-
-
-@pytest.fixture
-def mock_quality_report_pass() -> QualityReport:
-    """Create a mock quality report with passing tests."""
-    results = [
-        DqTestResult(
-            test_name="not_null_user_id",
-            resource_name="iceberg.analytics.daily_clicks",
-            status=DqStatus.PASS,
-            failed_rows=0,
-            execution_time_ms=100,
-        ),
-        DqTestResult(
-            test_name="unique_user_dt",
-            resource_name="iceberg.analytics.daily_clicks",
-            status=DqStatus.PASS,
-            failed_rows=0,
-            execution_time_ms=150,
-        ),
-    ]
-
-    return QualityReport.from_results(
-        resource_name="iceberg.analytics.daily_clicks",
-        results=results,
-        executed_on="local",
-    )
-
-
-@pytest.fixture
-def mock_quality_report_fail() -> QualityReport:
-    """Create a mock quality report with failing tests."""
-    results = [
-        DqTestResult(
-            test_name="not_null_user_id",
-            resource_name="iceberg.analytics.daily_clicks",
-            status=DqStatus.FAIL,
-            failed_rows=5,
-            failed_samples=[
-                {"user_id": None, "click_count": 10},
-                {"user_id": None, "click_count": 5},
-            ],
-            execution_time_ms=100,
-        ),
-        DqTestResult(
-            test_name="unique_user_dt",
-            resource_name="iceberg.analytics.daily_clicks",
-            status=DqStatus.PASS,
-            failed_rows=0,
-            execution_time_ms=150,
-        ),
-    ]
-
-    return QualityReport.from_results(
-        resource_name="iceberg.analytics.daily_clicks",
-        results=results,
-        executed_on="local",
-    )
+# Fixtures path
+FIXTURES_PATH = Path(__file__).parent.parent / "fixtures" / "sample_project"
 
 
 class TestQualityHelp:
@@ -127,17 +34,28 @@ class TestQualityHelp:
         """Test 'dli quality --help' shows command help."""
         result = runner.invoke(app, ["quality", "--help"])
         assert result.exit_code == 0
-        assert "quality" in result.stdout.lower()
-        assert "list" in result.stdout
-        assert "run" in result.stdout
-        assert "show" in result.stdout
+        output = strip_ansi(result.stdout)
+        assert "quality" in output.lower()
+        assert "list" in output
+        assert "get" in output
+        assert "run" in output
+        assert "validate" in output
 
     def test_quality_list_help(self) -> None:
         """Test 'dli quality list --help' shows command help."""
         result = runner.invoke(app, ["quality", "list", "--help"])
         assert result.exit_code == 0
         output = strip_ansi(result.stdout)
-        assert "--resource" in output
+        assert "--target-type" in output
+        assert "--target" in output
+        assert "--format" in output
+
+    def test_quality_get_help(self) -> None:
+        """Test 'dli quality get --help' shows command help."""
+        result = runner.invoke(app, ["quality", "get", "--help"])
+        assert result.exit_code == 0
+        output = strip_ansi(result.stdout)
+        assert "QUALITY_NAME" in output
         assert "--format" in output
 
     def test_quality_run_help(self) -> None:
@@ -145,15 +63,17 @@ class TestQualityHelp:
         result = runner.invoke(app, ["quality", "run", "--help"])
         assert result.exit_code == 0
         output = strip_ansi(result.stdout)
-        assert "--all" in output
-        assert "--server" in output
+        assert "--mode" in output
+        assert "--test" in output
         assert "--fail-fast" in output
+        assert "--param" in output
 
-    def test_quality_show_help(self) -> None:
-        """Test 'dli quality show --help' shows command help."""
-        result = runner.invoke(app, ["quality", "show", "--help"])
+    def test_quality_validate_help(self) -> None:
+        """Test 'dli quality validate --help' shows command help."""
+        result = runner.invoke(app, ["quality", "validate", "--help"])
         assert result.exit_code == 0
         output = strip_ansi(result.stdout)
+        assert "--strict" in output
         assert "--test" in output
         assert "--format" in output
 
@@ -161,488 +81,248 @@ class TestQualityHelp:
 class TestQualityList:
     """Tests for quality list command."""
 
-    def test_quality_list_all_tests(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test listing all quality tests."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_list_all(self) -> None:
+        """Test listing all qualities (mock mode)."""
+        result = runner.invoke(app, ["quality", "list"])
 
-            result = runner.invoke(
-                app,
-                ["quality", "list", "--path", str(sample_project_path)],
-            )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should show mock data
+        assert "Quality Tests" in output or "pk_unique" in output
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            # Should display test names in table
-            assert "not_null" in output.lower() or "Test" in output
+    def test_quality_list_filter_by_target_type(self) -> None:
+        """Test listing qualities filtered by target type."""
+        result = runner.invoke(
+            app,
+            ["quality", "list", "--target-type", "dataset"],
+        )
 
-    def test_quality_list_by_resource(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test listing tests filtered by resource."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should only show dataset qualities
+        assert "dataset" in output.lower()
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "list",
-                    "--resource",
-                    "iceberg.analytics.daily_clicks",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+    def test_quality_list_filter_by_target_name(self) -> None:
+        """Test listing qualities filtered by target name."""
+        result = runner.invoke(
+            app,
+            ["quality", "list", "--target", "daily_clicks"],
+        )
 
-            assert result.exit_code == 0
-            # Verify resource filter was passed
-            mock_registry.get_tests.assert_called_once_with(
-                resource_name="iceberg.analytics.daily_clicks"
-            )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Check for the target URN which contains daily_clicks
+        # Table may truncate, so check for partial match or URN
+        assert "iceberg.analytics.daily_clicks" in output or "daily" in output.lower()
 
-    def test_quality_list_json_format(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test listing tests in JSON format."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_list_json_format(self) -> None:
+        """Test listing qualities in JSON format."""
+        result = runner.invoke(
+            app,
+            ["quality", "list", "--format", "json"],
+        )
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "list",
-                    "--format",
-                    "json",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should be valid JSON
+        data = json.loads(output)
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert "name" in data[0]
+        assert "target_urn" in data[0]
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            # JSON output should contain test data
-            assert "not_null" in output.lower()
 
-    def test_quality_list_no_tests_found(self, sample_project_path: Path) -> None:
-        """Test listing when no tests are found."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = []
-            mock_registry_cls.return_value = mock_registry
+class TestQualityGet:
+    """Tests for quality get command."""
 
-            result = runner.invoke(
-                app,
-                ["quality", "list", "--path", str(sample_project_path)],
-            )
+    def test_quality_get_existing(self) -> None:
+        """Test getting an existing quality."""
+        result = runner.invoke(app, ["quality", "get", "pk_unique"])
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "no tests" in output.lower()
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "pk_unique" in output
 
-    def test_quality_list_resource_not_found(self, sample_project_path: Path) -> None:
-        """Test listing tests for nonexistent resource."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = []
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_get_nonexistent(self) -> None:
+        """Test getting a nonexistent quality."""
+        result = runner.invoke(app, ["quality", "get", "nonexistent_quality"])
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "list",
-                    "--resource",
-                    "nonexistent.resource",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "not found" in output.lower()
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "no tests" in output.lower()
+    def test_quality_get_json_format(self) -> None:
+        """Test getting quality in JSON format."""
+        result = runner.invoke(
+            app,
+            ["quality", "get", "pk_unique", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should be valid JSON
+        data = json.loads(output)
+        assert data["name"] == "pk_unique"
+        assert "target_urn" in data
 
 
 class TestQualityRun:
     """Tests for quality run command."""
 
-    def test_quality_run_resource(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_pass: QualityReport,
-    ) -> None:
-        """Test running quality tests for a resource."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_run_valid_spec(self) -> None:
+        """Test running a valid Quality Spec."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_pass
-            mock_executor_cls.return_value = mock_executor
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "passed" in output.lower() or "PASS" in output
-
-    def test_quality_run_all(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_pass: QualityReport,
-    ) -> None:
-        """Test running all quality tests."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
-
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_pass
-            mock_executor_cls.return_value = mock_executor
-
-            result = runner.invoke(
-                app,
-                ["quality", "run", "--all", "--path", str(sample_project_path)],
-            )
-
-            assert result.exit_code == 0
-
-    def test_quality_run_fails_on_test_failure(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_fail: QualityReport,
-    ) -> None:
-        """Test that run exits with error when tests fail."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
-
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_fail
-            mock_executor_cls.return_value = mock_executor
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 1
-            output = get_output(result)
-            assert "fail" in output.lower()
-
-    def test_quality_run_json_format(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_pass: QualityReport,
-    ) -> None:
-        """Test running tests with JSON output format."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
-
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_pass
-            mock_executor_cls.return_value = mock_executor
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--format",
-                    "json",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 0
-            output = get_output(result)
-            # Should contain JSON fields
-            assert "passed" in output.lower() or "success" in output.lower()
-
-    def test_quality_run_specific_test(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_pass: QualityReport,
-    ) -> None:
-        """Test running a specific test by name."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls:
-            mock_registry = MagicMock()
-            # Return only the specific test
-            mock_registry.get_tests.return_value = [mock_test_definitions[0]]
-            mock_registry_cls.return_value = mock_registry
-
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_pass
-            mock_executor_cls.return_value = mock_executor
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--test",
-                    "not_null_user_id",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 0
-            # Verify test filter was passed
-            mock_registry.get_tests.assert_called_once_with(
-                resource_name="iceberg.analytics.daily_clicks",
-                test_name="not_null_user_id",
-            )
-
-    def test_quality_run_no_resource_no_all_flag(
-        self, sample_project_path: Path
-    ) -> None:
-        """Test running without resource and without --all flag fails."""
+        # Use server mode since LOCAL requires an actual executor
         result = runner.invoke(
             app,
-            ["quality", "run", "--path", str(sample_project_path)],
+            ["quality", "run", spec_path, "--mode", "server"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "Quality Test Report" in output or "passed" in output.lower()
+
+    def test_quality_run_with_mode_server(self) -> None:
+        """Test running in server mode."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
+
+        result = runner.invoke(
+            app,
+            ["quality", "run", spec_path, "--mode", "server"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "SERVER" in output or "server" in output.lower()
+
+    def test_quality_run_specific_tests(self) -> None:
+        """Test running specific tests only."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
+
+        # Use server mode since LOCAL requires an actual executor
+        result = runner.invoke(
+            app,
+            ["quality", "run", spec_path, "--test", "pk_unique", "--mode", "server"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "pk_unique" in output or "passed" in output.lower()
+
+    def test_quality_run_json_format(self) -> None:
+        """Test running with JSON output format."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
+
+        # Use server mode since LOCAL requires an actual executor
+        result = runner.invoke(
+            app,
+            ["quality", "run", spec_path, "--format", "json", "--mode", "server"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should be valid JSON
+        data = json.loads(output)
+        assert "target_urn" in data
+        assert "status" in data
+        assert "test_results" in data
+
+    def test_quality_run_nonexistent_spec(self) -> None:
+        """Test running a nonexistent spec."""
+        result = runner.invoke(
+            app,
+            ["quality", "run", "nonexistent.yaml", "--path", str(FIXTURES_PATH)],
         )
 
         assert result.exit_code == 1
         output = get_output(result)
-        assert "resource" in output.lower() or "--all" in output
-
-    def test_quality_run_no_tests_found(self, sample_project_path: Path) -> None:
-        """Test running when no tests are found."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = []
-            mock_registry_cls.return_value = mock_registry
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "no tests" in output.lower()
-
-    def test_quality_run_server_mode(
-        self,
-        sample_project_path: Path,
-        mock_test_definitions: list[TestDefinition],
-        mock_quality_report_pass: QualityReport,
-    ) -> None:
-        """Test running tests on server."""
-        with patch(
-            "dli.commands.quality.QualityRegistry"
-        ) as mock_registry_cls, patch(
-            "dli.commands.quality.QualityExecutor"
-        ) as mock_executor_cls, patch(
-            "dli.commands.quality.get_client"
-        ) as mock_get_client:
-            mock_registry = MagicMock()
-            mock_registry.get_tests.return_value = mock_test_definitions
-            mock_registry_cls.return_value = mock_registry
-
-            mock_executor = MagicMock()
-            mock_executor.run_all.return_value = mock_quality_report_pass
-            mock_executor_cls.return_value = mock_executor
-
-            mock_client = MagicMock()
-            mock_get_client.return_value = mock_client
-
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--server",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
-
-            assert result.exit_code == 0
-            # Verify client was created and passed to executor
-            mock_get_client.assert_called_once()
-            mock_executor.run_all.assert_called_once()
-            call_args = mock_executor.run_all.call_args
-            assert call_args[1]["on_server"] is True
+        assert "not found" in output.lower()
 
 
-class TestQualityShow:
-    """Tests for quality show command."""
+class TestQualityValidate:
+    """Tests for quality validate command."""
 
-    def test_quality_show_test_details(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test showing details of a specific test."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_test.return_value = mock_test_definitions[0]
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_validate_valid_spec(self) -> None:
+        """Test validating a valid Quality Spec."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "show",
-                    "iceberg.analytics.daily_clicks",
-                    "--test",
-                    "not_null_user_id",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        result = runner.invoke(
+            app,
+            ["quality", "validate", spec_path],
+        )
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "not_null" in output.lower()
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "Validation passed" in output or "valid" in output.lower()
 
-    def test_quality_show_json_format(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test showing test details in JSON format."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_test.return_value = mock_test_definitions[0]
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_validate_shows_spec_info(self) -> None:
+        """Test that validate shows spec information."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "show",
-                    "iceberg.analytics.daily_clicks",
-                    "--test",
-                    "not_null_user_id",
-                    "--format",
-                    "json",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        result = runner.invoke(
+            app,
+            ["quality", "validate", spec_path],
+        )
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            # JSON output should contain test fields
-            assert "not_null" in output.lower()
-            assert "resource" in output.lower() or "type" in output.lower()
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should show spec details
+        assert "iceberg.analytics.daily_clicks" in output
 
-    def test_quality_show_test_not_found(self, sample_project_path: Path) -> None:
-        """Test showing a test that doesn't exist."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_test.return_value = None
-            mock_registry_cls.return_value = mock_registry
+    def test_quality_validate_specific_test(self) -> None:
+        """Test validating with specific test details."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "show",
-                    "iceberg.analytics.daily_clicks",
-                    "--test",
-                    "nonexistent_test",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        result = runner.invoke(
+            app,
+            ["quality", "validate", spec_path, "--test", "pk_unique"],
+        )
 
-            assert result.exit_code == 1
-            output = get_output(result)
-            assert "not found" in output.lower()
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "pk_unique" in output
 
-    def test_quality_show_with_params(
-        self, sample_project_path: Path, mock_test_definitions: list[TestDefinition]
-    ) -> None:
-        """Test showing test details that have parameters."""
-        # Get the accepted_values test which has params
-        test_with_params = mock_test_definitions[2]
+    def test_quality_validate_nonexistent_test(self) -> None:
+        """Test validating with a nonexistent test name."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.get_test.return_value = test_with_params
-            mock_registry_cls.return_value = mock_registry
+        result = runner.invoke(
+            app,
+            ["quality", "validate", spec_path, "--test", "nonexistent_test"],
+        )
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "show",
-                    "iceberg.analytics.daily_clicks",
-                    "--test",
-                    "accepted_device_type",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+        # Should show warning that test not found
+        output = get_output(result)
+        assert "not found" in output.lower() or "nonexistent_test" in output
 
-            assert result.exit_code == 0
-            output = get_output(result)
-            assert "accepted_values" in output.lower()
+    def test_quality_validate_json_format(self) -> None:
+        """Test validating with JSON output format."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
+
+        result = runner.invoke(
+            app,
+            ["quality", "validate", spec_path, "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should be valid JSON
+        data = json.loads(output)
+        assert "valid" in data
+        assert "errors" in data
+        assert "warnings" in data
+
+    def test_quality_validate_nonexistent_spec(self) -> None:
+        """Test validating a nonexistent spec."""
+        result = runner.invoke(
+            app,
+            ["quality", "validate", "nonexistent.yaml", "--path", str(FIXTURES_PATH)],
+        )
+
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "not found" in output.lower()
 
 
 class TestQualityNoArgsIsHelp:
@@ -657,43 +337,55 @@ class TestQualityNoArgsIsHelp:
         assert "list" in output or "run" in output or "Usage" in output
 
 
-class TestQualityRegistryErrors:
-    """Tests for quality registry error handling."""
+class TestQualityOutputFormats:
+    """Tests for output format consistency."""
 
-    def test_quality_list_registry_load_error(self, sample_project_path: Path) -> None:
-        """Test handling registry load errors."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.load_all.side_effect = Exception("Failed to load config")
-            mock_registry_cls.return_value = mock_registry
+    def test_list_table_format(self) -> None:
+        """Test list command with table format."""
+        result = runner.invoke(app, ["quality", "list", "--format", "table"])
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Table should have structure
+        assert "Name" in output or "Target" in output or "Quality" in output
 
-            result = runner.invoke(
-                app,
-                ["quality", "list", "--path", str(sample_project_path)],
-            )
+    def test_get_table_format(self) -> None:
+        """Test get command with table format."""
+        result = runner.invoke(
+            app, ["quality", "get", "pk_unique", "--format", "table"]
+        )
+        assert result.exit_code == 0
 
-            assert result.exit_code == 1
-            output = get_output(result)
-            assert "failed" in output.lower() or "error" in output.lower()
 
-    def test_quality_run_registry_load_error(self, sample_project_path: Path) -> None:
-        """Test handling registry load errors during run."""
-        with patch("dli.commands.quality.QualityRegistry") as mock_registry_cls:
-            mock_registry = MagicMock()
-            mock_registry.load_all.side_effect = Exception("Configuration error")
-            mock_registry_cls.return_value = mock_registry
+class TestQualityEdgeCases:
+    """Tests for edge cases and error handling."""
 
-            result = runner.invoke(
-                app,
-                [
-                    "quality",
-                    "run",
-                    "iceberg.analytics.daily_clicks",
-                    "--path",
-                    str(sample_project_path),
-                ],
-            )
+    def test_run_with_parameters(self) -> None:
+        """Test running with custom parameters."""
+        spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-            assert result.exit_code == 1
-            output = get_output(result)
-            assert "failed" in output.lower() or "error" in output.lower()
+        # Use server mode since LOCAL requires an actual executor
+        result = runner.invoke(
+            app,
+            [
+                "quality",
+                "run",
+                spec_path,
+                "--param",
+                "date=2025-01-01",
+                "--mode",
+                "server",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+    def test_validate_multiple_specs(self) -> None:
+        """Test validating different specs."""
+        for spec_name in [
+            "quality.iceberg.analytics.daily_clicks.yaml",
+            "quality.iceberg.analytics.user_sessions.yaml",
+            "quality.iceberg.core.users.yaml",
+        ]:
+            spec_path = str(FIXTURES_PATH / spec_name)
+            result = runner.invoke(app, ["quality", "validate", spec_path])
+            assert result.exit_code == 0, f"Failed for {spec_name}"

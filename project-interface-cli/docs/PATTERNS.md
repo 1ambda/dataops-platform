@@ -1,7 +1,7 @@
 # DLI CLI Development Patterns
 
 > **Purpose:** Accelerate new feature development by providing reference patterns for common tasks.
-> **Last Updated:** 2025-12-30
+> **Last Updated:** 2025-12-31
 
 ---
 
@@ -476,6 +476,7 @@ The Library API provides programmatic access to DLI functionality, designed for 
 Library API Layer (src/dli/api/)
 ├── dataset.py        # DatasetAPI (Facade)
 ├── metric.py         # MetricAPI (Facade)
+├── quality.py        # QualityAPI (Facade)
 ├── transpile.py      # TranspileAPI (Facade)
 └── __init__.py       # Public exports
 
@@ -485,6 +486,29 @@ Shared Models (src/dli/models/)
 
 Exceptions (src/dli/exceptions.py)
 └── Structured exception hierarchy with error codes
+```
+
+### QualityAPI Quick Example
+
+```python
+from dli import QualityAPI, ExecutionContext
+from dli.models.common import ExecutionMode
+
+# Create context (mock mode for testing)
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+api = QualityAPI(context=ctx)
+
+# List quality specs from server
+qualities = api.list_qualities(target_type="dataset")
+
+# Run quality test by spec path
+result = api.run("quality.iceberg.analytics.daily_clicks.yaml")
+print(f"Status: {result.status}, Duration: {result.duration_ms}ms")
+
+# Validate spec before execution
+validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml", strict=True)
+if not validation.valid:
+    print(f"Errors: {validation.errors}")
 ```
 
 ### API Class Template (Facade Pattern)
@@ -872,6 +896,7 @@ except DLIError as e:
 | DLI-3xx | Transpile | `TranspileError` |
 | DLI-4xx | Execution | `ExecutionError` |
 | DLI-5xx | Server | `ServerError` |
+| DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
 
 ### Module Exports (`__init__.py`)
 
@@ -880,12 +905,14 @@ except DLIError as e:
 
 from dli.api.dataset import DatasetAPI
 from dli.api.metric import MetricAPI
+from dli.api.quality import QualityAPI
 from dli.models.common import ExecutionContext, ResultStatus, ValidationResult
 
 __all__ = [
     "DatasetAPI",
     "ExecutionContext",
     "MetricAPI",
+    "QualityAPI",
     "ResultStatus",
     "ValidationResult",
 ]

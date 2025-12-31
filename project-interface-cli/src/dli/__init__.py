@@ -24,6 +24,7 @@ API Classes:
     - TranspileAPI: SQL transpilation
     - CatalogAPI: Data catalog browsing
     - ConfigAPI: Configuration management (read-only)
+    - QualityAPI: Data quality testing
 
 Exceptions:
     - DLIError: Base exception for all DLI errors
@@ -33,6 +34,9 @@ Exceptions:
     - ExecutionError: Execution failure
     - ConfigurationError: Configuration error
     - ServerError: Server communication error
+    - QualitySpecNotFoundError: Quality Spec not found
+    - QualitySpecParseError: Quality Spec parsing error
+    - QualityNotFoundError: Quality not found on server
 
 Example (Airflow PythonOperator):
     >>> from airflow.decorators import task
@@ -57,6 +61,7 @@ from dli.api import (
     ConfigAPI,
     DatasetAPI,
     MetricAPI,
+    QualityAPI,
     TranspileAPI,
 )
 
@@ -69,6 +74,10 @@ from dli.exceptions import (
     ErrorCode,
     ExecutionError,
     MetricNotFoundError,
+    QualityNotFoundError,
+    QualitySpecNotFoundError,
+    QualitySpecParseError,
+    QualityTargetNotFoundError,
     ServerError,
     TableNotFoundError,
     TranspileError,
@@ -79,27 +88,32 @@ from dli.exceptions import (
 from dli.models.common import ExecutionContext, ExecutionMode
 
 __all__ = [
+    # API Classes
     "CatalogAPI",
     "ConfigAPI",
-    "ConfigurationError",
+    "DatasetAPI",
+    "MetricAPI",
+    "QualityAPI",
+    "TranspileAPI",
     # Exceptions
+    "ConfigurationError",
     "DLIError",
     "DLIValidationError",
-    # API Classes
-    "DatasetAPI",
     "DatasetNotFoundError",
     "ErrorCode",
+    "ExecutionError",
+    "MetricNotFoundError",
+    "QualityNotFoundError",
+    "QualitySpecNotFoundError",
+    "QualitySpecParseError",
+    "QualityTargetNotFoundError",
+    "ServerError",
+    "TableNotFoundError",
+    "TranspileError",
+    "WorkflowNotFoundError",
     # Context
     "ExecutionContext",
     "ExecutionMode",
-    "ExecutionError",
-    "MetricAPI",
-    "MetricNotFoundError",
-    "ServerError",
-    "TableNotFoundError",
-    "TranspileAPI",
-    "TranspileError",
-    "WorkflowNotFoundError",
     # Version
     "__version__",
 ]

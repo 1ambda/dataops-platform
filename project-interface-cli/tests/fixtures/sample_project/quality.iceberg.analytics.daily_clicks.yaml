@@ -1,0 +1,72 @@
+# Quality Spec for iceberg.analytics.daily_clicks dataset
+version: 1
+
+target:
+  type: dataset
+  name: iceberg.analytics.daily_clicks
+
+metadata:
+  owner: analyst@example.com
+  team: "@data-quality"
+  description: "Daily clicks dataset quality tests"
+  tags:
+    - production
+    - critical
+
+schedule:
+  cron: "0 6 * * *"
+  timezone: "UTC"
+  enabled: true
+
+notifications:
+  slack:
+    channel: "#data-quality-alerts"
+    on_failure: true
+    on_success: false
+
+tests:
+  # Primary key uniqueness check
+  - name: pk_unique
+    type: unique
+    columns: [id]
+    severity: error
+    description: "Primary key must be unique"
+
+  # Not null checks
+  - name: not_null_user_id
+    type: not_null
+    columns: [user_id, event_time]
+    severity: error
+    description: "user_id and event_time must not be null"
+
+  # Valid country codes
+  - name: valid_country_code
+    type: accepted_values
+    column: country_code
+    values:
+      - US
+      - CA
+      - GB
+      - DE
+      - FR
+    severity: warn
+    description: "Country code must be in allowed list"
+
+  # Referential integrity
+  - name: fk_user_exists
+    type: relationships
+    column: user_id
+    to: iceberg.core.users
+    to_column: id
+    severity: error
+    description: "User must exist in users table"
+
+  # Custom SQL test - no future dates
+  - name: no_future_dates
+    type: singular
+    severity: error
+    description: "Event time should not be in the future"
+    sql: |
+      SELECT *
+      FROM {{ target }}
+      WHERE event_time > CURRENT_TIMESTAMP

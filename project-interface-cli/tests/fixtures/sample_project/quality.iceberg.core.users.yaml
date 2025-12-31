@@ -1,0 +1,75 @@
+# Quality Spec for iceberg.core.users dataset
+version: 1
+
+target:
+  type: dataset
+  name: iceberg.core.users
+
+metadata:
+  owner: platform@example.com
+  team: "@platform-team"
+  description: "Core users table quality tests"
+  tags:
+    - core
+    - users
+    - pii
+
+schedule:
+  cron: "0 0 * * *"
+  timezone: "UTC"
+  enabled: true
+
+notifications:
+  slack:
+    channel: "#platform-alerts"
+    on_failure: true
+    on_success: false
+  email:
+    recipients:
+      - platform@example.com
+    on_failure: true
+
+tests:
+  # Primary key uniqueness
+  - name: pk_unique
+    type: unique
+    columns: [id]
+    severity: error
+
+  # Email format check
+  - name: valid_email
+    type: singular
+    severity: error
+    description: "Email should be valid format"
+    sql: |
+      SELECT *
+      FROM {{ target }}
+      WHERE email IS NOT NULL
+        AND email NOT LIKE '%@%.%'
+
+  # Status values
+  - name: valid_status
+    type: accepted_values
+    column: status
+    values:
+      - active
+      - inactive
+      - pending
+      - suspended
+    severity: error
+
+  # Created date not null
+  - name: not_null_created_at
+    type: not_null
+    columns: [created_at]
+    severity: error
+
+  # No orphan records
+  - name: no_future_created_at
+    type: singular
+    severity: error
+    description: "created_at should not be in the future"
+    sql: |
+      SELECT *
+      FROM {{ target }}
+      WHERE created_at > CURRENT_TIMESTAMP

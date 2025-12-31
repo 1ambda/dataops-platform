@@ -166,6 +166,7 @@ def test_run_mock(mock_api):
 | DLI-3xx | Transpile | `TranspileError` |
 | DLI-4xx | Execution | `ExecutionError` |
 | DLI-5xx | Server | `ServerError` |
+| DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
 
 ## 8. Naming Conventions
 

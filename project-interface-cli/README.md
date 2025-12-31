@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.2.0 | **Python:** 3.12+
+> **Version:** 0.3.0 | **Python:** 3.12+
 
 ## Features
 
@@ -11,11 +11,11 @@
 - **Spec File System**: YAML-based specifications with safe templating
 - **Validation**: Schema validation and dependency checking
 - **Lineage Tracking**: Visualize upstream/downstream dependencies
-- **Quality Testing**: 6 built-in tests (not_null, unique, accepted_values, relationships, range_check, row_count)
+- **Quality Testing**: Quality Spec YAML 기반 독립적 품질 검증 (Generic + Singular tests)
 - **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
-- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI for Airflow/orchestrator integration
+- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI for Airflow/orchestrator integration
 
 ## Installation
 
@@ -88,14 +88,17 @@ dli lineage downstream <resource_name>
 ### Quality Testing
 
 ```bash
-# List available quality tests
-dli quality list
+# List quality tests from server
+dli quality list [--target-type dataset|metric] [--target TEXT]
 
-# Run quality tests
-dli quality run                           # Run all tests
-dli quality run --resource <name>         # Run tests for specific resource
-dli quality run --test not_null           # Run specific test type
-dli quality run --server                  # Fetch test definitions from server
+# Get quality details from server
+dli quality get QUALITY_NAME [--include-history]
+
+# Run quality spec (LOCAL/SERVER mode)
+dli quality run SPEC_PATH [--mode local|server] [--test TEXT] [--fail-fast]
+
+# Validate quality spec YAML
+dli quality validate SPEC_PATH [--strict] [--test TEXT]
 ```
 
 ### Workflow Management
@@ -247,7 +250,7 @@ spec:
 
 ## Library API
 
-v0.2.0 provides a full-featured Library API for programmatic access from Airflow, Basecamp Parser, and other systems.
+v0.3.0 provides a full-featured Library API for programmatic access from Airflow, Basecamp Parser, and other systems.
 
 ### API Classes
 
@@ -258,6 +261,7 @@ v0.2.0 provides a full-featured Library API for programmatic access from Airflow
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL transpilation |
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |
+| `QualityAPI` | list_qualities, get, run, validate | Quality spec 실행 및 검증 |
 
 ### ExecutionMode
 
@@ -348,6 +352,27 @@ def transpile_sql(sql: str, dialect: str = "trino") -> dict:
     return result.model_dump()
 ```
 
+### QualityAPI Example
+
+```python
+from dli import QualityAPI, ExecutionContext, ExecutionMode
+
+ctx = ExecutionContext(
+    execution_mode=ExecutionMode.MOCK,
+    project_path=Path("/opt/airflow/dags/models"),
+)
+api = QualityAPI(context=ctx)
+
+# List qualities from server
+qualities = api.list_qualities(target_type="dataset")
+
+# Run quality spec
+result = api.run("quality.iceberg.analytics.daily_clicks.yaml")
+
+# Validate spec
+validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml")
+```
+
 ### Exception Handling
 
 ```python
@@ -403,16 +428,17 @@ uv run python build_standalone.py
 ```
 project-interface-cli/
 ├── src/dli/
-│   ├── __init__.py              # Public API exports (v0.2.0)
+│   ├── __init__.py              # Public API exports (v0.3.0)
 │   ├── exceptions.py            # DLIError hierarchy
-│   ├── api/                     # Library API (v0.2.0)
+│   ├── api/                     # Library API (v0.3.0)
 │   │   ├── __init__.py          # API exports
 │   │   ├── dataset.py           # DatasetAPI
 │   │   ├── metric.py            # MetricAPI
 │   │   ├── transpile.py         # TranspileAPI
 │   │   ├── catalog.py           # CatalogAPI
-│   │   └── config.py            # ConfigAPI
-│   ├── models/                  # Shared models (v0.2.0)
+│   │   ├── config.py            # ConfigAPI
+│   │   └── quality.py           # QualityAPI
+│   ├── models/                  # Shared models (v0.3.0)
 │   │   ├── __init__.py          # Model exports
 │   │   └── common.py            # ExecutionContext, Results
 │   ├── commands/                # CLI commands

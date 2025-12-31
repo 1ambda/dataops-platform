@@ -32,6 +32,7 @@ from dli.api.catalog import CatalogAPI
 from dli.api.config import ConfigAPI
 from dli.api.dataset import DatasetAPI
 from dli.api.metric import MetricAPI
+from dli.api.quality import QualityAPI
 from dli.api.transpile import TranspileAPI
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "ConfigAPI",
     "DatasetAPI",
     "MetricAPI",
+    "QualityAPI",
     "TranspileAPI",
 ]

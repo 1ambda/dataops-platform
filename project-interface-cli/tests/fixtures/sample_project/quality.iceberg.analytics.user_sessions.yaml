@@ -1,0 +1,46 @@
+# Quality Spec for iceberg.analytics.user_sessions dataset
+version: 1
+
+target:
+  type: dataset
+  name: iceberg.analytics.user_sessions
+
+metadata:
+  owner: data-team@example.com
+  team: "@analytics"
+  description: "User sessions dataset quality tests"
+  tags:
+    - analytics
+    - sessions
+
+tests:
+  # Session ID uniqueness
+  - name: unique_session_id
+    type: unique
+    columns: [session_id]
+    severity: error
+    description: "Session ID must be unique"
+
+  # Required fields
+  - name: not_null_required_fields
+    type: not_null
+    columns: [session_id, user_id, start_time]
+    severity: error
+
+  # Session duration range
+  - name: valid_duration
+    type: singular
+    severity: warn
+    description: "Session duration should be between 0 and 24 hours"
+    sql: |
+      SELECT *
+      FROM {{ target }}
+      WHERE duration_seconds < 0
+         OR duration_seconds > 86400
+
+  # Row count sanity check
+  - name: min_daily_sessions
+    type: row_count
+    min: 100
+    severity: warn
+    description: "Should have at least 100 sessions per day"
