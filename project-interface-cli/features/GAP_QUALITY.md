@@ -28,28 +28,28 @@ FEATURE_QUALITY.md와 RELEASE_QUALITY.md 비교 분석 결과, **시스템적 �
 | Quality Spec YML | Phase 1 | ✅ Implemented | None |
 | QualityAPI (list, get, run, validate) | Phase 1 | ✅ Implemented (Mock only) | SERVER 실제 호출 미구현 |
 | CLI Commands | Phase 1 | ✅ Implemented | None |
-| DLI-6xx Error Codes | Phase 1 | ⚠️ Partial | **DLI-605 누락** |
+| DLI-6xx Error Codes | Phase 1 | ✅ Complete (601-606) | ~~DLI-605 누락~~ **RESOLVED** |
 | Built-in Generic Tests | Phase 1 | ✅ 5 types | expression, row_count Phase 2 |
 | SERVER Mode Execution | Phase 1 | ⏳ Stub | Basecamp Server API 필요 |
 | Airflow DAG Metadata | Phase 2 | ❌ Not started | - |
 | Slack/Email Notifications | Phase 2 | ❌ Not started | - |
 | Git Sync | Phase 2 | ❌ Not started | - |
 
-### 1.2 Critical GAP: DLI-605 미구현
+### 1.2 ~~Critical GAP: DLI-605 미구현~~ ✅ RESOLVED
 
 **FEATURE_QUALITY.md**에서 정의:
 ```
 | DLI-605 | QualityTestTimeoutError | 테스트 실행 타임아웃 |
 ```
 
-**STATUS.md**에서 잘못된 주장:
+**STATUS.md**:
 ```
-| DLI-6xx | Quality | DLI-606 | Complete (601-606) |
+| DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 ```
 
-**실제 구현 (`exceptions.py`)**:
-- DLI-601, 602, 603, 604, 606 존재
-- **DLI-605 미구현**
+**실제 구현 (`exceptions.py`)** - **2026-01-01 수정됨**:
+- DLI-601, 602, 603, 604, **605**, 606 모두 존재
+- ✅ **DLI-605 (QualityTestTimeoutError) 구현 완료**
 
 ### 1.3 Phase 1.5 필요 항목
 
@@ -67,13 +67,13 @@ SERVER 모드 관련 기능이 "Phase 1 MVP"로 정의되었으나 실제로는 
 
 ### 2.1 Critical 불일치
 
-| 문서 | 이슈 | 심각도 |
-|------|------|--------|
-| **STATUS.md** | DLI-605 "Complete" 주장 (실제 미구현) | HIGH |
-| **FEATURE 5.2** | `singular` 타입 Built-in 테이블에 누락 | HIGH |
-| **FEATURE 5.3** | 모델명 `QualityTestDefinition` → 실제 `DqTestDefinitionSpec` | MEDIUM |
-| **FEATURE 4.3** | 결과 타입 `QualityResult` → 실제 `DqQualityResult` | MEDIUM |
-| **STATUS.md** | FEATURE_QUALITY.md Documentation 섹션에 미등록 | LOW |
+| 문서 | 이슈 | 심각도 | 상태 |
+|------|------|--------|------|
+| **STATUS.md** | DLI-605 "Complete" 주장 (실제 미구현) | HIGH | ✅ **RESOLVED** (DLI-605 구현됨) |
+| **FEATURE 5.2** | `singular` 타입 Built-in 테이블에 누락 | HIGH | ✅ **RESOLVED** (테이블 수정됨) |
+| **FEATURE 5.3** | 모델명 `QualityTestDefinition` → 실제 `DqTestDefinitionSpec` | MEDIUM | - |
+| **FEATURE 4.3** | 결과 타입 `QualityResult` → 실제 `DqQualityResult` | MEDIUM | - |
+| **STATUS.md** | FEATURE_QUALITY.md Documentation 섹션에 미등록 | LOW | - |
 
 ### 2.2 버전 혼란
 

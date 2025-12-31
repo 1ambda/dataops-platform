@@ -30,6 +30,7 @@ Quality Spec을 Dataset/Metric Spec에서 분리하여 독립적인 데이터 �
 | `QualitySpecParseError` | DLI-602 | YML 파싱 오류 |
 | `QualityTargetNotFoundError` | DLI-603 | 참조 대상(Dataset/Metric)을 찾을 수 없음 |
 | `QualityTestExecutionError` | DLI-604 | 테스트 실행 중 오류 |
+| `QualityTestTimeoutError` | DLI-605 | 테스트 실행 타임아웃 |
 | `QualityNotFoundError` | DLI-606 | 서버에 등록된 Quality를 찾을 수 없음 |
 
 ### 2.2 Data Models (`dli/models/quality.py`)
@@ -401,9 +402,9 @@ quality:{target_type}:{catalog}.{schema}.{name}:{quality_name}
 | `unique` | 고유값 검사 | columns | - |
 | `accepted_values` | 허용 값 목록 검사 | column, values/values_query | quote |
 | `relationships` | 참조 무결성 검사 | column, to, to_column | - |
-| `singular` | Custom SQL 테스트 | sql/file | params |
-| `expression` | SQL 표현식 검사 (Phase 2) | expression | - |
-| `row_count` | 행 수 범위 검사 (Phase 2) | - | min, max |
+| `singular` | Custom SQL 테스트 | sql/file | params | MVP |
+| `expression` | SQL 표현식 검사 | expression | - | Phase 2 |
+| `row_count` | 행 수 범위 검사 | - | min, max | Phase 2 |
 
 ---
 

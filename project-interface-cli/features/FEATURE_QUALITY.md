@@ -452,14 +452,15 @@ tests:
 
 ### 5.2 Built-in Generic Test Types
 
-| Type | 설명 | 필수 파라미터 | 선택 파라미터 |
-|------|------|--------------|--------------|
-| `not_null` | NULL 값 검사 | columns | - |
-| `unique` | 고유값 검사 | columns | - |
-| `accepted_values` | 허용 값 목록 검사 | column, values/values_query | quote |
-| `relationships` | 참조 무결성 검사 | column, to, to_column | - |
-| `expression` | SQL 표현식 검사 | expression | - |
-| `row_count` | 행 수 범위 검사 | - | min, max |
+| Type | 설명 | 필수 파라미터 | 선택 파라미터 | Phase |
+|------|------|--------------|--------------|-------|
+| `not_null` | NULL 값 검사 | columns | - | MVP |
+| `unique` | 고유값 검사 | columns | - | MVP |
+| `accepted_values` | 허용 값 목록 검사 | column, values/values_query | quote | MVP |
+| `relationships` | 참조 무결성 검사 | column, to, to_column | - | MVP |
+| `singular` | Custom SQL 테스트 | sql/file | params | MVP |
+| `expression` | SQL 표현식 검사 | expression | - | Phase 2 |
+| `row_count` | 행 수 범위 검사 | - | min, max | Phase 2 |
 
 ### 5.3 Pydantic 모델
 

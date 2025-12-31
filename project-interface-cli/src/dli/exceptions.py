@@ -75,6 +75,7 @@ class ErrorCode(str, Enum):
     QUALITY_SPEC_PARSE = "DLI-602"
     QUALITY_TARGET_NOT_FOUND = "DLI-603"
     QUALITY_TEST_EXECUTION = "DLI-604"
+    QUALITY_TEST_TIMEOUT = "DLI-605"
     QUALITY_NOT_FOUND = "DLI-606"
 
     # Catalog Errors (DLI-7xx)
@@ -417,11 +418,13 @@ class QualitySpecNotFoundError(DLIError):
     """
 
     code: ErrorCode = ErrorCode.QUALITY_SPEC_NOT_FOUND
-    spec_path: Path | str = ""
+    spec_path: Path | str | None = None
 
     def __str__(self) -> str:
         """Return formatted error message."""
-        return f"[{self.code.value}] Quality Spec not found: {self.spec_path}"
+        if self.spec_path:
+            return f"[{self.code.value}] Quality Spec not found: {self.spec_path}"
+        return f"[{self.code.value}] {self.message}"
 
 
 @dataclass
@@ -437,7 +440,7 @@ class QualitySpecParseError(DLIError):
     """
 
     code: ErrorCode = ErrorCode.QUALITY_SPEC_PARSE
-    spec_path: Path | str = ""
+    spec_path: Path | str | None = None
     line: int | None = None
     column: int | None = None
 
@@ -520,6 +523,41 @@ class QualityTestExecutionError(DLIError):
             base += f" for {self.target_urn}"
         if self.cause:
             base += f": {self.cause}"
+        return base
+
+
+@dataclass
+class QualityTestTimeoutError(DLIError):
+    """Quality test timeout error.
+
+    Raised when a quality test exceeds the configured timeout duration.
+
+    Attributes:
+        test_name: Name of the test that timed out.
+        target_urn: URN of the target being tested.
+        timeout_seconds: The timeout duration that was exceeded.
+        cause: Original exception that caused the timeout (e.g., TimeoutError).
+    """
+
+    code: ErrorCode = ErrorCode.QUALITY_TEST_TIMEOUT
+    test_name: str = ""
+    target_urn: str = ""
+    timeout_seconds: float | None = None
+    cause: Exception | None = None
+
+    def __post_init__(self) -> None:
+        """Chain the cause exception and initialize base class."""
+        super().__post_init__()
+        if self.cause:
+            self.__cause__ = self.cause
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Test '{self.test_name}' timed out"
+        if self.target_urn:
+            base += f" for {self.target_urn}"
+        if self.timeout_seconds is not None:
+            base += f" after {self.timeout_seconds}s"
         return base
 
 
@@ -663,6 +701,7 @@ __all__ = [
     "QualitySpecParseError",
     "QualityTargetNotFoundError",
     "QualityTestExecutionError",
+    "QualityTestTimeoutError",
     "ServerError",
     "TableNotFoundError",
     "TranspileError",
