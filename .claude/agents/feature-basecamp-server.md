@@ -8,6 +8,8 @@ skills:
   - architecture       # Hexagonal port/adapter boundary validation
   - performance        # N+1 detection, query optimization
   - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - completion-gate             # 완료 선언 Gate, 거짓 완료 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -185,44 +187,57 @@ class PipelineService(
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **Protocol**: `implementation-verification` skill 참조
+> **Gate**: `completion-gate` skill 참조
 
-### 거짓 보고 방지
+### Project Commands
 
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "Service 클래스를 작성했습니다" → 코드 작성 없이 완료 선언
-- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+| Action | Command |
+|--------|---------|
+| Build & Test | `./gradlew clean build` |
+| Test Only | `./gradlew test` |
+| Format | `./gradlew ktlintFormat` |
+| Run | `./gradlew bootRun` |
 
-✅ 올바른 패턴:
-- grep -r "ClassName" module-core-domain/ → 결과 확인 → 없으면 구현
-- 코드 작성 → ./gradlew test 실행 → 결과 제시 → 완료 선언
-```
+### Project Paths
 
-### 구현 완료 선언 조건
+| Category | Path |
+|----------|------|
+| Entity | `module-core-domain/src/.../model/{Feature}Entity.kt` |
+| Repository | `module-core-domain/src/.../repository/{Feature}RepositoryJpa.kt` |
+| Service | `module-core-domain/src/.../service/{Feature}Service.kt` |
+| Controller | `module-server-api/src/.../controller/{Feature}Controller.kt` |
+| Tests | `module-*/src/test/**/*Test.kt` |
 
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `module-core-domain/.../PipelineService.kt:1-85 (+85 lines)` |
-| **수정한 파일:라인** | `module-server-api/.../PipelineController.kt:45-120` |
-| **테스트 결과** | `./gradlew test → BUILD SUCCESSFUL` |
-| **검증 명령어** | `grep -r "class PipelineService" module-core-domain/` |
-
----
-
-## Post-Implementation Checklist (필수)
-
-구현 완료 후 반드시 수행:
+### Post-Implementation
 
 ```
-□ grep으로 새 클래스/함수 존재 확인
-□ ./gradlew clean build 테스트 통과 확인
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
 ```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+Entity → Repository → Service → Controller → Tests
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| Domain Model | `*Entity` | `grep -r "class.*Entity" module-core-domain/` |
+| Repository | `*RepositoryJpa` | `grep -r "interface.*Repository" module-core-domain/` |
+| Service | `*Service` | `grep -r "@Service" module-core-domain/` |
+| Controller | `*Controller` | `grep -r "@RestController" module-server-api/` |
+| Tests | 테스트 파일 | `ls module-core-*/src/test/**/*Test.kt` |
 
 ---
 

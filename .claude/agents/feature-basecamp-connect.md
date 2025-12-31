@@ -8,6 +8,8 @@ skills:
   - testing                # TDD workflow for webhook handlers
   - performance            # Async handling, API call optimization
   - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - completion-gate             # 완료 선언 Gate, 거짓 완료 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -234,44 +236,58 @@ uv run ruff format && uv run ruff check --fix  # Format and lint
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **Protocol**: `implementation-verification` skill 참조
+> **Gate**: `completion-gate` skill 참조
 
-### 거짓 보고 방지
+### Project Commands
 
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "웹훅 핸들러를 작성했습니다" → 코드 작성 없이 완료 선언
-- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+| Action | Command |
+|--------|---------|
+| Test | `uv run pytest` |
+| Type Check | `uv run pyright src/` |
+| Lint | `uv run ruff check --fix` |
+| Run | `uv run python main.py` |
 
-✅ 올바른 패턴:
-- grep -r "class.*Service" src/connect/ → 결과 확인 → 없으면 구현
-- 코드 작성 → uv run pytest 실행 → 결과 제시 → 완료 선언
-```
+### Project Paths
 
-### 구현 완료 선언 조건
+| Category | Path |
+|----------|------|
+| DB Models | `src/connect/database.py` |
+| Service | `src/connect/{feature}_service.py` |
+| Config | `src/connect/config.py` |
+| Exceptions | `src/connect/exceptions.py` |
+| API | `main.py` |
+| Tests | `tests/test_*.py` |
 
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `src/connect/slack_service.py:1-120 (+120 lines)` |
-| **수정한 파일:라인** | `main.py:45-80 (새 웹훅 엔드포인트)` |
-| **테스트 결과** | `uv run pytest → 18 passed` |
-| **검증 명령어** | `grep -r "class SlackService" src/` |
-
----
-
-## Post-Implementation Checklist (필수)
-
-구현 완료 후 반드시 수행:
+### Post-Implementation
 
 ```
-□ grep으로 새 클래스/함수 존재 확인
-□ uv run pytest 테스트 통과 확인
 □ Serena memory 업데이트 (connect_patterns)
 □ README.md 변경사항 반영
 ```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+Config → DB Models → Service → Endpoint → Tests
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| DB Models | SQLAlchemy 모델 | `grep -r "class.*(Base)" src/connect/database.py` |
+| Service | `*Service` | `grep -r "class.*Service" src/connect/` |
+| API Endpoints | `@app.route` | `grep -r "@app.route" main.py` |
+| Exceptions | `*Error` | `grep -r "class.*Error" src/connect/exceptions.py` |
+| Tests | 테스트 파일 | `ls tests/test_*.py` |
 
 ---
 

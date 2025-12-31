@@ -8,6 +8,8 @@ skills:
   - testing                # TDD workflow for parser edge cases
   - performance            # Parser efficiency for large SQL queries
   - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - completion-gate             # 완료 선언 Gate, 거짓 완료 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -207,44 +209,56 @@ SQLglot dialect for Trino is `"presto"`. Supports: SELECT, INSERT, UPDATE, DELET
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **Protocol**: `implementation-verification` skill 참조
+> **Gate**: `completion-gate` skill 참조
 
-### 거짓 보고 방지
+### Project Commands
 
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "파서 함수를 작성했습니다" → 코드 작성 없이 완료 선언
-- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+| Action | Command |
+|--------|---------|
+| Test | `uv run pytest` |
+| Type Check | `uv run pyright src/` |
+| Lint | `uv run ruff check --fix` |
+| Run | `uv run python main.py` |
 
-✅ 올바른 패턴:
-- grep -r "def parse_" src/parser/ → 결과 확인 → 없으면 구현
-- 코드 작성 → uv run pytest 실행 → 결과 제시 → 완료 선언
-```
+### Project Paths
 
-### 구현 완료 선언 조건
+| Category | Path |
+|----------|------|
+| Parser | `src/parser/sql_parser.py` |
+| Config | `src/parser/config.py` |
+| Exceptions | `src/parser/exceptions.py` |
+| API | `main.py` |
+| Tests | `tests/test_*.py` |
 
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `src/parser/sql_parser.py:45-120 (+76 lines)` |
-| **수정한 파일:라인** | `main.py:85-110 (새 엔드포인트 추가)` |
-| **테스트 결과** | `uv run pytest → 25 passed` |
-| **검증 명령어** | `grep -r "class SqlParserService" src/` |
-
----
-
-## Post-Implementation Checklist (필수)
-
-구현 완료 후 반드시 수행:
+### Post-Implementation
 
 ```
-□ grep으로 새 클래스/함수 존재 확인
-□ uv run pytest 테스트 통과 확인
 □ Serena memory 업데이트 (parser_patterns)
 □ README.md 변경사항 반영
 ```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+Config → Exception → Parser → Endpoint → Tests
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| Parser Logic | `*Service` | `grep -r "class.*Service" src/parser/` |
+| API Endpoints | `@app.route` | `grep -r "@app.route" main.py` |
+| Exceptions | `*Error` | `grep -r "class.*Error" src/parser/exceptions.py` |
+| Tests | 테스트 파일 | `ls tests/test_*.py` |
 
 ---
 

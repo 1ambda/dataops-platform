@@ -73,8 +73,28 @@ search(pattern) → CatalogSearchResult
 - CLI --local/--server 플래그
 - --output 결과 저장
 
+## Agent/Skill System (2025-12-31 업데이트)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| feature-interface-cli Agent | `.claude/agents/feature-interface-cli.md` | ✅ Updated |
+| implementation-checklist Skill | `.claude/skills/implementation-checklist/` | ✅ New |
+| completion-gate Skill | `.claude/skills/completion-gate/` | ✅ New |
+
+### 신규 Skills
+
+- **implementation-checklist**: FEATURE → 체크리스트 자동 생성
+- **completion-gate**: 완료 선언 Gate (거짓 완료 방지)
+
+### Agent 업데이트 내용
+
+- Skills 목록에 implementation-checklist, completion-gate 추가
+- FEATURE → Implementation Workflow 섹션 신규
+- Pre-Implementation Checklist에 FEATURE 파싱 단계 추가
+
 ## 상세 문서
 
 - `features/STATUS.md` - 전체 상태
 - `features/RELEASE_EXECUTION.md` - 구현 상세
 - `docs/PATTERNS.md` - 개발 패턴
+- `features/GAP_WORKFLOW.md` - Gap 분석 (2025-12-31)

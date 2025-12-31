@@ -8,6 +8,8 @@ skills:
   - performance        # Re-render analysis, code splitting
   - architecture       # TanStack Query vs Zustand state decisions
   - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - completion-gate             # 완료 선언 Gate, 거짓 완료 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -216,44 +218,59 @@ server: { proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **Protocol**: `implementation-verification` skill 참조
+> **Gate**: `completion-gate` skill 참조
 
-### 거짓 보고 방지
+### Project Commands
 
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "컴포넌트를 작성했습니다" → 코드 작성 없이 완료 선언
-- "빌드가 성공합니다" → 실제 빌드 실행 없이 판단
+| Action | Command |
+|--------|---------|
+| Build | `pnpm run build` |
+| Type Check | `pnpm run type-check` |
+| Test | `pnpm test` |
+| Dev | `pnpm run dev` |
 
-✅ 올바른 패턴:
-- grep -r "export.*ComponentName" src/ → 결과 확인 → 없으면 구현
-- 코드 작성 → pnpm run build 실행 → 결과 제시 → 완료 선언
-```
+### Project Paths
 
-### 구현 완료 선언 조건
+| Category | Path |
+|----------|------|
+| Types | `src/_types/{feature}.ts` |
+| API | `src/lib/api/{feature}.ts` |
+| Hooks | `src/hooks/use-{feature}.ts` |
+| Components | `src/features/{feature}/` |
+| Routes | `src/routes/{feature}/` |
+| Tests | `src/**/*.test.tsx` |
 
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `src/components/UserCard.tsx:1-85 (+85 lines)` |
-| **수정한 파일:라인** | `src/routes/dashboard/index.tsx:15-45` |
-| **테스트 결과** | `pnpm run build → vite build completed` |
-| **타입 체크** | `pnpm run type-check → 0 errors` |
-
----
-
-## Post-Implementation Checklist (필수)
-
-구현 완료 후 반드시 수행:
+### Post-Implementation
 
 ```
-□ grep으로 새 컴포넌트/훅 존재 확인
-□ pnpm run build && pnpm run type-check 통과 확인
 □ Serena memory 업데이트 (ui_patterns)
 □ README.md 변경사항 반영
 ```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+Types → API → Hooks → Components → Routes → Tests
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| Types | `interface`, `type` | `grep -r "interface\|type" src/_types/` |
+| API | API 클라이언트 | `grep -r "export.*Api" src/lib/` |
+| Hooks | `use*` 훅 | `grep -r "export.*use" src/hooks/` |
+| Components | React 컴포넌트 | `grep -r "React.FC" src/` |
+| Routes | 라우트 | `grep -r "createFileRoute" src/routes/` |
+| Tests | 테스트 파일 | `ls src/**/*.test.tsx` |
 
 ---
 

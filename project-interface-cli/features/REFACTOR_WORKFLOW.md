@@ -253,54 +253,387 @@
 
 ### 6.2 feature-interface-cli Agent
 
-(이 섹션은 feature-interface-cli Agent가 리뷰 후 작성)
+**리뷰어**: `feature-interface-cli` Agent
+**리뷰 일자**: 2025-12-31
 
-| Priority | Issue | Resolution |
-|----------|-------|------------|
-| TBD | TBD | TBD |
+#### 6.2.1 기술 검토 결과
+
+**CLI 패턴 준수 (9/10)**
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| `workflow_app` Typer 생성 | OK | `no_args_is_help=True` 적용됨 |
+| `--format`, `--path` 옵션 | OK | `ListOutputFormat`, `get_project_path()` 재사용 |
+| `--param` 옵션 | OK | `parse_params()` 유틸리티 활용 |
+| Rich 출력 | OK | `Table`, `console.status`, 색상 스타일 적용 |
+| 에러 처리 | OK | `print_error()` + `typer.Exit(1)` 패턴 |
+| JSON 출력 | OK | `--format json` 시 `console.print_json()` 사용 |
+
+**dataset.py와의 일관성 분석:**
+
+```python
+# dataset.py 패턴 (기존)
+@dataset_app.command("list")
+def list_datasets(
+    source: Annotated[SourceType, typer.Option("--source", "-s")] = "local",
+    ...
+)
+
+# workflow.py 패턴 (현재)
+@workflow_app.command("list")
+def list_workflows(
+    source: Annotated[WorkflowSourceType, typer.Option("--source")] = "all",
+    ...
+)
+```
+
+**차이점 발견:**
+- `dataset.py`는 `SourceType`을 `commands/base.py`에서 import
+- `workflow.py`는 `WorkflowSourceType`을 로컬에서 정의 (Literal["code", "manual", "all"])
+- **권장**: `WorkflowSourceType`을 `commands/base.py`로 이동하여 일관성 유지
+
+**Library API 패턴 준수 (10/10)**
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| Facade 패턴 | OK | `WorkflowAPI` -> `BasecampClient` 래핑 |
+| Lazy 초기화 | OK | `_get_client()` 메서드 |
+| Mock 모드 | OK | `_is_mock_mode` 프로퍼티 |
+| DI 지원 | OK | `client: BasecampClient | None = None` 파라미터 |
+| Result 모델 | OK | `WorkflowRunResult`, `WorkflowListResult` 등 frozen 모델 |
+| Exception 처리 | OK | `WorkflowNotFoundError`, `WorkflowExecutionError` 등 |
+
+**DatasetAPI와 비교:**
+- `WorkflowAPI`가 더 완성도 높은 구조
+- 모든 메서드에 docstring과 예시 코드 포함
+- Type hint 100% 적용
+
+**테스트 패턴 준수 (9/10)**
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| 클래스 기반 테스트 | OK | `TestWorkflowAPIRun`, `TestWorkflowAPIList` 등 |
+| Fixture 활용 | OK | `mock_context`, `mock_api` 정의 |
+| Mock 모드 테스트 | OK | 모든 메서드에 mock 테스트 존재 |
+| 에러 케이스 | OK | `ConfigurationError` 등 예외 테스트 |
+| 모델 속성 테스트 | OK | `is_running`, `is_terminal`, `duration_seconds` 등 |
+| Frozen 검증 | OK | 불변성 테스트 포함 |
+
+**미흡한 점:**
+- CLI 커맨드 테스트 (`test_workflow_cmd.py`) 파일이 없음
+- Server 모드 통합 테스트 없음 (Mock만 존재)
+
+#### 6.2.2 발견된 추가 문제점
+
+| Priority | Issue | 상세 |
+|----------|-------|------|
+| **P0** | CLI 테스트 파일 누락 | `tests/cli/test_workflow_cmd.py` 미존재. 다른 커맨드는 모두 CLI 테스트 보유 |
+| **P0** | `workflow_register` 미구현 확인 | `mcp__jetbrains__search_in_files_by_text`로 검색 결과 0건 - CLI에 register 커맨드 없음 |
+| **P1** | `WorkflowSourceType` 위치 | 로컬 Literal 대신 `commands/base.py`로 이동 권장 |
+| **P1** | `history --show-dataset-info` 미구현 | FEATURE에 정의된 옵션이 CLI에 없음 |
+| **P2** | Mock 데이터 하드코딩 | `WorkflowAPI`의 mock 응답이 상수로 하드코딩됨 |
+| **P2** | `format_datetime` 일관성 | `workflow.py`에서 `include_seconds=True` 사용, 다른 커맨드는 기본값 사용 |
+
+#### 6.2.3 expert-spec 제안에 대한 의견
+
+| ID | expert-spec 제안 | 동의 여부 | feature-interface-cli 의견 |
+|----|------------------|-----------|---------------------------|
+| **P0-1** | CLI `register` 구현 | **동의** | API는 구현됨, CLI만 추가하면 됨. 예상 30분 |
+| **P0-2** | CLI `unregister` 구현 | **동의** | 동일. 예상 20분 |
+| **P0-3** | LOCAL 모드 에러 개선 | **동의** | 단, `ConfigurationError` 대신 `ExecutionModeError` 신규 예외 제안 |
+| **P1-1** | `--show-dataset-info` 추가 | **동의** | API에 이미 `include_dataset_info` 파라미터 존재 |
+| **P1-2** | 에러 메시지 가이드 추가 | **부분 동의** | 에러 메시지보다 `--help` 개선이 더 효과적 |
+| **P1-3** | Cron 검증 로직 | **동의** | `croniter` 라이브러리 추가 필요, dev dependency로 |
+| **P1-4** | Mock 데이터 현실성 | **부분 동의** | 테스트 목적상 현재 수준 충분, Server 연동 시 조정 |
+| **P2-1** | HTTP 호출 추상화 | **연기 권장** | Server 연동 확정 후 진행 |
+| **P2-2** | Response DTO 도입 | **동의** | 서버 스키마 정의 후 동시 진행 |
+
+#### 6.2.4 구현 권장사항 (코드 레벨)
+
+**1. CLI register/unregister 구현 템플릿:**
+
+```python
+# commands/workflow.py에 추가
+
+@workflow_app.command("register")
+def register_workflow(
+    dataset_name: Annotated[str, typer.Argument(help="Dataset name to register.")],
+    cron: Annotated[str, typer.Option("--cron", "-c", help="Cron expression (e.g., '0 9 * * *').")],
+    timezone: Annotated[str, typer.Option("--timezone", "-z", help="IANA timezone.")] = "UTC",
+    enabled: Annotated[bool, typer.Option("--enabled/--disabled", help="Enable schedule.")] = True,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing.")] = False,
+    path: Annotated[Path | None, typer.Option("--path", help="Project path.")] = None,
+) -> None:
+    """Register a local dataset as MANUAL workflow.
+
+    Examples:
+        dli workflow register iceberg.analytics.daily_clicks -c "0 9 * * *"
+        dli workflow register iceberg.analytics.daily_clicks -c "0 10 * * *" -z Asia/Seoul
+    """
+    project_path = get_project_path(path)
+    client = get_client(project_path)
+
+    with console.status("[bold green]Registering workflow..."):
+        response = client.workflow_register(
+            dataset_name=dataset_name,
+            cron=cron,
+            timezone=timezone,
+            enabled=enabled,
+            force=force,
+        )
+
+    if not response.success:
+        print_error(response.error or "Failed to register workflow")
+        raise typer.Exit(1)
+
+    print_success(f"Workflow registered: {dataset_name}")
+    console.print(f"  [dim]Schedule:[/dim] {cron} ({timezone})")
+    console.print(f"  [dim]Enabled:[/dim] {'Yes' if enabled else 'No'}")
+```
+
+**2. CLI 테스트 파일 생성 필요:**
+
+```python
+# tests/cli/test_workflow_cmd.py
+
+class TestWorkflowList:
+    def test_list_default(self) -> None:
+        result = runner.invoke(app, ["workflow", "list"])
+        assert result.exit_code == 0
+
+    def test_list_json_format(self) -> None:
+        result = runner.invoke(app, ["workflow", "list", "--format", "json"])
+        assert result.exit_code == 0
+        json.loads(result.output)
+
+class TestWorkflowRegister:
+    def test_register_success(self) -> None:
+        result = runner.invoke(app, [
+            "workflow", "register",
+            "test.dataset",
+            "--cron", "0 9 * * *"
+        ])
+        assert result.exit_code == 0
+        assert "registered" in result.output.lower()
+```
+
+**3. `WorkflowSourceType` 이동:**
+
+```python
+# commands/base.py에 추가
+WorkflowSourceType = Literal["code", "manual", "all"]
+
+# commands/workflow.py에서 import
+from dli.commands.base import WorkflowSourceType
+```
+
+#### 6.2.5 우선순위 조정 의견
+
+| 순위 | 작업 ID | 조정 전 | 조정 후 | 사유 |
+|------|---------|---------|---------|------|
+| 1 | **NEW** | - | **P0** | CLI 테스트 파일 생성 (`test_workflow_cmd.py`) - 품질 게이트 필수 |
+| 2 | P0-1 | P0 | P0 | 유지 (API 있음, CLI만 추가) |
+| 3 | P0-2 | P0 | P0 | 유지 |
+| 4 | P1-1 | P1 | **P0** | FEATURE에 명시된 필수 기능 |
+| 5 | P0-3 | P0 | P1 | 에러 개선은 기능 완성 후 |
+| 6 | P1-3 | P1 | P1 | Cron 검증 유지 |
+| 7 | P1-2 | P1 | P2 | `--help` 개선으로 대체 가능 |
+
+**최종 권장 구현 순서:**
+
+```
+Phase 1 (즉시 - 2시간)
+├── Step 1: CLI register 커맨드 추가 (30분)
+├── Step 2: CLI unregister 커맨드 추가 (20분)
+├── Step 3: history --show-dataset-info 옵션 추가 (30분)
+└── Step 4: test_workflow_cmd.py 생성 (40분)
+
+Phase 2 (권장 - 2시간)
+├── Step 5: Cron 검증 로직 추가 (croniter) (1시간)
+├── Step 6: ExecutionMode 에러 메시지 개선 (30분)
+└── Step 7: WorkflowSourceType base.py 이동 (30분)
+
+Phase 3 (Server 연동 시)
+├── Step 8: Response DTO 도입
+└── Step 9: HTTP 호출 추상화
+```
+
+**종합 평가:**
+- **코드 품질**: 9/10 - API와 모델 구현 우수, CLI Gap만 존재
+- **패턴 준수**: 9/10 - 기존 dataset/metric 패턴과 높은 일관성
+- **테스트 커버리지**: 7/10 - API 테스트 우수, CLI 테스트 부재
+- **확장성**: 8/10 - 새 커맨드 추가 용이, Server 연동 준비 필요
 
 ### 6.3 expert-python Agent
 
-(이 섹션은 expert-python Agent가 리뷰 후 작성)
+**리뷰어**: `expert-python` Agent
+**리뷰 일자**: 2025-12-31
+**코드 품질 등급**: **B+** (Good)
 
-| Priority | Issue | Resolution |
-|----------|-------|------------|
-| TBD | TBD | TBD |
+#### 6.3.1 파일별 코드 품질 평가
+
+| 파일 | 줄 수 | Type Hints | DRY | 문서화 | 테스트 | 등급 |
+|------|-------|------------|-----|--------|--------|------|
+| `api/workflow.py` | 895 | **A** (완전) | **C** (반복 패턴) | **A** (우수) | **A** | **B+** |
+| `models/workflow.py` | 202 | **A** (완전) | **A** | **A** (우수) | **A** | **A** |
+| `commands/workflow.py` | 570 | **A** (완전) | **C** (반복 패턴) | **B** | **B** | **B** |
+| `core/client.py` (workflow) | ~500 | **A** (완전) | **C** (중복 로직) | **A** | **B** | **B+** |
+| `tests/api/test_workflow_api.py` | 805 | **A** | **A** | **A** | N/A | **A** |
+
+#### 6.3.2 발견된 코드 이슈
+
+| Priority | Issue | 위치 | 영향 | Resolution |
+|----------|-------|------|------|------------|
+| **P0** | CLI `register`/`unregister` 커맨드 미구현 | `commands/workflow.py` | API-CLI Gap | P0-1, P0-2 동의 |
+| **P1** | Mock 모드 체크 반복 (`if self._is_mock_mode:...`) | `api/workflow.py` 모든 메서드 | 유지보수성 저하 | Template Method 또는 데코레이터 패턴 적용 |
+| **P1** | 에러 메시지에 해결 가이드 부족 | `api/workflow.py`, `exceptions.py` | 사용자 경험 | hint 필드 활용 |
+| **P1** | `_get_client()` 반복 호출 패턴 | `commands/workflow.py` 8개 커맨드 | 코드 중복 | Context Manager 또는 데코레이터 |
+| **P2** | `WorkflowStatusResult.run_type` 타입이 `str` | `models/workflow.py:144` | 타입 안전성 | `RunType` Enum 사용 (현재 혼용) |
+| **P2** | `stop()` 메서드에서 `dataset_name="unknown"` 하드코딩 | `api/workflow.py:523,542` | 정보 손실 | 서버 응답에서 추출 또는 추적 |
+| **P2** | `history()` 메서드 `dataset_info` 로직 불완전 | `api/workflow.py:787-795` | Mock/Server 차이 | Server 모드에서 실제 API 호출 필요 |
+| **P3** | 테스트에서 `MagicMock` 미사용 경고 | `test_workflow_api.py:16` | import but unused | 제거 또는 활용 |
+
+#### 6.3.3 expert-spec 제안에 대한 의견
+
+| expert-spec 제안 | 동의/반대 | 이유 |
+|------------------|-----------|------|
+| **P0-1**: CLI register 구현 | **동의** | API 존재, CLI Gap. 즉시 구현 가능 |
+| **P0-2**: CLI unregister 구현 | **동의** | 동일한 이유 |
+| **P0-3**: LOCAL 모드 에러 개선 | **동의** | 단, 에러 메시지만이 아닌 `__init__`에서 조기 검증 권장 |
+| **P1-1**: `--show-dataset-info` 옵션 | **반대 (P2로 하향)** | 현재 Mock 구현도 placeholder 수준. Server 연동 후 의미 있음 |
+| **P1-2**: 에러 메시지 가이드 추가 | **동의** | `DLIError.hint` 필드 적극 활용 필요 |
+| **P1-3**: Cron 검증 로직 | **동의** | `croniter` 라이브러리 추가 시 register에서 사전 검증 |
+| **P2-1**: HTTP 호출 추상화 | **동의** | 향후 Server 연동 시 필수. 지금은 시기상조 |
+| **P2-2**: Response DTO 도입 | **동의** | Mock/Server 응답 구조 정렬 필요 |
+
+#### 6.3.4 추가 리팩토링 제안 (Python 관점)
+
+| ID | 작업 | 근거 | 예상 공수 | 우선순위 |
+|----|------|------|-----------|----------|
+| **PY-1** | `_is_mock_mode` 분기 제거: Strategy 패턴 적용 | DRY 원칙 위반, 11개 메서드에서 동일 패턴 반복 | 4시간 | P2 |
+| **PY-2** | `WorkflowAPI.__init__`에서 LOCAL 모드 조기 검증 | 사용 시점 아닌 생성 시점 에러가 명확함 | 30분 | P0 |
+| **PY-3** | CLI 커맨드 데코레이터로 공통 로직 추출 | `get_project_path` + `get_client` 반복 제거 | 2시간 | P2 |
+| **PY-4** | `run_type` 필드를 `str` 대신 `RunType` Enum 통일 | 타입 안전성 향상 | 1시간 | P1 |
+| **PY-5** | `@cached_property`로 `_client` lazy init 개선 | 표준 라이브러리 패턴 활용 | 30분 | P3 |
+| **PY-6** | 테스트 Server 모드 커버리지 강화 | 현재 Mock 모드 위주, Server 모드 에러 경로 테스트 부족 | 3시간 | P1 |
+
+#### 6.3.5 코드 품질 상세 분석
+
+**강점:**
+1. **완전한 Type Hints**: 모든 public 메서드에 반환 타입, 매개변수 타입 명시됨
+2. **Pydantic 모델 설계 우수**: `frozen=True`, `Field(description=...)` 패턴 일관적
+3. **풍부한 docstring**: Google style 준수, 예시 코드 포함
+4. **명확한 Exception 계층**: ErrorCode 기반, @dataclass 패턴
+5. **테스트 구조 우수**: 클래스 기반 조직, fixture 재사용, 805줄 커버리지
+
+**약점:**
+1. **DRY 위반 (주요)**:
+   ```python
+   # api/workflow.py - 11개 메서드에서 반복
+   if self._is_mock_mode:
+       return MockResult(...)
+   client = self._get_client()
+   response = client.workflow_xxx(...)
+   ```
+
+2. **CLI 보일러플레이트**:
+   ```python
+   # commands/workflow.py - 8개 커맨드에서 반복
+   project_path = get_project_path(path)
+   client = get_client(project_path)
+   ```
+
+3. **에러 메시지 가이드 부재**:
+   ```python
+   # 현재: 문제만 알려줌
+   raise WorkflowPermissionError(message="Cannot register: CODE workflow exists")
+
+   # 권장: 해결 방법 제시
+   raise WorkflowPermissionError(
+       message="Cannot register: CODE workflow exists",
+       hint="Git에서 workflow 정의를 수정하거나 삭제하세요"
+   )
+   ```
+
+#### 6.3.6 우선순위 조정 의견
+
+**최종 권장 우선순위:**
+
+| 순위 | 작업 ID | 내용 | 근거 |
+|------|---------|------|------|
+| 1 | **P0-1** | CLI register 구현 | API-CLI Gap 해소 |
+| 2 | **P0-2** | CLI unregister 구현 | API-CLI Gap 해소 |
+| 3 | **PY-2** | LOCAL 모드 조기 검증 | 사용자 혼란 방지, 30분 |
+| 4 | **P1-2** | 에러 메시지 hint 추가 | UX 개선, 1시간 |
+| 5 | **PY-4** | run_type Enum 통일 | 타입 안전성 |
+| 6 | **PY-6** | Server 모드 테스트 강화 | 안정성 |
+| 7 | **P1-3** | Cron 검증 (croniter) | 사전 오류 방지 |
+| 8 | **PY-1** | Strategy 패턴 적용 | P2로 유지, Server 연동 전 |
+
+**종합 의견:**
+현재 Workflow 코드는 **Mock 모드 기준 완성도가 높음**. Type hints, Pydantic 모델, Exception 계층 모두 프로젝트 표준을 잘 따르고 있음. 주요 문제는 CLI 커맨드 Gap(P0)과 DRY 위반(P1-P2). DRY 위반은 Server 연동 시 자연스럽게 리팩토링되므로 현 단계에서는 P0 작업과 에러 메시지 개선에 집중 권장.
 
 ---
 
 ## 7. 합의 사항
 
+> **합의 일자**: 2025-12-31
+> **참여 Agent**: expert-spec, feature-interface-cli, expert-python
+> **사용자 검토**: 완료
+
 ### 7.1 최종 우선순위
 
-(Agent 리뷰 완료 후 채움)
+| 순위 | 작업 ID | 작업 내용 | 예상 공수 | 상태 |
+|------|---------|-----------|-----------|------|
+| 1 | **P0-1** | CLI `workflow register` 커맨드 구현 | 30분 | ⏳ 대기 |
+| 2 | **P0-2** | CLI `workflow unregister` 커맨드 구현 | 20분 | ⏳ 대기 |
+| 3 | **P0-3** | `__init__`에서 LOCAL 모드 조기 검증 | 30분 | ⏳ 대기 |
+| 4 | **P1-NEW** | `tests/cli/test_workflow_cmd.py` 생성 | 40분 | ⏳ 대기 |
+| 5 | **P1-2** | 에러 메시지에 hint 가이드 추가 | 1시간 | ⏳ 대기 |
+| 6 | **P1-3** | Cron 표현식 검증 (croniter) | 1시간 | ⏳ 대기 |
+| 7 | P2-1 | `--show-dataset-info` 옵션 | Server 연동 시 | 📅 연기 |
+| 8 | P2-2 | HTTP 호출 추상화 | Server 연동 시 | 📅 연기 |
 
-| 순위 | 작업 ID | 작업 내용 | 담당 | 예상 완료일 |
-|------|---------|-----------|------|-------------|
-| 1 | P0-1 | CLI register 구현 | TBD | TBD |
-| 2 | P0-2 | CLI unregister 구현 | TBD | TBD |
-| 3 | P0-3 | ExecutionMode 에러 개선 | TBD | TBD |
-| ... | ... | ... | ... | ... |
+**총 예상 작업 시간**: ~4시간 (P0 + P1)
 
-### 7.2 구현 순서
+### 7.2 합의된 결정 사항
 
-(Agent 리뷰 완료 후 채움)
+| 항목 | 결정 | 근거 |
+|------|------|------|
+| 작업 범위 | **P0 + P1** | 즉시 필요한 기능 완성 + 품질 보장 |
+| `--show-dataset-info` | **P2 연기** | Server 연동 전까지 Mock 데이터 불완전 |
+| CLI 테스트 파일 | **필수 생성** | 다른 커맨드와 동일 품질 기준 적용 |
+| Strategy 패턴 (DRY) | **P2 연기** | Server 연동 시 자연스럽게 리팩토링 |
+
+### 7.3 구현 순서
 
 ```
-Phase 1 (P0 작업)
+Phase 1 - 즉시 구현 (~1.5시간)
 ├── Step 1: CLI register 커맨드 추가
 ├── Step 2: CLI unregister 커맨드 추가
-└── Step 3: ExecutionMode 에러 메시지 개선
+└── Step 3: WorkflowAPI.__init__ LOCAL 모드 검증
 
-Phase 2 (P1 작업)
-├── Step 4: --show-dataset-info 옵션 추가
-├── Step 5: 에러 메시지 가이드 추가
-└── Step 6: Cron 검증 로직 추가
+Phase 2 - 품질 강화 (~2.5시간)
+├── Step 4: test_workflow_cmd.py 생성 (CLI 테스트)
+├── Step 5: DLIError hint 필드 활용 (에러 가이드)
+└── Step 6: croniter 기반 Cron 검증
 
-Phase 3 (P2 작업, 선택)
-├── Step 7: HTTP 호출 추상화
-└── Step 8: Response DTO 도입
+Phase 3 - Server 연동 시 (예정)
+├── Step 7: --show-dataset-info 옵션
+├── Step 8: Response DTO 도입
+└── Step 9: HTTP 호출 추상화 (Strategy 패턴)
 ```
+
+### 7.4 Agent 의견 차이 해소
+
+| 항목 | expert-spec | feature-cli | expert-python | 최종 결정 |
+|------|-------------|-------------|---------------|-----------|
+| CLI register | P0 | P0 | P0 | **P0** ✅ |
+| CLI unregister | P0 | P0 | P0 | **P0** ✅ |
+| LOCAL 검증 | P0-3 | P1 | P0 (PY-2) | **P0** (조기 검증) |
+| dataset-info | P1-1 | P0 ⬆️ | P2 ⬇️ | **P2** (연기) |
+| CLI 테스트 | 미언급 | P0 (신규) | 미언급 | **P1** (필수) |
+| Cron 검증 | P1-3 | P1 | P1 | **P1** ✅ |
 
 ---
 

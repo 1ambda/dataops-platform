@@ -8,6 +8,8 @@ skills:
   - testing                # TDD workflow, Typer CLI testing patterns
   - test-structure-analysis # Coverage gaps, helper consolidation
   - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - completion-gate             # 완료 선언 Gate, 거짓 완료 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -42,8 +44,31 @@ Read: project-interface-cli/docs/PATTERNS.md
 □ Read Serena memory (cli_patterns) OR PATTERNS.md
 □ Check client.py for existing enums → 재사용, 중복 생성 금지
 □ Check commands/utils.py for shared helpers → format_datetime 등
-□ Plan: models → client methods → CLI commands → tests
+□ Parse FEATURE_*.md → implementation-checklist skill 적용
+□ Plan: API → CLI → Tests (FEATURE 섹션 순서대로)
 ```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+API (Section 4) → CLI (Section 5) → Tests (Section 10)
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| Section 4 (API) | `class XXXApi` | `grep -r "class XXXApi" src/dli/api/` |
+| Section 5 (CLI) | `@xxx_app.command()` | `grep -r "@xxx_app.command" src/dli/commands/` |
+| Section 7 (Errors) | 에러 코드 | `grep -r "DLI-XXX" src/dli/exceptions.py` |
+| Section 10 (Tests) | 테스트 파일 | `ls tests/api/test_xxx_api.py tests/cli/test_xxx_cmd.py` |
 
 ---
 
@@ -125,45 +150,34 @@ uv run dli {feature} --help
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **Protocol**: `implementation-verification` skill 참조
+> **Gate**: `completion-gate` skill 참조
 
-### 거짓 보고 방지
+### Project Commands
 
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "명세를 작성했습니다" → 코드 작성 없이 완료 선언
-- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+| Action | Command |
+|--------|---------|
+| Test | `uv run pytest tests/` |
+| Type Check | `uv run pyright src/` |
+| Lint | `uv run ruff check --fix` |
+| CLI Help | `uv run dli {feature} --help` |
 
-✅ 올바른 패턴:
-- grep -r "ClassName" src/ → 결과 확인 → 없으면 구현
-- 코드 작성 → pytest 실행 → 결과 제시 → 완료 선언
-```
+### Project Paths
 
-### 구현 완료 선언 조건
+| Category | Path |
+|----------|------|
+| API | `src/dli/api/{feature}.py` |
+| CLI | `src/dli/commands/{feature}.py` |
+| Models | `src/dli/models/{feature}.py` |
+| API Tests | `tests/api/test_{feature}_api.py` |
+| CLI Tests | `tests/cli/test_{feature}_cmd.py` |
 
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `src/dli/models/common.py:405-485 (+81 lines)` |
-| **수정한 파일:라인** | `src/dli/api/catalog.py:89-174` |
-| **테스트 결과** | `pytest tests/api/ → 30 passed` |
-| **전체 테스트** | `pytest tests/ → 1573 passed` |
-
----
-
-## Post-Implementation Checklist (필수)
-
-구현 완료 후 반드시 수행:
+### Post-Implementation
 
 ```
-□ grep으로 새 클래스/함수 존재 확인
-□ pytest 실행하여 테스트 통과 확인
-□ features/STATUS.md 업데이트 (컴포넌트 상태 표시)
+□ features/STATUS.md 업데이트
 □ mcp__serena__edit_memory("cli_implementation_status", ...) 호출
-□ 테스트 통과 확인 후 RELEASE_*.md 업데이트
-□ README.md 변경사항 반영 (새 기능/API 추가 시)
+□ RELEASE_*.md 업데이트
 ```
 
 ---
