@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
-> **Auto-generated:** 2025-12-31
-> **Version:** 0.4.0
+> **Auto-generated:** 2026-01-01
+> **Version:** 0.4.1
 
 ---
 
@@ -112,6 +112,19 @@
 ---
 
 ## Changelog
+
+### v0.4.1 (2026-01-01)
+- **Transpile P0 Gap Resolution**
+  - GAP-T03: Jinja Integration - `_render_jinja()` 메서드, `jinja_context` 파라미터
+  - GAP-T11: `--transpile-retry` CLI 옵션 (0-5 범위)
+  - `TranspileConfig.enable_jinja: bool = True` 옵션
+  - 15개 신규 테스트 (Jinja 8 + Retry 7)
+- TranspileEngine v1.1.0
+  - `transpile(sql, context, jinja_context)` 시그니처 확장
+  - dbt/SQLMesh 호환 템플릿: `{{ ds }}`, `{{ ref() }}`, `{{ var() }}`
+- 문서 동기화
+  - FEATURE_TRANSPILE.md: Status → "Implemented (P0 Complete)"
+  - GAP_TRANSPILE.md: GAP-T03, GAP-T11 → ✅ Resolved
 
 ### v0.4.0 (2025-12-31)
 - **Catalog 커맨드 v1.2.0 통합**

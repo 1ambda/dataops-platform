@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from dli.core.renderer import SQLRenderer
 
 from dli.core.transpile.client import MockTranspileClient, TranspileRuleClient
 from dli.core.transpile.exceptions import (
@@ -35,6 +38,13 @@ from dli.core.transpile.warnings import detect_warnings
 __all__ = [
     "TranspileEngine",
 ]
+
+
+def _create_renderer() -> SQLRenderer:
+    """Lazy import to avoid circular dependency."""
+    from dli.core.renderer import SQLRenderer  # noqa: PLC0415
+
+    return SQLRenderer()
 
 
 class TranspileEngine:
@@ -77,10 +87,12 @@ class TranspileEngine:
         self,
         sql: str,
         context: dict[str, Any] | None = None,
+        jinja_context: dict[str, Any] | None = None,
     ) -> TranspileResult:
         """Transpile SQL using configured rules.
 
         This is the main entry point for SQL transpilation. It performs:
+        0. Jinja template rendering (if enabled)
         1. Rule fetching with retry logic
         2. METRIC() function expansion
         3. Table substitution
@@ -92,6 +104,10 @@ class TranspileEngine:
             context: Optional context dict (e.g., environment, project_id).
                 Currently used for:
                 - project_id: Scope rules to specific project
+            jinja_context: Optional Jinja template context dict with:
+                - execution_date: date for ds, ds_nodash variables
+                - variables: dict for var() function
+                - refs: dict for ref() function
 
         Returns:
             TranspileResult with:
@@ -117,6 +133,9 @@ class TranspileEngine:
         current_sql = sql
 
         try:
+            # Step 0: Render Jinja templates (if enabled)
+            current_sql = self._render_jinja(current_sql, jinja_context)
+
             # Step 1: Fetch rules
             rules = self._fetch_rules_with_retry(project_id)
 
@@ -302,3 +321,41 @@ class TranspileEngine:
             return [f"Validation error: {e}"]
         else:
             return []
+
+    def _render_jinja(
+        self,
+        sql: str,
+        jinja_context: dict[str, Any] | None,
+    ) -> str:
+        """Render Jinja templates in SQL if enabled.
+
+        Uses SQLRenderer.render_with_template_context to process
+        Jinja2 placeholders like {{ ds }}, {{ ref('table') }}, {{ var('key') }}.
+
+        Args:
+            sql: SQL string potentially containing Jinja2 templates.
+            jinja_context: Context dict with:
+                - execution_date: date for ds, ds_nodash variables
+                - variables: dict for var() function
+                - refs: dict for ref() function
+
+        Returns:
+            Rendered SQL string, or original SQL if Jinja disabled or no context.
+
+        Raises:
+            TranspileError: If Jinja rendering fails (in strict mode).
+        """
+        if not self.config.enable_jinja or jinja_context is None:
+            return sql
+
+        try:
+            renderer = _create_renderer()
+            return renderer.render_with_template_context(
+                sql,
+                execution_date=jinja_context.get("execution_date"),
+                variables=jinja_context.get("variables"),
+                refs=jinja_context.get("refs"),
+            )
+        except Exception as e:
+            # Re-raise as TranspileError for consistent error handling
+            raise TranspileError(f"Jinja rendering failed: {e}") from e

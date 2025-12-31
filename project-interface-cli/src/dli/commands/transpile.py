@@ -260,6 +260,15 @@ def transpile_sql(
             help="Input SQL dialect (trino, bigquery).",
         ),
     ] = "trino",
+    retry: Annotated[
+        int,
+        typer.Option(
+            "--transpile-retry",
+            help="Number of retries for rule fetching (0-5).",
+            min=0,
+            max=5,
+        ),
+    ] = 1,
 ) -> None:
     """Transpile SQL with table substitution and METRIC expansion.
 
@@ -292,6 +301,9 @@ def transpile_sql(
 
         # Specify dialect
         dli transpile "SELECT * FROM users" --dialect bigquery
+
+        # Custom retry count
+        dli transpile "SELECT * FROM users" --transpile-retry 3
     """
     # If a subcommand is invoked, skip the callback logic
     if ctx.invoked_subcommand is not None:
@@ -326,6 +338,7 @@ def transpile_sql(
         dialect=parsed_dialect,
         strict_mode=strict,
         validate_syntax=validate,
+        retry_count=retry,
     )
 
     # Create engine with mock client

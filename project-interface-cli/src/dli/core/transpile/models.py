@@ -123,6 +123,10 @@ class TranspileConfig(BaseModel):
         default=False,
         description="If True, perform SQL syntax validation",
     )
+    enable_jinja: bool = Field(
+        default=True,
+        description="If True, render Jinja templates before transpilation",
+    )
     retry_count: int = Field(
         default=1,
         ge=0,

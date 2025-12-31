@@ -1,14 +1,14 @@
 # RELEASE: SQL Transpile Feature
 
-> **Version:** 1.0.0-MVP
-> **Status:** Implemented
-> **Release Date:** 2025-12-30
+> **Version:** 1.1.0
+> **Status:** Implemented (P0 Complete)
+> **Release Date:** 2026-01-01
 
 ---
 
 ## 1. Implementation Summary
 
-### 1.1 Completed Features (Phase 1 MVP)
+### 1.1 Completed Features (Phase 1 MVP + P0)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
@@ -20,6 +20,8 @@
 | **`dataset run --sql`** | ✅ | Ad-hoc SQL execution with transpile integration |
 | **Mock Mode** | ✅ | Full mock support for development/testing |
 | **JSON Output** | ✅ | `--format json` option for programmatic use |
+| **Jinja Integration** | ✅ | `{{ ds }}`, `{{ ref() }}`, `{{ var() }}` dbt/SQLMesh 호환 |
+| **`--transpile-retry` CLI** | ✅ | Retry count 옵션 (0-5 범위) |
 
 ### 1.2 Files Created/Modified
 
@@ -57,9 +59,9 @@
 |------|-------|----------|
 | `tests/core/transpile/test_models.py` | 50 | Pydantic models |
 | `tests/core/transpile/test_metrics.py` | 35 | METRIC() parsing |
-| `tests/core/transpile/test_engine.py` | 40 | TranspileEngine |
-| `tests/cli/test_transpile_cmd.py` | 38 | CLI commands |
-| **Total** | **163** | |
+| `tests/core/transpile/test_engine.py` | 53 | TranspileEngine + Jinja Integration |
+| `tests/cli/test_transpile_cmd.py` | 45 | CLI commands + Retry Option |
+| **Total** | **165** | |
 
 ---
 
@@ -93,6 +95,7 @@ dli transpile --dialect bigquery "SELECT * FROM users"
 | `--show-rules` | Show applied rules detail | `false` |
 | `--validate` | Perform syntax validation | `false` |
 | `-d, --dialect` | SQL dialect (trino/bigquery) | `trino` |
+| `--transpile-retry` | Retry count for rule fetching (0-5) | `1` |
 
 ### 2.2 `dli dataset run --sql`
 
@@ -139,6 +142,7 @@ User SQL
 ┌──────────────────────┐
 │ TranspileEngine      │
 ├──────────────────────┤
+│ 0. Jinja rendering   │ ← renderer.py ({{ ds }}, ref(), var())
 │ 1. Fetch rules       │ ← MockTranspileClient
 │ 2. Table substitution│ ← rules.py (SQLGlot)
 │ 3. METRIC expansion  │ ← metrics.py (regex)
@@ -200,13 +204,13 @@ Coverage:
 
 ## 6. Known Limitations (MVP)
 
-| Limitation | Phase | Notes |
-|------------|-------|-------|
-| SQL당 METRIC() 1개만 지원 | Phase 2 | `MetricLimitExceededError` 발생 |
-| 문자열 리터럴 내 METRIC 미감지 | Phase 2 | `"SELECT 'METRIC(x)'"` |
-| 주석 내 METRIC 미감지 | Phase 2 | `-- METRIC(x)` |
-| Jinja Template 미지원 | Phase 2 | `{{ ref('table') }}` |
-| Server API 미연동 | Phase 3 | Mock 모드만 가용 |
+| Limitation | Phase | Status |
+|------------|-------|--------|
+| SQL당 METRIC() 1개만 지원 | Phase 2 | Open |
+| 문자열 리터럴 내 METRIC 미감지 | Phase 2 | Open |
+| 주석 내 METRIC 미감지 | Phase 2 | Open |
+| ~~Jinja Template 미지원~~ | ~~Phase 2~~ | ✅ **Resolved (v1.1.0)** |
+| Server API 미연동 | Phase 3 | Open |
 
 ---
 
@@ -214,7 +218,7 @@ Coverage:
 
 ### Phase 2
 - [ ] Multiple METRIC() support
-- [ ] Jinja Template rendering
+- [x] ~~Jinja Template rendering~~ → **v1.1.0에서 구현 완료**
 - [ ] Additional warnings (duplicate CTE, correlated subquery)
 - [ ] `--validate` enhanced validation
 - [ ] File logging
@@ -233,9 +237,9 @@ Coverage:
 |--------|-------|
 | pyright errors | 0 |
 | ruff violations | 0 |
-| Test count | 163 |
+| Test count | 165 |
 | Test pass rate | 100% |
-| New code lines | ~2,400 |
+| New code lines | ~2,600 |
 
 ---
 
@@ -258,6 +262,18 @@ Coverage:
 - Graceful degradation pattern
 - Rich CLI output
 
+### expert-python Agent Review (2026-01-01) - P0 Update
+
+**Assessment:** Good Quality
+
+**Improvements Applied:**
+1. Jinja 에러 처리 edge case 테스트 추가 (undefined variable, invalid syntax)
+2. Strict mode와 graceful mode 에러 핸들링 검증
+
+**P0 Features Validated:**
+- Jinja Integration (`_render_jinja()`, `jinja_context` 파라미터)
+- `--transpile-retry` CLI 옵션 범위 검증 (0-5)
+
 ---
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-01

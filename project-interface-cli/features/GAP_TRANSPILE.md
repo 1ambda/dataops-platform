@@ -1,8 +1,9 @@
 # GAP Analysis: SQL Transpile Feature
 
 > **Auto-generated:** 2026-01-01
-> **Analyzed by:** meta-agent, expert-doc-writer, expert-spec
-> **Implementation Completeness:** 63% (27/43 items)
+> **Last Updated:** 2026-01-01 (P0 gaps resolved)
+> **Analyzed by:** meta-agent, expert-doc-writer, expert-spec, feature-interface-cli
+> **Implementation Completeness:** 67% (29/43 items)
 
 ---
 
@@ -13,22 +14,22 @@
 | Metric | Value |
 |--------|-------|
 | FEATURE Spec Items | 43 |
-| Implemented Items | 27 |
-| **Completion Rate** | **63%** |
+| Implemented Items | 29 |
+| **Completion Rate** | **67%** |
 | Spec Quality Grade | B+ |
-| Documentation Drift | Medium |
+| Documentation Drift | Low |
 
-The Transpile feature MVP is **functionally complete** for basic table substitution and METRIC() expansion, but has significant gaps in Server API integration, Jinja support, and several warning detections.
+The Transpile feature MVP is **functionally complete** for basic table substitution, METRIC() expansion, and **Jinja template rendering**. Key gaps remain in Server API integration and multiple METRIC() support.
 
 ### 1.2 Key Findings
 
-| Finding | Severity | Root Cause |
-|---------|----------|------------|
-| Server API not integrated | Critical | Mock-first became Mock-only (Phase 3 deferred indefinitely) |
-| Jinja not integrated with TranspileEngine | High | Module isolation - existing Jinja code not connected |
-| Dead enum values (DUPLICATE_CTE, CORRELATED_SUBQUERY) | Medium | Spec over-specified, implementation incomplete |
-| Exception hierarchy simplified (9→4) | Low | Correct simplification, spec was over-engineered |
-| Test count drift (163/147/178) | Medium | Documentation not updated after test additions |
+| Finding | Severity | Root Cause | Status |
+|---------|----------|------------|--------|
+| Server API not integrated | Critical | Mock-first became Mock-only (Phase 3 deferred indefinitely) | Open |
+| ~~Jinja not integrated with TranspileEngine~~ | ~~High~~ | ~~Module isolation~~ | ✅ **Resolved** |
+| Dead enum values (DUPLICATE_CTE, CORRELATED_SUBQUERY) | Medium | Spec over-specified, implementation incomplete | Open |
+| Exception hierarchy simplified (9→4) | Low | Correct simplification, spec was over-engineered | Accepted |
+| ~~`--transpile-retry` CLI option missing~~ | ~~Low~~ | ~~Config exists, not exposed~~ | ✅ **Resolved** |
 
 ---
 
@@ -45,7 +46,7 @@ The Transpile feature MVP is **functionally complete** for basic table substitut
 
 | ID | Gap | FEATURE Spec | RELEASE Status | Impact |
 |----|-----|--------------|----------------|--------|
-| GAP-T03 | Jinja Template Integration | Section 7: `ref()`, `var()`, `env()` | Not integrated | Existing `core/renderer.py` not used |
+| ~~GAP-T03~~ | ~~Jinja Template Integration~~ | ~~Section 7~~ | ✅ **Resolved (2026-01-01)** | `_render_jinja()` + `jinja_context` param + 8 tests |
 | GAP-T04 | DUPLICATE_CTE Detection | Section 3.2 | Enum exists, logic missing | Dead code |
 | GAP-T05 | CORRELATED_SUBQUERY Detection | Section 3.2 | Enum exists, logic missing | Dead code |
 | GAP-T06 | Exception Hierarchy Incomplete | Section 8.2: 9 classes | 4 implemented | `NetworkError`, `TimeoutError`, etc. missing |
@@ -63,7 +64,7 @@ The Transpile feature MVP is **functionally complete** for basic table substitut
 
 | ID | Gap | Notes |
 |----|-----|-------|
-| GAP-T11 | `--transpile-retry` CLI option | Config exists, not exposed |
+| ~~GAP-T11~~ | ~~`--transpile-retry` CLI option~~ | ✅ **Resolved (2026-01-01)** - `--transpile-retry [0-5]` + 7 tests |
 | GAP-T12 | `rules_version` in metadata | Always `None` |
 
 ---
@@ -114,16 +115,16 @@ The Transpile feature MVP is **functionally complete** for basic table substitut
 
 ### 4.2 Recommended Priority Order
 
-| Priority | Item | Effort | Dependencies | Agent Agreement |
-|----------|------|--------|--------------|-----------------|
-| **P0** | GAP-T03: Jinja Integration | 1 day | None | meta-agent, expert-spec |
-| **P0** | GAP-T11: `--transpile-retry` CLI | 1 hour | None | meta-agent |
-| **P1** | GAP-T02: Multiple METRIC() | 2 days | None | All agents |
-| **P1** | GAP-T01: Server API | 3 days | Server implementation | meta-agent, expert-doc-writer |
-| **P2** | GAP-T04, GAP-T05: Dead warnings | 4 hours | None | meta-agent |
-| **P2** | GAP-T07, GAP-T08: String/comment parsing | 1 day | None | expert-spec |
-| **P3** | GAP-T06: Complete exceptions | 1 day | None | expert-spec |
-| **P3** | GAP-T09: File logging | 1 day | None | expert-doc-writer |
+| Priority | Item | Effort | Dependencies | Status |
+|----------|------|--------|--------------|--------|
+| ~~**P0**~~ | ~~GAP-T03: Jinja Integration~~ | ~~1 day~~ | ~~None~~ | ✅ **Done** |
+| ~~**P0**~~ | ~~GAP-T11: `--transpile-retry` CLI~~ | ~~1 hour~~ | ~~None~~ | ✅ **Done** |
+| **P1** | GAP-T02: Multiple METRIC() | 2 days | None | Pending |
+| **P1** | GAP-T01: Server API | 3 days | Server implementation | Pending |
+| **P2** | GAP-T04, GAP-T05: Dead warnings | 4 hours | None | Pending |
+| **P2** | GAP-T07, GAP-T08: String/comment parsing | 1 day | None | Pending |
+| **P3** | GAP-T06: Complete exceptions | 1 day | None | Pending |
+| **P3** | GAP-T09: File logging | 1 day | None | Pending |
 
 ---
 

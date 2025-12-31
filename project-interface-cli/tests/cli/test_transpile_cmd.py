@@ -539,3 +539,67 @@ class TestWarningDisplay:
             or "dangerous" in output.lower()
             or "drop" in output.lower()
         )
+
+
+# =============================================================================
+# Test: Retry Option
+# =============================================================================
+
+
+class TestRetryOption:
+    """Tests for --transpile-retry option."""
+
+    def test_retry_option_default(self) -> None:
+        """Test retry option uses default value (1)."""
+        result = runner.invoke(app, ["transpile", "SELECT id FROM users LIMIT 10"])
+        assert result.exit_code == 0
+
+    def test_retry_option_custom_value(self) -> None:
+        """Test retry option with custom value."""
+        result = runner.invoke(
+            app,
+            ["transpile", "--transpile-retry", "3", "SELECT id FROM users LIMIT 10"],
+        )
+        assert result.exit_code == 0
+
+    def test_retry_option_zero(self) -> None:
+        """Test retry option with zero (no retries)."""
+        result = runner.invoke(
+            app,
+            ["transpile", "--transpile-retry", "0", "SELECT id FROM users LIMIT 10"],
+        )
+        assert result.exit_code == 0
+
+    def test_retry_option_max_valid(self) -> None:
+        """Test retry option with maximum valid value (5)."""
+        result = runner.invoke(
+            app,
+            ["transpile", "--transpile-retry", "5", "SELECT id FROM users LIMIT 10"],
+        )
+        assert result.exit_code == 0
+
+    def test_retry_option_exceeds_max(self) -> None:
+        """Test retry option with value exceeding max (6) fails."""
+        result = runner.invoke(
+            app,
+            ["transpile", "--transpile-retry", "6", "SELECT id FROM users LIMIT 10"],
+        )
+        # Typer should reject values outside the valid range
+        assert result.exit_code != 0
+
+    def test_retry_option_negative(self) -> None:
+        """Test retry option with negative value fails."""
+        result = runner.invoke(
+            app,
+            ["transpile", "--transpile-retry", "-1", "SELECT id FROM users LIMIT 10"],
+        )
+        # Typer should reject negative values
+        assert result.exit_code != 0
+
+    def test_retry_option_in_help(self) -> None:
+        """Test --transpile-retry appears in help output."""
+        result = runner.invoke(app, ["transpile", "--help"])
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "--transpile-retry" in output
+        assert "0-5" in output

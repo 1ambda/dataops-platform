@@ -1,8 +1,16 @@
 # FEATURE: SQL Transpile 기능
 
-> **Version:** 1.0.0
-> **Status:** Draft
-> **Last Updated:** 2025-12-30
+> **Version:** 1.1.0
+> **Status:** Implemented (P0 Complete)
+> **Last Updated:** 2026-01-01
+
+### Recent Updates (2026-01-01)
+
+| Item | Status | Description |
+|------|--------|-------------|
+| **Jinja Integration** | ✅ Done | `TranspileEngine.transpile(sql, jinja_context=...)` 지원 |
+| **--transpile-retry CLI** | ✅ Done | `--transpile-retry [0-5]` 옵션 추가 |
+| **테스트 확장** | ✅ Done | 162개 테스트 (기존 147 + Jinja 8 + Retry 7) |
 
 ---
 

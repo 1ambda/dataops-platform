@@ -561,3 +561,153 @@ class TestRetryLogic:
         result = engine.transpile("SELECT 1")
         assert result.success is True  # Graceful degradation
         assert call_count == 1  # Only one attempt
+
+
+# =============================================================================
+# Test: Jinja Integration
+# =============================================================================
+
+
+class TestJinjaIntegration:
+    """Tests for Jinja template rendering integration."""
+
+    def test_jinja_renders_ds_variable(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja ds variable rendering."""
+        from datetime import date
+
+        sql = "SELECT * FROM events WHERE dt = '{{ ds }}'"
+        jinja_context = {"execution_date": date(2025, 1, 15)}
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        assert "2025-01-15" in result.sql
+
+    def test_jinja_renders_ref_function(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja ref() function rendering."""
+        # Use a table name that doesn't match substitution rules
+        sql = "SELECT * FROM {{ ref('invoices') }} LIMIT 10"
+        jinja_context = {"refs": {"invoices": "prod.billing.invoices"}}
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        assert "prod.billing.invoices" in result.sql
+
+    def test_jinja_renders_var_function(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja var() function rendering."""
+        sql = "SELECT * FROM events WHERE region = '{{ var(\"region\") }}' LIMIT 10"
+        jinja_context = {"variables": {"region": "us-east-1"}}
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        assert "us-east-1" in result.sql
+
+    def test_jinja_combined_with_transpilation(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering combined with table substitution."""
+        from datetime import date
+
+        sql = "SELECT * FROM raw.events WHERE dt = '{{ ds }}'"
+        jinja_context = {"execution_date": date(2025, 1, 15)}
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        # Both should be applied: Jinja rendering and table substitution
+        assert "2025-01-15" in result.sql
+        assert "warehouse.events_v2" in result.sql
+
+    def test_jinja_disabled_by_config(
+        self, mock_client: MockTranspileClient
+    ) -> None:
+        """Test Jinja rendering disabled by config."""
+        from datetime import date
+
+        config = TranspileConfig(enable_jinja=False)
+        engine = TranspileEngine(client=mock_client, config=config)
+        sql = "SELECT * FROM events WHERE dt = '{{ ds }}'"
+        jinja_context = {"execution_date": date(2025, 1, 15)}
+        result = engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        # Jinja should NOT be rendered
+        assert "{{ ds }}" in result.sql
+        assert "2025-01-15" not in result.sql
+
+    def test_jinja_no_context_provided(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering skipped when no context provided."""
+        sql = "SELECT * FROM events WHERE dt = '{{ ds }}'"
+        # No jinja_context provided
+        result = default_engine.transpile(sql)
+        assert result.success is True
+        # Jinja should NOT be rendered
+        assert "{{ ds }}" in result.sql
+
+    def test_jinja_empty_context(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering with empty context dict."""
+        sql = "SELECT * FROM events LIMIT 10"
+        # Empty jinja_context
+        result = default_engine.transpile(sql, jinja_context={})
+        assert result.success is True
+
+    def test_jinja_with_all_context_types(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering with all context types."""
+        from datetime import date
+
+        sql = """
+        SELECT *
+        FROM {{ ref('orders') }}
+        WHERE dt = '{{ ds }}'
+        AND region = '{{ var("region") }}'
+        LIMIT 10
+        """
+        jinja_context = {
+            "execution_date": date(2025, 3, 20),
+            "refs": {"orders": "prod.sales.orders"},
+            "variables": {"region": "ap-northeast-1"},
+        }
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        assert result.success is True
+        assert "2025-03-20" in result.sql
+        assert "prod.sales.orders" in result.sql
+        assert "ap-northeast-1" in result.sql
+
+    def test_jinja_undefined_variable_graceful(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering with undefined variable in non-strict mode."""
+        sql = "SELECT * FROM events WHERE region = '{{ undefined_var }}' LIMIT 10"
+        jinja_context = {"variables": {}}  # undefined_var is not provided
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        # Should fail gracefully in non-strict mode
+        assert result.success is False
+        assert result.error is not None
+        assert "jinja" in result.error.lower() or "undefined" in result.error.lower()
+
+    def test_jinja_undefined_variable_strict(
+        self, strict_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering with undefined variable in strict mode."""
+        sql = "SELECT * FROM events WHERE region = '{{ undefined_var }}' LIMIT 10"
+        jinja_context = {"variables": {}}  # undefined_var is not provided
+        with pytest.raises(TranspileError) as exc_info:
+            strict_engine.transpile(sql, jinja_context=jinja_context)
+        assert "jinja" in str(exc_info.value).lower()
+
+    def test_jinja_invalid_syntax_graceful(
+        self, default_engine: TranspileEngine
+    ) -> None:
+        """Test Jinja rendering with invalid syntax in non-strict mode."""
+        # Invalid Jinja syntax: unclosed tag
+        sql = "SELECT * FROM events WHERE dt = '{{ ds' LIMIT 10"
+        jinja_context = {"execution_date": __import__("datetime").date(2025, 1, 15)}
+        result = default_engine.transpile(sql, jinja_context=jinja_context)
+        # Should fail gracefully in non-strict mode
+        assert result.success is False
+        assert result.error is not None
