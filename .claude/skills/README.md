@@ -44,6 +44,17 @@ Language-neutral capabilities loaded by agents. See [../.claude/README.md](../RE
 | [context-synthesis](./context-synthesis/SKILL.md) | Context gathering from multiple sources |
 | [spec-validation](./spec-validation/SKILL.md) | Specification quality validation |
 
+### Quality Gate Skills (NEW 2026-01-01)
+
+| Skill | Purpose |
+|-------|---------|
+| [completion-gate](./completion-gate/SKILL.md) | Pre-completion verification with phase boundary check |
+| [implementation-checklist](./implementation-checklist/SKILL.md) | FEATURE → checklist generation |
+| [docs-synchronize](./docs-synchronize/SKILL.md) | Document synchronization validation |
+| [gap-analysis](./gap-analysis/SKILL.md) | FEATURE vs RELEASE systematic comparison |
+| [phase-tracking](./phase-tracking/SKILL.md) | Multi-phase feature management |
+| [dependency-coordination](./dependency-coordination/SKILL.md) | Cross-agent dependency tracking and requests |
+
 ## Design Principle
 
 Skills focus on **principles and processes**, not implementation details. Language/framework-specific patterns are handled by feature agents (`.claude/agents/feature-*.md`).

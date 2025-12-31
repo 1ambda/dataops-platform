@@ -226,6 +226,91 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 
 ---
 
+## Phase 경계 검사 (Phase Boundary Check)
+
+> **신규 기능 (2026-01-01)**: `phase-tracking` skill과 연동하여 Phase 경계를 인식합니다.
+
+### Phase 경계 인식
+
+FEATURE에 Phase 1/2 구분이 있는 경우, Gate는 **Phase 단위**로 완료를 판단합니다:
+
+```markdown
+## Completion Gate: PASSED (Phase 1 MVP) ⚠️
+
+### Code/Test Verification: ✅ PASSED
+
+| Condition | Status | Evidence |
+|-----------|--------|----------|
+| Phase 1 checklist | ✅ 5/5 complete | implementation-checklist 결과 |
+| API tests exist | ✅ | `tests/api/test_quality_api.py` |
+| CLI tests exist | ✅ | `tests/cli/test_quality_cmd.py` |
+| All tests pass | ✅ | `pytest tests/ → 47 passed` |
+| Type check pass | ✅ | `pyright src/ → 0 errors` |
+
+### Phase Boundary: ⚠️ Phase 2 Items Pending
+
+| Phase | Total | Complete | Status |
+|-------|-------|----------|--------|
+| Phase 1 MVP | 5 | 5 | ✅ Complete |
+| Phase 1.5 | 2 | 0 | ⏳ Blocked |
+| Phase 2 | 7 | 0 | ⏳ Not Started |
+
+### Phase 2 Backlog Auto-Generated
+
+다음 항목이 Phase 2 백로그로 등록되었습니다:
+
+| Priority | Item | Dependency |
+|----------|------|------------|
+| P0 | SERVER mode execution | Basecamp Server |
+| P1 | Airflow DAG generation | Airflow |
+| P1 | Slack notifications | Basecamp Connect |
+| ... | (7 items total) | ... |
+
+### Declaration Options
+
+1. **"Phase 1 MVP Complete"** ✅ (권장)
+   - STATUS.md: `Phase 1 ✅, Phase 2 ⏳`
+   - Phase 2 백로그 추적 시작
+   - RELEASE_*.md에 "Phase 1 MVP" 명시
+
+2. **"Feature Complete"** ❌ (불가)
+   - Phase 2 항목 존재로 전체 완료 불가
+   - 모든 Phase 완료 후 가능
+```
+
+### Phase 완료 유형
+
+| 완료 유형 | 조건 | STATUS.md 표기 |
+|----------|------|----------------|
+| **Phase N MVP Complete** | Phase N 항목 100% | `✅ Phase N, ⏳ Phase N+1` |
+| **Feature Complete** | 모든 Phase 완료 | `✅ Complete` |
+| **Phase N Partial** | 일부 구현, 사유 있음 | `⏳ Partial (사유)` |
+
+### Phase 경계 실패 예시
+
+```markdown
+## Completion Gate: FAILED ❌
+
+### Issue: Phase 1 항목 미완료
+
+"Feature Complete"를 선언했으나 Phase 1 항목이 미완료입니다.
+
+| Phase 1 Item | Status |
+|--------------|--------|
+| QualityAPI.validate | ✅ |
+| DLI-605 error code | ❌ **MISSING** |
+
+### Required Action
+
+Phase 1을 완료하려면:
+1. DLI-605 (QualityTestTimeoutError) 구현, 또는
+2. FEATURE에서 공식 제외 후 "Phase 1 MVP Complete" 선언
+
+"Feature Complete"는 모든 Phase 완료 후 가능합니다.
+```
+
+---
+
 ## 관련 Skills
 
 - `docs-synchronize`: **문서 동기화 검증** (Gate 통과 후 자동 연결)
@@ -233,6 +318,9 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 - `implementation-verification`: 코드 존재 검증
 - `testing`: TDD 워크플로우, pytest 실행
 - `code-review`: 코드 품질 검증
+- `gap-analysis`: **FEATURE vs RELEASE 비교** (선택적 실행)
+- `phase-tracking`: **Phase 경계 관리** (Phase 구분 있을 때 연동)
+- `dependency-coordination`: **외부 의존성 추적** (Blocked 항목 있을 때 연동)
 
 ---
 
