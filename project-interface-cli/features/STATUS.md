@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-01
-> **Version:** 0.4.1
+> **Version:** 0.4.3
 
 ---
 
@@ -9,11 +9,12 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.4.0 | WorkflowAPI 추가 |
+| Library API | ✅ v0.4.3 | LineageAPI 추가 |
 | CLI Commands | ✅ v0.3.0 | quality validate 추가 |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
-| Tests | ✅ 1715 passed | pyright 0 errors |
+| Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
+| Tests | ✅ 1758 passed | pyright 0 errors |
 
 ---
 
@@ -31,7 +32,7 @@
 | ServerExecutor | `core/executor.py` | ⏳ Stub | Phase 2에서 완전 구현 |
 | BigQueryExecutor | `adapters/bigquery.py` | ✅ Complete | 실제 BigQuery 연동 |
 
-### Library API (v0.4.0)
+### Library API (v0.4.3)
 
 | API Class | File | Status | DI Support |
 |-----------|------|--------|------------|
@@ -42,6 +43,7 @@
 | ConfigAPI | `api/config.py` | ✅ Complete | - |
 | QualityAPI | `api/quality.py` | ✅ Complete | - |
 | WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
+| LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
 
 ### CLI Commands (v0.3.0)
 
@@ -72,6 +74,7 @@
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 | DLI-7xx | Catalog | DLI-706 | ✅ Complete (701-706) |
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
+| DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 
 ---
 
@@ -79,10 +82,10 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | 330 | ✅ All pass |
+| API Tests | 373 (+43 LineageAPI) | ✅ All pass |
 | CLI Tests | ~828 | ✅ All pass |
 | Core Tests | ~500 | ✅ All pass |
-| **Total** | **1715** | ✅ All pass |
+| **Total** | **1758** | ✅ All pass |
 
 ---
 
@@ -99,6 +102,9 @@
 | FEATURE_CATALOG.md | ✅ Created | `project-interface-cli/features/FEATURE_CATALOG.md` |
 | RELEASE_CATALOG.md | ✅ Created | `project-interface-cli/features/RELEASE_CATALOG.md` |
 | GAP_CATALOG.md | ✅ Created | `project-interface-cli/features/GAP_CATALOG.md` |
+| FEATURE_LINEAGE.md | ✅ Created | `project-interface-cli/features/FEATURE_LINEAGE.md` |
+| RELEASE_LINEAGE.md | ✅ Created | `project-interface-cli/features/RELEASE_LINEAGE.md` |
+| GAP_LINEAGE.md | ✅ Created | `project-interface-cli/features/GAP_LINEAGE.md` |
 
 ---
 
@@ -112,6 +118,41 @@
 ---
 
 ## Changelog
+
+### v0.4.3 (2026-01-01)
+- **LineageAPI 구현 완료**
+  - `api/lineage.py` (367 lines): get_lineage, get_upstream, get_downstream
+  - MOCK/SERVER 모드 지원, DI 지원 (client 파라미터)
+  - WorkflowAPI 패턴 기반 구현
+- **DLI-9xx Lineage 에러 코드 추가**
+  - DLI-900: LINEAGE_NOT_FOUND
+  - DLI-901: LINEAGE_DEPTH_EXCEEDED
+  - DLI-902: LINEAGE_CYCLE_DETECTED
+  - DLI-903: LINEAGE_SERVER_ERROR
+  - DLI-904: LINEAGE_TIMEOUT
+- **Lineage Exception 클래스 3종**
+  - LineageError (base)
+  - LineageNotFoundError
+  - LineageTimeoutError
+- **43개 신규 테스트 추가**
+  - `tests/api/test_lineage_api.py`
+  - 11 테스트 클래스, 모든 API 메서드 검증
+- **dli/__init__.py Export 업데이트**
+  - LineageAPI, LineageError, LineageNotFoundError, LineageTimeoutError
+
+### v0.4.2 (2026-01-01)
+- **Lineage 문서화 완료**
+  - FEATURE_LINEAGE.md: 기능 명세 (~968 lines, Phase 1/2 설계)
+  - RELEASE_LINEAGE.md: 구현 상세 (~399 lines, CLI/Models/Client)
+  - GAP_LINEAGE.md: Gap 분석 (58% 완성도, 9개 Gap 식별)
+- **Agent/Skill 시스템 개선**
+  - `api-parity` 스킬 신규 생성 (CLI-API 패리티 검증)
+  - `completion-gate` 스킬 강화 (+3 체크: API Parity, Exception, Phase Gate)
+  - `docs-synchronize` 스킬 강화 (+3 기능: Test Count, API Export, Changelog)
+  - `implementation-checklist` 스킬 강화 (+3 체크: Exception, API-CLI, Test Files)
+- **P0 Gap 식별** (향후 구현 필요)
+  - GAP-L01: LineageAPI 클래스 누락 (Critical, ~4시간)
+  - GAP-L02: DLI-9xx 에러 코드 누락 (High, ~1시간)
 
 ### v0.4.1 (2026-01-01)
 - **Transpile P0 Gap Resolution**

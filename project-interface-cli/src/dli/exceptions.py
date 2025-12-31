@@ -33,6 +33,8 @@ class ErrorCode(str, Enum):
     - DLI-5xx: Server errors
     - DLI-6xx: Quality errors
     - DLI-7xx: Catalog errors
+    - DLI-8xx: Workflow errors
+    - DLI-9xx: Lineage errors
     """
 
     # Configuration Errors (DLI-0xx)
@@ -96,6 +98,13 @@ class ErrorCode(str, Enum):
     WORKFLOW_OVERRIDDEN = "DLI-806"
     WORKFLOW_INVALID_STATE = "DLI-807"
     WORKFLOW_UNREGISTER_FAILED = "DLI-808"
+
+    # Lineage Errors (DLI-9xx)
+    LINEAGE_NOT_FOUND = "DLI-900"
+    LINEAGE_DEPTH_EXCEEDED = "DLI-901"
+    LINEAGE_CYCLE_DETECTED = "DLI-902"
+    LINEAGE_SERVER_ERROR = "DLI-903"
+    LINEAGE_TIMEOUT = "DLI-904"
 
 
 @dataclass
@@ -681,6 +690,82 @@ class CatalogSchemaError(DLIError):
         return msg
 
 
+# Lineage Errors (DLI-9xx)
+
+
+@dataclass
+class LineageError(DLIError):
+    """Base lineage error.
+
+    Raised for lineage-related operations.
+
+    Attributes:
+        resource_name: The resource name for which lineage was queried.
+    """
+
+    code: ErrorCode = ErrorCode.LINEAGE_SERVER_ERROR
+    resource_name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.resource_name:
+            return f"[{self.code.value}] {self.message} (resource: {self.resource_name})"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class LineageNotFoundError(DLIError):
+    """Lineage not found error.
+
+    Raised when lineage information cannot be found for a resource.
+
+    Attributes:
+        resource_name: The resource name that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.LINEAGE_NOT_FOUND
+    resource_name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return f"[{self.code.value}] Lineage not found for resource: {self.resource_name}"
+
+
+@dataclass
+class LineageTimeoutError(DLIError):
+    """Lineage query timeout error.
+
+    Raised when a lineage query exceeds the configured timeout.
+
+    Attributes:
+        resource_name: The resource name being queried.
+        timeout_seconds: The timeout duration that was exceeded.
+        cause: Original exception that caused the timeout.
+    """
+
+    code: ErrorCode = ErrorCode.LINEAGE_TIMEOUT
+    resource_name: str = ""
+    timeout_seconds: float | None = None
+    cause: Exception | None = None
+
+    def __post_init__(self) -> None:
+        """Chain the cause exception and initialize base class."""
+        super().__post_init__()
+        if self.cause:
+            self.__cause__ = self.cause
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Lineage query timed out"
+        if self.resource_name:
+            base += f" for resource: {self.resource_name}"
+        if self.timeout_seconds is not None:
+            base += f" after {self.timeout_seconds}s"
+        return base
+
+
 __all__ = [
     # Catalog Errors
     "CatalogAccessDeniedError",
@@ -694,6 +779,10 @@ __all__ = [
     "ErrorCode",
     "ExecutionError",
     "InvalidIdentifierError",
+    # Lineage Errors
+    "LineageError",
+    "LineageNotFoundError",
+    "LineageTimeoutError",
     "MetricNotFoundError",
     # Quality Errors
     "QualityNotFoundError",
