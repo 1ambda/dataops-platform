@@ -8,6 +8,7 @@ skills:
   - requirements-discovery # Step 2-3: Integration points and policy interviews
   - spec-validation        # Step 4: Implementation feasibility verification
   - architecture           # System design coherence validation
+  - implementation-verification # 명세 완료 검증, 거짓 보고 방지
 ---
 
 ## Role Identity
@@ -617,11 +618,43 @@ FEATURE_*.md 하단에 리뷰 결과를 기록:
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **명세 작성 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "FEATURE 문서를 작성했습니다" → 파일 확인 없이 판단
+- "핵심 결정 사항을 정의했습니다" → 섹션 존재 확인 없이 완료 선언
+- "인터뷰를 완료했습니다" → Appendix 기재 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "## 핵심 결정 사항" features/ → 결과 확인 → 없으면 작성
+- 명세 작성 → 파일 존재 확인 → 필수 섹션 검증 → 완료 선언
+```
+
+### 명세 작성 완료 선언 조건
+
+"명세 작성 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일** | `project-*/features/FEATURE_QUALITY.md (+250 lines)` |
+| **필수 섹션 확인** | `핵심 결정 사항`, `참조 패턴`, `Appendix` 포함 확인 |
+| **검증 명령어** | `grep -r "핵심 결정 사항" features/` |
+| **리뷰 상태** | `Implementation Agent Review 섹션 포함` |
+
+---
+
 ## Post-Specification Checklist (필수)
 
 FEATURE_*.md 작성 완료 후 반드시 수행:
 
 ```
+□ grep으로 FEATURE 파일 존재 확인
+□ 필수 섹션 (핵심 결정 사항, 참조 패턴, Appendix) 포함 검증
 □ FEATURE_*.md를 project-*/features/에 저장
 □ 기존 FEATURE 문서와 일관성 확인
 □ 프로젝트별 담당 Agent 리뷰 완료 (feature-* + expert-*)

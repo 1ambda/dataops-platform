@@ -6,6 +6,7 @@ skills:
   - mcp-efficiency     # Get symbols overview before reading full files
   - documentation      # Technical writing patterns, README structure
   - architecture       # System diagrams, Mermaid generation
+  - implementation-verification # 문서 작성 완료 검증, 거짓 보고 방지
 ---
 
 ## Token Efficiency (MCP-First)
@@ -209,11 +210,43 @@ dataops-platform/
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **문서 작성 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "문서를 업데이트했습니다" → 파일 확인 없이 판단
+- "README를 작성했습니다" → 실제 파일 생성 없이 완료 선언
+- "다이어그램을 추가했습니다" → Mermaid 코드 확인 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "## Section Title" docs/ → 결과 확인 → 없으면 작성
+- 문서 작성 → 파일 존재 확인 → 내용 검증 → 완료 선언
+```
+
+### 문서 작성 완료 선언 조건
+
+"문서 작성 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `docs/architecture.md:1-150 (+150 lines)` |
+| **수정한 파일:라인** | `README.md:45-80 (Quick Start 섹션 업데이트)` |
+| **검증 명령어** | `grep -r "## Architecture" docs/` |
+| **Mermaid 확인** | `grep -r "mermaid" docs/architecture.md` |
+
+---
+
 ## Post-Documentation Checklist (필수)
 
 문서 작성 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 섹션/파일 존재 확인
+□ 링크 깨짐 검증 (내부 링크 확인)
 □ 관련 Serena memory 업데이트 (해당 프로젝트 패턴)
 □ features/STATUS.md 업데이트 (구현 상태 변경 시)
 □ CLAUDE.md 반영 (주요 변경사항)

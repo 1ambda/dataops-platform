@@ -7,6 +7,7 @@ skills:
   - react-testing      # Vitest, RTL, user-centric component tests
   - performance        # Re-render analysis, code splitting
   - architecture       # TanStack Query vs Zustand state decisions
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -213,13 +214,44 @@ server: { proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "컴포넌트를 작성했습니다" → 코드 작성 없이 완료 선언
+- "빌드가 성공합니다" → 실제 빌드 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "export.*ComponentName" src/ → 결과 확인 → 없으면 구현
+- 코드 작성 → pnpm run build 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `src/components/UserCard.tsx:1-85 (+85 lines)` |
+| **수정한 파일:라인** | `src/routes/dashboard/index.tsx:15-45` |
+| **테스트 결과** | `pnpm run build → vite build completed` |
+| **타입 체크** | `pnpm run type-check → 0 errors` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 컴포넌트/훅 존재 확인
+□ pnpm run build && pnpm run type-check 통과 확인
 □ Serena memory 업데이트 (ui_patterns)
-□ 테스트 통과 확인 (pnpm run build && pnpm run type-check)
 □ README.md 변경사항 반영
 ```
 

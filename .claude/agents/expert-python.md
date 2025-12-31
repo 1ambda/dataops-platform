@@ -8,6 +8,7 @@ skills:
   - testing                # TDD workflow, pytest strategies
   - test-structure-analysis # DRY violations, coverage gap detection
   - refactoring            # Safe restructuring with test protection
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Token Efficiency (MCP-First)
@@ -149,13 +150,44 @@ uv run mypy src/ --strict  # Alternative
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "함수를 리팩토링했습니다" → 코드 작성 없이 완료 선언
+- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "def function_name" src/ → 결과 확인 → 없으면 구현
+- 코드 작성 → uv run pytest && uv run pyright 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `src/module/service.py:45-120 (+76 lines)` |
+| **수정한 파일:라인** | `tests/test_service.py:15-80 (테스트 추가)` |
+| **테스트 결과** | `uv run pytest → 50 passed` |
+| **타입 체크** | `uv run pyright → 0 errors` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 클래스/함수 존재 확인
+□ uv run pytest && uv run pyright 테스트/타입 체크 통과 확인
 □ 관련 Serena memory 업데이트 (cli_patterns, cli_implementation_status 등)
-□ 테스트 통과 확인 (uv run pytest && uv run pyright)
 □ README.md 변경사항 반영
 □ features/STATUS.md 업데이트 (project-interface-cli의 경우)
 ```

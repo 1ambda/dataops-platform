@@ -7,6 +7,7 @@ skills:
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
   - performance        # N+1 detection, query optimization
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -182,13 +183,44 @@ class PipelineService(
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "Service 클래스를 작성했습니다" → 코드 작성 없이 완료 선언
+- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "ClassName" module-core-domain/ → 결과 확인 → 없으면 구현
+- 코드 작성 → ./gradlew test 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `module-core-domain/.../PipelineService.kt:1-85 (+85 lines)` |
+| **수정한 파일:라인** | `module-server-api/.../PipelineController.kt:45-120` |
+| **테스트 결과** | `./gradlew test → BUILD SUCCESSFUL` |
+| **검증 명령어** | `grep -r "class PipelineService" module-core-domain/` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 클래스/함수 존재 확인
+□ ./gradlew clean build 테스트 통과 확인
 □ Serena memory 업데이트 (server_patterns)
-□ 테스트 통과 확인 (./gradlew clean build)
 □ README.md 변경사항 반영
 ```
 

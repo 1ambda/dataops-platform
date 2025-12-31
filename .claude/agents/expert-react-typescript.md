@@ -8,6 +8,7 @@ skills:
   - performance        # Re-render analysis, bundle size optimization
   - refactoring        # Component extraction, hook composition
   - architecture       # State management design, component boundaries
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Token Efficiency (MCP-First)
@@ -132,13 +133,44 @@ function Dialog({ isOpen, onClose, title, children }: DialogProps) {
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "컴포넌트를 리팩토링했습니다" → 코드 작성 없이 완료 선언
+- "빌드가 성공합니다" → 실제 빌드 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "export.*ComponentName" src/ → 결과 확인 → 없으면 구현
+- 코드 작성 → pnpm run build && pnpm run type-check 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `src/hooks/useCustomHook.ts:1-45 (+45 lines)` |
+| **수정한 파일:라인** | `src/components/Dialog.tsx:25-80` |
+| **빌드 결과** | `pnpm run build → vite build completed` |
+| **타입 체크** | `pnpm run type-check → 0 errors` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 컴포넌트/훅 존재 확인
+□ pnpm run build && pnpm run type-check 통과 확인
 □ Serena memory 업데이트 (ui_patterns)
-□ 테스트 통과 확인 (pnpm run build && pnpm run type-check)
 □ README.md 변경사항 반영
 ```
 

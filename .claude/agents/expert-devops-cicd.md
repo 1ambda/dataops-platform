@@ -9,6 +9,7 @@ skills:
   - git-workflow       # Branch strategies, release automation
   - performance        # Build speed optimization, resource limits
   - documentation      # Runbooks, deployment guides
+  - implementation-verification # 인프라 변경 검증, 거짓 보고 방지
 ---
 
 ## Token Efficiency (MCP-First)
@@ -119,11 +120,43 @@ jobs:
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **인프라 변경 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "워크플로우를 추가했습니다" → 파일 확인 없이 판단
+- "Dockerfile을 수정했습니다" → 빌드 테스트 없이 완료 선언
+- "CI가 통과합니다" → 실제 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "name:.*workflow" .github/workflows/ → 결과 확인 → 없으면 작성
+- 설정 작성 → docker build 테스트 → CI 실행 확인 → 완료 선언
+```
+
+### 인프라 변경 완료 선언 조건
+
+"인프라 변경 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일** | `.github/workflows/deploy.yaml (+85 lines)` |
+| **수정한 파일:라인** | `docker-compose.yaml:45-80 (새 서비스 추가)` |
+| **빌드 검증** | `docker build → Successfully built` |
+| **CI 상태** | `GitHub Actions → workflow passed` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 인프라/배포 작업 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 워크플로우/설정 파일 존재 확인
+□ docker build 또는 CI 실행 결과 확인
 □ docs/deployment.md 업데이트 (배포 절차 변경 시)
 □ Makefile help 명령 업데이트
 □ docker-compose.yaml 변경사항 반영

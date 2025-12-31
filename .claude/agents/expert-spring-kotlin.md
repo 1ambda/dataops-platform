@@ -8,6 +8,7 @@ skills:
   - architecture       # Hexagonal boundary validation
   - refactoring        # Safe restructuring with test protection
   - performance        # N+1 detection, query optimization
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Token Efficiency (MCP-First)
@@ -106,13 +107,44 @@ sealed interface Result<out T> {
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "Service 클래스를 리팩토링했습니다" → 코드 작성 없이 완료 선언
+- "빌드가 성공합니다" → 실제 빌드 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "class ServiceName" module-core-domain/ → 결과 확인 → 없으면 구현
+- 코드 작성 → ./gradlew clean build 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `module-core-domain/.../UserService.kt:1-85 (+85 lines)` |
+| **수정한 파일:라인** | `module-core-infra/.../UserRepositoryImpl.kt:25-60` |
+| **테스트 결과** | `./gradlew test → BUILD SUCCESSFUL` |
+| **검증 명령어** | `grep -r "class UserService" module-core-domain/` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 클래스/함수 존재 확인
+□ ./gradlew clean build 테스트/빌드 통과 확인
 □ Serena memory 업데이트 (server_patterns)
-□ 테스트 통과 확인 (./gradlew clean build)
 □ README.md 변경사항 반영
 ```
 
