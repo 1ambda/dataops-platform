@@ -20,6 +20,5 @@ class TestSecurityConfig {
             .csrf { it.disable() }
             .authorizeHttpRequests { auth ->
                 auth.anyRequest().permitAll()
-            }
-            .build()
+            }.build()
 }

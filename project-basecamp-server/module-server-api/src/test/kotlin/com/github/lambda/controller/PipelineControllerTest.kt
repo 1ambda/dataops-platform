@@ -1,7 +1,5 @@
 package com.github.lambda.controller
 
-import tools.jackson.databind.json.JsonMapper
-import com.github.lambda.common.constant.CommonConstants
 import com.github.lambda.domain.command.pipeline.CreatePipelineCommand
 import com.github.lambda.domain.command.pipeline.DeletePipelineCommand
 import com.github.lambda.domain.command.pipeline.ExecutePipelineCommand
@@ -47,6 +45,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
 /**
@@ -421,7 +420,8 @@ class PipelineControllerTest {
             every { fieldAccessControl.getCurrentUserSecurityLevel() } returns SecurityLevel.ADMIN
             every { pipelineMapper.toQuery(1L, false) } returns GetPipelineQuery(id = 1L)
             every { pipelineService.getPipeline(any()) } returns testPipelineEntity
-            every { pipelineMapper.toSecureResponse(testPipelineEntity, SecurityLevel.PUBLIC) } returns testPipelineResponse
+            every { pipelineMapper.toSecureResponse(testPipelineEntity, SecurityLevel.PUBLIC) } returns
+                testPipelineResponse
 
             // When & Then
             mockMvc
