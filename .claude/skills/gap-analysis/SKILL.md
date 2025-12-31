@@ -86,6 +86,9 @@ grep -r "class {ClassName}" src/dli/models/
 | `PHASE_2` | Phase 2로 정의됨 | 추적 대상 |
 | `EXTERNAL` | 외부 의존성 필요 | 의존성 추적 |
 | `DRIFT` | 구현이 명세와 다름 | 명세 또는 구현 수정 |
+| `DEAD_CODE` | Enum/코드 정의됨, 로직 미구현 | 로직 추가 또는 코드 제거 |
+| `DOC_DRIFT` | 문서 간 불일치 (test count, version 등) | 문서 동기화 필요 |
+| `INTEGRATION_MISSING` | 기존 모듈과 연동 안됨 | integration-finder로 연결점 확인 |
 
 ### Severity Levels
 
@@ -168,6 +171,64 @@ grep -r "class {ClassName}" src/dli/models/
 |------|-------------------|----------------------|--------|
 | Model name | `QualityTestDefinition` | `DqTestDefinitionSpec` | Update FEATURE |
 | Result type | `QualityResult` | `DqQualityResult` | Update FEATURE |
+
+---
+
+### Dead Code Detection (신규 2026-01-01)
+
+Enum 값이 정의되었으나 구현 로직이 없는 항목 감지:
+
+| Enum/Class | Defined Value | Implementation | Status |
+|------------|---------------|----------------|--------|
+| `WarningType` | `DUPLICATE_CTE` | warnings.py | ❌ **DEAD_CODE** |
+| `WarningType` | `CORRELATED_SUBQUERY` | warnings.py | ❌ **DEAD_CODE** |
+
+**검증 방법:**
+```bash
+# Enum 값이 실제 코드에서 사용되는지 확인
+grep -r "WarningType.DUPLICATE_CTE" src/dli/ --include="*.py" | grep -v "class\|Enum"
+# 결과 없음 → DEAD_CODE
+```
+
+---
+
+### Documentation Drift Detection (신규 2026-01-01)
+
+문서 간 수치/상태 불일치 감지:
+
+| Metric | FEATURE | RELEASE | STATUS | Actual | Status |
+|--------|---------|---------|--------|--------|--------|
+| Test count | 163 | 147 | 1715 | 178 | ⚠️ **DOC_DRIFT** |
+| Version | 1.0.0 | 1.0.0-MVP | v0.4.0 | - | ✅ OK |
+| Status | Draft | Implemented | Complete | - | ⚠️ **DOC_DRIFT** |
+
+**검증 방법:**
+```bash
+# 실제 테스트 수 확인
+uv run pytest tests/core/transpile tests/cli/test_transpile_cmd.py --collect-only 2>/dev/null | tail -1
+
+# 문서 내 테스트 수 확인
+grep -E "[0-9]+ (passed|tests)" features/RELEASE_*.md
+```
+
+---
+
+### Integration Gap Detection (신규 2026-01-01)
+
+새 모듈이 기존 관련 모듈과 연동되지 않은 항목 감지:
+
+| New Module | Related Existing Module | Integration | Status |
+|------------|------------------------|-------------|--------|
+| `core/transpile/engine.py` | `core/renderer.py` (Jinja) | Not connected | ⚠️ **INTEGRATION_MISSING** |
+| `core/transpile/engine.py` | `core/templates.py` | Not connected | ⚠️ **INTEGRATION_MISSING** |
+
+**검증 방법:**
+```bash
+# 새 모듈에서 기존 모듈 import 확인
+grep -r "from dli.core.renderer" src/dli/core/transpile/
+grep -r "from dli.core.templates" src/dli/core/transpile/
+# 결과 없음 → INTEGRATION_MISSING
+```
 
 ---
 
@@ -314,6 +375,50 @@ Gap 분석 결과를 `features/GAP_{FEATURE}.md`로 저장:
 
 ---
 
+## 최종 리뷰 프로세스 (MANDATORY)
+
+> **중요**: GAP 분석 완료 후 최종 리뷰는 **반드시 `meta-agent`**를 사용합니다.
+
+### 리뷰 워크플로우
+
+```
+gap-analysis 완료
+       ↓
+GAP_{FEATURE}.md 생성
+       ↓
+[meta-agent 최종 리뷰] ← 필수
+       ↓
+개선 사항 검증
+       ↓
+완료 보고
+```
+
+### meta-agent 리뷰 요청 템플릿
+
+```markdown
+## meta-agent 최종 리뷰 요청
+- 코드 리뷰가 아닌 **프로세스/시스템 리뷰**이므로 `meta-agent`가 적합
+
+### 1. GAP 분석 요약
+- Implementation completeness: XX%
+- Critical gaps: N개
+- Root causes identified: N개
+
+### 2. Skill 개선 내역
+| Skill | 개선 내용 |
+|-------|----------|
+| gap-analysis | ... |
+| completion-gate | ... |
+
+### 3. 검증 요청
+- Root cause coverage 확인
+- Skill 품질 평가
+- 추가 개선 권장사항
+```
+
+
+---
+
 ## 관련 Skills
 
 - `implementation-checklist`: FEATURE → 체크리스트 (구현 추적)
@@ -321,3 +426,4 @@ Gap 분석 결과를 `features/GAP_{FEATURE}.md`로 저장:
 - `phase-tracking`: Phase별 진행 관리 (후속 처리)
 - `dependency-coordination`: 외부 의존성 추적 (후속 처리)
 - `docs-synchronize`: 문서 동기화 (후속 처리)
+- `integration-finder`: 기존 모듈 연동 확인 (연동)

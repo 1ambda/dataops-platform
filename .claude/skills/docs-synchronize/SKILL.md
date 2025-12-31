@@ -88,6 +88,28 @@ release_ver=$(grep "Version:" features/RELEASE_{feature}.md | head -1)
 - RELEASE 버전 >= FEATURE 버전
 - 버전 불일치 시 경고 출력
 
+### Step 3.5: Test Count Drift Detection (신규 2026-01-01)
+
+> **배경**: Transpile 구현에서 FEATURE(163), RELEASE(147), 실제(178) 테스트 수가 모두 달랐던 문제 발견
+
+```bash
+# 실제 테스트 수 확인
+actual_count=$(uv run pytest tests/{feature}/ --collect-only 2>/dev/null | tail -1 | grep -oP "\d+")
+
+# RELEASE 문서 내 테스트 수
+release_count=$(grep -oP "\d+ passed" features/RELEASE_{feature}.md | head -1 | grep -oP "\d+")
+
+# 비교
+if [ "$actual_count" != "$release_count" ]; then
+  echo "DOC_DRIFT: Test count mismatch (actual: $actual_count, documented: $release_count)"
+fi
+```
+
+**검증 항목:**
+- [ ] RELEASE 문서 내 테스트 수 = 실제 테스트 수
+- [ ] FEATURE 문서 Status = "Implemented" 또는 "Complete" (not "Draft")
+- [ ] STATUS.md 내 테스트 수가 전체 테스트 수 반영
+
 ### Step 4: Serena Memory 동기화
 
 ```bash

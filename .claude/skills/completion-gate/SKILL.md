@@ -50,6 +50,34 @@ Agent가 다음과 같은 거짓 완료 선언을 하는 문제:
 | 10 | lint 통과 | `ruff check src/` | 경고만 출력 |
 | 11 | docstring 존재 | grep 검증 | 경고만 출력 |
 
+### Dead Code Check (신규 2026-01-01)
+
+> **배경**: Transpile 구현에서 `DUPLICATE_CTE`, `CORRELATED_SUBQUERY` enum 값이 정의만 되고 구현 로직이 없는 문제 발견
+
+| # | 조건 | 검증 방법 | 실패 시 액션 |
+|---|------|-----------|--------------|
+| 12 | **Enum 값 사용 확인** | 모든 Enum 값이 코드에서 사용됨 | 미사용 enum 제거 또는 로직 구현 |
+| 13 | **정의된 예외 클래스 사용** | 모든 Exception이 raise 또는 catch됨 | 미사용 예외 제거 |
+
+```bash
+# Dead Code 검증 명령어
+# 1. Enum 값 사용 확인
+for enum_val in $(grep -oP "class \w+\(.*Enum\)" src/dli/ -r | ...); do
+  usage_count=$(grep -r "$enum_val" src/dli/ --include="*.py" | grep -v "class\|Enum" | wc -l)
+  if [ "$usage_count" -eq 0 ]; then
+    echo "DEAD_CODE: $enum_val defined but never used"
+  fi
+done
+
+# 2. Exception 클래스 사용 확인
+grep -r "class.*Error.*Exception" src/dli/exceptions.py | while read exc; do
+  exc_name=$(echo $exc | grep -oP "class \K\w+")
+  if ! grep -r "raise $exc_name\|except $exc_name" src/dli/ --include="*.py" | grep -v exceptions.py; then
+    echo "DEAD_CODE: $exc_name defined but never raised"
+  fi
+done
+```
+
 ---
 
 ## Gate 검증 프로세스

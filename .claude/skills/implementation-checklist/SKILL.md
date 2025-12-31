@@ -45,6 +45,14 @@ FEATURE_*.md에서 다음 항목을 추출:
 5. **Tests**: "## N. Test Plan" 섹션 또는 암묵적 기대
    - API 테스트: `tests/api/test_xxx_api.py`
    - CLI 테스트: `tests/cli/test_xxx_cmd.py`
+
+6. **Enum Values (신규 2026-01-01)**: Data Models 섹션 내 Enum 정의
+   - 모든 Enum 값이 실제 로직에서 사용되어야 함
+   - **Dead Code 방지**: 정의만 되고 사용되지 않는 Enum 값은 BLOCKER
+
+7. **Integration Points (신규 2026-01-01)**: 기존 모듈과 연동 필요 항목
+   - 새 모듈이 기존 관련 모듈과 연결되어야 함
+   - **예시**: Transpile의 Jinja 연동, Workflow의 Airflow 연동
 ```
 
 ### Step 2: 체크리스트 생성
