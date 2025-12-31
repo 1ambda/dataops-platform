@@ -1,6 +1,6 @@
 # project-interface-cli Implementation Status
 
-> Last Updated: 2025-12-31 | Version: 0.4.0
+> Last Updated: 2026-01-01 | Version: 0.4.0
 
 ## Quick Check
 
@@ -27,6 +27,7 @@ class ExecutionMode(str, Enum):
 |-------|--------|--------|
 | DLI-4xx | DLI-405 | ✅ 404, 405 추가 |
 | DLI-5xx | DLI-504 | ✅ 504 추가 |
+| DLI-6xx | DLI-606 | ✅ Quality errors 완전 구현 (601-606) |
 | DLI-7xx | DLI-705 | ✅ Catalog errors 추가 |
 | DLI-8xx | DLI-803 | ✅ Workflow errors 추가 |
 
