@@ -397,7 +397,7 @@ GAP_{FEATURE}.md 생성
 
 ```markdown
 ## meta-agent 최종 리뷰 요청
-- 코드 리뷰가 아닌 **프로세스/시스템 리뷰**이므로 `meta-agent`가 적합
+- 코드 리뷰가 아닌 **프로세스/시스템 리뷰**이므로 `meta-agent`가 적합 (expert-*, feature-* Agent 사용 금지)
 
 ### 1. GAP 분석 요약
 - Implementation completeness: XX%

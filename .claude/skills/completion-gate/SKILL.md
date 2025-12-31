@@ -33,22 +33,104 @@ Agent가 다음과 같은 거짓 완료 선언을 하는 문제:
 | 5 | **타입 체크 통과** | `pyright src/` 실행 | 타입 에러 수정 요청 |
 | 6 | **Export 완료** | `grep "XXXApi" src/dli/__init__.py` | export 추가 요청 |
 
+### API Parity Check (신규 2026-01-01)
+
+> **원칙**: CLI 커맨드가 있으면 반드시 대응하는 Library API가 존재해야 함
+
+| # | 조건 | 검증 방법 | 실패 시 액션 |
+|---|------|-----------|--------------|
+| 7 | **API Parity** | CLI 커맨드 ↔ Library API 1:1 매핑 | 누락된 API 구현 요청 |
+
+```bash
+# API Parity 검증 스크립트
+# 1. CLI 커맨드 목록 추출
+cli_commands=$(grep -r "@.*_app.command" src/dli/commands/{feature}.py | grep -oP 'command\("\K[^"]+')
+
+# 2. 대응 API 메서드 확인
+for cmd in $cli_commands; do
+  # CLI 커맨드 → API 메서드 이름 변환 (예: list → list_{feature}s, run → run)
+  api_method=$(echo $cmd | sed 's/-/_/g')
+  if ! grep -q "def $api_method\|def ${api_method}_" src/dli/api/{feature}.py; then
+    echo "PARITY_FAIL: CLI '$cmd' has no matching API method"
+  fi
+done
+
+# 3. 역방향 확인: API에만 있고 CLI에 없는 메서드 (경고)
+api_methods=$(grep -oP "def \K\w+(?=\(self)" src/dli/api/{feature}.py | grep -v "^_")
+for method in $api_methods; do
+  if ! grep -q "command.*$method\|command.*$(echo $method | sed 's/_/-/g')" src/dli/commands/{feature}.py; then
+    echo "PARITY_WARN: API '$method' has no CLI command (may be intentional)"
+  fi
+done
+```
+
+**Parity 규칙:**
+
+| CLI 커맨드 | API 메서드 (필수) | 비고 |
+|------------|-------------------|------|
+| `dli {feature} list` | `{Feature}API.list_{feature}s()` | 목록 조회 |
+| `dli {feature} get` | `{Feature}API.get()` | 단일 조회 |
+| `dli {feature} run` | `{Feature}API.run()` | 실행 |
+| `dli {feature} validate` | `{Feature}API.validate()` | 검증 |
+| `dli {feature} register` | `{Feature}API.register()` | 등록 |
+
+### Exception Integration Check (신규 2026-01-01)
+
+> **원칙**: Feature별 예외는 DLI-xxx 에러 코드 체계를 따라야 함
+
+| # | 조건 | 검증 방법 | 실패 시 액션 |
+|---|------|-----------|--------------|
+| 8 | **Exception Integration** | Feature 예외가 DLI 에러코드 사용 | 예외 클래스 수정 요청 |
+
+```bash
+# Exception Integration 검증 스크립트
+# 1. Feature 예외 클래스 확인
+feature_exceptions=$(grep -r "class.*Error.*DLIError\|class.*Exception.*DLIError" src/dli/ --include="*.py")
+
+# 2. 각 예외가 ErrorCode를 사용하는지 확인
+for exc in $(grep -oP "class \K\w+(?=\(.*DLIError)" src/dli/exceptions.py); do
+  if ! grep -A5 "class $exc" src/dli/exceptions.py | grep -q "ErrorCode\|error_code\|DLI-"; then
+    echo "EXCEPTION_FAIL: $exc does not use DLI error code"
+  fi
+done
+
+# 3. Feature 코드에서 raise되는 예외 확인
+for raised_exc in $(grep -oP "raise \K\w+Error" src/dli/api/{feature}.py src/dli/commands/{feature}.py 2>/dev/null | sort -u); do
+  if ! grep -q "class $raised_exc" src/dli/exceptions.py; then
+    echo "EXCEPTION_FAIL: $raised_exc is raised but not defined in exceptions.py"
+  fi
+done
+```
+
+**Error Code 범위:**
+
+| Feature | Error Code Range | 예시 |
+|---------|------------------|------|
+| Dataset | DLI-1xx | DLI-101 (DatasetNotFoundError) |
+| Metric | DLI-2xx | DLI-201 (MetricNotFoundError) |
+| Transpile | DLI-3xx | DLI-301 (TranspileError) |
+| Catalog | DLI-4xx | DLI-401 (CatalogError) |
+| Workflow | DLI-5xx | DLI-501 (WorkflowError) |
+| Quality | DLI-6xx | DLI-601 (QualityError) |
+| Config | DLI-7xx | DLI-701 (ConfigError) |
+| Core/Common | DLI-8xx | DLI-801 (ConnectionError) |
+
 ### 문서 동기화 조건 (Gate 통과 후 필수)
 
 | # | 조건 | 검증 방법 | 실패 시 액션 |
 |---|------|-----------|--------------|
-| 7 | **RELEASE_*.md 존재** | `ls features/RELEASE_{feature}.md` | 문서 작성 요청 |
-| 8 | **STATUS.md 업데이트** | `grep "{feature}" features/STATUS.md` | 업데이트 요청 |
-| 9 | **Serena memory 동기화** | `mcp__serena__read_memory` 확인 | 동기화 요청 |
+| 9 | **RELEASE_*.md 존재** | `ls features/RELEASE_{feature}.md` | 문서 작성 요청 |
+| 10 | **STATUS.md 업데이트** | `grep "{feature}" features/STATUS.md` | 업데이트 요청 |
+| 11 | **Serena memory 동기화** | `mcp__serena__read_memory` 확인 | 동기화 요청 |
 
-> **Note:** 조건 7-9는 `docs-synchronize` skill과 연동됩니다. Gate 통과 후 자동으로 문서 동기화 검증이 실행됩니다.
+> **Note:** 조건 9-11은 `docs-synchronize` skill과 연동됩니다. Gate 통과 후 자동으로 문서 동기화 검증이 실행됩니다.
 
 ### 선택 조건 (권장)
 
 | # | 조건 | 검증 방법 | 미충족 시 |
 |---|------|-----------|-----------|
-| 10 | lint 통과 | `ruff check src/` | 경고만 출력 |
-| 11 | docstring 존재 | grep 검증 | 경고만 출력 |
+| 12 | lint 통과 | `ruff check src/` | 경고만 출력 |
+| 13 | docstring 존재 | grep 검증 | 경고만 출력 |
 
 ### Dead Code Check (신규 2026-01-01)
 
@@ -56,8 +138,8 @@ Agent가 다음과 같은 거짓 완료 선언을 하는 문제:
 
 | # | 조건 | 검증 방법 | 실패 시 액션 |
 |---|------|-----------|--------------|
-| 12 | **Enum 값 사용 확인** | 모든 Enum 값이 코드에서 사용됨 | 미사용 enum 제거 또는 로직 구현 |
-| 13 | **정의된 예외 클래스 사용** | 모든 Exception이 raise 또는 catch됨 | 미사용 예외 제거 |
+| 14 | **Enum 값 사용 확인** | 모든 Enum 값이 코드에서 사용됨 | 미사용 enum 제거 또는 로직 구현 |
+| 15 | **정의된 예외 클래스 사용** | 모든 Exception이 raise 또는 catch됨 | 미사용 예외 제거 |
 
 ```bash
 # Dead Code 검증 명령어
@@ -257,6 +339,54 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 ## Phase 경계 검사 (Phase Boundary Check)
 
 > **신규 기능 (2026-01-01)**: `phase-tracking` skill과 연동하여 Phase 경계를 인식합니다.
+
+### Phase 1 Completion Gate (신규 2026-01-01)
+
+> **원칙**: Phase 2 작업 시작 전 반드시 Phase 1 완료 검증 필수
+
+| # | 조건 | 검증 방법 | 실패 시 액션 |
+|---|------|-----------|--------------|
+| 16 | **Phase 1 완료 검증** | Phase 2 시작 전 Phase 1 모든 항목 체크 | Phase 1 먼저 완료 요청 |
+
+```bash
+# Phase 1 완료 검증 스크립트
+# 1. FEATURE.md에서 Phase 구분 파싱
+phase1_items=$(grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[" | wc -l)
+phase1_complete=$(grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[x\]" -i | wc -l)
+
+# 2. Phase 1 완료율 확인
+if [ "$phase1_items" -gt 0 ] && [ "$phase1_complete" -lt "$phase1_items" ]; then
+  echo "PHASE_GATE_FAIL: Phase 1 incomplete ($phase1_complete/$phase1_items)"
+  echo "Cannot start Phase 2 until Phase 1 is complete"
+  # 미완료 항목 출력
+  grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[\s\]"
+fi
+
+# 3. Phase 2 시작 시도 감지
+if grep -q "Phase 2\|phase-2\|Phase2" <<< "$CURRENT_TASK"; then
+  if [ "$phase1_complete" -lt "$phase1_items" ]; then
+    echo "BLOCKED: Phase 2 cannot start - Phase 1 has $((phase1_items - phase1_complete)) incomplete items"
+  fi
+fi
+```
+
+**Phase Gate 규칙:**
+
+| 상황 | 허용 | 액션 |
+|------|------|------|
+| Phase 1 진행 중 | O | Phase 1 항목 작업 계속 |
+| Phase 1 완료, Phase 2 시작 | O | Phase 2 진입 허용 |
+| Phase 1 미완료, Phase 2 시작 시도 | X | Phase 1 완료 요청, 미완료 목록 출력 |
+| Phase 1 일부만 완료, "MVP 완료" 선언 | X | 모든 Phase 1 항목 완료 필요 |
+
+**Phase 1 완료 필수 조건 (Gate 17-20):**
+
+| # | 조건 | 설명 |
+|---|------|------|
+| 17 | Phase 1 모든 기능 구현 | FEATURE의 Phase 1 섹션 항목 100% |
+| 18 | Phase 1 테스트 통과 | Phase 1 범위 테스트 모두 통과 |
+| 19 | Phase 1 문서화 완료 | RELEASE_*.md에 Phase 1 기록 |
+| 20 | STATUS.md Phase 1 표기 | `Phase 1 ✅` 상태 업데이트 |
 
 ### Phase 경계 인식
 
