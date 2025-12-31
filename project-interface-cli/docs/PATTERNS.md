@@ -13,7 +13,7 @@ dli
 ├── config (show, status)       # Configuration management
 ├── metric (list, get, run, validate, register)
 ├── dataset (list, get, run, validate, register)
-├── workflow (run, backfill, stop, status, list, history, pause, unpause)
+├── workflow (register, unregister, run, backfill, stop, status, list, history, pause, unpause)
 ├── quality (list, get, run, validate)
 ├── lineage (show, upstream, downstream)   # Top-level
 ├── catalog                                # Top-level
@@ -509,6 +509,42 @@ print(f"Status: {result.status}, Duration: {result.duration_ms}ms")
 validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml", strict=True)
 if not validation.valid:
     print(f"Errors: {validation.errors}")
+```
+
+### WorkflowAPI Quick Example
+
+```python
+from dli import WorkflowAPI, ExecutionContext
+from dli.models.common import ExecutionMode
+
+# Create context
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+api = WorkflowAPI(context=ctx)
+
+# Register a MANUAL workflow (creates DAG in Airflow)
+register_result = api.register("iceberg.analytics.daily_clicks")
+print(f"Registered: {register_result.dag_id}")
+
+# Run workflow
+run_result = api.run("iceberg.analytics.daily_clicks", execution_date="2025-01-01")
+print(f"Run ID: {run_result.run_id}, Status: {run_result.status}")
+
+# Backfill date range
+backfill_result = api.backfill(
+    "iceberg.analytics.daily_clicks",
+    start_date="2025-01-01",
+    end_date="2025-01-07"
+)
+
+# Get workflow status
+status = api.get_status("iceberg.analytics.daily_clicks", run_id="run_123")
+print(f"State: {status.state}")
+
+# List workflows with filtering
+workflows = api.list_workflows(source="manual", status="running")
+
+# Unregister workflow (removes DAG from Airflow)
+api.unregister("iceberg.analytics.daily_clicks")
 ```
 
 ### API Class Template (Facade Pattern)

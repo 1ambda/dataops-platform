@@ -73,7 +73,15 @@ search(pattern) → CatalogSearchResult
 - CLI --local/--server 플래그
 - --output 결과 저장
 
-## Agent/Skill System (2025-12-31 업데이트)
+## CLI Commands (v0.4.0)
+
+| Command | Subcommands |
+|---------|-------------|
+| workflow | run, backfill, stop, status, list, history, pause, unpause, **register**, **unregister** |
+| quality | list, get, run, validate |
+| catalog | list, search, (implicit routing) |
+
+## Agent/Skill System (2026-01-01 업데이트)
 
 | Component | Location | Status |
 |-----------|----------|--------|

@@ -81,6 +81,62 @@ class TestFeatureName:
         assert result == []
 ```
 
+### WorkflowAPI Test Example
+
+```python
+"""WorkflowAPI testing pattern."""
+
+import pytest
+from dli import WorkflowAPI, ExecutionContext
+from dli.models.common import ExecutionMode, ResultStatus
+
+class TestWorkflowAPI:
+    """Tests for WorkflowAPI."""
+
+    @pytest.fixture
+    def mock_api(self) -> WorkflowAPI:
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+        return WorkflowAPI(context=ctx)
+
+    def test_register_workflow(self, mock_api: WorkflowAPI) -> None:
+        """Test workflow registration."""
+        result = mock_api.register("catalog.schema.dataset")
+        assert result.status == ResultStatus.SUCCESS
+        assert result.dag_id is not None
+
+    def test_run_workflow(self, mock_api: WorkflowAPI) -> None:
+        """Test workflow execution."""
+        result = mock_api.run("catalog.schema.dataset", execution_date="2025-01-01")
+        assert result.status == ResultStatus.SUCCESS
+        assert result.run_id is not None
+```
+
+### Workflow CLI Test Example
+
+```python
+"""Workflow CLI command testing."""
+
+from typer.testing import CliRunner
+from dli.main import app
+
+runner = CliRunner()
+
+class TestWorkflowCLI:
+    """Tests for workflow CLI commands."""
+
+    def test_workflow_list(self) -> None:
+        result = runner.invoke(app, ["workflow", "list"])
+        assert result.exit_code == 0
+
+    def test_workflow_register(self) -> None:
+        result = runner.invoke(app, ["workflow", "register", "catalog.schema.dataset"])
+        assert result.exit_code == 0
+
+    def test_workflow_run(self) -> None:
+        result = runner.invoke(app, ["workflow", "run", "catalog.schema.dataset"])
+        assert result.exit_code == 0
+```
+
 ## Pull Request Process
 
 1. **Branch naming**: `feature/short-description` or `fix/issue-description`

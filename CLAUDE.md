@@ -234,7 +234,7 @@ class UserRepositoryJpaImpl(
 | `dli config` | Settings management (show, status) |
 | `dli metric` | Metric CRUD (list, get, run, validate, register) |
 | `dli dataset` | Dataset CRUD (list, get, run, validate, register) |
-| `dli workflow` | Server-based Airflow execution (run, backfill, stop, status, list, history, pause, unpause) |
+| `dli workflow` | Server-based Airflow execution (run, backfill, stop, status, list, history, pause, unpause, register, unregister) |
 | `dli catalog` | Data catalog browsing with implicit routing (1-4 part identifiers) |
 | `dli transpile` | SQL transpilation (table substitution, METRIC expansion, SQLGlot) |
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
