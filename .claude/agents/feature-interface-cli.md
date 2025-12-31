@@ -7,6 +7,7 @@ skills:
   - pytest-fixtures        # Fixture design, conftest.py for CLI tests
   - testing                # TDD workflow, Typer CLI testing patterns
   - test-structure-analysis # Coverage gaps, helper consolidation
+  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -122,11 +123,43 @@ uv run dli {feature} --help
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+
+### 거짓 보고 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "명세를 작성했습니다" → 코드 작성 없이 완료 선언
+- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "ClassName" src/ → 결과 확인 → 없으면 구현
+- 코드 작성 → pytest 실행 → 결과 제시 → 완료 선언
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `src/dli/models/common.py:405-485 (+81 lines)` |
+| **수정한 파일:라인** | `src/dli/api/catalog.py:89-174` |
+| **테스트 결과** | `pytest tests/api/ → 30 passed` |
+| **전체 테스트** | `pytest tests/ → 1573 passed` |
+
+---
+
 ## Post-Implementation Checklist (필수)
 
 구현 완료 후 반드시 수행:
 
 ```
+□ grep으로 새 클래스/함수 존재 확인
+□ pytest 실행하여 테스트 통과 확인
 □ features/STATUS.md 업데이트 (컴포넌트 상태 표시)
 □ mcp__serena__edit_memory("cli_implementation_status", ...) 호출
 □ 테스트 통과 확인 후 RELEASE_*.md 업데이트

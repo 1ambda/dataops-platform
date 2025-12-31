@@ -60,7 +60,6 @@ import java.time.LocalDateTime
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
-@WithMockUser(username = "testuser", roles = ["USER"])
 class PipelineControllerTest {
     @Autowired
     private lateinit var mockMvc: MockMvc

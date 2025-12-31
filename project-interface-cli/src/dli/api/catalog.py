@@ -17,7 +17,14 @@ from typing import Any
 
 from dli.core.catalog import TableDetail, TableInfo
 from dli.core.client import BasecampClient, ServerConfig
-from dli.models.common import ExecutionContext, ExecutionMode
+from dli.models.common import (
+    CatalogListResult,
+    CatalogSearchResult,
+    ExecutionContext,
+    ExecutionMode,
+    ResultStatus,
+    TableDetailResult,
+)
 
 
 class CatalogAPI:
@@ -84,7 +91,7 @@ class CatalogAPI:
         identifier: str | None = None,
         *,
         limit: int = 100,
-    ) -> list[TableInfo]:
+    ) -> CatalogListResult:
         """List tables/schemas/catalogs with implicit routing.
 
         Args:
@@ -96,7 +103,7 @@ class CatalogAPI:
             limit: Maximum number of results.
 
         Returns:
-            List of TableInfo objects.
+            CatalogListResult with tables list, total_count, and has_more flag.
         """
         client = self._get_client()
 
@@ -112,20 +119,30 @@ class CatalogAPI:
                 dataset = parts[1]
             if len(parts) >= 3:
                 # This is a specific table, return as single-item list
-                detail = self.get(identifier)
-                if detail:
-                    return [
-                        TableInfo(
-                            name=detail.name,
-                            engine=detail.engine,
-                            owner=detail.ownership.owner,
-                            team=detail.ownership.team,
-                            tags=detail.tags,
-                            row_count=None,  # Not available directly on TableDetail
-                            last_updated=detail.freshness.last_updated,
-                        )
-                    ]
-                return []
+                detail_result = self.get(identifier)
+                if detail_result.status == ResultStatus.SUCCESS and detail_result.table:
+                    table_info = TableInfo(
+                        name=detail_result.table.name,
+                        engine=detail_result.table.engine,
+                        owner=detail_result.table.ownership.owner,
+                        team=detail_result.table.ownership.team,
+                        tags=detail_result.table.tags,
+                        row_count=None,
+                        last_updated=detail_result.table.freshness.last_updated,
+                    )
+                    return CatalogListResult(
+                        status=ResultStatus.SUCCESS,
+                        tables=[table_info],
+                        total_count=1,
+                        has_more=False,
+                    )
+                return CatalogListResult(
+                    status=ResultStatus.FAILURE,
+                    tables=[],
+                    total_count=0,
+                    has_more=False,
+                    error_message=detail_result.error_message,
+                )
 
         response = client.catalog_list(
             project=project,
@@ -134,7 +151,13 @@ class CatalogAPI:
         )
 
         if not response.success or not response.data:
-            return []
+            return CatalogListResult(
+                status=ResultStatus.FAILURE if not response.success else ResultStatus.SUCCESS,
+                tables=[],
+                total_count=0,
+                has_more=False,
+                error_message=response.error,
+            )
 
         # response.data is list[dict[str, Any]] for list operations
         data_list = (
@@ -142,35 +165,53 @@ class CatalogAPI:
         )
 
         # Convert to TableInfo objects
-        return [self._dict_to_table_info(item) for item in data_list]
+        tables = [self._dict_to_table_info(item) for item in data_list]
+        return CatalogListResult(
+            status=ResultStatus.SUCCESS,
+            tables=tables,
+            total_count=len(tables),
+            has_more=len(tables) >= limit,
+        )
 
-    def get(self, table: str) -> TableDetail | None:
+    def get(self, table: str) -> TableDetailResult:
         """Get table details.
 
         Args:
             table: Table reference (project.dataset.table).
 
         Returns:
-            TableDetail if found, None otherwise.
+            TableDetailResult with table detail or error message.
         """
         client = self._get_client()
 
         response = client.catalog_get(table)
 
         if not response.success or not response.data:
-            return None
+            return TableDetailResult(
+                status=ResultStatus.FAILURE,
+                table=None,
+                error_message=response.error or f"Table '{table}' not found",
+            )
 
         # response.data is dict[str, Any] for get operation
         if isinstance(response.data, list):
-            return None
-        return self._dict_to_table_detail(response.data)
+            return TableDetailResult(
+                status=ResultStatus.FAILURE,
+                table=None,
+                error_message=f"Unexpected response format for table '{table}'",
+            )
+
+        return TableDetailResult(
+            status=ResultStatus.SUCCESS,
+            table=self._dict_to_table_detail(response.data),
+        )
 
     def search(
         self,
         pattern: str,
         *,
         limit: int = 100,
-    ) -> list[TableInfo]:
+    ) -> CatalogSearchResult:
         """Search tables by pattern.
 
         Searches in table names, column names, descriptions, and tags.
@@ -180,20 +221,32 @@ class CatalogAPI:
             limit: Maximum number of results.
 
         Returns:
-            List of matching TableInfo objects.
+            CatalogSearchResult with matching tables and search metadata.
         """
         client = self._get_client()
 
         response = client.catalog_search(pattern, limit=limit)
 
         if not response.success or not response.data:
-            return []
+            return CatalogSearchResult(
+                status=ResultStatus.FAILURE if not response.success else ResultStatus.SUCCESS,
+                tables=[],
+                total_matches=0,
+                keyword=pattern,
+                error_message=response.error,
+            )
 
         # response.data is list[dict[str, Any]] for search operations
         data_list = (
             response.data if isinstance(response.data, list) else [response.data]
         )
-        return [self._dict_to_table_info(item) for item in data_list]
+        tables = [self._dict_to_table_info(item) for item in data_list]
+        return CatalogSearchResult(
+            status=ResultStatus.SUCCESS,
+            tables=tables,
+            total_matches=len(tables),
+            keyword=pattern,
+        )
 
     def _dict_to_table_info(self, data: dict[str, Any]) -> TableInfo:
         """Convert dictionary to TableInfo model.
@@ -288,4 +341,14 @@ class CatalogAPI:
         )
 
 
-__all__ = ["CatalogAPI"]
+# Re-export result models for convenience
+CatalogListResult = CatalogListResult
+CatalogSearchResult = CatalogSearchResult
+TableDetailResult = TableDetailResult
+
+__all__ = [
+    "CatalogAPI",
+    "CatalogListResult",
+    "CatalogSearchResult",
+    "TableDetailResult",
+]

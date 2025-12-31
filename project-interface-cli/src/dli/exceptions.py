@@ -32,6 +32,7 @@ class ErrorCode(str, Enum):
     - DLI-4xx: Execution errors
     - DLI-5xx: Server errors
     - DLI-6xx: Quality errors
+    - DLI-7xx: Catalog errors
     """
 
     # Configuration Errors (DLI-0xx)
@@ -75,6 +76,13 @@ class ErrorCode(str, Enum):
     QUALITY_TARGET_NOT_FOUND = "DLI-603"
     QUALITY_TEST_EXECUTION = "DLI-604"
     QUALITY_NOT_FOUND = "DLI-606"
+
+    # Catalog Errors (DLI-7xx)
+    CATALOG_CONNECTION_ERROR = "DLI-701"
+    CATALOG_TABLE_NOT_FOUND = "DLI-702"
+    CATALOG_INVALID_IDENTIFIER = "DLI-703"
+    CATALOG_ACCESS_DENIED = "DLI-704"
+    CATALOG_ENGINE_NOT_SUPPORTED = "DLI-705"
 
 
 @dataclass
@@ -439,13 +447,89 @@ class QualityTestExecutionError(DLIError):
         return base
 
 
+# Catalog Errors (DLI-7xx)
+
+
+@dataclass
+class CatalogError(DLIError):
+    """Base catalog error.
+
+    Raised for catalog-related operations.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_CONNECTION_ERROR
+
+
+@dataclass
+class CatalogTableNotFoundError(DLIError):
+    """Catalog table not found error.
+
+    Raised when a table cannot be found in the catalog.
+
+    Attributes:
+        table_ref: The table reference that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_TABLE_NOT_FOUND
+    table_ref: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        return f"[{self.code.value}] Table '{self.table_ref}' not found in catalog"
+
+
+@dataclass
+class InvalidIdentifierError(DLIError):
+    """Invalid identifier format error.
+
+    Raised when a table identifier has an invalid format.
+
+    Attributes:
+        identifier: The invalid identifier string.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_INVALID_IDENTIFIER
+    identifier: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        return f"[{self.code.value}] Invalid identifier format: '{self.identifier}'"
+
+
+@dataclass
+class UnsupportedEngineError(DLIError):
+    """Unsupported engine error.
+
+    Raised when an unsupported query engine is specified.
+
+    Attributes:
+        engine: The unsupported engine name.
+        supported: List of supported engine names.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_ENGINE_NOT_SUPPORTED
+    engine: str = ""
+    supported: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.supported:
+            supported_str = ", ".join(self.supported)
+            return f"[{self.code.value}] Engine '{self.engine}' not supported. Supported: {supported_str}"
+        return f"[{self.code.value}] Engine '{self.engine}' not supported"
+
+
 __all__ = [
+    # Catalog Errors
+    "CatalogError",
+    "CatalogTableNotFoundError",
     "ConfigurationError",
     "DLIError",
     "DLIValidationError",
     "DatasetNotFoundError",
     "ErrorCode",
     "ExecutionError",
+    "InvalidIdentifierError",
     "MetricNotFoundError",
     # Quality Errors
     "QualityNotFoundError",
@@ -456,5 +540,6 @@ __all__ = [
     "ServerError",
     "TableNotFoundError",
     "TranspileError",
+    "UnsupportedEngineError",
     "WorkflowNotFoundError",
 ]

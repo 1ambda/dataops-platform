@@ -68,6 +68,7 @@
 | DLI-4xx | Execution | DLI-405 | ✅ Complete |
 | DLI-5xx | Server | DLI-504 | ✅ Complete |
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
+| DLI-7xx | Catalog | DLI-705 | ✅ Complete (701-705) |
 
 ---
 

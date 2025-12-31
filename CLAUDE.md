@@ -346,6 +346,40 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 
 ---
 
+## Implementation Verification (CRITICAL)
+
+> **"구현 완료" 선언 전 반드시 검증** - 거짓 보고 방지
+
+### 위험 패턴 (절대 금지)
+
+```
+❌ "이미 구현되어 있습니다" → grep 확인 없이 판단
+❌ "명세를 작성했습니다" → 코드 작성 없이 완료 선언
+❌ "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+```
+
+### 구현 완료 선언 조건
+
+"구현 완료" 또는 "done" 선언 시 반드시 아래 정보 제시:
+
+| 항목 | 예시 |
+|------|------|
+| **새로 작성한 파일:라인** | `src/dli/models/common.py:405-485 (+81 lines)` |
+| **수정한 파일:라인** | `src/dli/api/catalog.py:89-174` |
+| **테스트 결과** | `pytest tests/api/ → 30 passed` |
+| **검증 명령어** | `grep -r "ClassName" src/` 결과 |
+
+### 구현 완료 체크리스트
+
+```
+□ grep으로 새 클래스/함수가 코드에 실제 존재하는지 확인
+□ pytest 실행하여 테스트 통과 결과 제시
+□ 변경된 파일:라인번호 목록 제시
+□ (선택) git diff --stat 으로 변경 내역 요약
+```
+
+---
+
 ## Important Notes for AI Assistants
 
 1. **Use agents and skills** - Leverage `.claude/agents/` for specialized tasks
@@ -354,6 +388,7 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 4. **Port awareness** - basecamp-server: 8080 (local) vs 8081 (Docker with Keycloak)
 5. **Python package manager** - Use `uv` (not pip/poetry)
 6. **Repository patterns** - Domain interfaces → infrastructure implementations → Spring Data composition
+7. **Implementation verification** - 구현 완료 전 반드시 grep/pytest 결과 제시 (`.claude/skills/implementation-verification/`)
 
 ---
 

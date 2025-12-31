@@ -1,6 +1,6 @@
 # project-interface-cli Implementation Status
 
-> Last Updated: 2025-12-30 | Version: 0.2.1
+> Last Updated: 2025-12-31 | Version: 0.2.2
 
 ## Quick Check
 
@@ -27,6 +27,7 @@ class ExecutionMode(str, Enum):
 |-------|--------|--------|
 | DLI-4xx | DLI-405 | ✅ 404, 405 추가 |
 | DLI-5xx | DLI-504 | ✅ 504 추가 |
+| DLI-7xx | DLI-705 | ✅ Catalog errors 추가 |
 
 ## API DI Support
 
@@ -37,6 +38,31 @@ class ExecutionMode(str, Enum):
 | TranspileAPI | - | ✅ |
 | CatalogAPI | - | ✅ |
 | ConfigAPI | - | ✅ |
+
+## Catalog (v1.2.0)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| CatalogAPI | `api/catalog.py` | ✅ |
+| Result Models | `models/common.py:405-485` | ✅ v1.2.0 |
+| Mock Data | `core/client.py:_init_mock_catalog_tables` | ✅ |
+| Tests | `tests/api/test_catalog_api.py` | ✅ 30 tests |
+
+### Result Models (v1.2.0)
+
+```python
+CatalogListResult    # status, tables, total_count, has_more
+TableDetailResult    # status, table, error_message
+CatalogSearchResult  # status, tables, total_matches, keyword
+```
+
+### CatalogAPI Methods
+
+```python
+list_tables(identifier) → CatalogListResult
+get(table) → TableDetailResult
+search(pattern) → CatalogSearchResult
+```
 
 ## Phase 2 Pending
 

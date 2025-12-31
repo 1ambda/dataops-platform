@@ -34,6 +34,7 @@ Language-neutral capabilities loaded by agents. See [../.claude/README.md](../RE
 | [ci-pipeline](./ci-pipeline/SKILL.md) | GitHub Actions, caching, deployment strategies |
 | [documentation](./documentation/SKILL.md) | API docs, READMEs, changelogs |
 | [requirements-discovery](./requirements-discovery/SKILL.md) | Stakeholder interviews, PRD writing |
+| [implementation-verification](./implementation-verification/SKILL.md) | 구현 완료 검증, 거짓 보고 방지 |
 
 ### Collaboration Skills
 

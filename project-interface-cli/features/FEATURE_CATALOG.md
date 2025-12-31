@@ -1,8 +1,9 @@
 # FEATURE: Catalog 커맨드
 
-> **Version:** 1.1.0
-> **Status:** Draft
-> **Last Updated:** 2025-12-30
+> **Version:** 1.2.0
+> **Status:** Enhanced Draft  
+> **Last Updated:** 2025-12-31
+> **Industry Benchmarked:** Databricks CLI, DBT CLI, SqlMesh CLI
 
 ---
 
@@ -27,7 +28,15 @@
 - **테이블 상세**: 스키마, 통계, 품질, 소유권, 영향도 조회
 - **키워드 검색**: 테이블/컬럼/설명/태그 통합 검색
 
-### 1.4 유사 도구 참조
+### 1.4 업계 표준 벤치마킹 (2025)
+
+| 도구 | 핵심 기능 | dli에 반영 |
+|------|-----------|------------|
+| **🧱 Databricks CLI** | `tables list CATALOG SCHEMA`<br/>`--include-browse`, `--max-results` | 고급 필터링, 성능 옵션 |
+| **📚 DBT CLI** | `docs generate --select --static`<br/>catalog.json 아티팩트 | 정적 문서 출력, 배치 처리 |
+| **⚡ SqlMesh CLI** | `create_external_models`<br/>`ui --mode catalog` | 자동 스키마 디스커버리 |
+
+### 1.5 기존 참조 도구
 
 | 도구 | 참조 포인트 |
 |------|-------------|
@@ -209,19 +218,151 @@ def catalog_sample_queries(self, table_ref: str, *, limit: int = 5) -> ServerRes
 
 ---
 
-## 7. 데이터 모델
+## 7. Library API 설계 (CatalogAPI)
+
+### 7.1 클래스 구조 (feature-interface-cli Agent 피드백)
+
+```python
+# src/dli/api/catalog.py
+from dli.models.common import ExecutionContext, ResultStatus
+from dli.exceptions import CatalogError, ErrorCode
+
+class CatalogAPI:
+    """Programmatic Catalog API for integration with Airflow, Jupyter, etc."""
+    
+    def __init__(self, context: ExecutionContext | None = None) -> None:
+        self.context = context or ExecutionContext()
+        self._service: CatalogService | None = None
+
+    @property
+    def _is_mock_mode(self) -> bool:
+        return self.context.execution_mode == ExecutionMode.MOCK
+
+    def list_tables(self, *, project: str | None = None, dataset: str | None = None,
+                   owner: str | None = None, limit: int = 50, offset: int = 0) -> CatalogListResult:
+        """List tables with filters."""
+        if self._is_mock_mode:
+            return self._mock_list_tables(project, dataset, limit, offset)
+        
+        # Server execution logic...
+
+    def get_table(self, table_ref: str, *, include_sample: bool = False) -> TableDetailResult:
+        """Get table details."""
+        if self._is_mock_mode:
+            return self._mock_table_detail(table_ref, include_sample)
+        
+        # Server execution logic...
+
+    def search_tables(self, keyword: str, *, project: str | None = None, 
+                     limit: int = 20) -> CatalogSearchResult:
+        """Search tables by keyword."""
+        if self._is_mock_mode:
+            return self._mock_search_results(keyword, project, limit)
+        
+        # Server execution logic...
+```
+
+### 7.2 결과 모델
+
+```python
+# src/dli/models/catalog.py
+from dli.models.common import BaseResult, ResultStatus
+
+class CatalogListResult(BaseResult):
+    tables: list[TableInfo]
+    total_count: int
+    has_more: bool
+
+class TableDetailResult(BaseResult):
+    table: TableDetail
+
+class CatalogSearchResult(BaseResult):
+    tables: list[TableInfo]
+    total_matches: int
+    keyword: str
+```
+
+---
+
+## 8. Mock 모드 설계
+
+### 8.1 Mock 데이터 구조 (expert-python Agent 피드백)
+
+```python
+# src/dli/core/client.py - Mock data 추가
+MOCK_CATALOG_DATA = {
+    "tables": [
+        {
+            "name": "my-project.analytics.users",
+            "engine": "bigquery",
+            "owner": "data-team@company.com",
+            "team": "analytics",
+            "tags": ["tier::critical", "pii"],
+            "row_count": 1000000,
+            "last_updated": "2025-12-30T10:00:00Z"
+        },
+        {
+            "name": "my-project.finance.transactions",
+            "engine": "bigquery", 
+            "owner": "finance-team@company.com",
+            "team": "finance",
+            "tags": ["tier::high", "audit"],
+            "row_count": 50000000,
+            "last_updated": "2025-12-31T02:30:00Z"
+        }
+    ],
+    "table_details": {
+        "my-project.analytics.users": {
+            "name": "my-project.analytics.users",
+            "engine": "bigquery",
+            "description": "Customer user data with PII",
+            "columns": [
+                {"name": "user_id", "data_type": "STRING", "is_pii": False, "fill_rate": 1.0},
+                {"name": "email", "data_type": "STRING", "is_pii": True, "fill_rate": 0.95},
+                {"name": "created_at", "data_type": "TIMESTAMP", "is_pii": False, "fill_rate": 1.0}
+            ]
+        }
+    }
+}
+```
+
+### 8.2 Mock 클라이언트 메서드
+
+```python
+# BasecampClient에 추가
+def catalog_list(self, *, project=None, dataset=None, **filters) -> ServerResponse:
+    if self.mock_mode:
+        tables = self._filter_mock_tables(project, dataset, **filters)
+        return ServerResponse(success=True, data=tables)
+    # 실제 API 호출...
+
+def _filter_mock_tables(self, project=None, dataset=None, **filters):
+    """Mock 테이블 필터링 로직"""
+    tables = MOCK_CATALOG_DATA["tables"].copy()
+    
+    if project:
+        tables = [t for t in tables if t["name"].startswith(f"{project}.")]
+    if dataset:
+        tables = [t for t in tables if f".{dataset}." in t["name"]]
+    
+    return tables[:filters.get("limit", 50)]
+```
+
+---
+
+## 9. 데이터 모델
 
 ### 7.1 목록용 (TableInfo)
 
 ```python
 class TableInfo(BaseModel):
-    name: str           # project.dataset.table
+    name: str = Field(..., description="Table name (project.dataset.table)")
     engine: str
-    owner: str | None
-    team: str | None
-    tags: list[str]
-    row_count: int | None
-    last_updated: datetime | None
+    owner: str | None = None
+    team: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    row_count: int | None = None
+    last_updated: datetime | None = None
 ```
 
 ### 7.2 상세용 (TableDetail)
@@ -230,8 +371,8 @@ class TableInfo(BaseModel):
 class TableDetail(BaseModel):
     name: str
     engine: str
-    description: str | None
-    tags: list[str]
+    description: str | None = None
+    tags: list[str] = Field(default_factory=list)
     basecamp_url: str
 
     ownership: OwnershipInfo
@@ -239,35 +380,145 @@ class TableDetail(BaseModel):
     freshness: FreshnessInfo
     quality: QualityInfo
     impact: ImpactSummary
-    sample_queries: list[SampleQuery]
-    sample_data: list[dict] | None  # --sample 시에만
+    sample_queries: list[SampleQuery] = Field(default_factory=list)
+    sample_data: list[dict] | None = None  # --sample 시에만
 
 class ColumnInfo(BaseModel):
     name: str
     data_type: str
-    description: str | None
-    is_pii: bool
-    fill_rate: float | None    # 0.0 ~ 1.0
-    distinct_count: int | None
+    description: str | None = None
+    is_pii: bool = False
+    fill_rate: float | None = None    # 0.0 ~ 1.0
+    distinct_count: int | None = None
 
 class ImpactSummary(BaseModel):
     total_downstream: int
-    tables: list[str]
-    datasets: list[str]
-    metrics: list[str]
-    dashboards: list[str]
+    tables: list[str] = Field(default_factory=list)
+    datasets: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    dashboards: list[str] = Field(default_factory=list)
 ```
 
 ---
 
-## 8. 에러 처리
+## 10. 에러 처리 및 코드 (Agent 리뷰 반영)
 
-| 상황 | 메시지 |
-|------|--------|
-| 서버 연결 불가 | `Error: Cannot connect to Basecamp server.` |
-| 테이블 없음 | `Error: Table '{ref}' not found.` |
-| 잘못된 식별자 | `Error: Invalid identifier format.` |
-| 권한 없음 | `Error: Access denied.` |
+### 10.1 Error Code 할당 (DLI-7xx 범위)
+
+```python
+# src/dli/exceptions.py에 추가
+class ErrorCode(str, Enum):
+    # ... 기존 코드들 ...
+    
+    # Catalog errors (DLI-7xx)
+    CATALOG_CONNECTION_ERROR = "DLI-701"
+    CATALOG_TABLE_NOT_FOUND = "DLI-702" 
+    CATALOG_INVALID_IDENTIFIER = "DLI-703"
+    CATALOG_ACCESS_DENIED = "DLI-704"
+    CATALOG_ENGINE_NOT_SUPPORTED = "DLI-705"
+    CATALOG_SCHEMA_TOO_LARGE = "DLI-706"
+
+class CatalogError(DLIError):
+    """Base catalog error."""
+    pass
+
+class TableNotFoundError(CatalogError):
+    def __init__(self, table_ref: str):
+        super().__init__(
+            message=f"Table '{table_ref}' not found",
+            code=ErrorCode.CATALOG_TABLE_NOT_FOUND
+        )
+
+class InvalidIdentifierError(CatalogError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            message=f"Invalid identifier format: '{identifier}'",
+            code=ErrorCode.CATALOG_INVALID_IDENTIFIER
+        )
+```
+
+### 10.2 에러 메시지 매핑
+
+| 상황 | Error Code | Exception | 메시지 |
+|------|-----------|-----------|--------|
+| 서버 연결 불가 | DLI-701 | `CatalogConnectionError` | `Cannot connect to Basecamp server` |
+| 테이블 없음 | DLI-702 | `TableNotFoundError` | `Table '{ref}' not found` |
+| 잘못된 식별자 | DLI-703 | `InvalidIdentifierError` | `Invalid identifier format: '{identifier}'` |
+| 권한 없음 | DLI-704 | `CatalogAccessDeniedError` | `Access denied to catalog resources` |
+| 미지원 엔진 | DLI-705 | `UnsupportedEngineError` | `Engine '{engine}' not supported` |
+
+---
+
+## 11. CLI 등록 단계 (feature-interface-cli Agent 피드백)
+
+### 11.1 commands/__init__.py 업데이트
+
+```python
+# src/dli/commands/__init__.py
+from .dataset import dataset_app
+from .metric import metric_app  
+from .workflow import workflow_app
+from .catalog import catalog_app  # ADD THIS
+from .transpile import transpile_app
+from .lineage import lineage_app
+from .quality import quality_app
+from .config import config_app
+
+__all__ = [
+    "dataset_app",
+    "metric_app", 
+    "workflow_app",
+    "catalog_app",  # ADD THIS
+    "transpile_app", 
+    "lineage_app",
+    "quality_app",
+    "config_app",
+]
+```
+
+### 11.2 main.py 등록
+
+```python
+# src/dli/main.py
+from dli.commands import (
+    config_app,
+    dataset_app,
+    metric_app,
+    workflow_app,
+    catalog_app,  # ADD THIS
+    transpile_app,
+    lineage_app,
+    quality_app,
+)
+
+# Register subcommands
+app.add_typer(config_app, name="config")
+app.add_typer(dataset_app, name="dataset")
+app.add_typer(metric_app, name="metric")
+app.add_typer(workflow_app, name="workflow")
+app.add_typer(catalog_app, name="catalog")  # ADD THIS
+app.add_typer(transpile_app, name="transpile")
+app.add_typer(lineage_app, name="lineage")
+app.add_typer(quality_app, name="quality")
+```
+
+### 11.3 API 등록 (__init__.py)
+
+```python
+# src/dli/__init__.py
+from .api.catalog import CatalogAPI  # ADD THIS
+from .api.config import ConfigAPI
+from .api.dataset import DatasetAPI
+# ... other imports ...
+
+__all__ = [
+    # API Classes
+    "CatalogAPI",  # ADD THIS
+    "ConfigAPI", 
+    "DatasetAPI",
+    # ... other exports ...
+]
+```
 
 ---
 
@@ -304,29 +555,54 @@ src/dli/
 
 ---
 
-## 10. 구현 우선순위
+## 12. 구현 우선순위 (간소화)
 
-### Phase 1 (MVP)
+### Phase 1 (MVP) - 핵심 기능
 
 - [ ] 암시적 라우팅 (1/2/3/4-part 감지)
-- [ ] 테이블 목록 조회 (`dli catalog <1-part>`, `<2-part>`)
-- [ ] 테이블 상세 조회 (모든 섹션 except Sample Data)
+- [ ] 테이블 목록 조회 (`dli catalog <1-part>`, `<2-part>`)  
+- [ ] 테이블 상세 조회 (기본 섹션들)
 - [ ] `catalog list` 기본 필터 (project, dataset)
 - [ ] `catalog search` 키워드 검색
-- [ ] Rich 출력 + JSON 출력
-- [ ] Mock 모드 (기존 client.py 패턴 따름)
+- [ ] Rich 테이블 출력 + JSON 형식
+- [ ] Mock 모드 (기존 client.py 패턴)
+- [ ] CatalogAPI 클래스 (Library API)
+- [ ] Error Code 할당 (DLI-7xx)
 
-### Phase 2
+### Phase 2 - 실용적 확장
 
 - [ ] `--sample` 옵션 (샘플 데이터)
-- [ ] `--section` 옵션 (특정 섹션만)
+- [ ] `--section` 옵션 (특정 섹션만)  
 - [ ] Sample Queries 섹션
 - [ ] 추가 필터 (owner, team, tag)
 
-### Phase 3
+### Phase 3 - 향후 고려
 
-- [ ] 페이지네이션 개선 (cursor 기반 등)
-- [ ] 로컬 캐시 (선택적)
+- [ ] 기본 페이지네이션 (offset/limit)
+- [ ] 외부 메타데이터 연동
+
+## 13. 구현 가이드 (간소화)
+
+### 13.1 핵심 파일 구조
+
+```
+src/dli/
+├── api/catalog.py              # CatalogAPI (Library API)
+├── commands/catalog.py         # CLI 명령어 
+├── core/catalog/
+│   ├── __init__.py
+│   └── models.py              # TableInfo, TableDetail 등
+└── exceptions.py              # Error codes 추가
+```
+
+### 13.2 구현 순서
+
+1. **모델 정의** (`core/catalog/models.py`)
+2. **Mock 데이터** (`core/client.py`에 추가)
+3. **CLI 명령어** (`commands/catalog.py`)
+4. **Library API** (`api/catalog.py`)  
+5. **CLI 등록** (`main.py`, `commands/__init__.py`)
+6. **테스트** (기본 CLI 테스트)
 
 ---
 

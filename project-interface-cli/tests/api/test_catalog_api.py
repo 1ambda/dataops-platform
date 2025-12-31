@@ -16,7 +16,13 @@ import pytest
 
 from dli import CatalogAPI, ExecutionContext
 from dli.core.catalog import TableDetail, TableInfo
-from dli.models.common import ExecutionMode
+from dli.models.common import (
+    CatalogListResult,
+    CatalogSearchResult,
+    ExecutionMode,
+    ResultStatus,
+    TableDetailResult,
+)
 
 
 class TestCatalogAPIInit:
@@ -68,44 +74,56 @@ class TestCatalogAPIMockMode:
         """Test list_tables without identifier (list all projects)."""
         result = mock_api.list_tables()
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert result.status == ResultStatus.SUCCESS
+        assert isinstance(result.tables, list)
 
     def test_list_tables_with_project(self, mock_api: CatalogAPI) -> None:
         """Test list_tables with project identifier."""
         result = mock_api.list_tables("my-project")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert result.status == ResultStatus.SUCCESS
+        assert isinstance(result.tables, list)
 
     def test_list_tables_with_dataset(self, mock_api: CatalogAPI) -> None:
         """Test list_tables with project.dataset identifier."""
         result = mock_api.list_tables("my-project.analytics")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
     def test_list_tables_with_limit(self, mock_api: CatalogAPI) -> None:
         """Test list_tables with limit."""
         result = mock_api.list_tables("my-project", limit=10)
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
-    def test_get_returns_table_or_none(self, mock_api: CatalogAPI) -> None:
-        """Test get returns TableDetail or None."""
+    def test_get_returns_table_detail_result(self, mock_api: CatalogAPI) -> None:
+        """Test get returns TableDetailResult."""
         result = mock_api.get("project.dataset.table")
 
-        # In mock mode with mock client, may return None or mock data
-        assert result is None or isinstance(result, TableDetail)
+        # In mock mode with mock client, may return failure or mock data
+        assert isinstance(result, TableDetailResult)
+        if result.status == ResultStatus.SUCCESS:
+            assert result.table is not None
+            assert isinstance(result.table, TableDetail)
 
-    def test_search_returns_list(self, mock_api: CatalogAPI) -> None:
-        """Test search returns list of TableInfo."""
+    def test_search_returns_search_result(self, mock_api: CatalogAPI) -> None:
+        """Test search returns CatalogSearchResult."""
         result = mock_api.search("user")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogSearchResult)
+        assert isinstance(result.tables, list)
+        assert result.keyword == "user"
 
     def test_search_with_limit(self, mock_api: CatalogAPI) -> None:
         """Test search with limit."""
         result = mock_api.search("event", limit=5)
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogSearchResult)
+        assert isinstance(result.tables, list)
 
 
 class TestCatalogAPIListTables:
@@ -120,32 +138,36 @@ class TestCatalogAPIListTables:
         """Test implicit routing with no identifier parts."""
         result = mock_api.list_tables(None)
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
     def test_implicit_routing_one_part(self, mock_api: CatalogAPI) -> None:
         """Test implicit routing with 1-part identifier (project)."""
         result = mock_api.list_tables("project")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
     def test_implicit_routing_two_parts(self, mock_api: CatalogAPI) -> None:
         """Test implicit routing with 2-part identifier (project.dataset)."""
         result = mock_api.list_tables("project.dataset")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
     def test_implicit_routing_three_parts(self, mock_api: CatalogAPI) -> None:
         """Test implicit routing with 3-part identifier (project.dataset.table)."""
-        # This should redirect to get() and return single-item list
+        # This should redirect to get() and return single-item CatalogListResult
         result = mock_api.list_tables("project.dataset.table")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogListResult)
+        assert isinstance(result.tables, list)
 
     def test_result_items_are_table_info(self, mock_api: CatalogAPI) -> None:
         """Test that list returns TableInfo items."""
         result = mock_api.list_tables()
 
-        for item in result:
+        for item in result.tables:
             assert isinstance(item, TableInfo)
 
 
@@ -161,15 +183,20 @@ class TestCatalogAPIGet:
         """Test get with full table reference."""
         result = mock_api.get("project.dataset.table")
 
-        # In mock mode, might return None or mock data
-        assert result is None or isinstance(result, TableDetail)
+        # In mock mode, might return success or failure result
+        assert isinstance(result, TableDetailResult)
+        if result.status == ResultStatus.SUCCESS:
+            assert result.table is not None
+            assert isinstance(result.table, TableDetail)
 
-    def test_get_nonexistent_returns_none(self, mock_api: CatalogAPI) -> None:
-        """Test that nonexistent table returns None."""
+    def test_get_nonexistent_returns_failure(self, mock_api: CatalogAPI) -> None:
+        """Test that nonexistent table returns failure result."""
         result = mock_api.get("nonexistent.schema.table")
 
-        # Should return None for not found
-        assert result is None
+        # Should return failure for not found
+        assert isinstance(result, TableDetailResult)
+        if result.status == ResultStatus.FAILURE:
+            assert result.table is None
 
 
 class TestCatalogAPISearch:
@@ -184,13 +211,16 @@ class TestCatalogAPISearch:
         """Test basic search."""
         result = mock_api.search("user")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogSearchResult)
+        assert isinstance(result.tables, list)
+        assert result.keyword == "user"
 
     def test_search_with_pattern(self, mock_api: CatalogAPI) -> None:
         """Test search with pattern."""
         result = mock_api.search("user_*")
 
-        assert isinstance(result, list)
+        assert isinstance(result, CatalogSearchResult)
+        assert isinstance(result.tables, list)
 
     def test_search_case_insensitive(self, mock_api: CatalogAPI) -> None:
         """Test search is case-insensitive (behavior check)."""
@@ -198,14 +228,14 @@ class TestCatalogAPISearch:
         result_upper = mock_api.search("USER")
 
         # Both should work (actual matching is server-side)
-        assert isinstance(result_lower, list)
-        assert isinstance(result_upper, list)
+        assert isinstance(result_lower, CatalogSearchResult)
+        assert isinstance(result_upper, CatalogSearchResult)
 
     def test_search_results_are_table_info(self, mock_api: CatalogAPI) -> None:
         """Test that search returns TableInfo items."""
         result = mock_api.search("test")
 
-        for item in result:
+        for item in result.tables:
             assert isinstance(item, TableInfo)
 
 

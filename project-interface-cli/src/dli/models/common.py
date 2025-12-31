@@ -402,8 +402,94 @@ class ConfigValue(BaseModel):
     source: str = Field(default="config", description="Value source")
 
 
+class CatalogListResult(BaseModel):
+    """Catalog list operation result.
+
+    Returned by CatalogAPI.list_tables() method.
+
+    Attributes:
+        status: Operation status.
+        tables: List of table info objects.
+        total_count: Total number of matching tables.
+        has_more: Whether more results are available.
+        error_message: Error message if failed.
+
+    Example:
+        >>> result = api.list_tables(project="my-project")
+        >>> print(f"Found {result.total_count} tables")
+        >>> for table in result.tables:
+        ...     print(table.name)
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    status: ResultStatus = Field(
+        default=ResultStatus.SUCCESS, description="Operation status"
+    )
+    tables: list[Any] = Field(default_factory=list, description="Table info list")
+    total_count: int = Field(default=0, description="Total matching tables")
+    has_more: bool = Field(default=False, description="More results available")
+    error_message: str | None = Field(default=None, description="Error message")
+
+
+class TableDetailResult(BaseModel):
+    """Table detail operation result.
+
+    Returned by CatalogAPI.get() method.
+
+    Attributes:
+        status: Operation status.
+        table: TableDetail object if found.
+        error_message: Error message if failed.
+
+    Example:
+        >>> result = api.get("my-project.analytics.users")
+        >>> if result.status == ResultStatus.SUCCESS:
+        ...     print(result.table.description)
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    status: ResultStatus = Field(
+        default=ResultStatus.SUCCESS, description="Operation status"
+    )
+    table: Any | None = Field(default=None, description="Table detail object")
+    error_message: str | None = Field(default=None, description="Error message")
+
+
+class CatalogSearchResult(BaseModel):
+    """Catalog search operation result.
+
+    Returned by CatalogAPI.search() method.
+
+    Attributes:
+        status: Operation status.
+        tables: List of matching table info objects.
+        total_matches: Total number of matches.
+        keyword: Search keyword used.
+        error_message: Error message if failed.
+
+    Example:
+        >>> result = api.search("user")
+        >>> print(f"Found {result.total_matches} tables matching '{result.keyword}'")
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    status: ResultStatus = Field(
+        default=ResultStatus.SUCCESS, description="Operation status"
+    )
+    tables: list[Any] = Field(default_factory=list, description="Matching tables")
+    total_matches: int = Field(default=0, description="Total matches")
+    keyword: str = Field(default="", description="Search keyword")
+    error_message: str | None = Field(default=None, description="Error message")
+
+
 __all__ = [
     "BaseResult",
+    # Catalog result models
+    "CatalogListResult",
+    "CatalogSearchResult",
     "ConfigValue",
     "DataSource",
     "DatasetResult",
@@ -417,6 +503,7 @@ __all__ = [
     "ResultStatus",
     # Type aliases
     "SQLDialect",
+    "TableDetailResult",
     "TranspileResult",
     "TranspileRule",
     "TranspileWarning",
