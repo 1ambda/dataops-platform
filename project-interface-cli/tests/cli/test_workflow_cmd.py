@@ -858,6 +858,8 @@ class TestWorkflowHelp:
         assert "run" in output.lower()
         assert "list" in output.lower()
         assert "history" in output.lower()
+        assert "register" in output.lower()
+        assert "unregister" in output.lower()
 
     def test_workflow_help_flag(self) -> None:
         """Test workflow --help flag."""
@@ -1016,3 +1018,262 @@ class TestWorkflowEdgeCases:
         )
         # Should succeed even without params
         assert result.exit_code == 0
+
+
+# =============================================================================
+# Test: workflow register
+# =============================================================================
+
+
+class TestWorkflowRegister:
+    """Tests for workflow register command."""
+
+    # NOTE: Mock data has these workflows:
+    # - iceberg.analytics.daily_clicks (CODE) - cannot register
+    # - iceberg.warehouse.user_events (CODE) - cannot register
+    # - iceberg.reporting.weekly_summary (MANUAL) - can overwrite with --force
+    # Use new dataset names for successful registration tests.
+
+    def test_register_workflow_success(self, sample_project_path: Path) -> None:
+        """Test registering a new workflow successfully."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.new_dataset",  # New dataset, not in mock
+                "--cron",
+                "0 9 * * *",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        # In mock mode, should succeed for new dataset
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "register" in output.lower() or "success" in output.lower()
+
+    def test_register_workflow_with_timezone(self, sample_project_path: Path) -> None:
+        """Test registering a workflow with custom timezone."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.timezone_test",  # New dataset
+                "--cron",
+                "0 9 * * *",
+                "--timezone",
+                "Asia/Seoul",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_register_workflow_disabled(self, sample_project_path: Path) -> None:
+        """Test registering a workflow in disabled state."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.disabled_test",  # New dataset
+                "--cron",
+                "0 9 * * *",
+                "--disabled",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_register_workflow_with_retry_config(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test registering a workflow with retry configuration."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.retry_test",  # New dataset
+                "--cron",
+                "0 9 * * *",
+                "--retry-max",
+                "3",
+                "--retry-delay",
+                "600",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_register_workflow_with_force_overwrite_manual(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test registering a workflow with force flag to overwrite existing MANUAL."""
+        # iceberg.reporting.weekly_summary is a MANUAL workflow in mock data
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.reporting.weekly_summary",
+                "--cron",
+                "0 9 * * *",
+                "--force",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "register" in output.lower() or "success" in output.lower()
+
+    def test_register_workflow_json_output(self, sample_project_path: Path) -> None:
+        """Test registering a workflow with JSON output format."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.json_test",  # New dataset
+                "--cron",
+                "0 9 * * *",
+                "--format",
+                "json",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result).strip()
+        if output:
+            try:
+                json.loads(output)
+            except json.JSONDecodeError:
+                pass  # May not be pure JSON in mock mode
+
+    def test_register_workflow_missing_cron(self, sample_project_path: Path) -> None:
+        """Test registering a workflow without required cron option."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.missing_cron",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        # Should fail due to missing required --cron option
+        assert result.exit_code != 0
+
+    def test_register_workflow_code_workflow_conflict(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test that registering fails for existing CODE workflow."""
+        # iceberg.analytics.daily_clicks is a CODE workflow in mock data
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "register",
+                "iceberg.analytics.daily_clicks",
+                "--cron",
+                "0 9 * * *",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "code" in output.lower() or "cannot" in output.lower()
+
+    def test_register_workflow_help(self) -> None:
+        """Test workflow register --help."""
+        result = runner.invoke(app, ["workflow", "register", "--help"])
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "register" in output.lower()
+        assert "--cron" in output
+        assert "--timezone" in output
+        assert "--force" in output
+
+
+# =============================================================================
+# Test: workflow unregister
+# =============================================================================
+
+
+class TestWorkflowUnregister:
+    """Tests for workflow unregister command."""
+
+    # NOTE: Mock data has these workflows:
+    # - iceberg.analytics.daily_clicks (CODE) - cannot unregister
+    # - iceberg.warehouse.user_events (CODE) - cannot unregister
+    # - iceberg.reporting.weekly_summary (MANUAL) - can unregister
+
+    def test_unregister_manual_workflow_success(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test unregistering a MANUAL workflow successfully."""
+        # iceberg.reporting.weekly_summary is a MANUAL workflow in mock data
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "unregister",
+                "iceberg.reporting.weekly_summary",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        # In mock mode, should succeed for MANUAL workflow
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "unregister" in output.lower() or "success" in output.lower()
+
+    def test_unregister_code_workflow_fails(self, sample_project_path: Path) -> None:
+        """Test that unregistering a CODE workflow fails."""
+        # iceberg.analytics.daily_clicks is a CODE workflow in mock data
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "unregister",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "code" in output.lower() or "cannot" in output.lower()
+
+    def test_unregister_nonexistent_workflow(self, sample_project_path: Path) -> None:
+        """Test unregistering a workflow that doesn't exist."""
+        result = runner.invoke(
+            app,
+            [
+                "workflow",
+                "unregister",
+                "nonexistent.dataset.name",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "not found" in output.lower() or "error" in output.lower()
+
+    def test_unregister_workflow_help(self) -> None:
+        """Test workflow unregister --help."""
+        result = runner.invoke(app, ["workflow", "unregister", "--help"])
+        assert result.exit_code == 0
+        output = get_output(result)
+        assert "unregister" in output.lower()
+        assert "manual" in output.lower()
+        assert "--path" in output

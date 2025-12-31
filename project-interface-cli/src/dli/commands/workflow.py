@@ -567,3 +567,133 @@ def unpause_workflow(
         raise typer.Exit(1)
 
     print_success(f"Workflow unpaused: {dataset_name}")
+
+
+@workflow_app.command("register")
+def register_workflow(
+    dataset_name: Annotated[
+        str,
+        typer.Argument(help="Dataset name to register as MANUAL workflow."),
+    ],
+    cron: Annotated[
+        str,
+        typer.Option("--cron", "-c", help="Cron expression (5-field format, e.g., '0 9 * * *')."),
+    ],
+    timezone: Annotated[
+        str,
+        typer.Option("--timezone", "-tz", help="IANA timezone (default: UTC)."),
+    ] = "UTC",
+    enabled: Annotated[
+        bool,
+        typer.Option("--enabled/--disabled", help="Enable schedule immediately."),
+    ] = True,
+    retry_max_attempts: Annotated[
+        int,
+        typer.Option("--retry-max", help="Max retry attempts on failure."),
+    ] = 1,
+    retry_delay_seconds: Annotated[
+        int,
+        typer.Option("--retry-delay", help="Delay between retries in seconds."),
+    ] = 300,
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Overwrite existing MANUAL registration."),
+    ] = False,
+    format_output: Annotated[
+        ListOutputFormat,
+        typer.Option("--format", help="Output format (table or json)."),
+    ] = "table",
+    path: Annotated[
+        Path | None,
+        typer.Option("--path", help="Project path."),
+    ] = None,
+) -> None:
+    """Register a local Dataset as MANUAL workflow.
+
+    Uploads the Dataset Spec to S3 manual/ path and registers
+    the schedule with Airflow via Basecamp Server.
+
+    Note: CODE workflows (registered via Git CI/CD) cannot be overwritten.
+    Use --force to overwrite existing MANUAL registrations.
+
+    Examples:
+        dli workflow register iceberg.analytics.daily_clicks --cron "0 9 * * *"
+        dli workflow register iceberg.analytics.daily_clicks -c "0 9 * * *" --timezone Asia/Seoul
+        dli workflow register iceberg.analytics.daily_clicks -c "0 9 * * *" --disabled
+        dli workflow register iceberg.analytics.daily_clicks -c "0 9 * * *" --force
+    """
+    project_path = get_project_path(path)
+    client = get_client(project_path)
+
+    with console.status("[bold green]Registering workflow..."):
+        response = client.workflow_register(
+            dataset_name=dataset_name,
+            cron=cron,
+            timezone=timezone,
+            enabled=enabled,
+            retry_max_attempts=retry_max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            force=force,
+        )
+
+    if not response.success:
+        if response.status_code == 403:
+            print_error("Cannot register: CODE workflow exists. Use Git to modify.")
+        elif response.status_code == 409:
+            print_error("Workflow already exists. Use --force to overwrite.")
+        else:
+            print_error(response.error or "Failed to register workflow")
+        raise typer.Exit(1)
+
+    result = response.data if isinstance(response.data, dict) else {}
+
+    if format_output == "json":
+        console.print_json(json.dumps(result, default=str))
+        return
+
+    print_success(f"Workflow registered: {dataset_name}")
+    console.print(f"  [dim]Source:[/dim] MANUAL")
+    console.print(f"  [dim]Schedule:[/dim] {cron}")
+    console.print(f"  [dim]Timezone:[/dim] {timezone}")
+    console.print(f"  [dim]Status:[/dim] {'active' if enabled else 'paused'}")
+
+    if result.get("next_run"):
+        console.print(f"  [dim]Next Run:[/dim] {format_datetime(result['next_run'], include_seconds=True)}")
+
+
+@workflow_app.command("unregister")
+def unregister_workflow(
+    dataset_name: Annotated[
+        str,
+        typer.Argument(help="Dataset name to unregister."),
+    ],
+    path: Annotated[
+        Path | None,
+        typer.Option("--path", help="Project path."),
+    ] = None,
+) -> None:
+    """Unregister a MANUAL workflow.
+
+    Removes the workflow from S3 manual/ path and unschedules from Airflow.
+    Only MANUAL workflows can be unregistered via CLI.
+    CODE workflows must be removed via Git.
+
+    Examples:
+        dli workflow unregister iceberg.analytics.daily_clicks
+    """
+    project_path = get_project_path(path)
+    client = get_client(project_path)
+
+    with console.status("[bold yellow]Unregistering workflow..."):
+        response = client.workflow_unregister(dataset_name=dataset_name)
+
+    if not response.success:
+        if response.status_code == 404:
+            print_error(f"Workflow not found: {dataset_name}")
+        elif response.status_code == 403:
+            print_error("Cannot unregister: CODE workflow. Use Git to remove.")
+        else:
+            print_error(response.error or "Failed to unregister workflow")
+        raise typer.Exit(1)
+
+    print_success(f"Workflow unregistered: {dataset_name}")
