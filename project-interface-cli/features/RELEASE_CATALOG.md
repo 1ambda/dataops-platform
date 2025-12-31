@@ -31,11 +31,11 @@
 | Mock mode | ✅ | 테스트용 모의 데이터 |
 | Basic filters (project, dataset) | ✅ | `--project`, `--dataset` |
 
-### Phase 2 - Pending
+### Phase 2 - Mostly Complete
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| `--sample` option | ⏳ | 샘플 데이터 포함 |
+| `--sample` option | ✅ | 샘플 데이터 포함 (Mock 모드에서 작동) |
 | `--section` option | ✅ | 특정 섹션만 출력 (MVP에서 구현됨) |
 | Sample Queries section | ✅ | Popular queries 표시 (MVP에서 구현됨) |
 | Additional filters (owner, team, tag) | ✅ | MVP에서 구현됨 |
@@ -56,8 +56,9 @@
 | DLI-701 | `CatalogError` | 기본 Catalog 에러 |
 | DLI-702 | `CatalogTableNotFoundError` | 테이블 미발견 |
 | DLI-703 | `InvalidIdentifierError` | 잘못된 식별자 형식 |
-| DLI-704 | (Reserved) | 접근 거부 |
+| DLI-704 | `CatalogAccessDeniedError` | 접근 거부 |
 | DLI-705 | `UnsupportedEngineError` | 미지원 엔진 |
+| DLI-706 | `CatalogSchemaError` | 스키마 과대 |
 
 ---
 

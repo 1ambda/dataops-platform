@@ -70,7 +70,7 @@
 | DLI-4xx | Execution | DLI-405 | ✅ Complete |
 | DLI-5xx | Server | DLI-504 | ✅ Complete |
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
-| DLI-7xx | Catalog | DLI-705 | ✅ Complete (701-705) |
+| DLI-7xx | Catalog | DLI-706 | ✅ Complete (701-706) |
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 
 ---
@@ -96,6 +96,9 @@
 | RELEASE_EXECUTION.md | ✅ Created | `project-interface-cli/features/RELEASE_EXECUTION.md` |
 | RELEASE_QUALITY.md | ✅ Created | `project-interface-cli/features/RELEASE_QUALITY.md` |
 | RELEASE_WORKFLOW.md | ✅ Updated | `project-interface-cli/features/RELEASE_WORKFLOW.md` |
+| FEATURE_CATALOG.md | ✅ Created | `project-interface-cli/features/FEATURE_CATALOG.md` |
+| RELEASE_CATALOG.md | ✅ Created | `project-interface-cli/features/RELEASE_CATALOG.md` |
+| GAP_CATALOG.md | ✅ Created | `project-interface-cli/features/GAP_CATALOG.md` |
 
 ---
 
@@ -111,12 +114,22 @@
 ## Changelog
 
 ### v0.4.0 (2025-12-31)
+- **Catalog 커맨드 v1.2.0 통합**
+  - 암시적 라우팅 (1/2/3/4-part 식별자)
+  - `catalog list`, `catalog search` 서브커맨드
+  - Rich/JSON 출력, Mock 모드
+  - 114개 Catalog 테스트 (Model 54 + CLI 30 + API 30)
+- **CatalogAPI v1.2.0** (list_tables, get, search)
+  - Result 모델: CatalogListResult, TableDetailResult, CatalogSearchResult
+- **DLI-7xx 에러 코드 (701-706)**
+  - CatalogAccessDeniedError (DLI-704) 추가
+  - CatalogSchemaError (DLI-706) 추가
 - WorkflowAPI 구현 (get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause)
 - Workflow Result 모델 (WorkflowRegisterResult, WorkflowRunResult, WorkflowListResult, WorkflowStatusResult, WorkflowHistoryResult)
 - DLI-8xx 에러 코드 (800-803)
 - Workflow Exception 클래스 4종 (WorkflowNotFoundError, WorkflowRegistrationError, WorkflowExecutionError, WorkflowPermissionError)
 - BasecampClient 확장 (workflow_register, workflow_unregister)
-- 59개 신규 테스트
+- 59개 Workflow 신규 테스트
 
 ### v0.3.0 (2025-12-31)
 - QualityAPI 구현 (list_qualities, get, run, validate)
@@ -125,7 +138,6 @@
 - DLI-6xx 에러 코드 (601-606)
 - 47개 신규 테스트 (API 19 + CLI 28)
 - registry.py 삭제, QualityRegistry 제거
-- CatalogAPI Result 모델 (v1.2.0): CatalogListResult, TableDetailResult, CatalogSearchResult
 
 ### v0.2.1 (2025-12-30)
 - ExecutionMode enum 추가 (LOCAL, SERVER, MOCK)

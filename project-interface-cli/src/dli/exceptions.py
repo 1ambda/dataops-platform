@@ -83,6 +83,7 @@ class ErrorCode(str, Enum):
     CATALOG_INVALID_IDENTIFIER = "DLI-703"
     CATALOG_ACCESS_DENIED = "DLI-704"
     CATALOG_ENGINE_NOT_SUPPORTED = "DLI-705"
+    CATALOG_SCHEMA_TOO_LARGE = "DLI-706"
 
     # Workflow Errors (DLI-8xx)
     WORKFLOW_NOT_FOUND = "DLI-800"
@@ -594,9 +595,59 @@ class UnsupportedEngineError(DLIError):
         return f"[{self.code.value}] Engine '{self.engine}' not supported"
 
 
+@dataclass
+class CatalogAccessDeniedError(DLIError):
+    """Catalog access denied error.
+
+    Raised when access to a catalog resource is denied.
+
+    Attributes:
+        table_ref: The table reference that was denied.
+        reason: Optional reason for denial.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_ACCESS_DENIED
+    table_ref: str = ""
+    reason: str | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        msg = f"[{self.code.value}] Access denied for table: {self.table_ref}"
+        if self.reason:
+            msg += f" - {self.reason}"
+        return msg
+
+
+@dataclass
+class CatalogSchemaError(DLIError):
+    """Catalog schema too large error.
+
+    Raised when a table schema exceeds size limits.
+
+    Attributes:
+        table_ref: The table reference with large schema.
+        column_count: Number of columns in the schema.
+        max_columns: Maximum allowed columns.
+    """
+
+    code: ErrorCode = ErrorCode.CATALOG_SCHEMA_TOO_LARGE
+    table_ref: str = ""
+    column_count: int | None = None
+    max_columns: int | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        msg = f"[{self.code.value}] Schema too large for table: {self.table_ref}"
+        if self.column_count and self.max_columns:
+            msg += f" ({self.column_count} columns, max {self.max_columns})"
+        return msg
+
+
 __all__ = [
     # Catalog Errors
+    "CatalogAccessDeniedError",
     "CatalogError",
+    "CatalogSchemaError",
     "CatalogTableNotFoundError",
     "ConfigurationError",
     "DLIError",

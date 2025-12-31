@@ -33,12 +33,22 @@ Agent가 다음과 같은 거짓 완료 선언을 하는 문제:
 | 5 | **타입 체크 통과** | `pyright src/` 실행 | 타입 에러 수정 요청 |
 | 6 | **Export 완료** | `grep "XXXApi" src/dli/__init__.py` | export 추가 요청 |
 
+### 문서 동기화 조건 (Gate 통과 후 필수)
+
+| # | 조건 | 검증 방법 | 실패 시 액션 |
+|---|------|-----------|--------------|
+| 7 | **RELEASE_*.md 존재** | `ls features/RELEASE_{feature}.md` | 문서 작성 요청 |
+| 8 | **STATUS.md 업데이트** | `grep "{feature}" features/STATUS.md` | 업데이트 요청 |
+| 9 | **Serena memory 동기화** | `mcp__serena__read_memory` 확인 | 동기화 요청 |
+
+> **Note:** 조건 7-9는 `docs-synchronize` skill과 연동됩니다. Gate 통과 후 자동으로 문서 동기화 검증이 실행됩니다.
+
 ### 선택 조건 (권장)
 
 | # | 조건 | 검증 방법 | 미충족 시 |
 |---|------|-----------|-----------|
-| 7 | lint 통과 | `ruff check src/` | 경고만 출력 |
-| 8 | docstring 존재 | grep 검증 | 경고만 출력 |
+| 10 | lint 통과 | `ruff check src/` | 경고만 출력 |
+| 11 | docstring 존재 | grep 검증 | 경고만 출력 |
 
 ---
 
@@ -98,11 +108,11 @@ uv run pyright src/dli/ || echo "GATE FAIL: Type errors exist"
 
 ### 완료 선언 승인 ✅
 
-이제 "구현 완료"를 선언할 수 있습니다.
-다음 단계:
-1. RELEASE_*.md 작성/업데이트
-2. STATUS.md 업데이트
-3. Serena memory 업데이트
+코드/테스트 Gate 통과. 이제 **문서 동기화 검증**을 진행합니다.
+
+→ **docs-synchronize skill 자동 실행**
+
+문서 동기화 완료 후 "최종 완료"를 선언할 수 있습니다.
 ```
 
 #### Gate 실패
@@ -218,6 +228,7 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 
 ## 관련 Skills
 
+- `docs-synchronize`: **문서 동기화 검증** (Gate 통과 후 자동 연결)
 - `implementation-checklist`: FEATURE → 체크리스트 생성
 - `implementation-verification`: 코드 존재 검증
 - `testing`: TDD 워크플로우, pytest 실행
@@ -232,17 +243,35 @@ Agent가 "완료" 선언
        ↓
 [completion-gate skill 자동 적용]
        ↓
-조건 검증 시작
+코드/테스트 검증 (조건 1-6)
        ↓
   ┌─────┴─────┐
   │           │
  PASS        FAIL
   │           │
   ↓           ↓
-완료 승인    액션 목록 출력
+docs-synchronize   액션 목록 출력
+skill 실행              ↓
+  │           미완료 항목 구현
+  ↓                   ↓
+문서 동기화 검증      [재시도]
+(조건 7-9)
+       ↓
+  ┌─────┴─────┐
+  │           │
+ PASS        FAIL
   │           │
   ↓           ↓
-RELEASE 작성  미완료 항목 구현
-STATUS 업데이트    ↓
-              [재시도]
+최종 완료    문서 작성 요청
+승인              ↓
+             [문서 작성 후 재시도]
 ```
+
+### 완료 상태 정의
+
+| 상태 | 의미 | 조건 |
+|------|------|------|
+| **코드 완료** | 코드/테스트 Gate 통과 | 조건 1-6 충족 |
+| **최종 완료** | 문서 동기화 완료 | 조건 1-9 충족 |
+
+> **중요**: "완료"를 선언하려면 **최종 완료** 상태여야 합니다.
