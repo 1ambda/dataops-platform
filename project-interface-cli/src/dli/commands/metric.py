@@ -606,3 +606,233 @@ def format_metric(
         print_success(f"{result.changed_count} file(s) formatted")
     else:
         print_success("All files already formatted")
+
+
+
+@metric_app.command("transpile")
+def transpile_metric(
+    name: Annotated[str, typer.Argument(help="Metric name to transpile.")],
+    file: Annotated[
+        Path | None,
+        typer.Option(
+            "--file",
+            "-f",
+            help="Path to SQL file to transpile (overrides metric's SQL).",
+        ),
+    ] = None,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            "--strict",
+            help="Fail on any error (default: graceful degradation with warnings).",
+        ),
+    ] = False,
+    format_output: Annotated[
+        ListOutputFormat,
+        typer.Option(
+            "--format",
+            help="Output format (table or json).",
+        ),
+    ] = "table",
+    show_rules: Annotated[
+        bool,
+        typer.Option(
+            "--show-rules",
+            help="Show detailed information about applied rules.",
+        ),
+    ] = False,
+    validate: Annotated[
+        bool,
+        typer.Option(
+            "--validate",
+            help="Perform SQL syntax validation.",
+        ),
+    ] = False,
+    dialect: Annotated[
+        str,
+        typer.Option(
+            "--dialect",
+            "-d",
+            help="Input SQL dialect (trino, bigquery).",
+        ),
+    ] = "trino",
+    retry: Annotated[
+        int,
+        typer.Option(
+            "--transpile-retry",
+            help="Number of retries for rule fetching (0-5).",
+            min=0,
+            max=5,
+        ),
+    ] = 1,
+    path: Annotated[
+        Path | None,
+        typer.Option("--path", "-p", help="Project path."),
+    ] = None,
+) -> None:
+    """Transpile metric SQL with table substitution and METRIC expansion.
+
+    This command performs SQL transpilation on a metric's SQL file including:
+    - Table substitution based on server-defined rules
+    - METRIC() function expansion to SQL expressions
+    - SQL pattern analysis and warnings
+
+    The SQL can be taken from the metric's SQL file or from a custom file via --file.
+
+    Examples:
+        dli metric transpile iceberg.reporting.user_summary
+        dli metric transpile iceberg.reporting.user_summary --file custom.sql
+        dli metric transpile iceberg.reporting.user_summary --strict
+        dli metric transpile iceberg.reporting.user_summary --show-rules
+        dli metric transpile iceberg.reporting.user_summary --validate
+        dli metric transpile iceberg.reporting.user_summary --dialect bigquery
+        dli metric transpile iceberg.reporting.user_summary --transpile-retry 3
+    """
+    from dli.api.transpile import TranspileAPI
+    from dli.models.common import ExecutionContext
+
+    project_path = get_project_path(path)
+
+    # Get the SQL to transpile
+    if file is not None:
+        # Read from custom file
+        if not file.exists():
+            print_error(f"File not found: {file}")
+            raise typer.Exit(1)
+        try:
+            sql = file.read_text(encoding="utf-8").strip()
+        except OSError as e:
+            print_error(f"Failed to read file: {e}")
+            raise typer.Exit(1) from e
+    else:
+        # Read from metric's SQL file
+        try:
+            from dli.commands.base import load_metric_service
+
+            service = load_metric_service(project_path)
+            metric = service.get_metric(name)
+            if not metric:
+                print_error(f"Metric '{name}' not found locally")
+                raise typer.Exit(1)
+
+            # Construct SQL file path from query_file and base_dir
+            if not metric.query_file:
+                print_error(f"Metric '{name}' has no query_file specified")
+                raise typer.Exit(1)
+            
+            sql_path = metric.base_dir / metric.query_file if metric.base_dir else Path(metric.query_file)
+            if not sql_path.exists():
+                print_error(f"SQL file not found for metric '{name}': {sql_path}")
+                raise typer.Exit(1)
+
+            sql = sql_path.read_text(encoding="utf-8").strip()
+        except Exception as e:
+            print_error(f"Failed to load metric: {e}")
+            raise typer.Exit(1) from e
+
+    if not sql or not sql.strip():
+        print_error("SQL cannot be empty.")
+        raise typer.Exit(1)
+
+    # Create API context
+    try:
+        ctx = ExecutionContext(project_path=project_path)
+        api = TranspileAPI(context=ctx)
+
+        # Perform transpilation
+        with console.status("[bold green]Transpiling SQL..."):
+            result = api.transpile(
+                sql,
+                source_dialect=dialect,
+                target_dialect=dialect,
+                strict=strict,
+            )
+
+    except Exception as e:
+        print_error(f"Transpilation failed: {e}")
+        raise typer.Exit(1) from e
+
+    # Handle strict mode failures
+    if not result.success and strict:
+        print_error("Transpilation failed in strict mode.")
+        raise typer.Exit(1)
+
+    # Display result
+    if format_output == "json":
+        console.print_json(result.model_dump_json())
+    else:
+        # Table output
+        console.print("\n[bold cyan]Transpile Result[/bold cyan]")
+        console.print(f"[dim]Metric:[/dim] {name}")
+        console.print(f"[dim]Dialect:[/dim] {dialect}")
+        console.print(
+            f"[dim]Status:[/dim] {'[green]Success[/green]' if result.success else '[red]Failed[/red]'}"
+        )
+        console.print(f"[dim]Duration:[/dim] {result.duration_ms}ms")
+        console.print(f"[dim]Applied Rules:[/dim] {len(result.applied_rules)}")
+        console.print(
+            f"[dim]Warnings:[/dim] [{'yellow' if result.warnings else 'dim'}]{len(result.warnings)}[/{'yellow' if result.warnings else 'dim'}]"
+        )
+
+        # Show original SQL
+        console.print("\n[bold]Original SQL:[/bold]")
+        from rich.syntax import Syntax
+
+        original_syntax = Syntax(sql, "sql", theme="monokai", line_numbers=True)
+        from rich.panel import Panel
+
+        console.print(Panel(original_syntax, border_style="dim"))
+
+        # Show transpiled SQL
+        if result.transpiled_sql != sql:
+            console.print("[bold]Transpiled SQL:[/bold]")
+            transpiled_syntax = Syntax(
+                result.transpiled_sql, "sql", theme="monokai", line_numbers=True
+            )
+            console.print(Panel(transpiled_syntax, border_style="green"))
+        else:
+            console.print("[dim]No changes made to SQL.[/dim]")
+
+        # Show applied rules if requested
+        if show_rules and result.applied_rules:
+            console.print("\n[bold]Applied Rules:[/bold]")
+            rules_table = Table(show_header=True, header_style="bold cyan")
+            rules_table.add_column("Source", style="red")
+            rules_table.add_column("Target", style="green")
+            rules_table.add_column("Priority", style="yellow")
+
+            for rule in result.applied_rules:
+                rules_table.add_row(
+                    rule.source_table,
+                    rule.target_table,
+                    str(rule.priority),
+                )
+
+            console.print(rules_table)
+
+        # Show warnings if present
+        if result.warnings:
+            console.print("\n[bold yellow]Warnings:[/bold yellow]")
+            for warning in result.warnings:
+                location = ""
+                if warning.line:
+                    location = f" (line {warning.line}"
+                    if warning.column:
+                        location += f", col {warning.column}"
+                    location += ")"
+                console.print(f"  [yellow]-[/yellow] {location} {warning.message}")
+
+        console.print()
+
+    # Show summary
+    if format_output == "table":
+        if result.success:
+            if result.applied_rules:
+                print_success(
+                    f"Transpilation complete: {len(result.applied_rules)} rule(s) applied, "
+                    f"{len(result.warnings)} warning(s)."
+                )
+            else:
+                print_warning("No transpile rules were applied.")
+        else:
+            print_warning("Transpilation completed with errors (graceful degradation).")

@@ -227,30 +227,24 @@ dli catalog search user --project my-project
 
 ### SQL Transpilation
 
-Transpile SQL with table substitution and METRIC expansion.
+Transpile SQL with table substitution and METRIC expansion using resource-specific commands.
 
 ```bash
-# Inline SQL transpilation
-dli transpile "SELECT * FROM analytics.users"
+# Transpile dataset SQL
+dli dataset transpile iceberg.analytics.daily_clicks
 
-# Transpile from file
-dli transpile -f query.sql
+# Transpile metric SQL
+dli metric transpile iceberg.analytics.daily_active_users
 
-# Strict mode (fail on any error)
-dli transpile "SELECT * FROM analytics.users" --strict
-
-# Show applied rules detail
-dli transpile "SELECT * FROM raw.events" --show-rules
-
-# JSON output
-dli transpile "SELECT * FROM analytics.users" --format json
-
-# Validate SQL syntax
-dli transpile "SELECT * FROM users" --validate
-
-# Specify dialect
-dli transpile "SELECT * FROM users" --dialect bigquery
+# With options
+dli dataset transpile iceberg.analytics.daily_clicks --strict
+dli dataset transpile iceberg.analytics.daily_clicks --show-rules
+dli dataset transpile iceberg.analytics.daily_clicks --format json
+dli metric transpile iceberg.analytics.daily_active_users --validate
+dli metric transpile iceberg.analytics.daily_active_users --dialect bigquery
 ```
+
+**Note:** The top-level `dli transpile` command has been removed in v1.2.0. For ad-hoc SQL transpilation, use `TranspileAPI` from the Library API or `dli dataset run --sql`.
 
 ### Configuration Hierarchy
 
@@ -614,7 +608,6 @@ project-interface-cli/
 │   │   ├── quality.py           # dli quality subcommands
 │   │   ├── workflow.py          # dli workflow subcommands
 │   │   ├── catalog.py           # dli catalog subcommands
-│   │   ├── transpile.py         # dli transpile subcommands
 │   │   ├── run.py               # dli run subcommands
 │   │   └── utils.py             # Shared CLI utilities
 │   ├── core/                    # Core library

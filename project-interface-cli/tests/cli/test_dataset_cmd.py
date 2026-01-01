@@ -222,3 +222,250 @@ class TestDatasetRegister:
         )
         assert result.exit_code == 1
         assert "not found" in get_output(result).lower()
+
+
+# =============================================================================
+# Test: Dataset Transpile Command
+# =============================================================================
+
+
+class TestDatasetTranspile:
+    """Tests for dataset transpile command."""
+
+    def test_transpile_dataset_basic(self, sample_project_path: Path) -> None:
+        """Test basic dataset transpilation."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should show transpiled SQL
+        assert "sql" in output.lower() or "transpile" in output.lower()
+
+    def test_transpile_dataset_with_parameters(self, sample_project_path: Path) -> None:
+        """Test dataset transpilation with parameters."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "-p",
+                "execution_date=2024-01-01",
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should substitute parameters in SQL
+        assert "2024-01-01" in output or "sql" in output.lower()
+
+    def test_transpile_dataset_json_format(self, sample_project_path: Path) -> None:
+        """Test dataset transpilation with JSON output."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--format",
+                "json",
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result).strip()
+        # Should be valid JSON
+        import json
+        try:
+            data = json.loads(output)
+            assert "sql" in data or "success" in data
+        except json.JSONDecodeError:
+            pytest.fail(f"Output is not valid JSON: {output}")
+
+    def test_transpile_dataset_with_rules_file(
+        self, sample_project_path: Path, tmp_path: Path
+    ) -> None:
+        """Test dataset transpilation with custom rules file."""
+        # Create a temporary rules file
+        rules_file = tmp_path / "rules.yaml"
+        rules_file.write_text(
+            """
+rules:
+  - source_pattern: "raw\\\\.(\\\\w+)"
+    target_pattern: "production.\\\\1"
+"""
+        )
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--rules-file",
+                str(rules_file),
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_transpile_dataset_with_dialect(self, sample_project_path: Path) -> None:
+        """Test dataset transpilation with specific dialect."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--dialect",
+                "bigquery",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_transpile_dataset_with_retry(self, sample_project_path: Path) -> None:
+        """Test dataset transpilation with retry option."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--transpile-retry",
+                "3",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_transpile_dataset_table_format(self, sample_project_path: Path) -> None:
+        """Test dataset transpilation with table output format."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--format",
+                "table",
+            ],
+        )
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should show structured output
+        assert "sql" in output.lower() or "transpile" in output.lower()
+
+    def test_transpile_nonexistent_dataset(self, sample_project_path: Path) -> None:
+        """Test transpiling a dataset that doesn't exist."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "nonexistent.dataset",
+                "--path",
+                str(sample_project_path),
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "not found" in output.lower() or "error" in output.lower()
+
+    def test_transpile_dataset_invalid_dialect(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test dataset transpilation with invalid dialect."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--dialect",
+                "invalid_dialect",
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "invalid" in output.lower() or "error" in output.lower()
+
+    def test_transpile_dataset_invalid_rules_file(
+        self, sample_project_path: Path
+    ) -> None:
+        """Test dataset transpilation with nonexistent rules file."""
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--rules-file",
+                "/nonexistent/rules.yaml",
+            ],
+        )
+        assert result.exit_code == 1
+        output = get_output(result)
+        assert "not found" in output.lower() or "error" in output.lower()
+
+    def test_transpile_dataset_with_all_options(
+        self, sample_project_path: Path, tmp_path: Path
+    ) -> None:
+        """Test dataset transpilation with all options combined."""
+        # Create a temporary rules file
+        rules_file = tmp_path / "rules.yaml"
+        rules_file.write_text(
+            """
+rules:
+  - source_pattern: "raw\\\\.(\\\\w+)"
+    target_pattern: "production.\\\\1"
+"""
+        )
+        result = runner.invoke(
+            app,
+            [
+                "dataset",
+                "transpile",
+                "iceberg.analytics.daily_clicks",
+                "--path",
+                str(sample_project_path),
+                "--format",
+                "json",
+                "--rules-file",
+                str(rules_file),
+                "--transpile-retry",
+                "2",
+                "--dialect",
+                "trino",
+                "-p",
+                "execution_date=2024-01-01",
+            ],
+        )
+        assert result.exit_code == 0
+
+    def test_transpile_dataset_help(self) -> None:
+        """Test dataset transpile help output."""
+        result = runner.invoke(app, ["dataset", "transpile", "--help"])
+        assert result.exit_code == 0
+        output = get_output(result)
+        # Should show command description and options
+        assert "transpile" in output.lower()
+        assert "--format" in output or "--dialect" in output

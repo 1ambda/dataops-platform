@@ -1,16 +1,17 @@
 # FEATURE: SQL Transpile 기능
 
-> **Version:** 1.1.0
-> **Status:** Implemented (P0 Complete)
+> **Version:** 1.2.0
+> **Status:** Refactored to Subcommands
 > **Last Updated:** 2026-01-01
 
 ### Recent Updates (2026-01-01)
 
 | Item | Status | Description |
 |------|--------|-------------|
+| **Refactoring to Subcommands** | ✅ Done | `dli dataset transpile` / `dli metric transpile` |
+| **~~Top-level Command~~** | ⚠️ **Removed** | `dli transpile` removed in v1.2.0 |
 | **Jinja Integration** | ✅ Done | `TranspileEngine.transpile(sql, jinja_context=...)` 지원 |
 | **--transpile-retry CLI** | ✅ Done | `--transpile-retry [0-5]` 옵션 추가 |
-| **테스트 확장** | ✅ Done | 162개 테스트 (기존 147 + Jinja 8 + Retry 7) |
 
 ---
 
@@ -335,22 +336,40 @@ def run_dataset(
         raise typer.BadParameter("Either spec name or --sql/--file required")
 ```
 
-#### 4.1.2 `dli transpile` (디버깅용 독립 커맨드)
+#### 4.1.2 `dli dataset transpile` (Spec-based Transpile)
 
 ```bash
-# Inline SQL
-dli transpile "SELECT * FROM analytics.users"
-
-# 파일 기반
-dli transpile -f query.sql
+# Transpile dataset SQL
+dli dataset transpile iceberg.analytics.daily_clicks
 
 # 옵션
-dli transpile "..." --validate          # 문법 검증 포함
-dli transpile "..." --strict            # Strict 모드
-dli transpile "..." --format json       # JSON 출력
-dli transpile "..." --show-rules        # 적용된 규칙 상세 출력
-dli transpile "..." --dialect trino     # 입력 SQL 다이얼렉트 지정
+dli dataset transpile iceberg.analytics.daily_clicks --validate
+dli dataset transpile iceberg.analytics.daily_clicks --strict
+dli dataset transpile iceberg.analytics.daily_clicks --format json
+dli dataset transpile iceberg.analytics.daily_clicks --show-rules
+dli dataset transpile iceberg.analytics.daily_clicks --dialect trino
 ```
+
+#### 4.1.3 `dli metric transpile` (Spec-based Transpile)
+
+```bash
+# Transpile metric SQL
+dli metric transpile iceberg.analytics.daily_active_users
+
+# 옵션
+dli metric transpile iceberg.analytics.daily_active_users --validate
+dli metric transpile iceberg.analytics.daily_active_users --strict
+dli metric transpile iceberg.analytics.daily_active_users --format json
+```
+
+#### 4.1.4 ~~`dli transpile`~~ (Deprecated in v1.2.0)
+
+⚠️ **This command has been removed.** Use resource-specific subcommands instead:
+
+| Old Usage | New Usage |
+|-----------|-----------|
+| `dli transpile "SELECT ..."` | Use `TranspileAPI` or `dataset run --sql` |
+| `dli transpile -f query.sql` | Use `TranspileAPI` or `dataset run --sql` |
 
 ### 4.2 공통 옵션
 
@@ -361,14 +380,13 @@ dli transpile "..." --dialect trino     # 입력 SQL 다이얼렉트 지정
 | `--no-transpile` | | Transpile 비활성화 | `false` |
 | `--dialect` | `-d` | 입력 SQL 다이얼렉트 | `trino` |
 
-### 4.3 `dli transpile` 전용 옵션
+### 4.3 Transpile 서브커맨드 전용 옵션
 
 | 옵션 | 설명 |
 |------|------|
 | `--validate` | SQLGlot 문법 검증 수행 |
 | `--show-rules` | 적용된 규칙 상세 출력 |
 | `--format` | 출력 형식 (`table`/`json`) |
-| `-f, --file` | SQL 파일 경로 |
 
 ### 4.4 출력 예시
 
@@ -383,12 +401,12 @@ Executing query...
 ✓ Query completed in 2.3s (1,234 rows)
 ```
 
-#### `dli transpile` (디버깅)
+#### `dli dataset transpile` (Spec-based)
 ```
-$ dli transpile "SELECT * FROM analytics.users" --show-rules
+$ dli dataset transpile iceberg.analytics.daily_clicks --show-rules
 
 ┌─────────────────────────────────────────────────────────────┐
-│ Transpile Result                                            │
+│ Transpile Result: iceberg.analytics.daily_clicks            │
 ├─────────────────────────────────────────────────────────────┤
 │ Original SQL:                                               │
 │   SELECT * FROM analytics.users                             │

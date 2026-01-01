@@ -1,7 +1,7 @@
 # DLI CLI Development Patterns
 
 > **Purpose:** Accelerate new feature development by providing reference patterns for common tasks.
-> **Version:** 0.7.0 | **Last Updated:** 2026-01-01
+> **Version:** 0.9.1 | **Last Updated:** 2026-01-01
 
 ---
 
@@ -11,14 +11,14 @@
 dli
 ├── version / info              # Basic info commands
 ├── config (show, status, validate, env, init, set)  # Configuration management
-├── metric (list, get, run, validate, register)
-├── dataset (list, get, run, validate, register)
+├── metric (list, get, run, validate, register, format, transpile)
+├── dataset (list, get, run, validate, register, format, transpile)
 ├── workflow (register, unregister, run, backfill, stop, status, list, history, pause, unpause)
 ├── quality (list, get, run, validate)
 ├── query (list, show, cancel)             # Query execution metadata
 ├── lineage (show, upstream, downstream)   # Top-level
 ├── catalog                                # Top-level
-├── transpile                              # Top-level
+├── run                                    # Ad-hoc SQL execution
 └── debug                                  # Environment diagnostics
 ```
 
@@ -467,6 +467,7 @@ Before starting a new feature:
 | `dli render` | Removed (v1.0.0) | Use `dli dataset run --dry-run --show-sql` |
 | `dli validate` (top-level) | Removed (v1.0.0) | Use `dli dataset validate` or `dli metric validate` |
 | `dli server` | Renamed (v1.0.0) | Use `dli config` |
+| `dli transpile` (top-level) | Removed (v1.2.0) | Use `dli dataset transpile` or `dli metric transpile` |
 
 ---
 

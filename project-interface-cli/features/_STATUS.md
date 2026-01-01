@@ -59,11 +59,11 @@
 |---------|------|--------|
 | dli version/info | `commands/version.py`, `info.py` | ✅ Complete |
 | dli config | `commands/config.py` | ✅ Extended (show --show-source, validate, env, init, set) |
-| dli metric | `commands/metric.py` | ✅ Complete |
-| dli dataset | `commands/dataset.py` | ✅ Complete |
+| dli metric | `commands/metric.py` | ✅ Complete (includes `transpile` subcommand) |
+| dli dataset | `commands/dataset.py` | ✅ Complete (includes `transpile` subcommand) |
 | dli workflow | `commands/workflow.py` | ✅ Complete |
 | dli catalog | `commands/catalog.py` | ✅ Complete |
-| dli transpile | `commands/transpile.py` | ✅ Complete |
+| ~~dli transpile~~ | ~~`commands/transpile.py`~~ | ⚠️ **Removed (v1.2.0)** - moved to dataset/metric subcommands |
 | dli lineage | `commands/lineage.py` | ✅ Complete |
 | dli quality | `commands/quality.py` | ✅ Complete (list, get, run, validate) |
 | dli query | `commands/query.py` | ✅ Complete |
@@ -180,6 +180,14 @@
 ---
 
 ## Changelog
+
+### v0.9.1 (2026-01-01)
+- **Transpile Refactoring to Subcommands (v1.2.0)**
+  - ⚠️ **Breaking Change**: Removed top-level `dli transpile` command
+  - ✅ Added `dli dataset transpile <name>` subcommand
+  - ✅ Added `dli metric transpile <name>` subcommand
+  - Improved consistency with other resource commands
+  - Better integration with spec file workflows
 
 ### v0.9.0 (2026-01-01)
 - **Format Feature MVP Complete**

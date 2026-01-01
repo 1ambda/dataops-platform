@@ -77,11 +77,11 @@ Complete command reference: `make help`
 ### interface-cli (Python + Typer)
 **Development**: `cd project-interface-cli && uv run dli --help`
 **Testing**: `cd project-interface-cli && uv run pytest` (1650+ tests)
-**Commands**: `dli config`, `dli metric`, `dli dataset`, `dli workflow`, `dli catalog`, `dli transpile`, `dli lineage`, `dli quality`, `dli query`, `dli run`, `dli debug`
+**Commands**: `dli config`, `dli metric`, `dli dataset`, `dli workflow`, `dli catalog`, `dli lineage`, `dli quality`, `dli query`, `dli run`, `dli debug`
 **Structure**: Uses `metrics/` and `datasets/` directories for resource definitions (YAML specs)
-**Pattern**: Rich CLI with Library API (DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, QueryAPI, RunAPI) for Airflow integration
+**Pattern**: Rich CLI with Library API (DatasetAPI, MetricAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, QueryAPI, RunAPI) for Airflow integration
 **Config**: Hierarchical config via ConfigLoader (`~/.dli/config.yaml` < `dli.yaml` < `.dli.local.yaml` < `DLI_*` env vars < CLI args). Template syntax: `${VAR:-default}`
-**Note**: Validation is per-resource (`dli metric validate`, `dli dataset validate`), not a top-level command
+**Note**: Transpile is a subcommand under `dli metric` and `dli dataset` (e.g., `dli dataset transpile <name>`)
 
 See [project-interface-cli/README.md](../project-interface-cli/README.md) for complete documentation.
 

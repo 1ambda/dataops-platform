@@ -53,7 +53,6 @@ from dli.commands import metric_app
 from dli.commands import quality_app
 from dli.commands import query_app
 from dli.commands import run_app
-from dli.commands import transpile_app
 from dli.commands import version as version_cmd
 from dli.commands import workflow_app
 
@@ -119,7 +118,6 @@ app.add_typer(metric_app, name="metric")
 app.add_typer(quality_app, name="quality")
 app.add_typer(query_app, name="query")
 app.add_typer(run_app, name="run")
-app.add_typer(transpile_app, name="transpile")
 app.add_typer(workflow_app, name="workflow")
 
 

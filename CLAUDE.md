@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Ad-hoc SQL execution**, **SQL/YAML formatting**, **Library API v0.9.0** with ENV hierarchical config)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD with SQL transpilation, catalog browsing, workflow orchestration, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Ad-hoc SQL execution**, **SQL/YAML formatting**, **Library API v0.9.1** with ENV hierarchical config)
 
 ---
 
@@ -226,32 +226,30 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.9.0)
+### CLI Commands (v0.9.1)
 
 | Command | Description |
 |---------|-------------|
 | `dli version/info` | CLI version and environment |
 | `dli config` | Settings management (show, show --show-source, env, init, set) |
-| `dli metric` | Metric CRUD (list, get, run, validate, register, format) |
-| `dli dataset` | Dataset CRUD (list, get, run, validate, register, format) |
+| `dli metric` | Metric CRUD (list, get, run, validate, register, format, transpile) |
+| `dli dataset` | Dataset CRUD (list, get, run, validate, register, format, transpile) |
 | `dli workflow` | Server-based Airflow execution (run, backfill, stop, status, list, history, pause, unpause, register, unregister) |
 | `dli catalog` | Data catalog browsing with implicit routing (1-4 part identifiers) |
-| `dli transpile` | SQL transpilation (table substitution, METRIC expansion, SQLGlot) |
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
 | `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
 | `dli query` | Query execution metadata (list, show, cancel) |
 | `dli run` | Ad-hoc SQL file execution with result download |
 | `dli debug` | Environment diagnostics (system, config, server, auth, network checks) |
 
-### Library API (v0.9.0)
+### Library API (v0.9.1)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
 | API Class | Methods | Description |
 |-----------|---------|-------------|
-| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection, format | Dataset CRUD + 실행 + 스키마 조회 + 포맷팅 |
-| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection, format | Metric CRUD + 실행 + 스키마 조회 + 포맷팅 |
-| `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL 변환 |
+| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection, format, transpile | Dataset CRUD + 실행 + 스키마 조회 + 포맷팅 + SQL 변환 |
+| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection, format, transpile | Metric CRUD + 실행 + 스키마 조회 + 포맷팅 + SQL 변환 |
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
 | `ConfigAPI` | get, get_all, get_with_source, validate, get_environment, list_environments, get_current_environment, get_server_status | 설정 조회 + ENV 관리 |
 | `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
@@ -304,11 +302,10 @@ project-interface-cli/src/dli/
 ├── models/
 │   ├── __init__.py       # Model exports
 │   └── common.py         # ExecutionContext, ResultStatus, *Result models
-├── api/                  # Library API (v0.9.0)
+├── api/                  # Library API (v0.9.1)
 │   ├── __init__.py       # API exports
-│   ├── dataset.py        # DatasetAPI
-│   ├── metric.py         # MetricAPI
-│   ├── transpile.py      # TranspileAPI
+│   ├── dataset.py        # DatasetAPI (includes transpile)
+│   ├── metric.py         # MetricAPI (includes transpile)
 │   ├── catalog.py        # CatalogAPI
 │   ├── config.py         # ConfigAPI
 │   ├── quality.py        # QualityAPI
@@ -318,11 +315,10 @@ project-interface-cli/src/dli/
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)
 │   ├── utils.py          # Rich output helpers (console, print_*)
-│   ├── metric.py         # Metric CRUD commands
-│   ├── dataset.py        # Dataset CRUD commands
+│   ├── metric.py         # Metric CRUD commands (includes transpile subcommand)
+│   ├── dataset.py        # Dataset CRUD commands (includes transpile subcommand)
 │   ├── catalog.py        # Catalog browsing
 │   ├── config.py         # Settings management
-│   ├── transpile.py      # SQL transpilation commands
 │   ├── lineage.py        # Lineage commands
 │   ├── quality.py        # Quality test commands
 │   ├── workflow.py       # Workflow operations

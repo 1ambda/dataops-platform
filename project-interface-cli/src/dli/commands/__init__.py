@@ -6,8 +6,8 @@ Each command is defined in its own module for better organization.
 Commands:
 - version: Display CLI version information
 - info: Display CLI and environment information
-- metric: Metric management and execution subcommand (list, get, run, validate, register)
-- dataset: Dataset management and execution subcommand (list, get, run, validate, register)
+- metric: Metric management and execution subcommand (list, get, run, validate, register, transpile)
+- dataset: Dataset management and execution subcommand (list, get, run, validate, register, transpile)
 - config: Configuration management subcommand (show, status)
 - debug: Environment diagnostics and connection testing
 - lineage: Data lineage commands (table-level, server-based)
@@ -16,7 +16,6 @@ Commands:
 - catalog: Data catalog browsing and search (server-based)
 - query: Query execution metadata (list, show, cancel)
 - run: Ad-hoc SQL execution with result download
-- transpile: SQL transpile operations (table substitution, METRIC expansion)
 """
 
 from dli.commands.catalog import catalog_app
@@ -29,7 +28,6 @@ from dli.commands.metric import metric_app
 from dli.commands.quality import quality_app
 from dli.commands.query import query_app
 from dli.commands.run import run_app
-from dli.commands.transpile import transpile_app
 from dli.commands.version import version
 from dli.commands.workflow import workflow_app
 
@@ -44,7 +42,6 @@ __all__ = [
     "quality_app",
     "query_app",
     "run_app",
-    "transpile_app",
     "version",
     "workflow_app",
 ]

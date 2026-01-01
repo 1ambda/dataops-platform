@@ -1,14 +1,14 @@
 # RELEASE: SQL Transpile Feature
 
-> **Version:** 1.1.0
-> **Status:** Implemented (P0 Complete)
+> **Version:** 1.2.0
+> **Status:** Refactored to Subcommands
 > **Release Date:** 2026-01-01
 
 ---
 
 ## 1. Implementation Summary
 
-### 1.1 Completed Features (Phase 1 MVP + P0)
+### 1.1 Completed Features (Phase 1 MVP + P0 + Refactoring)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
@@ -16,7 +16,9 @@
 | **Table Substitution** | ✅ | SQLGlot AST-based table name replacement |
 | **METRIC() Expansion** | ✅ | Regex-based METRIC(name) → SQL expression substitution |
 | **Warning Detection** | ✅ | SELECT *, NO_LIMIT, dangerous statement detection |
-| **`dli transpile` Command** | ✅ | Standalone transpile debugging command |
+| **`dli dataset transpile`** | ✅ | Dataset-specific transpile command |
+| **`dli metric transpile`** | ✅ | Metric-specific transpile command |
+| **~~`dli transpile` Command~~** | ⚠️ **Deprecated** | Removed in v1.2.0, use dataset/metric subcommands |
 | **`dataset run --sql`** | ✅ | Ad-hoc SQL execution with transpile integration |
 | **Mock Mode** | ✅ | Full mock support for development/testing |
 | **JSON Output** | ✅ | `--format json` option for programmatic use |
@@ -38,19 +40,21 @@
 | `core/transpile/warnings.py` | 193 | SQL pattern warning detection |
 | `core/transpile/engine.py` | 308 | TranspileEngine orchestration |
 
-#### New Files (commands/)
+#### Modified Files (v1.2.0 Refactoring)
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `commands/transpile.py` | 383 | `dli transpile` CLI command |
+| File | Changes |
+|------|---------|
+| `commands/dataset.py` | Added `transpile_dataset` subcommand (lines 752-979) |
+| `commands/metric.py` | Added `transpile_metric` subcommand (lines 611-838) |
+| ~~`commands/transpile.py`~~ | **Removed** - functionality moved to subcommands |
+| `commands/__init__.py` | Removed `transpile_app` export |
+| `main.py` | Unregistered standalone transpile subcommand |
 
-#### Modified Files
+#### Original Modified Files (v1.1.0)
 
 | File | Changes |
 |------|---------|
 | `commands/dataset.py` | Added `--sql`, `-f`, `--transpile-strict`, `--no-transpile` options |
-| `commands/__init__.py` | Export `transpile_app` |
-| `main.py` | Register transpile subcommand |
 | `core/client.py` | Added `transpile_get_rules()`, `transpile_get_metric_sql()` |
 
 #### Test Files
@@ -67,29 +71,41 @@
 
 ## 2. Usage Guide
 
-### 2.1 `dli transpile` Command
+### 2.1 `dli dataset transpile` Command
+
+Transpile SQL for a specific dataset spec.
 
 ```bash
-# Inline SQL transpilation
-dli transpile "SELECT * FROM analytics.users"
-
-# File-based
-dli transpile -f query.sql
+# Transpile dataset SQL
+dli dataset transpile iceberg.analytics.daily_clicks
 
 # With options
-dli transpile --show-rules "SELECT * FROM raw.events"
-dli transpile --format json "SELECT * FROM users"
-dli transpile --strict "SELECT * FROM users"
-dli transpile --validate "SELECT * FROM users"
-dli transpile --dialect bigquery "SELECT * FROM users"
+dli dataset transpile iceberg.analytics.daily_clicks --show-rules
+dli dataset transpile iceberg.analytics.daily_clicks --format json
+dli dataset transpile iceberg.analytics.daily_clicks --strict
+dli dataset transpile iceberg.analytics.daily_clicks --validate
+dli dataset transpile iceberg.analytics.daily_clicks --dialect bigquery
 ```
 
-#### Options
+### 2.2 `dli metric transpile` Command
+
+Transpile SQL for a specific metric spec.
+
+```bash
+# Transpile metric SQL
+dli metric transpile iceberg.analytics.daily_active_users
+
+# With options
+dli metric transpile iceberg.analytics.daily_active_users --show-rules
+dli metric transpile iceberg.analytics.daily_active_users --format json
+dli metric transpile iceberg.analytics.daily_active_users --strict
+```
+
+#### Common Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `sql` | Inline SQL (positional) | - |
-| `-f, --file` | SQL file path | - |
+| `name` | Spec name (positional) | - |
 | `--strict` | Fail on any error | `false` |
 | `--format` | Output format (table/json) | `table` |
 | `--show-rules` | Show applied rules detail | `false` |
@@ -97,7 +113,18 @@ dli transpile --dialect bigquery "SELECT * FROM users"
 | `-d, --dialect` | SQL dialect (trino/bigquery) | `trino` |
 | `--transpile-retry` | Retry count for rule fetching (0-5) | `1` |
 
-### 2.2 `dli dataset run --sql`
+### 2.3 Migration from v1.1.0
+
+The standalone `dli transpile` command has been removed. Use resource-specific subcommands instead:
+
+| Old Command (v1.1.0) | New Command (v1.2.0) |
+|----------------------|----------------------|
+| `dli transpile "SELECT ..."` | Use TranspileAPI or `dataset run --sql` |
+| `dli transpile -f query.sql` | Use TranspileAPI or `dataset run --sql` |
+| N/A | `dli dataset transpile <name>` |
+| N/A | `dli metric transpile <name>` |
+
+### 2.4 `dli dataset run --sql`
 
 ```bash
 # Ad-hoc SQL with transpile
@@ -273,6 +300,46 @@ Coverage:
 **P0 Features Validated:**
 - Jinja Integration (`_render_jinja()`, `jinja_context` 파라미터)
 - `--transpile-retry` CLI 옵션 범위 검증 (0-5)
+
+---
+
+## 10. Changelog
+
+### v1.2.0 (2026-01-01) - Refactoring to Subcommands
+
+**Breaking Changes:**
+- ⚠️ **Removed** `dli transpile` top-level command
+- Users must migrate to resource-specific subcommands
+
+**New Features:**
+- ✅ `dli dataset transpile <name>` - Transpile dataset SQL
+- ✅ `dli metric transpile <name>` - Transpile metric SQL
+
+**Migration Path:**
+- For ad-hoc SQL transpilation: Use `TranspileAPI` from Library API
+- For spec-based transpilation: Use `dli dataset transpile` or `dli metric transpile`
+- For inline SQL: Use `dli dataset run --sql` with transpile integration
+
+**Rationale:**
+- Improved consistency with other resource-specific commands
+- Better integration with spec file workflows
+- Clearer separation between ad-hoc and spec-based operations
+
+### v1.1.0 (2026-01-01) - P0 Features
+
+- Jinja Integration
+- `--transpile-retry` CLI option
+- 15 new tests (Jinja 8 + Retry 7)
+
+### v1.0.0 (2025-12-30) - Initial Release
+
+- TranspileEngine core
+- Table Substitution
+- METRIC() Expansion
+- Warning Detection
+- `dli transpile` command
+- Mock Mode
+- 165 tests
 
 ---
 
