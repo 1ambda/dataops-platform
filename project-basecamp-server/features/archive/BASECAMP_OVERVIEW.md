@@ -1,31 +1,29 @@
-# System Architecture & Design
+# Basecamp Server API - Architecture & Design Overview
 
-> **Last Updated:** 2026-01-01
 > **Target Audience:** System architects, tech leads, senior developers
 > **Purpose:** High-level design principles, policies, and architectural decisions
+> **Cross-Reference:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) for execution roadmap
 
 ---
 
-## Table of Contents
+## 📋 Table of Contents
 
-1. [System Purpose & Scope](#system-purpose--scope)
-2. [Design Principles](#design-principles)
-3. [Architecture Overview](#architecture-overview)
-4. [Server Policies](#server-policies)
-5. [Key Architectural Decisions](#key-architectural-decisions)
-6. [Base Configuration](#base-configuration)
+1. [System Purpose & Scope](#1-system-purpose--scope)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Overview](#3-architecture-overview)
+4. [Server Policies](#4-server-policies)
+5. [Key Decisions Summary](#5-key-decisions-summary)
+6. [Base Configuration](#6-base-configuration)
 
 ---
 
-## System Purpose & Scope
+## 1. System Purpose & Scope
 
-### Mission Statement
+### 1.1 Mission Statement
 
-The **DataOps Platform** provides a unified interface for data operations, workflow orchestration, and metadata management across BigQuery, Trino, and Airflow ecosystems.
+The **Basecamp Server API** bridges the CLI client (`dli`) and the DataOps Platform infrastructure, providing a unified REST interface for data operations, workflow orchestration, and metadata management.
 
-**Basecamp Server API** bridges the CLI client (`dli`) and the DataOps Platform infrastructure, providing a unified REST interface for data operations, workflow orchestration, and metadata management.
-
-### Scope Definition
+### 1.2 Scope Definition
 
 **In Scope:**
 - REST API endpoints supporting all `dli` commands
@@ -41,7 +39,7 @@ The **DataOps Platform** provides a unified interface for data operations, workf
 - Real-time notifications or WebSocket connections
 - Workflow definition language (uses existing YAML specs)
 
-### API Source of Truth
+### 1.3 API Source of Truth
 
 | Component | Source | Purpose |
 |-----------|--------|---------|
@@ -51,20 +49,20 @@ The **DataOps Platform** provides a unified interface for data operations, workf
 
 ---
 
-## Design Principles
+## 2. Design Principles
 
-### Core Principles
+### 2.1 Core Principles
 
 | Principle | Description | Implementation Note |
 |-----------|-------------|-------------------|
 | **RESTful Design** | Standard HTTP methods (GET, POST, DELETE) with resource-based URLs | Follow existing `basecamp-server` patterns |
 | **JSON API** | All requests/responses use `application/json` | Use `@RestController` with proper serialization |
 | **Consistent Pagination** | Use `limit` and `offset` query parameters | Default: `limit=50`, `offset=0` |
-| **Error Codes** | Standard HTTP status codes with structured error responses | See [ERROR_HANDLING.md](./ERROR_HANDLING.md) for details |
+| **Error Codes** | Standard HTTP status codes with structured error responses | See [`ERROR_CODES.md`](./ERROR_CODES.md) for details |
 | **Stateless** | Server does not maintain client session state | OAuth2 token-based authentication |
 | **Hexagonal Architecture** | Domain services as concrete classes, repository interfaces | Follow existing `PipelineService` pattern |
 
-### Quality Attributes
+### 2.2 Quality Attributes
 
 | Attribute | Target | Measurement |
 |-----------|--------|-------------|
@@ -74,7 +72,7 @@ The **DataOps Platform** provides a unified interface for data operations, workf
 | **Scalability** | 1000 concurrent requests | Load testing benchmarks |
 | **Maintainability** | Hexagonal architecture compliance | Code review checklist |
 
-### API Design Standards
+### 2.3 API Design Standards
 
 ```http
 # Standard Request Format
@@ -108,9 +106,9 @@ Content-Type: application/json
 
 ---
 
-## Architecture Overview
+## 3. Architecture Overview
 
-### Hexagonal Architecture Pattern
+### 3.1 Hexagonal Architecture Pattern
 
 ```
 ┌─────────────────────────────────────┐
@@ -144,7 +142,7 @@ Content-Type: application/json
 └─────────────────────────────────────┘
 ```
 
-### Service Layer Pattern
+### 3.2 Service Layer Pattern
 
 ```kotlin
 // ✅ Services are CONCRETE CLASSES (no interfaces)
@@ -165,7 +163,7 @@ class MetricService(
 }
 ```
 
-### Repository Layer Structure
+### 3.3 Repository Layer Structure
 
 ```
 Domain Layer (module-core-domain/repository/)
@@ -178,7 +176,7 @@ Infrastructure Layer (module-core-infra/repository/)
 └── MetricRepositoryDslImpl.kt         # QueryDSL implementation (class)
 ```
 
-### Integration Points
+### 3.4 Integration Points
 
 | External System | Integration Method | Auth Method | Purpose |
 |----------------|-------------------|-------------|---------|
@@ -190,9 +188,9 @@ Infrastructure Layer (module-core-infra/repository/)
 
 ---
 
-## Server Policies
+## 4. Server Policies
 
-### PII Masking Policy
+### 4.1 PII Masking Policy
 
 **Application Scope:** Catalog API responses
 
@@ -201,9 +199,9 @@ Infrastructure Layer (module-core-infra/repository/)
 | **Column Detection** | Columns with `is_pii: true` metadata are masked | `user_email` → `***@***.***` |
 | **Pattern Detection** | Email, phone, SSN patterns auto-detected | `555-1234` → `***-****` |
 | **Sample Data** | All PII values replaced with `***` in responses | `John Doe` → `***` |
-| **Query Results** | Full masking for `include_sample=true` responses | See [project-basecamp-server/features/CATALOG_FEATURE.md](../project-basecamp-server/features/CATALOG_FEATURE.md) |
+| **Query Results** | Full masking for `include_sample=true` responses | See [`CATALOG_FEATURE.md`](./CATALOG_FEATURE.md) |
 
-### Workflow Source Type Policy
+### 4.2 Workflow Source Type Policy
 
 **Application Scope:** Workflow API operations
 
@@ -213,7 +211,7 @@ Infrastructure Layer (module-core-infra/repository/)
 | **MANUAL** | Full | All CRUD operations | `s3://bucket/workflows/manual/` |
 | **Priority Rule** | CODE overrides MANUAL when both exist | Auto-fallback to MANUAL when CODE deleted | |
 
-### Query Scope Policy
+### 4.3 Query Scope Policy
 
 **Application Scope:** Query Metadata API access control
 
@@ -224,7 +222,7 @@ Infrastructure Layer (module-core-infra/repository/)
 | `user` | `query:read:all` role | All user queries |
 | `all` | `query:read:all` role | System + user queries |
 
-### Transpile Rule Policy
+### 4.4 Transpile Rule Policy
 
 **Application Scope:** Transpile API rule management
 
@@ -237,9 +235,9 @@ Infrastructure Layer (module-core-infra/repository/)
 
 ---
 
-## Key Architectural Decisions
+## 5. Key Decisions Summary
 
-### Technical Decisions
+### 5.1 Architectural Decisions
 
 | Decision Area | Choice | Alternative Considered | Rationale |
 |---------------|--------|----------------------|-----------|
@@ -249,7 +247,7 @@ Infrastructure Layer (module-core-infra/repository/)
 | **Authentication** | OAuth2 + API Key hybrid | OAuth2 only | Flexibility for service-to-service auth |
 | **State Management** | Stateless with token validation | Session-based | Better scalability, simpler deployment |
 
-### Security Decisions
+### 5.2 Security Decisions
 
 | Security Aspect | Implementation | Justification |
 |------------------|----------------|---------------|
@@ -259,7 +257,7 @@ Infrastructure Layer (module-core-infra/repository/)
 | **Audit Logging** | All mutations logged | Compliance and debugging requirements |
 | **HTTPS Only** | TLS 1.2+ required | Data in transit protection |
 
-### Performance Decisions
+### 5.3 Performance Decisions
 
 | Performance Aspect | Implementation | Trade-off |
 |--------------------|----------------|-----------|
@@ -270,9 +268,9 @@ Infrastructure Layer (module-core-infra/repository/)
 
 ---
 
-## Base Configuration
+## 6. Base Configuration
 
-### URL Structure
+### 6.1 URL Structure
 
 ```bash
 # Production Environment
@@ -283,14 +281,14 @@ Docker:   http://localhost:8081/api/v1  # With Keycloak
 Local:    http://localhost:8080/api/v1  # Direct Spring Boot
 ```
 
-### Authentication Methods
+### 6.2 Authentication Methods
 
 | Method | Header Format | Use Case | Example |
 |--------|---------------|----------|---------|
 | **OAuth2** | `Authorization: Bearer <jwt-token>` | User authentication | CLI user sessions |
 | **API Key** | `X-API-Key: <service-key>` | Service-to-service | Internal service calls |
 
-### Standard Response Headers
+### 6.3 Standard Response Headers
 
 ```http
 # All responses include:
@@ -300,7 +298,7 @@ X-Response-Time-Ms: <milliseconds>
 Cache-Control: no-cache  # For mutable resources
 ```
 
-### Environment Variables
+### 6.4 Environment Variables
 
 | Variable | Purpose | Default | Required |
 |----------|---------|---------|----------|
@@ -311,21 +309,14 @@ Cache-Control: no-cache  # For mutable resources
 
 ---
 
-## Related Documentation
+## 🔗 Related Documentation
 
-### Implementation Guides
-- **Implementation Patterns**: [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) - Service, repository, and controller patterns
-- **Error Handling**: [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Error codes and exception handling
-- **Development Patterns**: [../project-basecamp-server/docs/PATTERNS.md](../project-basecamp-server/docs/PATTERNS.md) - Quick reference templates
-
-### Project-Specific Documentation
-- **Basecamp Server**: [../project-basecamp-server/README.md](../project-basecamp-server/README.md) - Module structure and quick start
-- **Interface CLI**: [../project-interface-cli/README.md](../project-interface-cli/README.md) - CLI commands and Library API
-
-### Feature Specifications
-- **Implementation Plan**: [../project-basecamp-server/features/IMPLEMENTATION_PLAN.md](../project-basecamp-server/features/IMPLEMENTATION_PLAN.md)
-- **API Endpoints**: [../project-basecamp-server/features/METRIC_FEATURE.md](../project-basecamp-server/features/METRIC_FEATURE.md), [DATASET_FEATURE.md](../project-basecamp-server/features/DATASET_FEATURE.md)
+- **Implementation Roadmap**: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)
+- **Spring Boot Patterns**: [`INTEGRATION_PATTERNS.md`](./INTEGRATION_PATTERNS.md)
+- **Error Handling**: [`ERROR_CODES.md`](./ERROR_CODES.md)
+- **API Endpoints**: [`METRIC_FEATURE.md`](./METRIC_FEATURE.md), [`DATASET_FEATURE.md`](./DATASET_FEATURE.md)
+- **CLI Mapping**: [`CLI_API_MAPPING.md`](../docs/CLI_API_MAPPING.md)
 
 ---
 
-*This architecture overview provides the foundation for implementing the DataOps Platform according to hexagonal architecture principles and enterprise-grade quality standards.*
+*This architecture overview provides the foundation for implementing the Basecamp Server API according to DataOps Platform standards and hexagonal architecture principles.*

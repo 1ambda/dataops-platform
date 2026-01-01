@@ -701,6 +701,119 @@ After running tests, reports are available at:
 
 ---
 
+## CLI-Server Contract Testing
+
+### Overview
+
+The Basecamp Server API must maintain compatibility with the CLI client (`dli`). Contract testing ensures that server responses match CLI expectations.
+
+### API Contract Source of Truth
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| **API Contracts** | `project-interface-cli/src/dli/core/client.py` | Mock implementations define expected request/response shapes |
+| **Response Models** | `BasecampClient.ServerResponse` dataclass | Standard response wrapper |
+| **Enums & Constants** | `WorkflowSource`, `RunStatus` enums | Allowed values and state definitions |
+
+### Contract Testing Pattern
+
+```kotlin
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
+class MetricApiContractTest {
+
+    @Autowired
+    private lateinit var testRestTemplate: TestRestTemplate
+
+    @Test
+    fun `POST metrics should match CLI BasecampClient contract`() {
+        // Given: Request matching CLI client.py CreateMetricRequest
+        val request = mapOf(
+            "name" to "test.example.metric",
+            "owner" to "test@example.com",
+            "sql" to "SELECT 1",
+            "tags" to listOf("test")
+        )
+
+        // When: Call API endpoint
+        val response = testRestTemplate.postForEntity(
+            "/api/v1/metrics",
+            request,
+            Map::class.java
+        )
+
+        // Then: Response matches CLI expectations
+        assertThat(response.statusCode).isEqualTo(HttpStatus.CREATED)
+        assertThat(response.body).isNotNull
+
+        // Verify response shape matches BasecampClient.ServerResponse
+        val body = response.body as Map<*, *>
+        assertThat(body).containsKeys("message", "name")
+        assertThat(body["name"]).isEqualTo("test.example.metric")
+    }
+
+    @Test
+    fun `GET metrics name should return CLI-compatible response`() {
+        // Setup: Create test metric
+        val metricName = "test.metric"
+        // ... create metric ...
+
+        // When: Get metric
+        val response = testRestTemplate.getForEntity(
+            "/api/v1/metrics/$metricName",
+            Map::class.java
+        )
+
+        // Then: Response matches CLI MetricDto expectations
+        assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+        val body = response.body as Map<*, *>
+
+        // Verify required fields from CLI client.py
+        assertThat(body).containsKeys("name", "type", "owner", "sql", "tags")
+        assertThat(body["type"]).isEqualTo("Metric")
+        assertThat(body["tags"]).isInstanceOf(List::class.java)
+    }
+
+    @Test
+    fun `Error responses should match CLI error format`() {
+        // When: Request non-existent metric
+        val response = testRestTemplate.getForEntity(
+            "/api/v1/metrics/nonexistent",
+            Map::class.java
+        )
+
+        // Then: Error format matches CLI expectations
+        assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        val body = response.body as Map<*, *>
+
+        // Verify error structure from ERROR_CODES.md
+        assertThat(body).containsKey("error")
+        val error = body["error"] as Map<*, *>
+        assertThat(error).containsKeys("code", "message")
+        assertThat(error["code"]).isEqualTo("METRIC_NOT_FOUND")
+    }
+}
+```
+
+### Contract Validation Checklist
+
+When implementing or modifying API endpoints:
+
+- [ ] Response shape matches `BasecampClient` mock implementation
+- [ ] Error responses follow standard error format (see [ERROR_HANDLING.md](./ERROR_HANDLING.md))
+- [ ] Enum values match CLI client definitions (`WorkflowSource`, `RunStatus`, etc.)
+- [ ] Required fields are present in all responses
+- [ ] HTTP status codes match CLI expectations
+- [ ] Field names use snake_case (CLI) or camelCase (API) consistently
+
+### Cross-Reference
+
+- **Error Codes**: [docs/ERROR_HANDLING.md](../../../docs/ERROR_HANDLING.md#cli-error-code-mapping)
+- **CLI Client Mock**: `project-interface-cli/src/dli/core/client.py`
+- **API Specifications**: [features/METRIC_FEATURE.md](../features/METRIC_FEATURE.md)
+
+---
+
 ## Checklist for New Tests
 
 When writing a new test file:

@@ -74,6 +74,21 @@ project-basecamp-server/
 
 ---
 
+## Server Policies
+
+The Basecamp Server implements several key policies for data protection and access control:
+
+| Policy | Application Scope | Summary |
+|--------|------------------|---------|
+| **PII Masking** | Catalog API | Auto-masking of PII columns in sample data (email, phone, SSN patterns) |
+| **Workflow Source Type** | Workflow API | CODE workflows limited to pause/unpause; MANUAL workflows allow full CRUD |
+| **Query Scope** | Query Metadata API | RBAC-based access control (`my`, `system`, `user`, `all` scopes) |
+| **Transpile Rule** | Transpile API | Version-controlled rules with CI/CD deployment and client-side caching |
+
+For detailed policy specifications, see [docs/architecture.md](../../docs/architecture.md#server-policies).
+
+---
+
 ## Module Architecture
 
 ### 1. module-core-common
@@ -387,8 +402,36 @@ set("springdocVersion", "3.0.0")     // NOT 2.x
 
 ### Documentation
 
-- **[docs/PATTERNS.md](./docs/PATTERNS.md)** - Development patterns & templates
-- **[docs/TESTING.md](./docs/TESTING.md)** - Detailed testing guide & troubleshooting
+**Quick Start (Project-Level):**
+- **[docs/PATTERNS.md](./docs/PATTERNS.md)** - Development patterns & templates (Spring Boot 4.x)
+- **[docs/TESTING.md](./docs/TESTING.md)** - Testing guide & troubleshooting (Spring Boot 4.x)
+- **[docs/CLI_API_MAPPING.md](./docs/CLI_API_MAPPING.md)** - CLI command to API endpoint mapping
+
+**Implementation Status:**
+- **[features/_STATUS.md](./features/_STATUS.md)** - 🆕 Current progress (8%, 2/36 endpoints)
+
+**Feature Specifications:**
+- **[features/README.md](./features/README.md)** - Feature specifications overview
+- **[features/METRIC_FEATURE.md](./features/METRIC_FEATURE.md)** - Metric API specification (P0)
+- **[features/DATASET_FEATURE.md](./features/DATASET_FEATURE.md)** - Dataset API specification (P0)
+- **[features/CATALOG_FEATURE.md](./features/CATALOG_FEATURE.md)** - Catalog API specification (P1)
+- **[features/LINEAGE_FEATURE.md](./features/LINEAGE_FEATURE.md)** - Lineage API specification (P1)
+- **[features/WORKFLOW_FEATURE.md](./features/WORKFLOW_FEATURE.md)** - Workflow API specification (P2)
+- **[features/QUALITY_FEATURE.md](./features/QUALITY_FEATURE.md)** - Quality API specification (P3)
+- **[features/QUERY_FEATURE.md](./features/QUERY_FEATURE.md)** - Query API specification (P3)
+- **[features/RUN_FEATURE.md](./features/RUN_FEATURE.md)** - Run API specification (P3)
+- **[features/TRANSPILE_FEATURE.md](./features/TRANSPILE_FEATURE.md)** - Transpile API specification (P3)
+- **[features/HEALTH_FEATURE.md](./features/HEALTH_FEATURE.md)** - Health API specification (P0)
+
+**Implementation Guides:**
+- **[docs/IMPLEMENTATION_GUIDE.md](./docs/IMPLEMENTATION_GUIDE.md)** - Service, repository, controller patterns
+- **[docs/ERROR_HANDLING.md](./docs/ERROR_HANDLING.md)** - Error codes and exception handling
+
+**Platform-Level Architecture (Shared):**
+- **[../../docs/architecture.md](../../docs/architecture.md)** - System design, policies, and architectural decisions
+
+**Archive:**
+- **[features/archive/](./features/archive/)** - Historical specifications and planning documents
 
 ---
 

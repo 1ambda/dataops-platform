@@ -4,6 +4,19 @@
 
 ---
 
+## Deep Dive Documentation
+
+For comprehensive implementation guides, see:
+
+| Topic | Document | Description |
+|-------|----------|-------------|
+| **Architecture** | [architecture.md](../../../docs/architecture.md) | System design, policies, and architectural decisions (platform-level) |
+| **Implementation** | [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) | Service, repository, controller, DTO, and entity patterns |
+| **Error Handling** | [ERROR_HANDLING.md](./ERROR_HANDLING.md) | Error codes, exception hierarchy, and response format |
+| **Testing** | [TESTING.md](./TESTING.md) | Comprehensive testing guide with troubleshooting |
+
+---
+
 ## Quick Reference
 
 | Task | Reference File | Key Pattern |
