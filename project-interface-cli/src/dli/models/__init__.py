@@ -28,6 +28,14 @@ from dli.models.common import (
     TranspileWarning,
     ValidationResult,
 )
+from dli.models.format import (
+    # Format result models
+    FileFormatResult,
+    FileFormatStatus,
+    FormatResult,
+    FormatStatus,
+    LintViolation,
+)
 from dli.models.config import (
     # Config models
     ConfigSource,
@@ -85,6 +93,12 @@ __all__ = [
     "EnvironmentProfile",
     # Context
     "ExecutionContext",
+    # Format result models
+    "FileFormatResult",
+    "FileFormatStatus",
+    "FormatResult",
+    "FormatStatus",
+    "LintViolation",
     "MetricResult",
     "QualityInfo",
     "QualityMetadata",

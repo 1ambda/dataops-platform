@@ -26,6 +26,7 @@ from dli.exceptions import (
     ConfigurationError,
     ErrorCode,
     ExecutionError,
+    FormatError,
     MetricNotFoundError,
 )
 from dli.models.common import (
@@ -35,6 +36,13 @@ from dli.models.common import (
     MetricResult,
     ResultStatus,
     ValidationResult,
+)
+from dli.models.format import (
+    FileFormatResult,
+    FileFormatStatus,
+    FormatResult,
+    FormatStatus,
+    LintViolation,
 )
 
 if TYPE_CHECKING:
@@ -456,6 +464,194 @@ class MetricAPI:
 
         service = self._get_service()
         return service.test_connection()
+
+    # === Formatting ===
+
+    def format(
+        self,
+        name: str,
+        *,
+        check_only: bool = False,
+        sql_only: bool = False,
+        yaml_only: bool = False,
+        dialect: str | None = None,
+        lint: bool = False,
+        fix: bool = False,
+    ) -> FormatResult:
+        """Format metric SQL and YAML files.
+
+        Formats metric spec files using sqlfluff for SQL and ruamel.yaml for YAML.
+        Supports Jinja template preservation and multiple SQL dialects.
+
+        Args:
+            name: Fully qualified metric name (catalog.schema.name).
+            check_only: If True, only check without modifying files.
+            sql_only: Format SQL file only (skip YAML).
+            yaml_only: Format YAML file only (skip SQL).
+            dialect: SQL dialect (bigquery, trino, snowflake, etc.).
+                    If None, uses project configuration or defaults to bigquery.
+            lint: Apply lint rules (requires sqlfluff).
+            fix: Auto-fix lint violations (requires lint=True).
+
+        Returns:
+            FormatResult with status and file changes.
+
+        Raises:
+            MetricNotFoundError: If metric not found.
+            FormatError: If formatting fails.
+
+        Example:
+            >>> api = MetricAPI(context=ctx)
+            >>> result = api.format("catalog.schema.my_metric", check_only=True)
+            >>> if result.has_changes:
+            ...     print(f"Would change {result.changed_count} files")
+            >>> else:
+            ...     print("No changes needed")
+        """
+        if self._is_mock_mode:
+            return FormatResult(
+                name=name,
+                resource_type="metric",
+                status=FormatStatus.SUCCESS,
+                check_mode=check_only,
+                lint_enabled=lint,
+                message="Mock mode - no formatting performed",
+            )
+
+        # Validate mutual exclusivity
+        if sql_only and yaml_only:
+            raise FormatError(
+                message="Cannot use both --sql-only and --yaml-only",
+                resource_name=name,
+            )
+
+        # Get metric spec
+        service = self._get_service()
+        spec = service.get_metric(name)
+        if spec is None:
+            raise MetricNotFoundError(
+                message=f"Metric '{name}' not found",
+                name=name,
+            )
+
+        # Perform formatting
+        file_results: list[FileFormatResult] = []
+        overall_status = FormatStatus.SUCCESS
+
+        try:
+            # Import formatters
+            from dli.core.format import (
+                SqlFormatter,
+                YamlFormatter,
+                load_format_config,
+            )
+
+            # Load format configuration
+            project_path = self.context.project_path
+            config = load_format_config(project_path) if project_path else None
+
+            # Determine effective dialect
+            effective_dialect = dialect or (config.sql.dialect if config else "bigquery")
+
+            # Format SQL if not yaml_only (metrics use query_statement or query_file)
+            sql_file = getattr(spec, "query_file", None)
+            if not yaml_only and sql_file:
+                sql_path = Path(sql_file)
+                if project_path and not sql_path.is_absolute():
+                    sql_path = project_path / sql_path
+
+                if sql_path.exists():
+                    sql_formatter = SqlFormatter(
+                        dialect=effective_dialect,
+                        config=config,
+                        project_path=project_path,
+                    )
+                    sql_result = sql_formatter.format_file(
+                        sql_path,
+                        check_only=check_only,
+                        lint=lint,
+                    )
+
+                    # Convert to FileFormatResult
+                    lint_violations = [
+                        LintViolation(
+                            rule=v.get("rule", "unknown"),
+                            line=int(v.get("line", 0)),
+                            column=int(v.get("column", 1)),
+                            description=v.get("description", ""),
+                            severity="warning",
+                        )
+                        for v in sql_result.violations
+                    ]
+
+                    file_results.append(
+                        FileFormatResult(
+                            path=str(sql_path.relative_to(project_path) if project_path else sql_path),
+                            status=FileFormatStatus.CHANGED if sql_result.changed else FileFormatStatus.UNCHANGED,
+                            original=sql_result.original if sql_result.changed else None,
+                            formatted=sql_result.formatted if sql_result.changed else None,
+                            changes=sql_result.get_diff(),
+                            lint_violations=lint_violations,
+                            error_message=sql_result.error,
+                        )
+                    )
+
+                    if sql_result.error:
+                        overall_status = FormatStatus.FAILED
+                    elif sql_result.changed and overall_status != FormatStatus.FAILED:
+                        overall_status = FormatStatus.CHANGED
+
+            # Format YAML if not sql_only
+            if not sql_only and hasattr(spec, "spec_path") and spec.spec_path:
+                yaml_path = Path(spec.spec_path)
+                if yaml_path.exists():
+                    yaml_formatter = YamlFormatter(config=config)
+                    yaml_result = yaml_formatter.format_file(
+                        yaml_path,
+                        check_only=check_only,
+                        reorder_keys=True,
+                    )
+
+                    file_results.append(
+                        FileFormatResult(
+                            path=str(yaml_path.relative_to(project_path) if project_path else yaml_path),
+                            status=FileFormatStatus.CHANGED if yaml_result.changed else FileFormatStatus.UNCHANGED,
+                            original=yaml_result.original if yaml_result.changed else None,
+                            formatted=yaml_result.formatted if yaml_result.changed else None,
+                            changes=yaml_result.get_diff(),
+                            error_message=yaml_result.error,
+                        )
+                    )
+
+                    if yaml_result.error:
+                        overall_status = FormatStatus.FAILED
+                    elif yaml_result.changed and overall_status != FormatStatus.FAILED:
+                        overall_status = FormatStatus.CHANGED
+
+            return FormatResult(
+                name=name,
+                resource_type="metric",
+                status=overall_status,
+                files=file_results,
+                check_mode=check_only,
+                lint_enabled=lint,
+            )
+
+        except ImportError as e:
+            # Formatters not installed
+            return FormatResult(
+                name=name,
+                resource_type="metric",
+                status=FormatStatus.FAILED,
+                check_mode=check_only,
+                lint_enabled=lint,
+                message=f"Format dependencies not installed: {e}",
+            )
+        except Exception as e:
+            raise FormatError(
+                message=f"Formatting failed: {e}",
+                resource_name=name,
+            ) from e
 
 
 __all__ = ["MetricAPI"]

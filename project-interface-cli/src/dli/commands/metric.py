@@ -434,3 +434,175 @@ def register_metric(
     else:
         print_error(response.error or "Registration failed")
         raise typer.Exit(1)
+
+
+@metric_app.command("format")
+def format_metric(
+    name: Annotated[str, typer.Argument(help="Metric name to format.")],
+    check: Annotated[
+        bool,
+        typer.Option("--check", help="Check only, don't modify files (CI mode)."),
+    ] = False,
+    sql_only: Annotated[
+        bool,
+        typer.Option("--sql-only", help="Format SQL file only."),
+    ] = False,
+    yaml_only: Annotated[
+        bool,
+        typer.Option("--yaml-only", help="Format YAML file only."),
+    ] = False,
+    dialect: Annotated[
+        str | None,
+        typer.Option("--dialect", "-d", help="SQL dialect (bigquery, trino, snowflake, etc.)."),
+    ] = None,
+    lint: Annotated[
+        bool,
+        typer.Option("--lint", help="Apply lint rules."),
+    ] = False,
+    fix: Annotated[
+        bool,
+        typer.Option("--fix", help="Auto-fix lint violations (requires --lint)."),
+    ] = False,
+    diff: Annotated[
+        bool,
+        typer.Option("--diff", help="Show diff of changes."),
+    ] = False,
+    format_output: Annotated[
+        ListOutputFormat,
+        typer.Option("--format", "-f", help="Output format (table or json)."),
+    ] = "table",
+    path: Annotated[
+        Path | None,
+        typer.Option("--path", "-p", help="Project path."),
+    ] = None,
+) -> None:
+    """Format metric SQL and YAML files.
+
+    Uses sqlfluff for SQL formatting (with Jinja template preservation)
+    and ruamel.yaml for YAML formatting (with DLI standard key ordering).
+
+    Examples:
+        dli metric format iceberg.reporting.user_summary
+        dli metric format iceberg.reporting.user_summary --check
+        dli metric format iceberg.reporting.user_summary --sql-only
+        dli metric format iceberg.reporting.user_summary --dialect trino
+        dli metric format iceberg.reporting.user_summary --lint
+        dli metric format iceberg.reporting.user_summary --check --diff
+    """
+    from dli.api.metric import MetricAPI
+    from dli.models.common import ExecutionContext
+
+    # Validate options
+    if sql_only and yaml_only:
+        print_error("Cannot use both --sql-only and --yaml-only")
+        raise typer.Exit(1)
+
+    if fix and not lint:
+        print_error("--fix requires --lint to be enabled")
+        raise typer.Exit(1)
+
+    project_path = get_project_path(path)
+
+    try:
+        ctx = ExecutionContext(project_path=project_path)
+        api = MetricAPI(context=ctx)
+
+        with console.status("[bold green]Formatting metric..."):
+            result = api.format(
+                name,
+                check_only=check,
+                sql_only=sql_only,
+                yaml_only=yaml_only,
+                dialect=dialect,
+                lint=lint,
+                fix=fix,
+            )
+
+    except Exception as e:
+        print_error(f"Format failed: {e}")
+        raise typer.Exit(1)
+
+    # Handle JSON output
+    if format_output == "json":
+        console.print_json(result.model_dump_json())
+        if check and result.has_changes:
+            raise typer.Exit(1)
+        return
+
+    # Table output
+    mode_str = "check" if check else "format"
+    console.print("\n[bold cyan]Format Result[/bold cyan]")
+    console.print(f"[dim]Metric:[/dim] {result.name}")
+    console.print(f"[dim]Mode:[/dim] {mode_str}")
+    if lint:
+        console.print("[dim]Lint:[/dim] enabled")
+
+    if not result.files:
+        print_warning("No files found to format")
+        return
+
+    # Show files table
+    console.print("\n[bold]Files:[/bold]")
+    file_table = Table(show_header=True)
+    file_table.add_column("Mode", style="cyan", width=8)
+    file_table.add_column("File", style="green")
+    file_table.add_column("Status", style="yellow")
+    file_table.add_column("Violations", style="red")
+
+    for file_result in result.files:
+        status_color = {
+            "unchanged": "green",
+            "changed": "yellow",
+            "error": "red",
+        }.get(file_result.status.value, "white")
+
+        violation_count = file_result.lint_violation_count
+        violation_str = str(violation_count) if violation_count > 0 else "-"
+
+        file_table.add_row(
+            mode_str,
+            file_result.path,
+            f"[{status_color}]{file_result.status.value.upper()}[/{status_color}]",
+            violation_str,
+        )
+
+    console.print(file_table)
+
+    # Show diff if requested
+    if diff:
+        for file_result in result.files:
+            if file_result.changes:
+                console.print(f"\n[bold]Diff: {file_result.path}[/bold]")
+                for line in file_result.changes:
+                    if line.startswith("+") and not line.startswith("+++"):
+                        console.print(f"[green]{line}[/green]", end="")
+                    elif line.startswith("-") and not line.startswith("---"):
+                        console.print(f"[red]{line}[/red]", end="")
+                    else:
+                        console.print(line, end="")
+
+    # Show lint violations if any
+    if lint:
+        total_violations = result.total_lint_violations
+        if total_violations > 0:
+            console.print(f"\n[bold]Lint Violations ({total_violations}):[/bold]")
+            for file_result in result.files:
+                for violation in file_result.lint_violations:
+                    console.print(
+                        f"  {file_result.path}:{violation.line}:{violation.column}  "
+                        f"[yellow]{violation.rule}[/yellow]  {violation.description}"
+                    )
+
+    # Summary
+    console.print()
+    if result.has_errors:
+        print_error(f"Format failed for {result.error_count} file(s)")
+        raise typer.Exit(2)
+    if result.has_changes:
+        if check:
+            print_warning(f"{result.changed_count} file(s) would be changed")
+            console.print("Run without --check to apply changes.")
+            raise typer.Exit(1)
+        print_success(f"{result.changed_count} file(s) formatted")
+    else:
+        print_success("All files already formatted")

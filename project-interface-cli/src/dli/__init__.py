@@ -84,6 +84,12 @@ from dli.exceptions import (
     DLIValidationError,
     ErrorCode,
     ExecutionError,
+    FormatConfigError,
+    FormatDialectError,
+    FormatError,
+    FormatLintError,
+    FormatSqlError,
+    FormatYamlError,
     LineageError,
     LineageNotFoundError,
     LineageTimeoutError,
@@ -128,6 +134,15 @@ from dli.models.run import ExecutionPlan, OutputFormat, RunResult
 # Debug models (public API)
 from dli.core.debug.models import CheckCategory, CheckResult, CheckStatus, DebugResult
 
+# Format models (public API)
+from dli.models.format import (
+    FileFormatResult,
+    FileFormatStatus,
+    FormatResult,
+    FormatStatus,
+    LintViolation,
+)
+
 __all__ = [
     # API Classes
     "CatalogAPI",
@@ -165,6 +180,12 @@ __all__ = [
     "DatasetNotFoundError",
     "ErrorCode",
     "ExecutionError",
+    "FormatConfigError",
+    "FormatDialectError",
+    "FormatError",
+    "FormatLintError",
+    "FormatSqlError",
+    "FormatYamlError",
     "LineageError",
     "LineageNotFoundError",
     "LineageTimeoutError",
@@ -192,6 +213,12 @@ __all__ = [
     # Context
     "ExecutionContext",
     "ExecutionMode",
+    # Format models
+    "FileFormatResult",
+    "FileFormatStatus",
+    "FormatResult",
+    "FormatStatus",
+    "LintViolation",
     # Run models
     "ExecutionPlan",
     "OutputFormat",

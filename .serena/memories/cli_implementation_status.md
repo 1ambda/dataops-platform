@@ -74,13 +74,26 @@ search(pattern) → CatalogSearchResult
 - CLI --local/--server 플래그
 - --output 결과 저장
 
-## CLI Commands (v0.8.0)
+## CLI Commands (v0.9.0)
 
 | Command | Subcommands |
 |---------|-------------|
 | workflow | run, backfill, stop, status, list, history, pause, unpause, **register**, **unregister** |
 | quality | list, get, run, validate |
 | catalog | list, search, (implicit routing) |
+
+## Format Feature (v0.9.0)
+
+| Component | Location | Status |
+|-----------|----------|--------|
+| Error Codes | `exceptions.py` | ✅ DLI-1501~1506 |
+| Models | `models/format.py` | ✅ FormatResult, FormatStatus |
+| SqlFormatter | `core/format/sql_formatter.py` | ✅ sqlfluff-based |
+| YamlFormatter | `core/format/yaml_formatter.py` | ✅ ruamel.yaml-based |
+| DatasetAPI.format() | `api/dataset.py` | ✅ |
+| MetricAPI.format() | `api/metric.py` | ✅ |
+| CLI Commands | `commands/dataset.py`, `commands/metric.py` | ✅ |
+| Tests | `tests/*format*` | ✅ 239 tests |
 
 ## Agent/Skill System (2026-01-01 업데이트)
 

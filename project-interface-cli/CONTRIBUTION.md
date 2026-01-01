@@ -190,6 +190,23 @@ class TestWorkflowCLI:
 
 ## Code Style Guidelines
 
+### Spec File Formatting
+
+Dataset and metric spec files can be auto-formatted for consistency:
+
+```bash
+# Format dataset spec (SQL + YAML)
+dli dataset format iceberg.analytics.daily_clicks
+
+# Format metric spec
+dli metric format iceberg.analytics.daily_active_users
+
+# Check formatting (CI mode)
+dli dataset format <name> --check
+```
+
+This ensures consistent SQL and YAML formatting across the project. Consider formatting specs before committing.
+
 ### Imports
 
 ```python

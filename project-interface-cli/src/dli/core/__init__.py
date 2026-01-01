@@ -94,6 +94,19 @@ from dli.core.lineage.client import (
     LineageClientError,
 )
 
+# Format
+from dli.core.format import (
+    DEFAULT_DIALECT,
+    DLI_YAML_KEY_ORDER,
+    SUPPORTED_DIALECTS,
+    FormatConfig,
+    SqlFormatResult,
+    SqlFormatter,
+    YamlFormatResult,
+    YamlFormatter,
+    load_format_config,
+)
+
 __all__ = [  # noqa: RUF022 - Grouped by module for readability
     # Models - Core Types
     "AggregationType",
@@ -166,4 +179,14 @@ __all__ = [  # noqa: RUF022 - Grouped by module for readability
     "LineageEdge",
     "LineageNode",
     "LineageResult",
+    # Format
+    "DEFAULT_DIALECT",
+    "DLI_YAML_KEY_ORDER",
+    "FormatConfig",
+    "SUPPORTED_DIALECTS",
+    "SqlFormatResult",
+    "SqlFormatter",
+    "YamlFormatResult",
+    "YamlFormatter",
+    "load_format_config",
 ]

@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.7.0 | **Python:** 3.12+
+> **Version:** 0.9.0 | **Python:** 3.12+
 
 ## Features
 
@@ -16,6 +16,7 @@
 - **Query Metadata**: Browse and analyze query execution history (scope-based filtering, cancellation)
 - **Ad-hoc SQL Execution**: Execute SQL files with result download (CSV/TSV/JSON)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
+- **SQL + YAML Formatting**: Consistent code style with sqlfluff and ruamel.yaml
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
 - **Environment Management**: Hierarchical config layering (global < project < local < env), `${VAR}` templating, secret masking
 - **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, LineageAPI, QueryAPI, RunAPI for Airflow/orchestrator integration
@@ -89,6 +90,24 @@ dli dataset get <name>                    # Get dataset details
 dli dataset validate <name>               # Validate dataset spec
 dli dataset run <name> --ds 2024-01-15    # Execute dataset query
 dli dataset register <name>               # Register with server
+```
+
+### Formatting
+
+Format SQL and YAML files for consistent code style.
+
+```bash
+# Format dataset SQL and YAML files
+dli dataset format <name>                # Format SQL + YAML
+dli dataset format <name> --check        # CI mode (exit 1 if changes)
+dli dataset format <name> --sql-only     # SQL only
+dli dataset format <name> --lint         # With lint rules
+dli dataset format <name> --dialect trino  # Specific dialect
+
+# Format metric
+dli metric format <name>
+dli metric format <name> --check
+dli metric format <name> --yaml-only
 ```
 
 ### Lineage
@@ -343,8 +362,8 @@ v0.4.0 provides a full-featured Library API for programmatic access from Airflow
 
 | API Class | Methods | Description |
 |-----------|---------|-------------|
-| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection | Dataset CRUD + execution + introspection |
-| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection | Metric CRUD + execution + introspection |
+| `DatasetAPI` | list_datasets, get, run, run_sql, validate, register, render_sql, get_tables, get_columns, test_connection, format | Dataset CRUD + execution + introspection + formatting |
+| `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection, format | Metric CRUD + execution + introspection + formatting |
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL transpilation |
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
 | `ConfigAPI` | get, get_all, get_with_source, validate, list_environments, get_environment, get_active_environment | Hierarchical config with source tracking |

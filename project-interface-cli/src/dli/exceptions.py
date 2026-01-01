@@ -135,6 +135,14 @@ class ErrorCode(str, Enum):
     DEBUG_NETWORK_CHECK_FAILED = "DLI-955"
     DEBUG_TIMEOUT = "DLI-956"
 
+    # Format Errors (DLI-15xx)
+    FORMAT_ERROR = "DLI-1501"
+    FORMAT_SQL_ERROR = "DLI-1502"
+    FORMAT_YAML_ERROR = "DLI-1503"
+    FORMAT_DIALECT_ERROR = "DLI-1504"
+    FORMAT_CONFIG_ERROR = "DLI-1505"
+    FORMAT_LINT_ERROR = "DLI-1506"
+
 
 @dataclass
 class DLIError(Exception):
@@ -1183,6 +1191,157 @@ class DebugTimeoutError(DLIError):
         return base
 
 
+# Format Errors (DLI-15xx)
+
+
+@dataclass
+class FormatError(DLIError):
+    """Base format error.
+
+    Raised for formatting-related operations.
+
+    Attributes:
+        resource_name: Name of the resource being formatted.
+        file_path: Path to the file being formatted.
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_ERROR
+    resource_name: str = ""
+    file_path: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] {self.message}"
+        if self.file_path:
+            base += f" (file: {self.file_path})"
+        if self.resource_name:
+            base += f" (resource: {self.resource_name})"
+        return base
+
+
+@dataclass
+class FormatSqlError(DLIError):
+    """SQL formatting error.
+
+    Raised when SQL formatting fails.
+
+    Attributes:
+        file_path: Path to the SQL file.
+        line: Line number where error occurred (if available).
+        column: Column number where error occurred (if available).
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_SQL_ERROR
+    file_path: str = ""
+    line: int | None = None
+    column: int | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message with location."""
+        base = f"[{self.code.value}] {self.message}"
+        if self.file_path:
+            base += f" in {self.file_path}"
+        if self.line is not None:
+            base += f" at line {self.line}"
+            if self.column is not None:
+                base += f", column {self.column}"
+        return base
+
+
+@dataclass
+class FormatYamlError(DLIError):
+    """YAML formatting error.
+
+    Raised when YAML formatting fails.
+
+    Attributes:
+        file_path: Path to the YAML file.
+        line: Line number where error occurred (if available).
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_YAML_ERROR
+    file_path: str = ""
+    line: int | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message with location."""
+        base = f"[{self.code.value}] {self.message}"
+        if self.file_path:
+            base += f" in {self.file_path}"
+        if self.line is not None:
+            base += f" at line {self.line}"
+        return base
+
+
+@dataclass
+class FormatDialectError(DLIError):
+    """Unsupported SQL dialect error.
+
+    Raised when an unsupported SQL dialect is specified.
+
+    Attributes:
+        dialect: The unsupported dialect name.
+        supported: List of supported dialect names.
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_DIALECT_ERROR
+    dialect: str = ""
+    supported: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.supported:
+            supported_str = ", ".join(self.supported)
+            return f"[{self.code.value}] Unsupported dialect '{self.dialect}'. Supported: {supported_str}"
+        return f"[{self.code.value}] Unsupported dialect '{self.dialect}'"
+
+
+@dataclass
+class FormatConfigError(DLIError):
+    """Format configuration error.
+
+    Raised when format configuration file is invalid or cannot be loaded.
+
+    Attributes:
+        config_path: Path to the configuration file.
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_CONFIG_ERROR
+    config_path: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.config_path:
+            return f"[{self.code.value}] {self.message} (config: {self.config_path})"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class FormatLintError(DLIError):
+    """Format lint error.
+
+    Raised when lint violations are found in check mode.
+
+    Attributes:
+        file_path: Path to the file with lint violations.
+        violations: List of lint violation descriptions.
+    """
+
+    code: ErrorCode = ErrorCode.FORMAT_LINT_ERROR
+    file_path: str = ""
+    violations: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return formatted error message with violation count."""
+        violation_count = len(self.violations)
+        base = f"[{self.code.value}] {self.message}"
+        if self.file_path:
+            base += f" in {self.file_path}"
+        if violation_count:
+            base += f" ({violation_count} violations)"
+        return base
+
+
 __all__ = [
     # Catalog Errors
     "CatalogAccessDeniedError",
@@ -1203,6 +1362,13 @@ __all__ = [
     "DebugTimeoutError",
     "ErrorCode",
     "ExecutionError",
+    # Format Errors
+    "FormatConfigError",
+    "FormatDialectError",
+    "FormatError",
+    "FormatLintError",
+    "FormatSqlError",
+    "FormatYamlError",
     "InvalidIdentifierError",
     # Lineage Errors
     "LineageError",

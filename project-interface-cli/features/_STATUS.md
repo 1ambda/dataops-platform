@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-01
-> **Version:** 0.8.0
+> **Version:** 0.9.0
 
 ---
 
@@ -9,16 +9,17 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.8.0 | DebugAPI (7 methods) |
-| CLI Commands | ✅ v0.8.0 | `dli debug` (diagnostics, connection testing) |
-| Debug | ✅ v1.0.0 | DebugAPI, 11 checks, DLI-95x error codes |
-| Environment | ✅ v1.0.0 | ConfigLoader, template resolution, layer priority |
+| Library API | ✅ v0.9.0 | DatasetAPI/MetricAPI.format() |
+| CLI Commands | ✅ v0.9.0 | `dli dataset format`, `dli metric format` |
+| **Format** | **✅ v0.9.0** | **SqlFormatter, YamlFormatter, DLI-15xx** |
+| Debug | ✅ v0.8.0 | DebugAPI, 11 checks, DLI-95x error codes |
+| Environment | ✅ v0.7.0 | ConfigLoader, template resolution, layer priority |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
 | Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2450 passed | pyright 0 errors |
+| Tests | ✅ ~2689 passed | pyright 0 errors |
 
 ---
 
@@ -87,6 +88,7 @@
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 | DLI-41x | Run | DLI-416 | ✅ Complete (410-416) |
 | DLI-95x | Debug | DLI-956 | ✅ Complete (950-956) |
+| **DLI-15xx** | **Format** | **DLI-1506** | **✅ Complete (1501-1506)** |
 
 ### Configuration Error Codes (DLI-00x Extended)
 
@@ -112,18 +114,30 @@
 | DLI-955 | DEBUG_NETWORK_CHECK_FAILED | Network check failed |
 | DLI-956 | DEBUG_TIMEOUT | Check timed out |
 
+### Format Error Codes (DLI-15xx)
+
+| Code | Name | Description |
+|------|------|-------------|
+| DLI-1501 | FORMAT_ERROR | General formatting error |
+| DLI-1502 | FORMAT_SQL_ERROR | SQL formatting failed |
+| DLI-1503 | FORMAT_YAML_ERROR | YAML formatting failed |
+| DLI-1504 | FORMAT_DIALECT_ERROR | Unsupported SQL dialect |
+| DLI-1505 | FORMAT_CONFIG_ERROR | Config file error |
+| DLI-1506 | FORMAT_LINT_ERROR | Lint rule violation |
+
 ---
 
 ## Test Coverage
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | ~539 (+32 DebugAPI) | ✅ All pass |
-| CLI Tests | ~987 (+39 Debug cmd) | ✅ All pass |
-| Core Tests | ~753 (+37 Debug checks) | ✅ All pass |
-| Model Tests | ~171 (+39 Debug models) | ✅ All pass |
-| Integration | ~15 Debug integration | ✅ All pass |
-| **Total** | **~2450** | ✅ All pass |
+| API Tests | ~566 (+27 Format) | ✅ All pass |
+| CLI Tests | ~1012 (+25 Format cmd) | ✅ All pass |
+| Core Tests | ~818 (+65 Format) | ✅ All pass |
+| Model Tests | ~221 (+50 Format models) | ✅ All pass |
+| Integration | ~39 (+24 Format) | ✅ All pass |
+| Exception Tests | ~73 (+40 Format) | ✅ All pass |
+| **Total** | **~2689** (+239 Format) | ✅ All pass, 35 skipped |
 
 ---
 
@@ -151,6 +165,8 @@
 | ENV_RELEASE.md | ✅ Created | `project-interface-cli/features/ENV_RELEASE.md` |
 | DEBUG_FEATURE.md | ✅ Created | `project-interface-cli/features/DEBUG_FEATURE.md` |
 | DEBUG_RELEASE.md | ✅ Created | `project-interface-cli/features/DEBUG_RELEASE.md` |
+| FORMAT_FEATURE.md | ✅ Created | `project-interface-cli/features/FORMAT_FEATURE.md` |
+| FORMAT_RELEASE.md | ✅ Created | `project-interface-cli/features/FORMAT_RELEASE.md` |
 
 ---
 
@@ -164,6 +180,44 @@
 ---
 
 ## Changelog
+
+### v0.9.0 (2026-01-01)
+- **Format Feature MVP Complete**
+  - `dli dataset format` / `dli metric format` commands
+  - SqlFormatter (sqlfluff), YamlFormatter (ruamel.yaml)
+  - FormatConfig with hierarchy (.sqlfluff, .dli-format.yaml)
+  - Jinja template preservation ({{ ref() }}, {{ ds }}, {% if %})
+- **DatasetAPI/MetricAPI.format()** method
+  - check_only, sql_only, yaml_only options
+  - dialect selection (bigquery, trino, snowflake, etc.)
+  - lint/fix options
+- **DLI-15xx Format 에러 코드 추가**
+  - DLI-1501: FORMAT_ERROR
+  - DLI-1502: FORMAT_SQL_ERROR
+  - DLI-1503: FORMAT_YAML_ERROR
+  - DLI-1504: FORMAT_DIALECT_ERROR
+  - DLI-1505: FORMAT_CONFIG_ERROR
+  - DLI-1506: FORMAT_LINT_ERROR
+- **Format Exception 클래스 6종**
+  - FormatError, FormatSqlError, FormatYamlError
+  - FormatDialectError, FormatConfigError, FormatLintError
+- **Format 모델 추가**
+  - models/format.py: FormatStatus, FileFormatStatus, LintViolation, FileFormatResult, FormatResult
+  - core/format/: SqlFormatter, YamlFormatter, FormatConfig
+- **239개 신규 테스트 추가** (35 skipped for optional deps)
+  - tests/models/test_format_models.py (50+ tests)
+  - tests/core/format/test_sql_formatter.py (35 tests)
+  - tests/core/format/test_yaml_formatter.py (30 tests)
+  - tests/api/test_format_api.py (27 tests)
+  - tests/cli/test_format_cmd.py (25 tests)
+  - tests/integration/test_format_integration.py (24 tests)
+  - tests/exceptions/test_format_exceptions.py (40+ tests)
+- **Optional Dependencies**
+  - `pip install dli[format]` for sqlfluff + ruamel.yaml
+- **dli/__init__.py Export 업데이트**
+  - FormatStatus, FileFormatStatus, FormatResult
+  - FormatError, FormatSqlError, FormatYamlError
+  - FormatDialectError, FormatConfigError, FormatLintError
 
 ### v0.8.0 (2026-01-01)
 - **Debug Feature 구현 완료**

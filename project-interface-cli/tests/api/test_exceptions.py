@@ -25,6 +25,12 @@ from dli.exceptions import (
     DLIValidationError,
     ErrorCode,
     ExecutionError,
+    FormatConfigError,
+    FormatDialectError,
+    FormatError,
+    FormatLintError,
+    FormatSqlError,
+    FormatYamlError,
     MetricNotFoundError,
     ServerError,
     TableNotFoundError,
@@ -616,3 +622,292 @@ class TestExceptionHierarchy:
             raise DatasetNotFoundError(message="test")
         except DLIError as e:
             assert isinstance(e, DatasetNotFoundError)
+
+
+class TestFormatErrorCodes:
+    """Tests for Format error codes (DLI-15xx)."""
+
+    def test_format_error_codes_exist(self) -> None:
+        """Test all FORMAT error codes exist in DLI-15xx range."""
+        assert ErrorCode.FORMAT_ERROR.value == "DLI-1501"
+        assert ErrorCode.FORMAT_SQL_ERROR.value == "DLI-1502"
+        assert ErrorCode.FORMAT_YAML_ERROR.value == "DLI-1503"
+        assert ErrorCode.FORMAT_DIALECT_ERROR.value == "DLI-1504"
+        assert ErrorCode.FORMAT_CONFIG_ERROR.value == "DLI-1505"
+        assert ErrorCode.FORMAT_LINT_ERROR.value == "DLI-1506"
+
+    def test_format_error_code_range(self) -> None:
+        """Test FORMAT error codes are in 15xx range."""
+        format_codes = [
+            ErrorCode.FORMAT_ERROR,
+            ErrorCode.FORMAT_SQL_ERROR,
+            ErrorCode.FORMAT_YAML_ERROR,
+            ErrorCode.FORMAT_DIALECT_ERROR,
+            ErrorCode.FORMAT_CONFIG_ERROR,
+            ErrorCode.FORMAT_LINT_ERROR,
+        ]
+        for code in format_codes:
+            # All FORMAT codes should be in DLI-15xx range
+            code_num = int(code.value.split("-")[1])
+            assert 1501 <= code_num <= 1599, f"{code} should be in 15xx range"
+
+
+class TestFormatError:
+    """Tests for FormatError base exception."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating format error."""
+        error = FormatError(message="Formatting failed")
+
+        assert error.code == ErrorCode.FORMAT_ERROR
+        assert error.resource_name == ""
+        assert error.file_path == ""
+
+    def test_with_resource_and_file(self) -> None:
+        """Test creating with resource name and file path."""
+        error = FormatError(
+            message="Format error",
+            resource_name="my_dataset",
+            file_path="sql/query.sql",
+        )
+
+        assert error.resource_name == "my_dataset"
+        assert error.file_path == "sql/query.sql"
+
+    def test_str_format(self) -> None:
+        """Test __str__ format includes error code."""
+        error = FormatError(
+            message="Formatting failed",
+            resource_name="test_dataset",
+        )
+
+        result = str(error)
+
+        assert "[DLI-1501]" in result
+        assert "Formatting failed" in result
+
+
+class TestFormatSqlError:
+    """Tests for FormatSqlError."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating SQL format error."""
+        error = FormatSqlError(message="SQL syntax error")
+
+        assert error.code == ErrorCode.FORMAT_SQL_ERROR
+        assert error.file_path == ""
+        assert error.line is None
+        assert error.column is None
+
+    def test_with_location(self) -> None:
+        """Test creating with line and column."""
+        error = FormatSqlError(
+            message="Invalid token",
+            file_path="sql/my_query.sql",
+            line=15,
+            column=20,
+        )
+
+        assert error.file_path == "sql/my_query.sql"
+        assert error.line == 15
+        assert error.column == 20
+
+    def test_str_with_location(self) -> None:
+        """Test __str__ includes location info."""
+        error = FormatSqlError(
+            message="Parse error",
+            file_path="sql/test.sql",
+            line=10,
+            column=5,
+        )
+
+        result = str(error)
+
+        assert "[DLI-1502]" in result
+        assert "line 10" in result
+
+
+class TestFormatYamlError:
+    """Tests for FormatYamlError."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating YAML format error."""
+        error = FormatYamlError(message="YAML parse error")
+
+        assert error.code == ErrorCode.FORMAT_YAML_ERROR
+        assert error.file_path == ""
+        assert error.line is None
+
+    def test_with_file_and_line(self) -> None:
+        """Test creating with file and line."""
+        error = FormatYamlError(
+            message="Invalid YAML syntax",
+            file_path="dataset.my_dataset.yaml",
+            line=25,
+        )
+
+        assert error.file_path == "dataset.my_dataset.yaml"
+        assert error.line == 25
+
+    def test_str_format(self) -> None:
+        """Test __str__ format."""
+        error = FormatYamlError(
+            message="Syntax error",
+            file_path="test.yaml",
+            line=5,
+        )
+
+        result = str(error)
+
+        assert "[DLI-1503]" in result
+
+
+class TestFormatDialectError:
+    """Tests for FormatDialectError."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating dialect error."""
+        error = FormatDialectError(message="Unsupported dialect")
+
+        assert error.code == ErrorCode.FORMAT_DIALECT_ERROR
+        assert error.dialect == ""
+        assert error.supported == []
+
+    def test_with_dialect_and_supported(self) -> None:
+        """Test creating with dialect and supported list."""
+        error = FormatDialectError(
+            message="Unsupported dialect",
+            dialect="unknown_db",
+            supported=["bigquery", "trino", "snowflake", "postgres"],
+        )
+
+        assert error.dialect == "unknown_db"
+        assert len(error.supported) == 4
+        assert "bigquery" in error.supported
+        assert "trino" in error.supported
+
+    def test_str_format(self) -> None:
+        """Test __str__ includes dialect info."""
+        error = FormatDialectError(
+            message="Unsupported",
+            dialect="mysql",
+            supported=["bigquery", "trino"],
+        )
+
+        result = str(error)
+
+        assert "[DLI-1504]" in result
+        assert "mysql" in result.lower()
+
+
+class TestFormatConfigError:
+    """Tests for FormatConfigError."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating config error."""
+        error = FormatConfigError(message="Config invalid")
+
+        assert error.code == ErrorCode.FORMAT_CONFIG_ERROR
+        assert error.config_path == ""
+
+    def test_with_config_path(self) -> None:
+        """Test creating with config path."""
+        error = FormatConfigError(
+            message="Cannot load config",
+            config_path=".sqlfluff",
+        )
+
+        assert error.config_path == ".sqlfluff"
+
+    def test_str_format(self) -> None:
+        """Test __str__ includes config path."""
+        error = FormatConfigError(
+            message="Invalid format",
+            config_path="/path/to/.dli-format.yaml",
+        )
+
+        result = str(error)
+
+        assert "[DLI-1505]" in result
+        assert ".dli-format.yaml" in result
+
+
+class TestFormatLintError:
+    """Tests for FormatLintError."""
+
+    def test_basic_creation(self) -> None:
+        """Test creating lint error."""
+        error = FormatLintError(message="Lint violations found")
+
+        assert error.code == ErrorCode.FORMAT_LINT_ERROR
+        assert error.file_path == ""
+        assert error.violations == []
+
+    def test_with_violations(self) -> None:
+        """Test creating with violations list."""
+        error = FormatLintError(
+            message="Lint check failed",
+            file_path="sql/query.sql",
+            violations=[
+                "L010: Keywords should be upper case",
+                "L031: Avoid aliases in FROM clauses",
+            ],
+        )
+
+        assert error.file_path == "sql/query.sql"
+        assert len(error.violations) == 2
+
+    def test_str_includes_count(self) -> None:
+        """Test __str__ includes violation count."""
+        error = FormatLintError(
+            message="Lint failed",
+            file_path="sql/test.sql",
+            violations=["L010: error 1", "L031: error 2", "L044: error 3"],
+        )
+
+        result = str(error)
+
+        assert "[DLI-1506]" in result
+        assert "3" in result  # violation count
+
+
+class TestFormatExceptionHierarchy:
+    """Tests for FORMAT exception hierarchy."""
+
+    def test_all_format_errors_inherit_from_dli_error(self) -> None:
+        """Test all FORMAT exceptions inherit from DLIError."""
+        format_exceptions = [
+            FormatError(message="test"),
+            FormatSqlError(message="test"),
+            FormatYamlError(message="test"),
+            FormatDialectError(message="test"),
+            FormatConfigError(message="test"),
+            FormatLintError(message="test"),
+        ]
+
+        for exc in format_exceptions:
+            assert isinstance(exc, DLIError)
+            assert isinstance(exc, Exception)
+
+    def test_can_catch_by_dli_error(self) -> None:
+        """Test FORMAT exceptions can be caught as DLIError."""
+        format_exceptions = [
+            FormatError(message="test"),
+            FormatDialectError(message="test"),
+            FormatSqlError(message="test"),
+        ]
+
+        for exc in format_exceptions:
+            with pytest.raises(DLIError):
+                raise exc
+
+    def test_specific_catch(self) -> None:
+        """Test FORMAT exceptions can be caught specifically."""
+        with pytest.raises(FormatDialectError):
+            raise FormatDialectError(message="test", dialect="unknown")
+
+        with pytest.raises(FormatSqlError):
+            raise FormatSqlError(message="test", file_path="test.sql")
+
+        with pytest.raises(FormatLintError):
+            raise FormatLintError(message="test", violations=["L010"])
