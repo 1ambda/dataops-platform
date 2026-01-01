@@ -38,6 +38,33 @@ class SampleQueryRepositoryDslImpl : SampleQueryRepositoryDsl { ... }
 
 ---
 
+## 🎯 Data Ownership Patterns (ASK IF UNCLEAR)
+
+Feature 구현 전 **반드시 데이터 소유권을 확인**하세요:
+
+| Scenario | Pattern | When to Use | Example |
+|----------|---------|-------------|---------|
+| **Self-managed** | JPA Entity + RepositoryJpa/Dsl | 데이터가 우리 DB에 저장됨 | `CatalogTableEntity`, `DatasetEntity` |
+| **External API** | External Client + Domain Models | 외부 시스템에서 실시간 조회 | `BigQueryClient`, `TrinoClient` |
+| **Hybrid** | JPA Entity (캐시) + External Client | 외부 데이터를 로컬에 캐싱 | 메타데이터 캐시 |
+
+**⚠️ Feature Spec이 두 패턴을 모두 언급하면, 반드시 사용자에게 확인하세요!**
+
+```kotlin
+// Self-managed: JPA Entity
+@Entity
+@Table(name = "catalog_tables")
+class CatalogTableEntity(...) : BaseEntity()
+
+// External: Domain Model (Not Entity)
+data class TableInfo(
+    val name: String,
+    val engine: String,  // "bigquery" or "trino"
+)
+```
+
+---
+
 ## Deep Dive Documentation
 
 For comprehensive implementation guides, see:

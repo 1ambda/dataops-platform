@@ -8,6 +8,13 @@
         "@modelcontextprotocol/server-sequential-thinking"
       ],
       "env": {}
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@michaellatman/claude-mem"
+      ]
     }
   }
 }

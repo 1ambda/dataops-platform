@@ -4,7 +4,10 @@
 
 > **Version:** 1.0.0 | **Status:** Implemented | **Priority:** P1 High
 > **CLI Commands:** `dli catalog list/search/get` | **Target:** Spring Boot 4 + Kotlin 2
-> **Implementation Timeline:** Week 3 | **Architecture:** Self-managed JPA Entities
+> **Implementation Timeline:** Week 3
+>
+> **📦 Data Source:** ✅ Self-managed JPA | ~~External API (BigQuery/Trino)~~
+> **Entities:** `CatalogTableEntity`, `CatalogColumnEntity`, `SampleQueryEntity`
 
 ---
 

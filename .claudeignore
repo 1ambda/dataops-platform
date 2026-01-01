@@ -1,0 +1,78 @@
+# Build artifacts
+**/build/
+**/out/
+**/target/
+**/.gradle/
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/dist/
+**/.next/
+**/.nuxt/
+
+# Generated files
+**/generated/
+**/Q*.java
+**/*.generated.kt
+**/GeneratedCriteria*.kt
+
+# IDE specific
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Large binary files
+*.jar
+*.war
+*.zip
+*.tar.gz
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Lock files (rarely needed)
+package-lock.json
+pnpm-lock.yaml
+uv.lock
+yarn.lock
+Gemfile.lock
+poetry.lock
+
+# Test artifacts
+**/__snapshots__/
+**/fixtures/large/
+**/test-results/
+**/coverage/
+**/.coverage
+**/htmlcov/
+
+# Documentation build
+docs/_build/
+docs/site/
+**/javadoc/
+
+# Docker volumes and data
+volumes/
+data/
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# Environment files with secrets
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav

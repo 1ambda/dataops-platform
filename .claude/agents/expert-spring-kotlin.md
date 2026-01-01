@@ -45,42 +45,12 @@ ALWAYS use MCP tools before file reads:
 - Run `./gradlew build` - must pass
 - Verify transaction boundaries and null safety
 
-## Core Patterns
+## Implementation Patterns (CRITICAL)
 
-**Service Layer**
-```kotlin
-@Service
-@Transactional(readOnly = true)
-class PipelineService(
-    private val pipelineRepositoryJpa: PipelineRepositoryJpa,
-) {
-    @Transactional
-    fun create(command: CreateCommand): PipelineDto { ... }
-}
-```
+- Read docs/IMPLEMENTATION_PATTERNS.md
+- Read docs/PATTERNS.md
+- Read docs/TESTINGS.md
 
-**Repository Layer**
-```kotlin
-// Domain (Port)
-interface UserRepositoryJpa {
-    fun save(user: UserEntity): UserEntity
-    fun findById(id: Long): UserEntity?
-}
-
-// Infrastructure (Adapter)
-@Repository("userRepositoryJpa")
-class UserRepositoryJpaImpl(
-    private val springData: UserRepositoryJpaSpringData,
-) : UserRepositoryJpa { ... }
-```
-
-**Sealed Types for Domain**
-```kotlin
-sealed interface Result<out T> {
-    data class Success<T>(val data: T) : Result<T>
-    data class Error(val message: String) : Result<Nothing>
-}
-```
 
 ## Anti-Patterns to Avoid
 - Creating service interfaces (use concrete classes)

@@ -53,7 +53,16 @@ class PipelineService(
 | Repository (Query) | `*RepositoryDsl` | `UserRepositoryDsl` |
 | Repository Impl | `*RepositoryJpaImpl` | `UserRepositoryJpaImpl` |
 
-## 4. Implementation Order
+## 4. Data Ownership Patterns (ASK IF UNCLEAR)
+
+| Scenario | Pattern | Example |
+|----------|---------|---------|
+| **Self-managed** | JPA Entity + RepositoryJpa/Dsl | `CatalogTableEntity` |
+| **External API** | External Client + Domain Models | `BigQueryClient` |
+
+⚠️ Feature Spec이 두 패턴 모두 언급하면 **반드시 사용자에게 확인!**
+
+## 5. Implementation Order
 
 1. Domain Entity (`module-core-domain/model/`)
 2. Domain Repository Interfaces (`module-core-domain/repository/`)
@@ -61,12 +70,15 @@ class PipelineService(
 4. Domain Service (`module-core-domain/service/`)
 5. API Controller (`module-server-api/controller/`)
 
-## 5. Anti-Patterns
+## 5. Anti-Patterns (CRITICAL)
 
+- ❌ **Repository without Jpa/Dsl suffix** - `UserRepository` 금지, `UserRepositoryJpa` 사용!
+- ❌ **Impl without Jpa/Dsl suffix** - `UserRepositoryImpl` 금지, `UserRepositoryJpaImpl` 사용!
 - ❌ Service interfaces (use concrete classes)
 - ❌ Exposing entities from API (use DTOs)
 - ❌ Field injection (use constructor)
 - ❌ Missing `@Repository("beanName")`
+- ❌ Separate SpringData interface (`*RepositoryJpaSpringData` 금지)
 
 ## 6. Essential Commands
 

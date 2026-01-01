@@ -6,13 +6,9 @@ skills:
   - mcp-efficiency     # Read Serena memory before file reads
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
-  - performance        # N+1 detection, query optimization
   - completion-gate             # 완료 선언 Gate + 코드 존재 검증
   - implementation-checklist    # FEATURE → 체크리스트 자동 생성
-  - gap-analysis                # FEATURE vs RELEASE 체계적 비교
-  - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
   - dependency-coordination     # 크로스 Agent 의존성 추적
-  - docs-synchronize            # 문서 동기화 검증
   - integration-finder          # 기존 모듈 연동점 탐색
 ---
 
@@ -36,6 +32,47 @@ context7.get-library-docs("/spring/spring-boot", "transaction")
 
 ---
 
+## 🚨 Pre-Implementation Validation (MUST DO BEFORE CODING)
+
+### Step 1: Data Ownership (ASK if unclear)
+
+| Scenario | Pattern | Example |
+|----------|---------|---------|
+| **Self-managed** (stored in our DB) | JPA Entity + RepositoryJpa/Dsl | `CatalogTableEntity` |
+| **External** (BigQuery/Trino/API) | External Client + domain models | `BigQueryClient` |
+
+> ⚠️ **If feature spec mentions BOTH patterns, ASK user which approach to use!**
+
+### Step 2: Repository Naming Validation
+
+Before creating ANY repository, verify name ends with:
+- `RepositoryJpa` (CRUD operations)
+- `RepositoryDsl` (Complex queries)
+
+```bash
+# Anti-pattern detection (should return EMPTY)
+grep -r "interface.*Repository[^JD]" module-core-domain/src/ --include="*.kt"
+```
+
+### Step 3: Existing Pattern Check
+
+```bash
+# Check existing entities and repos before creating new ones
+grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head -5
+```
+
+### Pre-Implementation Checklist
+
+```
+[ ] 1. Read server_patterns memory
+[ ] 2. Check feature spec header for Data Source type
+[ ] 3. Search existing code: grep -r "Entity" module-core-domain/
+[ ] 4. Verify repository naming ends with Jpa/Dsl
+[ ] 5. ASK user if spec mentions both JPA and external integration
+```
+
+---
+
 ## When to Use Skills
 
 - **code-search**: Explore existing patterns before implementation
@@ -54,87 +91,11 @@ context7.get-library-docs("/spring/spring-boot", "transaction")
 
 ---
 
-## Module Structure
+## Implementation Patterns (CRITICAL)
 
-```
-project-basecamp-server/
-├── module-core-common/     # Shared utilities, exceptions, constants
-├── module-core-domain/     # Business domain (Ports) - NO infra dependencies
-│   ├── model/              # JPA Entities (*Entity suffix)
-│   ├── repository/         # Domain interfaces (Ports)
-│   ├── service/            # Concrete service classes (no interfaces)
-│   ├── command/            # CQRS write commands
-│   └── query/              # CQRS read queries
-├── module-core-infra/      # Infrastructure (Adapters)
-│   └── repository/         # Repository implementations
-└── module-server-api/      # REST API layer
-    └── controller/         # REST controllers (*Dto for API)
-```
-
-## Pure Hexagonal Architecture
-
-1. **Dependency Inversion**: Domain defines contracts, infrastructure implements
-2. **Pure Ports and Adapters**: No bridge coupling between layers
-3. **Composition over Inheritance**: Infra uses composition to implement domain
-4. **CQRS Support**: Separate interfaces for reads (Dsl) vs writes (Jpa)
-
----
-
-## Repository Pattern (Critical)
-
-### Domain Layer (Ports)
-```kotlin
-// module-core-domain/repository/
-interface UserRepositoryJpa {                    // CRUD operations
-    fun save(user: UserEntity): UserEntity
-    fun findById(id: Long): UserEntity?
-}
-
-interface UserRepositoryDsl {                    // Complex queries (QueryDSL)
-    fun findByFilters(query: UserQuery): List<UserEntity>
-}
-```
-
-### Infrastructure Layer (Adapters)
-```kotlin
-// module-core-infra/repository/
-@Repository("userRepositoryJpa")                 // Bean name matches interface
-class UserRepositoryJpaImpl(
-    private val springData: UserRepositoryJpaSpringData,  // Composition!
-) : UserRepositoryJpa {
-    override fun save(user: UserEntity) = springData.save(user)
-    override fun findById(id: Long) = springData.findById(id).orElse(null)
-}
-
-// Internal Spring Data interface (NOT exposed to domain)
-interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long>
-```
-
----
-
-## Service Layer Rules
-
-Services are **CONCRETE CLASSES** (no interfaces):
-
-```kotlin
-@Service
-@Transactional(readOnly = true)                  // Default read-only
-class PipelineService(
-    private val pipelineRepositoryJpa: PipelineRepositoryJpa,
-    private val pipelineRepositoryDsl: PipelineRepositoryDsl,
-) {
-    @Transactional                               // Override for writes
-    fun create(command: CreatePipelineCommand): PipelineDto {
-        val saved = pipelineRepositoryJpa.save(command.toEntity())
-        return PipelineDto.from(saved)
-    }
-
-    fun findById(query: GetPipelineQuery): PipelineDto? =
-        pipelineRepositoryJpa.findById(query.id)?.let { PipelineDto.from(it) }
-}
-```
-
----
+- Read docs/IMPLEMENTATION_PATTERNS.md
+- Read docs/PATTERNS.md
+- Read docs/TESTINGS.md
 
 ## Implementation Order
 
