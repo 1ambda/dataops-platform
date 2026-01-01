@@ -71,6 +71,10 @@ from dli.api import (
 
 # Exceptions
 from dli.exceptions import (
+    ConfigEnvNotFoundError,
+    ConfigTemplateError,
+    ConfigValidationError,
+    ConfigWriteError,
     ConfigurationError,
     DatasetNotFoundError,
     DLIError,
@@ -106,6 +110,15 @@ from dli.exceptions import (
 # Context and Configuration
 from dli.models.common import ExecutionContext, ExecutionMode
 
+# Config models
+from dli.models.common import ConfigValue
+from dli.models.config import (
+    ConfigSource,
+    ConfigValidationResult,
+    ConfigValueInfo,
+    EnvironmentProfile,
+)
+
 # Run models (public API)
 from dli.models.run import ExecutionPlan, OutputFormat, RunResult
 
@@ -121,7 +134,17 @@ __all__ = [
     "RunAPI",
     "TranspileAPI",
     "WorkflowAPI",
+    # Config Models
+    "ConfigSource",
+    "ConfigValidationResult",
+    "ConfigValue",
+    "ConfigValueInfo",
+    "EnvironmentProfile",
     # Exceptions
+    "ConfigEnvNotFoundError",
+    "ConfigTemplateError",
+    "ConfigValidationError",
+    "ConfigWriteError",
     "ConfigurationError",
     "DLIError",
     "DLIValidationError",

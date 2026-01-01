@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.6.0 | **Python:** 3.12+
+> **Version:** 0.7.0 | **Python:** 3.12+
 
 ## Features
 
@@ -17,6 +17,7 @@
 - **Ad-hoc SQL Execution**: Execute SQL files with result download (CSV/TSV/JSON)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
+- **Environment Management**: Hierarchical config layering (global < project < local < env), `${VAR}` templating, secret masking
 - **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, LineageAPI, QueryAPI, RunAPI for Airflow/orchestrator integration
 
 ## Installation
@@ -54,7 +55,14 @@ dli info
 
 # Configuration
 dli config show              # Show current configuration
+dli config show --show-source  # Show with value origins
 dli config status            # Check server connection status
+dli config validate          # Validate configuration
+dli config validate --strict # Strict validation (warnings as errors)
+dli config env --list        # List available environments
+dli config env staging       # Switch to named environment
+dli config init              # Initialize config files
+dli config set server.url "http://localhost:8081"  # Set config value
 ```
 
 ### Resource Management
@@ -217,12 +225,38 @@ dli transpile "SELECT * FROM users" --validate
 dli transpile "SELECT * FROM users" --dialect bigquery
 ```
 
+### Configuration Hierarchy
+
+DLI uses layered configuration with the following priority (highest to lowest):
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 | CLI options | Command-line flags |
+| 2 | Environment variables | `DLI_*` prefix |
+| 3 | `.dli.local.yaml` | Local overrides (not committed) |
+| 4 | `dli.yaml` | Project configuration |
+| 5 | `~/.dli/config.yaml` | Global user defaults |
+
+**Template Syntax** (in YAML files):
+
+| Syntax | Description |
+|--------|-------------|
+| `${VAR}` | Required variable |
+| `${VAR:-default}` | Variable with default |
+
+**Secret Handling**: Variables prefixed with `DLI_SECRET_*` are masked in output.
+
 ### Environment Variables
 
 ```bash
+export DLI_SERVER_URL="https://basecamp.example.com"
+export DLI_EXECUTION_MODE="local"   # local, server, mock
+export DLI_DIALECT="trino"
+export DLI_TIMEOUT="300"
+export DLI_ENVIRONMENT="dev"        # Named environment
+export DLI_SECRET_API_KEY="sk-..."  # Masked in output
 export DLI_LOG_LEVEL=DEBUG
 export DLI_DEBUG=true
-export DLI_CONFIG_FILE=~/.my-dli-config.json
 ```
 
 ## Spec File Format
@@ -305,7 +339,7 @@ v0.4.0 provides a full-featured Library API for programmatic access from Airflow
 | `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection | Metric CRUD + execution + introspection |
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL transpilation |
 | `CatalogAPI` | list_tables, get, search | Data catalog browsing |
-| `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |
+| `ConfigAPI` | get, get_all, get_with_source, validate, list_environments, get_environment, get_active_environment | Hierarchical config with source tracking |
 | `QualityAPI` | list_qualities, get, run, validate | Quality spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 | `RunAPI` | run, dry_run, render_sql | Ad-hoc SQL execution with result download |
@@ -349,21 +383,20 @@ api = DatasetAPI(context=ctx, executor=mock_executor)
 
 ### ExecutionContext
 
-`ExecutionContext` auto-loads environment variables with `DLI_` prefix:
-
-```bash
-export DLI_SERVER_URL="https://basecamp.example.com"
-export DLI_PROJECT_PATH="/path/to/models"
-export DLI_EXECUTION_MODE="local"   # local, server, or mock
-export DLI_TIMEOUT="300"
-export DLI_DIALECT="trino"
-```
+`ExecutionContext` supports two initialization patterns:
 
 ```python
 from dli import DatasetAPI, ExecutionContext
 
-# Auto-loads DLI_* environment variables
+# Pattern 1: Auto-loads from environment (DLI_* vars)
 ctx = ExecutionContext()
+api = DatasetAPI(context=ctx)
+
+# Pattern 2: From layered config files (v0.7.0)
+ctx = ExecutionContext.from_environment(
+    project_path=Path("/opt/airflow/dags/models"),
+    environment="prod",  # Named environment from dli.yaml
+)
 api = DatasetAPI(context=ctx)
 ```
 

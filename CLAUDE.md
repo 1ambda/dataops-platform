@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Ad-hoc SQL execution**, **Library API v0.6.0** with RunAPI)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Ad-hoc SQL execution**, **Library API v0.7.0** with ENV hierarchical config)
 
 ---
 
@@ -226,12 +226,12 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.6.0)
+### CLI Commands (v0.7.0)
 
 | Command | Description |
 |---------|-------------|
 | `dli version/info` | CLI version and environment |
-| `dli config` | Settings management (show, status) |
+| `dli config` | Settings management (show, show --show-source, env, init, set) |
 | `dli metric` | Metric CRUD (list, get, run, validate, register) |
 | `dli dataset` | Dataset CRUD (list, get, run, validate, register) |
 | `dli workflow` | Server-based Airflow execution (run, backfill, stop, status, list, history, pause, unpause, register, unregister) |
@@ -242,7 +242,7 @@ class UserRepositoryJpaImpl(
 | `dli query` | Query execution metadata (list, show, cancel) |
 | `dli run` | Ad-hoc SQL file execution with result download |
 
-### Library API (v0.6.0)
+### Library API (v0.7.0)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
@@ -252,7 +252,7 @@ class UserRepositoryJpaImpl(
 | `MetricAPI` | list_metrics, get, run, validate, register, render_sql, get_tables, get_columns, test_connection | Metric CRUD + 실행 + 스키마 조회 |
 | `TranspileAPI` | transpile, validate_sql, get_rules, format_sql | SQL 변환 |
 | `CatalogAPI` | list_tables, get, search | 카탈로그 브라우징 |
-| `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
+| `ConfigAPI` | get, get_all, get_with_source, validate, get_environment, list_environments, get_current_environment, get_server_status | 설정 조회 + ENV 관리 |
 | `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 | `QueryAPI` | list_queries, get, cancel | Query execution metadata access |
@@ -269,6 +269,9 @@ class UserRepositoryJpaImpl(
 ```python
 from dli import DatasetAPI, ExecutionContext, ExecutionMode
 
+# 환경변수 기반 자동 설정 (v0.7.0)
+ctx = ExecutionContext.from_environment()  # DLI_* 환경변수 자동 로드
+
 # 로컬 실행
 ctx = ExecutionContext(
     execution_mode=ExecutionMode.LOCAL,
@@ -282,6 +285,11 @@ from dli.core.executor import MockExecutor
 mock_executor = MockExecutor(mock_data=[{"id": 1}])
 api = DatasetAPI(context=ctx, executor=mock_executor)
 ```
+
+**Hierarchical Config (v0.7.0):**
+- Priority: `~/.dli/config.yaml` < `dli.yaml` < `.dli.local.yaml` < ENV vars (`DLI_*`) < CLI args
+- Template syntax: `${VAR}`, `${VAR:-default}`, `${VAR:?error}`
+- Secret masking: `DLI_SECRET_*` prefix auto-masked in output
 
 **Exception Hierarchy:** `DLIError` (base) with error codes (DLI-001 ~ DLI-8xx)
 

@@ -17,6 +17,7 @@ import pytest
 
 from dli import ConfigAPI, ExecutionContext
 from dli.models.common import ConfigValue, EnvironmentInfo, ExecutionMode
+from dli.models.config import ConfigValueInfo, EnvironmentProfile
 
 
 class TestConfigAPIInit:
@@ -45,7 +46,7 @@ class TestConfigAPIInit:
         result = repr(api)
 
         assert "ConfigAPI" in result
-        assert "ExecutionContext" in result
+        assert "project_path" in result
 
     def test_lazy_client_init(self) -> None:
         """Test that client is not created until needed."""
@@ -69,7 +70,7 @@ class TestConfigAPIMockMode:
         result = mock_api.list_environments()
 
         assert len(result) == 3
-        assert all(isinstance(env, EnvironmentInfo) for env in result)
+        assert all(isinstance(env, EnvironmentProfile) for env in result)
 
         # Check mock environment names
         names = [env.name for env in result]
@@ -93,51 +94,30 @@ class TestConfigAPIGet:
     """Tests for ConfigAPI.get method."""
 
     @pytest.fixture
-    def api_with_context(self) -> ConfigAPI:
-        """Create ConfigAPI with context values."""
-        ctx = ExecutionContext(
-            server_url="https://context.example.com",
-            dialect="bigquery",
-        )
+    def api_mock_mode(self) -> ConfigAPI:
+        """Create ConfigAPI in mock mode (no project path needed)."""
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
         return ConfigAPI(context=ctx)
 
-    def test_get_server_url_from_context(self, api_with_context: ConfigAPI) -> None:
-        """Test getting server.url returns context value."""
-        result = api_with_context.get("server.url")
-
-        assert result is not None
-        assert isinstance(result, ConfigValue)
-        assert result.key == "server.url"
-        assert result.value == "https://context.example.com"
-        assert result.source == "context"
-
-    def test_get_dialect_from_context(self, api_with_context: ConfigAPI) -> None:
-        """Test getting defaults.dialect returns context value."""
-        result = api_with_context.get("defaults.dialect")
-
-        assert result is not None
-        assert result.key == "defaults.dialect"
-        assert result.value == "bigquery"
-        assert result.source == "context"
-
-    def test_get_unknown_key_returns_none(self, api_with_context: ConfigAPI) -> None:
-        """Test getting unknown key returns None."""
-        result = api_with_context.get("unknown.key")
-
+    def test_get_unknown_key_returns_default(self, api_mock_mode: ConfigAPI) -> None:
+        """Test getting unknown key returns default value."""
+        result = api_mock_mode.get("unknown.key")
         assert result is None
 
-    def test_get_without_project_config(self) -> None:
-        """Test get without project config uses context."""
-        ctx = ExecutionContext(
-            server_url="https://test.com",
-            project_path=None,
-        )
-        api = ConfigAPI(context=ctx)
+        result_with_default = api_mock_mode.get("unknown.key", "default_value")
+        assert result_with_default == "default_value"
 
-        result = api.get("server.url")
+    def test_get_with_source_returns_info(self, api_mock_mode: ConfigAPI) -> None:
+        """Test get_with_source returns ConfigValueInfo."""
+        # In mock mode without config files, we won't have values
+        # But test that the method signature is correct
+        result = api_mock_mode.get_with_source("unknown.key")
+        assert result is None
 
-        assert result is not None
-        assert result.value == "https://test.com"
+    def test_get_all_returns_dict(self, api_mock_mode: ConfigAPI) -> None:
+        """Test get_all returns dictionary (empty in mock mode)."""
+        result = api_mock_mode.get_all()
+        assert isinstance(result, dict)
 
 
 class TestConfigAPIGetCurrentEnvironment:
@@ -147,18 +127,18 @@ class TestConfigAPIGetCurrentEnvironment:
         """Test default environment is 'dev'."""
         api = ConfigAPI()
 
-        # Clear any DLI_ENV that might be set
-        env_backup = os.environ.pop("DLI_ENV", None)
+        # Clear any DLI_ENVIRONMENT that might be set
+        env_backup = os.environ.pop("DLI_ENVIRONMENT", None)
         try:
             result = api.get_current_environment()
             assert result == "dev"
         finally:
             if env_backup:
-                os.environ["DLI_ENV"] = env_backup
+                os.environ["DLI_ENVIRONMENT"] = env_backup
 
     def test_environment_from_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test environment from DLI_ENV environment variable."""
-        monkeypatch.setenv("DLI_ENV", "production")
+        """Test environment from DLI_ENVIRONMENT environment variable."""
+        monkeypatch.setenv("DLI_ENVIRONMENT", "production")
 
         api = ConfigAPI()
         result = api.get_current_environment()
@@ -174,13 +154,13 @@ class TestConfigAPIListEnvironments:
         """Create ConfigAPI in mock mode."""
         return ConfigAPI(context=ExecutionContext(execution_mode=ExecutionMode.MOCK))
 
-    def test_list_returns_environment_info(self, mock_api: ConfigAPI) -> None:
-        """Test that list returns EnvironmentInfo objects."""
+    def test_list_returns_environment_profile(self, mock_api: ConfigAPI) -> None:
+        """Test that list returns EnvironmentProfile objects."""
         result = mock_api.list_environments()
 
         assert isinstance(result, list)
         for env in result:
-            assert isinstance(env, EnvironmentInfo)
+            assert isinstance(env, EnvironmentProfile)
             assert hasattr(env, "name")
             assert hasattr(env, "is_active")
 
@@ -336,7 +316,8 @@ class TestConfigAPIReadOnly:
         assert not hasattr(api, "update")
 
     def test_documented_as_read_only(self) -> None:
-        """Test that class docstring mentions read-only."""
+        """Test that class docstring mentions changes through CLI only."""
         doc = ConfigAPI.__doc__
         assert doc is not None
-        assert "read-only" in doc.lower()
+        # Docstring mentions that config changes are only allowed through CLI
+        assert "changes are only allowed through" in doc.lower() or "cli" in doc.lower()

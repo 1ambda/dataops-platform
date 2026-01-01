@@ -41,6 +41,10 @@ class ErrorCode(str, Enum):
     CONFIG_INVALID = "DLI-001"
     CONFIG_NOT_FOUND = "DLI-002"
     PROJECT_NOT_FOUND = "DLI-003"
+    CONFIG_ENV_NOT_FOUND = "DLI-004"
+    CONFIG_TEMPLATE_ERROR = "DLI-005"
+    CONFIG_VALIDATION_FAILED = "DLI-006"
+    CONFIG_WRITE_ERROR = "DLI-007"
 
     # Not Found Errors (DLI-1xx)
     DATASET_NOT_FOUND = "DLI-101"
@@ -178,6 +182,98 @@ class ConfigurationError(DLIError):
         """Return formatted error message."""
         if self.config_path:
             return f"[{self.code.value}] {self.message} (path: {self.config_path})"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class ConfigEnvNotFoundError(DLIError):
+    """Named environment not found error.
+
+    Raised when a named environment cannot be found in configuration.
+
+    Attributes:
+        env_name: The environment name that was not found.
+        available: List of available environment names.
+    """
+
+    code: ErrorCode = ErrorCode.CONFIG_ENV_NOT_FOUND
+    env_name: str = ""
+    available: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.available:
+            available_str = ", ".join(self.available)
+            return f"[{self.code.value}] Environment '{self.env_name}' not found. Available: {available_str}"
+        return f"[{self.code.value}] Environment '{self.env_name}' not found"
+
+
+@dataclass
+class ConfigTemplateError(DLIError):
+    """Template resolution error.
+
+    Raised when a template variable cannot be resolved.
+
+    Attributes:
+        template: The template string that failed.
+        var_name: The variable name that was missing.
+    """
+
+    code: ErrorCode = ErrorCode.CONFIG_TEMPLATE_ERROR
+    template: str = ""
+    var_name: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.var_name:
+            return f"[{self.code.value}] Missing environment variable: {self.var_name}"
+        if self.template:
+            return f"[{self.code.value}] Template resolution failed: {self.template}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class ConfigValidationError(DLIError):
+    """Configuration validation error.
+
+    Raised when configuration validation fails.
+
+    Attributes:
+        errors: List of validation error messages.
+        warnings: List of validation warning messages.
+    """
+
+    code: ErrorCode = ErrorCode.CONFIG_VALIDATION_FAILED
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        """Return formatted error message with error count."""
+        error_count = len(self.errors)
+        warning_count = len(self.warnings)
+        base = f"[{self.code.value}] {self.message}"
+        if error_count or warning_count:
+            base += f" ({error_count} errors, {warning_count} warnings)"
+        return base
+
+
+@dataclass
+class ConfigWriteError(DLIError):
+    """Configuration write error.
+
+    Raised when writing configuration fails.
+
+    Attributes:
+        config_path: Path to the configuration file.
+    """
+
+    code: ErrorCode = ErrorCode.CONFIG_WRITE_ERROR
+    config_path: Path | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.config_path:
+            return f"[{self.code.value}] Failed to write config: {self.config_path}"
         return f"[{self.code.value}] {self.message}"
 
 
@@ -1034,6 +1130,11 @@ __all__ = [
     "CatalogError",
     "CatalogSchemaError",
     "CatalogTableNotFoundError",
+    # Config Errors
+    "ConfigEnvNotFoundError",
+    "ConfigTemplateError",
+    "ConfigValidationError",
+    "ConfigWriteError",
     "ConfigurationError",
     "DLIError",
     "DLIValidationError",

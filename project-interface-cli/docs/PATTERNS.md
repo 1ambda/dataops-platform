@@ -1,7 +1,7 @@
 # DLI CLI Development Patterns
 
 > **Purpose:** Accelerate new feature development by providing reference patterns for common tasks.
-> **Last Updated:** 2026-01-01
+> **Version:** 0.7.0 | **Last Updated:** 2026-01-01
 
 ---
 
@@ -10,7 +10,7 @@
 ```
 dli
 ├── version / info              # Basic info commands
-├── config (show, status)       # Configuration management
+├── config (show, status, validate, env, init, set)  # Configuration management
 ├── metric (list, get, run, validate, register)
 ├── dataset (list, get, run, validate, register)
 ├── workflow (register, unregister, run, backfill, stop, status, list, history, pause, unpause)
@@ -1202,9 +1202,54 @@ def configured_api(tmp_path: Path) -> FeatureAPI:
 
 ---
 
+## 11. Environment Management Pattern (v0.7.0)
+
+### ConfigLoader Usage
+
+```python
+from dli.core.config_loader import ConfigLoader
+
+loader = ConfigLoader(project_path=Path("."))
+config, sources = loader.load()  # Returns (merged_config, source_map)
+```
+
+### ExecutionContext.from_environment()
+
+```python
+from dli import ExecutionContext
+from pathlib import Path
+
+# Load from layered config with named environment
+ctx = ExecutionContext.from_environment(
+    project_path=Path("/opt/airflow/dags/models"),
+    environment="prod",  # From dli.yaml environments section
+)
+```
+
+### Template Syntax Reference
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `${VAR}` | Required (fails if missing) | `${DLI_API_KEY}` |
+| `${VAR:-default}` | With fallback | `${DLI_TIMEOUT:-300}` |
+
+### Config File Hierarchy
+
+```
+~/.dli/config.yaml      # Global defaults (Priority 4)
+dli.yaml                 # Project config (Priority 3)
+.dli.local.yaml          # Local overrides (Priority 2, gitignored)
+DLI_* env vars           # Environment (Priority 1)
+```
+
+**Details:** See [features/ENV_FEATURE.md](../features/ENV_FEATURE.md)
+
+---
+
 ## Related Documents
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [README.md](../README.md) - CLI documentation
 - [features/](../features/) - Feature specifications
 - [features/MODEL_FEATURE.md](../features/MODEL_FEATURE.md) - MODEL abstraction spec
+- [features/ENV_FEATURE.md](../features/ENV_FEATURE.md) - Environment Management spec

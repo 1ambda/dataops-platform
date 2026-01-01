@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-01
-> **Version:** 0.5.0
+> **Version:** 0.7.0
 
 ---
 
@@ -9,14 +9,15 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.6.0 | RunAPI 추가 |
-| CLI Commands | ✅ v0.6.0 | `dli run` 추가 |
+| Library API | ✅ v0.7.0 | ConfigAPI extensions (get_all, validate, get_environment) |
+| CLI Commands | ✅ v0.7.0 | `dli config` extended (show --show-source, validate, env, init, set) |
+| Environment | ✅ v1.0.0 | ConfigLoader, template resolution, layer priority |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
 | Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2000 passed | pyright 0 errors |
+| Tests | ✅ ~2300 passed | pyright 0 errors |
 
 ---
 
@@ -34,7 +35,7 @@
 | ServerExecutor | `core/executor.py` | ⏳ Stub | Phase 2에서 완전 구현 |
 | BigQueryExecutor | `adapters/bigquery.py` | ✅ Complete | 실제 BigQuery 연동 |
 
-### Library API (v0.4.3)
+### Library API (v0.7.0)
 
 | API Class | File | Status | DI Support |
 |-----------|------|--------|------------|
@@ -42,19 +43,19 @@
 | MetricAPI | `api/metric.py` | ✅ Complete | ✅ executor 파라미터 |
 | TranspileAPI | `api/transpile.py` | ✅ Complete | - |
 | CatalogAPI | `api/catalog.py` | ✅ Complete | - |
-| ConfigAPI | `api/config.py` | ✅ Complete | - |
+| ConfigAPI | `api/config.py` | ✅ Extended | get_all, get_with_source, validate, list_environments, get_environment |
 | QualityAPI | `api/quality.py` | ✅ Complete | - |
 | WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
 | LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
 | QueryAPI | `api/query.py` | ✅ Complete | ✅ client 파라미터 |
 | RunAPI | `api/run.py` | ✅ Complete | ✅ executor 파라미터 |
 
-### CLI Commands (v0.3.0)
+### CLI Commands (v0.7.0)
 
 | Command | File | Status |
 |---------|------|--------|
 | dli version/info | `commands/version.py`, `info.py` | ✅ Complete |
-| dli config | `commands/config.py` | ✅ Complete |
+| dli config | `commands/config.py` | ✅ Extended (show --show-source, validate, env, init, set) |
 | dli metric | `commands/metric.py` | ✅ Complete |
 | dli dataset | `commands/dataset.py` | ✅ Complete |
 | dli workflow | `commands/workflow.py` | ✅ Complete |
@@ -71,7 +72,7 @@
 
 | Code Range | Category | Latest Code | Status |
 |------------|----------|-------------|--------|
-| DLI-0xx | Configuration | DLI-003 | ✅ Complete |
+| DLI-0xx | Configuration | DLI-007 | ✅ Extended (001-007) |
 | DLI-1xx | Not Found | DLI-104 | ✅ Complete |
 | DLI-2xx | Validation | DLI-204 | ✅ Complete |
 | DLI-3xx | Transpile | DLI-303 | ✅ Complete |
@@ -83,16 +84,28 @@
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 | DLI-41x | Run | DLI-416 | ✅ Complete (410-416) |
 
+### Configuration Error Codes (DLI-00x Extended)
+
+| Code | Name | Description |
+|------|------|-------------|
+| DLI-001 | CONFIG_NOT_FOUND | Configuration file not found |
+| DLI-002 | CONFIG_INVALID | Invalid configuration syntax |
+| DLI-003 | CONFIG_MISSING_REQUIRED | Required configuration missing |
+| DLI-004 | CONFIG_ENV_NOT_FOUND | Named environment not found |
+| DLI-005 | CONFIG_TEMPLATE_ERROR | Template resolution failed |
+| DLI-006 | CONFIG_VALIDATION_FAILED | Configuration validation failed |
+| DLI-007 | CONFIG_WRITE_FAILED | Failed to write configuration |
+
 ---
 
 ## Test Coverage
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | 427 (+54 QueryAPI) | ✅ All pass |
-| CLI Tests | ~878 (+50 Query) | ✅ All pass |
-| Core Tests | ~566 (+66 Query models) | ✅ All pass |
-| **Total** | **~2000** | ✅ All pass |
+| API Tests | ~507 (+80 ConfigAPI ext) | ✅ All pass |
+| CLI Tests | ~948 (+70 Config ext) | ✅ All pass |
+| Core Tests | ~716 (+100 ConfigLoader, +50 Config models) | ✅ All pass |
+| **Total** | **~2300** | ✅ All pass |
 
 ---
 
@@ -116,6 +129,8 @@
 | QUERY_RELEASE.md | ✅ Created | `project-interface-cli/features/QUERY_RELEASE.md` |
 | RUN_FEATURE.md | ✅ Updated | `project-interface-cli/features/RUN_FEATURE.md` |
 | RUN_RELEASE.md | ✅ Created | `project-interface-cli/features/RUN_RELEASE.md` |
+| ENV_FEATURE.md | ✅ Updated | `project-interface-cli/features/ENV_FEATURE.md` |
+| ENV_RELEASE.md | ✅ Created | `project-interface-cli/features/ENV_RELEASE.md` |
 
 ---
 
@@ -129,6 +144,39 @@
 ---
 
 ## Changelog
+
+### v0.7.0 (2026-01-01)
+- **Environment Feature 구현 완료**
+  - ConfigLoader: 계층적 설정 로딩 (global < project < local < env < cli)
+  - 템플릿 해석: `${VAR}`, `${VAR:-default}`, `${VAR:?error}` 문법 지원
+  - Secret 탐지: `DLI_SECRET_*` 접두사 및 키 이름 패턴 자동 마스킹
+  - Source 추적: 모든 설정 값의 출처 표시
+- **ConfigAPI 확장** (`api/config.py`)
+  - get_all(), get_with_source(), validate(), list_environments(), get_environment()
+  - get_active_environment(), get_all_with_sources()
+- **ExecutionContext.from_environment() 팩토리 메서드**
+  - 설정 파일 기반 컨텍스트 생성
+  - 관대한 동작 (missing config에 예외 발생 안함)
+  - 환경별 오버라이드 지원
+- **CLI 커맨드 확장**
+  - `dli config show --show-source`: 값 출처 표시
+  - `dli config validate --strict`: 엄격 검증 모드
+  - `dli config env`: 환경 목록/전환
+  - `dli config init`: 설정 파일 초기화
+  - `dli config set`: 설정 값 저장
+- **DLI-00x 에러 코드 확장**
+  - DLI-004: CONFIG_ENV_NOT_FOUND
+  - DLI-005: CONFIG_TEMPLATE_ERROR
+  - DLI-006: CONFIG_VALIDATION_FAILED
+  - DLI-007: CONFIG_WRITE_FAILED
+- **Config 모델 추가**
+  - models/config.py: ConfigSource, ConfigValueInfo, ConfigValidationResult, EnvironmentProfile
+  - core/config_loader.py: ConfigLoader 클래스
+- **~300개 신규 테스트 추가**
+  - tests/core/test_config_loader.py (~100 tests)
+  - tests/models/test_config.py (~50 tests)
+  - tests/api/test_config_api_ext.py (~80 tests)
+  - tests/cli/test_config_cmd_ext.py (~70 tests)
 
 ### v0.6.0 (2026-01-01)
 - **Run Command 구현 완료**

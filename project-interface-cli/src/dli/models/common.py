@@ -178,6 +178,135 @@ class ExecutionContext(BaseSettings):
             data.pop("mock_mode", None)
         return data
 
+    @classmethod
+    def from_environment(
+        cls,
+        project_path: Path | None = None,
+        *,
+        environment: str | None = None,
+        overrides: dict[str, Any] | None = None,
+    ) -> "ExecutionContext":
+        """Create context from environment configuration.
+
+        Loads configuration from the layered config system and creates
+        an ExecutionContext with proper defaults. Uses ConfigAPI internally.
+
+        Args:
+            project_path: Project directory (defaults to cwd).
+            environment: Named environment to use (e.g., "dev", "prod").
+            overrides: Additional overrides (highest priority).
+
+        Returns:
+            Configured ExecutionContext.
+
+        Example:
+            >>> # From current environment
+            >>> ctx = ExecutionContext.from_environment()
+
+            >>> # From specific environment
+            >>> ctx = ExecutionContext.from_environment(environment="prod")
+
+            >>> # With overrides
+            >>> ctx = ExecutionContext.from_environment(
+            ...     overrides={"timeout": 600}
+            ... )
+        """
+        import os
+
+        from dli.api.config import ConfigAPI
+        from dli.exceptions import ConfigEnvNotFoundError
+
+        actual_path = project_path or Path.cwd()
+        api = ConfigAPI(project_path=actual_path)
+
+        try:
+            config = api.get_all()
+        except Exception:
+            # If config loading fails, use defaults
+            config = {}
+
+        # Get environment-specific config if requested
+        env_config: dict[str, Any] = {}
+        target_env = environment or api.get_active_environment()
+        if target_env:
+            try:
+                env_config = api.get_environment(target_env)
+            except ConfigEnvNotFoundError:
+                # Only raise if explicitly specified (not from active_environment)
+                if environment:
+                    raise
+                # Otherwise silently use empty config
+            except Exception:
+                # Other errors: use empty config
+                pass
+
+        # Build configuration with priority:
+        # overrides > env_vars > env_config > config > defaults
+        overrides = overrides or {}
+
+        # Server URL (check env var DLI_SERVER_URL)
+        server_url = (
+            overrides.get("server_url")
+            or os.environ.get("DLI_SERVER_URL")
+            or env_config.get("server_url")
+            or config.get("server", {}).get("url")
+        )
+
+        # API token
+        api_token = (
+            overrides.get("api_token")
+            or os.environ.get("DLI_API_TOKEN")
+            or env_config.get("api_key")
+            or config.get("server", {}).get("api_key")
+        )
+
+        # Dialect (check env var DLI_DIALECT)
+        dialect = (
+            overrides.get("dialect")
+            or os.environ.get("DLI_DIALECT")
+            or env_config.get("dialect")
+            or config.get("defaults", {}).get("dialect", "trino")
+        )
+
+        # Timeout (check env var DLI_TIMEOUT)
+        timeout_str = os.environ.get("DLI_TIMEOUT")
+        timeout = (
+            overrides.get("timeout")
+            or (int(timeout_str) if timeout_str else None)
+            or env_config.get("timeout_seconds")
+            or config.get("defaults", {}).get("timeout_seconds", 300)
+        )
+
+        # Execution mode
+        execution_mode_str = (
+            overrides.get("execution_mode")
+            or env_config.get("execution_mode")
+            or os.environ.get("DLI_EXECUTION_MODE", "local")
+        )
+        if isinstance(execution_mode_str, str):
+            execution_mode = ExecutionMode(execution_mode_str)
+        else:
+            execution_mode = execution_mode_str
+
+        # Parameters
+        params = overrides.get("parameters", {})
+
+        # Additional flags
+        dry_run = overrides.get("dry_run", False)
+        verbose = overrides.get("verbose", False)
+
+        return cls(
+            project_path=actual_path,
+            server_url=server_url,
+            api_token=api_token,
+            execution_mode=execution_mode,
+            timeout=timeout,
+            dialect=dialect,
+            parameters=params,
+            dry_run=dry_run,
+            verbose=verbose,
+        )
+
     def __repr__(self) -> str:
         """Return concise representation."""
         return (

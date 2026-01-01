@@ -28,6 +28,13 @@ from dli.models.common import (
     TranspileWarning,
     ValidationResult,
 )
+from dli.models.config import (
+    # Config models
+    ConfigSource,
+    ConfigValidationResult,
+    ConfigValueInfo,
+    EnvironmentProfile,
+)
 from dli.models.quality import (
     # Quality models
     DqQualityResult,
@@ -63,14 +70,19 @@ from dli.models.workflow import (
 
 __all__ = [
     "BaseResult",
+    # Config models
+    "ConfigSource",
+    "ConfigValidationResult",
     "ConfigValue",
+    "ConfigValueInfo",
     "DataSource",
     "DatasetResult",
     # Quality models
     "DqQualityResult",
     "DqTestDefinitionSpec",
-    # Config models
+    # Environment models
     "EnvironmentInfo",
+    "EnvironmentProfile",
     # Context
     "ExecutionContext",
     "MetricResult",
