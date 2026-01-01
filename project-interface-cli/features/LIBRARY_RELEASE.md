@@ -8,7 +8,7 @@
 
 ## 1. Release Summary
 
-FEATURE_LIBRARY.md v1.2.0 스펙에 따라 Library Interface를 구현했습니다.
+LIBRARY_FEATURE.md v1.2.0 스펙에 따라 Library Interface를 구현했습니다.
 `dataops-cli` 패키지를 라이브러리 형태로 제공하여 Airflow Python Operator, Basecamp Parser 등
 외부 시스템에서 프로그래매틱하게 호출할 수 있습니다.
 

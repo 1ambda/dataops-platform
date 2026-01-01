@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-FEATURE_CATALOG.md (명세)와 RELEASE_CATALOG.md (구현 결과) 간 GAP 분석을 수행한 결과, **코드 GAP 2건**, **문서 GAP 3건**, **프로세스 GAP 4건**을 발견했습니다.
+CATALOG_FEATURE.md (명세)와 CATALOG_RELEASE.md (구현 결과) 간 GAP 분석을 수행한 결과, **코드 GAP 2건**, **문서 GAP 3건**, **프로세스 GAP 4건**을 발견했습니다.
 
 | 분류 | Critical | High | Medium | Low |
 |------|----------|------|--------|-----|
@@ -71,7 +71,7 @@ class CatalogSchemaError(DLIError):
 
 ## 2. 문서 GAP (Documentation Gaps)
 
-### GAP-D01: RELEASE_CATALOG.md --sample 상태 오류 [Medium]
+### GAP-D01: CATALOG_RELEASE.md --sample 상태 오류 [Medium]
 
 | 항목 | 내용 |
 |------|------|
@@ -82,13 +82,13 @@ class CatalogSchemaError(DLIError):
 
 **해결 방안:**
 ```markdown
-# RELEASE_CATALOG.md Phase 2 테이블 수정
+# CATALOG_RELEASE.md Phase 2 테이블 수정
 | `--sample` option | ✅ | 샘플 데이터 포함 (Mock 모드에서 작동) |
 ```
 
 ---
 
-### GAP-D02: STATUS.md Catalog 내역 누락 [Medium]
+### GAP-D02: _STATUS.md Catalog 내역 누락 [Medium]
 
 | 항목 | 내용 |
 |------|------|
@@ -104,11 +104,11 @@ class CatalogSchemaError(DLIError):
 
 ---
 
-### GAP-D03: STATUS.md Documentation 섹션 누락 [Medium]
+### GAP-D03: _STATUS.md Documentation 섹션 누락 [Medium]
 
 | 항목 | 내용 |
 |------|------|
-| **현재 상태** | FEATURE_CATALOG.md, RELEASE_CATALOG.md 목록에 없음 |
+| **현재 상태** | CATALOG_FEATURE.md, CATALOG_RELEASE.md 목록에 없음 |
 | **영향** | 문서 검색 어려움 |
 | **우선순위** | **P2 (Medium)** |
 
@@ -133,7 +133,7 @@ class CatalogSchemaError(DLIError):
 6. Export 완료
 
 **추가 필요 조건:**
-7. STATUS.md 업데이트
+7. _STATUS.md 업데이트
 8. RELEASE_*.md 작성/업데이트
 9. Serena memory 동기화
 
@@ -212,8 +212,8 @@ class CatalogSchemaError(DLIError):
 
 | 작업 | 파일 | 담당 |
 |------|------|------|
-| --sample 상태 수정 | `features/RELEASE_CATALOG.md` | expert-doc-writer |
-| STATUS.md 업데이트 | `features/STATUS.md` | expert-doc-writer |
+| --sample 상태 수정 | `features/CATALOG_RELEASE.md` | expert-doc-writer |
+| _STATUS.md 업데이트 | `features/_STATUS.md` | expert-doc-writer |
 | Agent 워크플로우 강화 | `.claude/agents/feature-interface-cli.md` | meta-agent |
 
 ---
@@ -231,17 +231,17 @@ grep -n "CATALOG_SCHEMA_TOO_LARGE" src/dli/exceptions.py
 
 ### 문서 GAP 검증
 ```bash
-# STATUS.md Catalog 내역 확인
-grep -A 5 "Catalog" features/STATUS.md
+# _STATUS.md Catalog 내역 확인
+grep -A 5 "Catalog" features/_STATUS.md
 
-# RELEASE_CATALOG.md --sample 상태 확인
-grep "sample" features/RELEASE_CATALOG.md
+# CATALOG_RELEASE.md --sample 상태 확인
+grep "sample" features/CATALOG_RELEASE.md
 ```
 
 ### 프로세스 GAP 검증
 ```bash
 # completion-gate 조건 확인
-grep -n "STATUS.md" .claude/skills/completion-gate/SKILL.md
+grep -n "_STATUS.md" .claude/skills/completion-gate/SKILL.md
 
 # docs-synchronize Skill 존재 확인
 ls .claude/skills/docs-synchronize/
@@ -253,8 +253,8 @@ ls .claude/skills/docs-synchronize/
 
 | 문서 | 역할 |
 |------|------|
-| `features/FEATURE_CATALOG.md` | 기능 명세 (Input) |
-| `features/RELEASE_CATALOG.md` | 구현 결과 (Output) |
-| `features/STATUS.md` | 현황 요약 (Summary) |
+| `features/CATALOG_FEATURE.md` | 기능 명세 (Input) |
+| `features/CATALOG_RELEASE.md` | 구현 결과 (Output) |
+| `features/_STATUS.md` | 현황 요약 (Summary) |
 | `.claude/agents/feature-interface-cli.md` | CLI Agent 정의 |
 | `.claude/skills/completion-gate/SKILL.md` | 완료 Gate 정의 |

@@ -35,7 +35,7 @@ Execute these in parallel (single tool call block):
 # All four in parallel - not sequential
 mcp__plugin_claude-mem_mem-search__search(query="{keyword}")
 mcp__serena__list_memories()
-Glob(pattern="**/features/FEATURE_*.md")
+Glob(pattern="**/features/*_FEATURE.md")
 WebSearch(query="{domain} best practices 2025")
 ```
 
@@ -48,7 +48,7 @@ Based on Step 1 results, read only high-relevance items:
 mcp__serena__read_memory(memory_file_name="relevant_memory")
 
 # Only if glob found matching specs
-Read(file_path="/path/to/relevant/FEATURE_*.md")
+Read(file_path="/path/to/relevant/*_FEATURE.md")
 
 # Only if search returned actionable results
 WebFetch(url="most_relevant_url", prompt="extract specific info")

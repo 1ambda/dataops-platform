@@ -119,7 +119,7 @@ done
 
 | # | 조건 | 검증 방법 | 실패 시 액션 |
 |---|------|-----------|--------------|
-| 9 | **RELEASE_*.md 존재** | `ls features/RELEASE_{feature}.md` | 문서 작성 요청 |
+| 9 | ***_RELEASE.md 존재** | `ls features/{feature}_RELEASE.md` | 문서 작성 요청 |
 | 10 | **STATUS.md 업데이트** | `grep "{feature}" features/STATUS.md` | 업데이트 요청 |
 | 11 | **Serena memory 동기화** | `mcp__serena__read_memory` 확인 | 동기화 요청 |
 
@@ -320,7 +320,7 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 **우회 승인 조건**:
 1. 명확한 사유 기술
 2. 미완료 항목 목록 명시
-3. RELEASE_*.md "Future Work" 섹션에 기록
+3. *_RELEASE.md "Future Work" 섹션에 기록
 4. STATUS.md에 "⏳ Partial" 표시
 
 **우회 승인**: ✅ (사유 합리적)
@@ -351,15 +351,15 @@ Gate 통과 시에만 STATUS.md 업데이트 허용:
 ```bash
 # Phase 1 완료 검증 스크립트
 # 1. FEATURE.md에서 Phase 구분 파싱
-phase1_items=$(grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[" | wc -l)
-phase1_complete=$(grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[x\]" -i | wc -l)
+phase1_items=$(grep -A100 "## Phase 1" features/{feature}_FEATURE.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[" | wc -l)
+phase1_complete=$(grep -A100 "## Phase 1" features/{feature}_FEATURE.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[x\]" -i | wc -l)
 
 # 2. Phase 1 완료율 확인
 if [ "$phase1_items" -gt 0 ] && [ "$phase1_complete" -lt "$phase1_items" ]; then
   echo "PHASE_GATE_FAIL: Phase 1 incomplete ($phase1_complete/$phase1_items)"
   echo "Cannot start Phase 2 until Phase 1 is complete"
   # 미완료 항목 출력
-  grep -A100 "## Phase 1" features/FEATURE_{feature}.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[\s\]"
+  grep -A100 "## Phase 1" features/{feature}_FEATURE.md | grep -B100 "## Phase 2" | grep -P "^\s*-\s*\[\s\]"
 fi
 
 # 3. Phase 2 시작 시도 감지
@@ -385,7 +385,7 @@ fi
 |---|------|------|
 | 17 | Phase 1 모든 기능 구현 | FEATURE의 Phase 1 섹션 항목 100% |
 | 18 | Phase 1 테스트 통과 | Phase 1 범위 테스트 모두 통과 |
-| 19 | Phase 1 문서화 완료 | RELEASE_*.md에 Phase 1 기록 |
+| 19 | Phase 1 문서화 완료 | *_RELEASE.md에 Phase 1 기록 |
 | 20 | STATUS.md Phase 1 표기 | `Phase 1 ✅` 상태 업데이트 |
 
 ### Phase 경계 인식
@@ -429,7 +429,7 @@ FEATURE에 Phase 1/2 구분이 있는 경우, Gate는 **Phase 단위**로 완료
 1. **"Phase 1 MVP Complete"** ✅ (권장)
    - STATUS.md: `Phase 1 ✅, Phase 2 ⏳`
    - Phase 2 백로그 추적 시작
-   - RELEASE_*.md에 "Phase 1 MVP" 명시
+   - *_RELEASE.md에 "Phase 1 MVP" 명시
 
 2. **"Feature Complete"** ❌ (불가)
    - Phase 2 항목 존재로 전체 완료 불가

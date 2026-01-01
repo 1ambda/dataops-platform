@@ -14,7 +14,7 @@ Models:
     TableDetail: Complete table details for detail view
 
 References:
-    - Feature Spec: features/FEATURE_CATALOG.md
+    - Feature Spec: features/CATALOG_FEATURE.md
 """
 
 from __future__ import annotations

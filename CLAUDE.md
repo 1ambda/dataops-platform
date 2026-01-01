@@ -211,14 +211,14 @@ class UserRepositoryJpaImpl(
 | 1 | `mcp__serena__read_memory("cli_patterns")` | 핵심 패턴 요약 |
 | 2 | `mcp__serena__read_memory("cli_test_patterns")` | 테스트 패턴 요약 |
 | 3 | `project-interface-cli/docs/PATTERNS.md` | 상세 패턴 (필요시만) |
-| 4 | `project-interface-cli/features/RELEASE_LIBRARY.md` | Library API 구현 상세 |
-| 5 | `project-interface-cli/features/RELEASE_EXECUTION.md` | ExecutionMode 구현 상세 |
+| 4 | `project-interface-cli/features/LIBRARY_RELEASE.md` | Library API 구현 상세 |
+| 5 | `project-interface-cli/features/EXECUTION_RELEASE.md` | ExecutionMode 구현 상세 |
 
 ### 참조 불필요 (위 문서에 통합됨)
 
 - `dataset.py`, `workflow.py` - 코드 템플릿이 PATTERNS.md에 있음
 - `test_workflow_cmd.py` - 테스트 패턴이 cli_test_patterns에 있음
-- `api/*.py` - Library API 패턴이 RELEASE_LIBRARY.md에 있음
+- `api/*.py` - Library API 패턴이 LIBRARY_RELEASE.md에 있음
 
 ### Pre-Implementation Checklist
 

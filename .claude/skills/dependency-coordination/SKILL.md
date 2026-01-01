@@ -112,8 +112,8 @@ Response:
 
 ### Reference Documentation
 
-- FEATURE_QUALITY.md Section 2.3 (Architecture)
-- FEATURE_QUALITY.md Section 4 (API Design)
+- QUALITY_FEATURE.md Section 2.3 (Architecture)
+- QUALITY_FEATURE.md Section 4 (API Design)
 
 ### Impact if Not Resolved
 

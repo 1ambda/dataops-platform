@@ -96,23 +96,23 @@
 | README.md | ✅ Updated | `project-interface-cli/README.md` |
 | CONTRIBUTION.md | ✅ Created | `project-interface-cli/CONTRIBUTION.md` |
 | PATTERNS.md | ✅ Updated | `project-interface-cli/docs/PATTERNS.md` |
-| RELEASE_EXECUTION.md | ✅ Created | `project-interface-cli/features/RELEASE_EXECUTION.md` |
-| RELEASE_QUALITY.md | ✅ Created | `project-interface-cli/features/RELEASE_QUALITY.md` |
-| RELEASE_WORKFLOW.md | ✅ Updated | `project-interface-cli/features/RELEASE_WORKFLOW.md` |
-| FEATURE_CATALOG.md | ✅ Created | `project-interface-cli/features/FEATURE_CATALOG.md` |
-| RELEASE_CATALOG.md | ✅ Created | `project-interface-cli/features/RELEASE_CATALOG.md` |
-| GAP_CATALOG.md | ✅ Created | `project-interface-cli/features/GAP_CATALOG.md` |
-| FEATURE_LINEAGE.md | ✅ Created | `project-interface-cli/features/FEATURE_LINEAGE.md` |
-| RELEASE_LINEAGE.md | ✅ Created | `project-interface-cli/features/RELEASE_LINEAGE.md` |
-| GAP_LINEAGE.md | ✅ Created | `project-interface-cli/features/GAP_LINEAGE.md` |
+| EXECUTION_RELEASE.md | ✅ Created | `project-interface-cli/features/EXECUTION_RELEASE.md` |
+| QUALITY_RELEASE.md | ✅ Created | `project-interface-cli/features/QUALITY_RELEASE.md` |
+| WORKFLOW_RELEASE.md | ✅ Updated | `project-interface-cli/features/WORKFLOW_RELEASE.md` |
+| CATALOG_FEATURE.md | ✅ Created | `project-interface-cli/features/CATALOG_FEATURE.md` |
+| CATALOG_RELEASE.md | ✅ Created | `project-interface-cli/features/CATALOG_RELEASE.md` |
+| CATALOG_GAP.md | ✅ Created | `project-interface-cli/features/CATALOG_GAP.md` |
+| LINEAGE_FEATURE.md | ✅ Created | `project-interface-cli/features/LINEAGE_FEATURE.md` |
+| LINEAGE_RELEASE.md | ✅ Created | `project-interface-cli/features/LINEAGE_RELEASE.md` |
+| LINEAGE_GAP.md | ✅ Created | `project-interface-cli/features/LINEAGE_GAP.md` |
 
 ---
 
 ## Related Documents
 
-- [REFACTOR_EXECUTION.md](./REFACTOR_EXECUTION.md) - Execution Model 스펙
-- [RELEASE_EXECUTION.md](./RELEASE_EXECUTION.md) - 구현 상세
-- [RELEASE_LIBRARY.md](./RELEASE_LIBRARY.md) - Library API 구현 상세
+- [EXECUTION_REFACTOR.md](./EXECUTION_REFACTOR.md) - Execution Model 스펙
+- [EXECUTION_RELEASE.md](./EXECUTION_RELEASE.md) - 구현 상세
+- [LIBRARY_RELEASE.md](./LIBRARY_RELEASE.md) - Library API 구현 상세
 - [../docs/PATTERNS.md](../docs/PATTERNS.md) - 개발 패턴
 
 ---
@@ -142,9 +142,9 @@
 
 ### v0.4.2 (2026-01-01)
 - **Lineage 문서화 완료**
-  - FEATURE_LINEAGE.md: 기능 명세 (~968 lines, Phase 1/2 설계)
-  - RELEASE_LINEAGE.md: 구현 상세 (~399 lines, CLI/Models/Client)
-  - GAP_LINEAGE.md: Gap 분석 (58% 완성도, 9개 Gap 식별)
+  - LINEAGE_FEATURE.md: 기능 명세 (~968 lines, Phase 1/2 설계)
+  - LINEAGE_RELEASE.md: 구현 상세 (~399 lines, CLI/Models/Client)
+  - LINEAGE_GAP.md: Gap 분석 (58% 완성도, 9개 Gap 식별)
 - **Agent/Skill 시스템 개선**
   - `api-parity` 스킬 신규 생성 (CLI-API 패리티 검증)
   - `completion-gate` 스킬 강화 (+3 체크: API Parity, Exception, Phase Gate)
@@ -164,8 +164,8 @@
   - `transpile(sql, context, jinja_context)` 시그니처 확장
   - dbt/SQLMesh 호환 템플릿: `{{ ds }}`, `{{ ref() }}`, `{{ var() }}`
 - 문서 동기화
-  - FEATURE_TRANSPILE.md: Status → "Implemented (P0 Complete)"
-  - GAP_TRANSPILE.md: GAP-T03, GAP-T11 → ✅ Resolved
+  - TRANSPILE_FEATURE.md: Status → "Implemented (P0 Complete)"
+  - TRANSPILE_GAP.md: GAP-T03, GAP-T11 → ✅ Resolved
 
 ### v0.4.0 (2025-12-31)
 - **Catalog 커맨드 v1.2.0 통합**

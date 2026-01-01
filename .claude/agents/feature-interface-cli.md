@@ -48,7 +48,7 @@ Read: project-interface-cli/docs/PATTERNS.md
 □ Read Serena memory (cli_patterns) OR PATTERNS.md
 □ Check client.py for existing enums → 재사용, 중복 생성 금지
 □ Check commands/utils.py for shared helpers → format_datetime 등
-□ Parse FEATURE_*.md → implementation-checklist skill 적용
+□ Parse *_FEATURE.md → implementation-checklist skill 적용
 □ Plan: API → CLI → Tests (FEATURE 섹션 순서대로)
 ```
 
@@ -118,7 +118,7 @@ project-interface-cli/
 │   ├── cli/test_{feature}_cmd.py
 │   └── core/{feature}/test_models.py
 ├── docs/PATTERNS.md         # ⭐ 모든 패턴 통합 문서
-└── features/                # Feature specs (FEATURE_*.md, RELEASE_*.md)
+└── features/                # Feature specs (*_FEATURE.md, *_RELEASE.md)
 ```
 
 ---
@@ -181,7 +181,7 @@ uv run dli {feature} --help
 ```
 □ features/STATUS.md 업데이트
 □ mcp__serena__edit_memory("cli_implementation_status", ...) 호출
-□ RELEASE_*.md 업데이트
+□ *_RELEASE.md 업데이트
 ```
 
 ---

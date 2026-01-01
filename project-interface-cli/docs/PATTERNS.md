@@ -1203,4 +1203,4 @@ def configured_api(tmp_path: Path) -> FeatureAPI:
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [README.md](../README.md) - CLI documentation
 - [features/](../features/) - Feature specifications
-- [features/FEATURE_MODEL.md](../features/FEATURE_MODEL.md) - MODEL abstraction spec
+- [features/MODEL_FEATURE.md](../features/MODEL_FEATURE.md) - MODEL abstraction spec

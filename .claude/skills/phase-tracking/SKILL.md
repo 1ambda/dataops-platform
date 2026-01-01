@@ -13,7 +13,7 @@ Agent가 Phase 1 MVP 완료 후 Phase 2 항목을 방치하는 문제:
 ## 적용 시점
 
 이 skill은 다음 상황에서 적용:
-- FEATURE_*.md에서 Phase 1/2 구분 발견 시
+- *_FEATURE.md에서 Phase 1/2 구분 발견 시
 - "Phase N complete" 선언 시
 - `gap-analysis`에서 Phase 2 항목 발견 시
 - 사용자가 phase 상태 요청 시
@@ -58,7 +58,7 @@ Agent가 Phase 1 MVP 완료 후 Phase 2 항목을 방치하는 문제:
 
 ### Step 1: Phase 파싱
 
-FEATURE_*.md에서 Phase별 항목 추출:
+*_FEATURE.md에서 Phase별 항목 추출:
 
 ```markdown
 ## Phase Structure: FEATURE_QUALITY
@@ -166,7 +166,7 @@ FEATURE_*.md에서 Phase별 항목 추출:
 1. **모든 항목 구현**: Phase N 항목 100% 구현
 2. **테스트 통과**: 관련 테스트 모두 PASS
 3. **BLOCKER 없음**: gap-analysis에서 BLOCKER 0개
-4. **문서화 완료**: RELEASE_*.md 작성
+4. **문서화 완료**: *_RELEASE.md 작성
 
 ### Phase N 부분 완료 (Partial)
 
@@ -362,7 +362,7 @@ Phase 1 MVP 완료가 승인되었습니다.
 ### FEATURE 문서 수신 시
 
 1. **Phase 파싱**
-   - FEATURE_*.md에서 Phase 1/2 항목 추출
+   - *_FEATURE.md에서 Phase 1/2 항목 추출
    - phase-tracking으로 구조 생성
 
 2. **Phase 1 구현**

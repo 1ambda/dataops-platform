@@ -6,7 +6,7 @@ CLI 커맨드와 Library API 간 1:1 대응을 검증하여 API 누락을 방지
 
 LineageAPI GAP (GAP-L01) 발생 원인:
 - `lineage.py` CLI 커맨드는 존재하나 `LineageAPI` 클래스 미구현
-- FEATURE_LIBRARY.md에 명세되었으나 구현되지 않음
+- LIBRARY_FEATURE.md에 명세되었으나 구현되지 않음
 - DatasetAPI, MetricAPI, WorkflowAPI 등 모든 기능에 API가 있으나 Lineage만 누락
 - **API parity를 자동으로 검증하는 프로세스 부재**
 
@@ -149,7 +149,7 @@ grep -E "def [a-z_]+\(" src/dli/api/{feature}.py | grep -v "__"
 - Tests: NOT FOUND
 
 **Root Cause:**
-- FEATURE_LIBRARY.md specified LineageAPI but implementation was missed
+- LIBRARY_FEATURE.md specified LineageAPI but implementation was missed
 - No automated parity check existed
 
 **Required Actions:**

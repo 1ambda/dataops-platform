@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-FEATURE_QUALITY.md와 RELEASE_QUALITY.md 비교 분석 결과, **시스템적 워크플로우 개선이 필요한 4가지 근본 원인**을 식별했습니다.
+QUALITY_FEATURE.md와 QUALITY_RELEASE.md 비교 분석 결과, **시스템적 워크플로우 개선이 필요한 4가지 근본 원인**을 식별했습니다.
 
 | 영역 | 상태 | 발견 이슈 |
 |------|------|----------|
@@ -37,12 +37,12 @@ FEATURE_QUALITY.md와 RELEASE_QUALITY.md 비교 분석 결과, **시스템적 �
 
 ### 1.2 ~~Critical GAP: DLI-605 미구현~~ ✅ RESOLVED
 
-**FEATURE_QUALITY.md**에서 정의:
+**QUALITY_FEATURE.md**에서 정의:
 ```
 | DLI-605 | QualityTestTimeoutError | 테스트 실행 타임아웃 |
 ```
 
-**STATUS.md**:
+**_STATUS.md**:
 ```
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 ```
@@ -69,18 +69,18 @@ SERVER 모드 관련 기능이 "Phase 1 MVP"로 정의되었으나 실제로는 
 
 | 문서 | 이슈 | 심각도 | 상태 |
 |------|------|--------|------|
-| **STATUS.md** | DLI-605 "Complete" 주장 (실제 미구현) | HIGH | ✅ **RESOLVED** (DLI-605 구현됨) |
+| **_STATUS.md** | DLI-605 "Complete" 주장 (실제 미구현) | HIGH | ✅ **RESOLVED** (DLI-605 구현됨) |
 | **FEATURE 5.2** | `singular` 타입 Built-in 테이블에 누락 | HIGH | ✅ **RESOLVED** (테이블 수정됨) |
 | **FEATURE 5.3** | 모델명 `QualityTestDefinition` → 실제 `DqTestDefinitionSpec` | MEDIUM | - |
 | **FEATURE 4.3** | 결과 타입 `QualityResult` → 실제 `DqQualityResult` | MEDIUM | - |
-| **STATUS.md** | FEATURE_QUALITY.md Documentation 섹션에 미등록 | LOW | - |
+| **_STATUS.md** | QUALITY_FEATURE.md Documentation 섹션에 미등록 | LOW | - |
 
 ### 2.2 버전 혼란
 
 | 문서 | 버전 | 의미 |
 |------|------|------|
-| FEATURE_QUALITY.md | 1.0.0 | Spec 버전 |
-| RELEASE_QUALITY.md | 0.3.0 | CLI 버전 |
+| QUALITY_FEATURE.md | 1.0.0 | Spec 버전 |
+| QUALITY_RELEASE.md | 0.3.0 | CLI 버전 |
 
 **문제**: Spec 버전과 CLI 버전이 다른 체계를 사용하여 혼란 유발
 
@@ -96,7 +96,7 @@ SERVER 모드 관련 기능이 "Phase 1 MVP"로 정의되었으나 실제로는 
 
 ### 3.1 Acceptance Criteria 누락
 
-FEATURE_QUALITY.md에 **정식 Acceptance Criteria 섹션이 없음**.
+QUALITY_FEATURE.md에 **정식 Acceptance Criteria 섹션이 없음**.
 
 **권장 추가 내용**:
 
@@ -210,11 +210,11 @@ Phase 2 (Automation)
 
 | Priority | 개선 | 파일 | 노력 |
 |----------|------|------|------|
-| **P0** | STATUS.md 에러 코드 수정 | `STATUS.md` | 5분 |
-| **P0** | FEATURE Built-in 테이블에 `singular` 추가 | `FEATURE_QUALITY.md` | 5분 |
-| **P1** | 모델명 예제 수정 (Dq prefix) | `FEATURE_QUALITY.md` | 15분 |
-| **P1** | expression/row_count Phase 2 명시 | `FEATURE_QUALITY.md` | 5분 |
-| **P2** | FEATURE_QUALITY.md Documentation 등록 | `STATUS.md` | 2분 |
+| **P0** | _STATUS.md 에러 코드 수정 | `_STATUS.md` | 5분 |
+| **P0** | FEATURE Built-in 테이블에 `singular` 추가 | `QUALITY_FEATURE.md` | 5분 |
+| **P1** | 모델명 예제 수정 (Dq prefix) | `QUALITY_FEATURE.md` | 15분 |
+| **P1** | expression/row_count Phase 2 명시 | `QUALITY_FEATURE.md` | 5분 |
+| **P2** | QUALITY_FEATURE.md Documentation 등록 | `_STATUS.md` | 2분 |
 | **P3** | doc-sync skill 생성 | `.claude/skills/` | 1시간 |
 
 ### 5.3 스펙 개선 (expert-spec 제안)
@@ -234,7 +234,7 @@ Phase 2 (Automation)
 
 | # | 작업 | 담당 | 상태 |
 |---|------|------|------|
-| 1 | GAP_QUALITY.md 작성 | meta-agent | ✅ 완료 |
+| 1 | QUALITY_GAP.md 작성 | meta-agent | ✅ 완료 |
 | 2 | `gap-analysis` skill 생성 | meta-agent + expert-doc-writer | ⏳ 진행 중 |
 | 3 | `completion-gate` skill 강화 | meta-agent | ⏳ 진행 중 |
 | 4 | `phase-tracking` skill 생성 | meta-agent | ⏳ 진행 중 |
@@ -245,7 +245,7 @@ Phase 2 (Automation)
 | # | 작업 | 담당 |
 |---|------|------|
 | 1 | DLI-605 구현 또는 공식 제외 | feature-interface-cli |
-| 2 | STATUS.md 에러 코드 수정 | doc-writer |
+| 2 | _STATUS.md 에러 코드 수정 | doc-writer |
 | 3 | FEATURE 모델명 예제 수정 | doc-writer |
 
 ### 6.3 Long-term (Phase 1.5/2)
@@ -288,7 +288,7 @@ Phase 2 (Automation)
 ### A.2 expert-doc-writer 분석
 
 **Critical Issues:**
-- DLI-605 미구현 but STATUS.md에서 "complete" 주장
+- DLI-605 미구현 but _STATUS.md에서 "complete" 주장
 - 버전 넘버 혼란 (Spec 1.0.0 vs Release 0.3.0)
 - Built-in Test Types 테이블 불일치
 - 코드 예제 stale (Dq prefix 미반영)

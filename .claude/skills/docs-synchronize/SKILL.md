@@ -5,7 +5,7 @@
 ## 문제 배경
 
 Agent가 코드 구현은 완료했으나 문서 동기화를 누락하는 문제:
-- RELEASE_*.md 작성 후 STATUS.md 업데이트 누락
+- *_RELEASE.md 작성 후 STATUS.md 업데이트 누락
 - FEATURE vs RELEASE 버전 불일치
 - Serena memory 동기화 누락
 - Changelog 항목 누락
@@ -18,7 +18,7 @@ Agent가 코드 구현은 완료했으나 문서 동기화를 누락하는 문�
 이 skill은 `completion-gate` 통과 후 **자동** 적용:
 - 코드/테스트 검증 완료
 - "완료" 선언 승인 후
-- RELEASE_*.md 작성 시점
+- *_RELEASE.md 작성 시점
 
 ---
 
@@ -29,8 +29,8 @@ Agent가 코드 구현은 완료했으나 문서 동기화를 누락하는 문�
 | 문서 | 검증 내용 | 우선순위 |
 |------|-----------|----------|
 | `features/STATUS.md` | Changelog 항목 존재 | P0 |
-| `features/RELEASE_*.md` | 구현 결과 문서 존재 | P0 |
-| `features/FEATURE_*.md` | 버전 일치 확인 | P1 |
+| `features/*_RELEASE.md` | 구현 결과 문서 존재 | P0 |
+| `features/*_FEATURE.md` | 버전 일치 확인 | P1 |
 | Serena memory | 최신 상태 반영 | P1 |
 
 ### 선택 동기화 (Optional)
@@ -47,11 +47,11 @@ Agent가 코드 구현은 완료했으나 문서 동기화를 누락하는 문�
 ### Step 1: RELEASE 문서 검증
 
 ```bash
-# RELEASE_*.md 파일 존재 확인
-ls features/RELEASE_{feature}.md 2>/dev/null || echo "SYNC FAIL: RELEASE file missing"
+# *_RELEASE.md 파일 존재 확인
+ls features/{feature}_RELEASE.md 2>/dev/null || echo "SYNC FAIL: RELEASE file missing"
 
 # 버전 헤더 확인
-grep "Version:" features/RELEASE_{feature}.md
+grep "Version:" features/{feature}_RELEASE.md
 ```
 
 **검증 항목:**
@@ -85,7 +85,7 @@ STATUS.md Changelog 업데이트가 **필수**인 경우:
 
 | 트리거 | 조건 | 우선순위 |
 |--------|------|----------|
-| RELEASE 문서 생성 | `features/RELEASE_*.md` 신규 생성 | P0 |
+| RELEASE 문서 생성 | `features/*_RELEASE.md` 신규 생성 | P0 |
 | 버전 변경 | RELEASE 내 Version 헤더 변경 | P0 |
 | API 클래스 추가 | `api/*.py` 내 새 `*API` 클래스 | P1 |
 | 에러 코드 추가 | `exceptions.py` 내 새 `DLI-XXX` 코드 | P1 |
@@ -98,7 +98,7 @@ STATUS.md Changelog 업데이트가 **필수**인 경우:
 git diff --name-only HEAD~1 | grep "features/RELEASE_"
 
 # 2. 버전 변경 감지
-git diff HEAD~1 -- features/RELEASE_*.md | grep "^+.*Version:"
+git diff HEAD~1 -- features/*_RELEASE.md | grep "^+.*Version:"
 
 # 3. STATUS.md Changelog 업데이트 여부 확인
 git diff HEAD~1 -- features/STATUS.md | grep "^+.*###.*v[0-9]"
@@ -148,10 +148,10 @@ if release_changes:
 
 ```bash
 # FEATURE 버전
-feature_ver=$(grep "Version:" features/FEATURE_{feature}.md | head -1)
+feature_ver=$(grep "Version:" features/{feature}_FEATURE.md | head -1)
 
 # RELEASE 버전
-release_ver=$(grep "Version:" features/RELEASE_{feature}.md | head -1)
+release_ver=$(grep "Version:" features/{feature}_RELEASE.md | head -1)
 
 # 버전 비교 (RELEASE >= FEATURE)
 ```
@@ -172,12 +172,12 @@ cd project-interface-cli
 actual_count=$(uv run pytest tests/{feature}/ --collect-only -q 2>/dev/null | tail -1 | grep -oE "[0-9]+ test" | grep -oE "[0-9]+")
 
 # 2. RELEASE 문서 내 테스트 수 추출
-release_count=$(grep -oE "[0-9]+ (passed|tests)" features/RELEASE_{feature}.md | head -1 | grep -oE "[0-9]+")
+release_count=$(grep -oE "[0-9]+ (passed|tests)" features/{feature}_RELEASE.md | head -1 | grep -oE "[0-9]+")
 
 # 3. 비교 및 자동 수정
 if [ "$actual_count" != "$release_count" ]; then
   echo "DOC_DRIFT: Test count mismatch (actual: $actual_count, documented: $release_count)"
-  echo "ACTION: Update RELEASE_{feature}.md with correct test count"
+  echo "ACTION: Update {feature}_RELEASE.md with correct test count"
 fi
 ```
 
@@ -185,8 +185,8 @@ fi
 
 | 파일 | 검증 패턴 | 자동 수정 |
 |------|-----------|-----------|
-| `RELEASE_{feature}.md` | `X passed` 또는 `X tests` | ✅ 필수 |
-| `FEATURE_{feature}.md` | Test 섹션 내 count | ⚠️ 권장 |
+| `{feature}_RELEASE.md` | `X passed` 또는 `X tests` | ✅ 필수 |
+| `{feature}_FEATURE.md` | Test 섹션 내 count | ⚠️ 권장 |
 | `STATUS.md` | Changelog 내 test count | ⚠️ 권장 |
 
 #### MCP 기반 동기화 워크플로우
@@ -197,13 +197,13 @@ result = Bash("cd project-interface-cli && uv run pytest tests/{feature}/ --coll
 actual_count = parse_test_count(result)
 
 # Step 2: RELEASE 문서 읽기 및 테스트 수 추출
-release_content = Read("project-interface-cli/features/RELEASE_{feature}.md")
+release_content = Read("project-interface-cli/features/{feature}_RELEASE.md")
 doc_count = extract_test_count(release_content)
 
 # Step 3: 불일치 시 자동 수정
 if actual_count != doc_count:
     Edit(
-        file_path="project-interface-cli/features/RELEASE_{feature}.md",
+        file_path="project-interface-cli/features/{feature}_RELEASE.md",
         old_string=f"{doc_count} passed",
         new_string=f"{actual_count} passed"
     )
@@ -299,8 +299,8 @@ mcp__serena__edit_memory("cli_implementation_status", ...)
 ```markdown
 ## Documentation Sync Checklist
 
-### RELEASE_*.md
-- [ ] 파일 존재: `features/RELEASE_{feature}.md`
+### *_RELEASE.md
+- [ ] 파일 존재: `features/{feature}_RELEASE.md`
 - [ ] Version 헤더 일치
 - [ ] Implemented Features 섹션 완료
 - [ ] Files Created/Modified 목록 정확
@@ -324,7 +324,7 @@ mcp__serena__edit_memory("cli_implementation_status", ...)
 - [ ] Related Documents 링크 추가
 - [ ] RELEASE 문서 변경 시 Changelog 트리거 확인
 
-### FEATURE_*.md
+### *_FEATURE.md
 - [ ] 버전이 RELEASE와 일치하거나 낮음
 - [ ] 구현 완료 항목 체크
 
@@ -346,9 +346,9 @@ mcp__serena__edit_memory("cli_implementation_status", ...)
 
 | Document | Status | Action |
 |----------|--------|--------|
-| RELEASE_CATALOG.md | ✅ | v1.2.0 확인됨 |
+| CATALOG_RELEASE.md | ✅ | v1.2.0 확인됨 |
 | STATUS.md | ✅ | Changelog 업데이트됨 |
-| FEATURE_CATALOG.md | ✅ | 버전 일치 (v1.2.0) |
+| CATALOG_FEATURE.md | ✅ | 버전 일치 (v1.2.0) |
 | Serena memory | ✅ | cli_implementation_status 동기화됨 |
 
 ### New Verification (2026-01-01)
@@ -394,7 +394,7 @@ mcp__serena__edit_memory("cli_implementation_status", ...)
    # 실제 테스트 수 확인
    cd project-interface-cli && uv run pytest tests/catalog/ --collect-only -q
    # RELEASE 문서 업데이트
-   sed -i 's/45 passed/52 passed/' features/RELEASE_CATALOG.md
+   sed -i 's/45 passed/52 passed/' features/CATALOG_RELEASE.md
    ```
 
 2. **API Export 추가:**
@@ -472,8 +472,8 @@ completion-gate PASSED
 ```markdown
 | Document | Status | Location |
 |----------|--------|----------|
-| FEATURE_{FEATURE}.md | ✅ Created | `features/FEATURE_{FEATURE}.md` |
-| RELEASE_{FEATURE}.md | ✅ Created | `features/RELEASE_{FEATURE}.md` |
+| {FEATURE}_FEATURE.md | ✅ Created | `features/{FEATURE}_FEATURE.md` |
+| {FEATURE}_RELEASE.md | ✅ Created | `features/{FEATURE}_RELEASE.md` |
 ```
 
 ---
@@ -491,7 +491,7 @@ completion-gate PASSED
 
 completion-gate 통과 후 **반드시** docs-synchronize 실행:
 
-1. RELEASE_*.md 작성/업데이트
+1. *_RELEASE.md 작성/업데이트
 2. docs-synchronize skill 실행
 3. 동기화 실패 시 수정 후 재실행
 4. 동기화 PASSED 후 "최종 완료" 선언

@@ -134,20 +134,20 @@ The Transpile feature MVP is **functionally complete** for basic table substitut
 
 | Document | Issue | Current | Should Be |
 |----------|-------|---------|-----------|
-| FEATURE_TRANSPILE.md:5 | Status | "Draft" | "Complete" or "Implemented" |
-| FEATURE_TRANSPILE.md:8.2 | Exception count | 9 classes | 4 classes (match implementation) |
-| RELEASE_TRANSPILE.md:62 | Test count | "147 passed" | "178 tests" (actual) |
-| STATUS.md | Changelog | No Transpile entry | Add v0.2.0 Transpile entry |
+| TRANSPILE_FEATURE.md:5 | Status | "Draft" | "Complete" or "Implemented" |
+| TRANSPILE_FEATURE.md:8.2 | Exception count | 9 classes | 4 classes (match implementation) |
+| TRANSPILE_RELEASE.md:62 | Test count | "147 passed" | "178 tests" (actual) |
+| _STATUS.md | Changelog | No Transpile entry | Add v0.2.0 Transpile entry |
 
 ### 5.2 Required Documentation Updates
 
 ```bash
 # Immediate updates needed:
-1. FEATURE_TRANSPILE.md:5     → Status: Implemented
-2. FEATURE_TRANSPILE.md:8.2   → Reduce to 4 exceptions + "Phase 2+" marker
-3. RELEASE_TRANSPILE.md:62    → Update test count to 178
-4. STATUS.md changelog        → Add Transpile v1.0.0-MVP entry
-5. FEATURE_TRANSPILE.md:1142  → Remove jinja.py from directory structure
+1. TRANSPILE_FEATURE.md:5     → Status: Implemented
+2. TRANSPILE_FEATURE.md:8.2   → Reduce to 4 exceptions + "Phase 2+" marker
+3. TRANSPILE_RELEASE.md:62    → Update test count to 178
+4. _STATUS.md changelog        → Add Transpile v1.0.0-MVP entry
+5. TRANSPILE_FEATURE.md:1142  → Remove jinja.py from directory structure
 ```
 
 ---
@@ -202,17 +202,17 @@ dli transpile --help | grep retry
 
 # Test count accuracy
 uv run pytest tests/core/transpile tests/cli/test_transpile_cmd.py --collect-only | tail -1
-# Compare with RELEASE_TRANSPILE.md
+# Compare with TRANSPILE_RELEASE.md
 ```
 
 ### 7.2 Documentation Sync Verification
 
 ```bash
 # Verify documentation consistency
-grep "Status:" project-interface-cli/features/FEATURE_TRANSPILE.md
+grep "Status:" project-interface-cli/features/TRANSPILE_FEATURE.md
 # Should show "Implemented" or "Complete"
 
-grep "passed" project-interface-cli/features/RELEASE_TRANSPILE.md
+grep "passed" project-interface-cli/features/TRANSPILE_RELEASE.md
 # Should match actual test count
 ```
 

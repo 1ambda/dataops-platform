@@ -12,9 +12,9 @@ Agent가 FEATURE 문서의 일부만 구현하고 "완료"를 선언하는 문�
 ## 적용 시점
 
 이 skill은 다음 상황에서 적용:
-- FEATURE_*.md 기반 구현 시작 시
+- *_FEATURE.md 기반 구현 시작 시
 - "구현 완료", "done" 선언 전 검증 시
-- RELEASE_*.md 작성 전 점검 시
+- *_RELEASE.md 작성 전 점검 시
 
 ---
 
@@ -22,7 +22,7 @@ Agent가 FEATURE 문서의 일부만 구현하고 "완료"를 선언하는 문�
 
 ### Step 1: FEATURE 문서 파싱
 
-FEATURE_*.md에서 다음 항목을 추출:
+*_FEATURE.md에서 다음 항목을 추출:
 
 ```markdown
 ### 추출 대상
@@ -174,7 +174,7 @@ done
 ```markdown
 ## Implementation Checklist: FEATURE_WORKFLOW
 
-Generated from: FEATURE_WORKFLOW.md v3.0.0
+Generated from: WORKFLOW_FEATURE.md v3.0.0
 
 ### Phase 1 MVP Items
 
@@ -265,7 +265,7 @@ pytest tests/ → 1740 passed
 ## Integration with Agent Workflow
 
 ```
-FEATURE_*.md 수신
+*_FEATURE.md 수신
        ↓
 [implementation-checklist skill 적용]
        ↓
@@ -279,5 +279,5 @@ FEATURE_*.md 수신
        ↓
 [completion-gate skill 적용]
        ↓
-RELEASE_*.md 작성
+*_RELEASE.md 작성
 ```

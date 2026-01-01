@@ -1270,9 +1270,9 @@ def task_b():
 
 ## 11. 참고 문서
 
-- [FEATURE_MODEL.md](./FEATURE_MODEL.md) - MODEL 추상화 명세
-- [FEATURE_TRANSPILE.md](./FEATURE_TRANSPILE.md) - SQL Transpile 기능 명세
-- [FEATURE_WORKFLOW.md](./FEATURE_WORKFLOW.md) - Workflow 관리 명세
+- [MODEL_FEATURE.md](./MODEL_FEATURE.md) - MODEL 추상화 명세
+- [TRANSPILE_FEATURE.md](./TRANSPILE_FEATURE.md) - SQL Transpile 기능 명세
+- [WORKFLOW_FEATURE.md](./WORKFLOW_FEATURE.md) - Workflow 관리 명세
 - [project-interface-cli/docs/PATTERNS.md](../docs/PATTERNS.md) - 개발 패턴 가이드
 
 ---

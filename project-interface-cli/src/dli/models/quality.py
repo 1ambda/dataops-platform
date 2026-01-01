@@ -14,7 +14,7 @@ Note:
     dataclass models is needed. New models use "Quality" prefix.
 
 References:
-    - FEATURE_QUALITY.md: Quality Spec design and schema
+    - QUALITY_FEATURE.md: Quality Spec design and schema
     - dbt Data Tests: https://docs.getdbt.com/docs/build/data-tests
 """
 

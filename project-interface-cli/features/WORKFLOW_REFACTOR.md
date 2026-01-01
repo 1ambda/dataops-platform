@@ -23,7 +23,7 @@
 
 | 항목 | 현재 상태 | 비고 |
 |------|-----------|------|
-| **`workflow register` CLI 커맨드** | 미구현 | FEATURE_WORKFLOW.md에 정의됨, commands/workflow.py에 없음 |
+| **`workflow register` CLI 커맨드** | 미구현 | WORKFLOW_FEATURE.md에 정의됨, commands/workflow.py에 없음 |
 | **`--show-dataset-info` CLI 옵션** | 미구현 | history 커맨드에 미반영 |
 | **Server 모드 실제 구현** | Stub (501 Not Implemented) | BasecampClient.workflow_register() 등 |
 | **Cron 표현식 검증** | 미구현 | croniter 라이브러리 미사용 |
@@ -639,9 +639,9 @@ Phase 3 - Server 연동 시 (예정)
 
 ## Related Documents
 
-- [FEATURE_WORKFLOW.md](./FEATURE_WORKFLOW.md) - Workflow 기능 상세 명세
-- [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) - Workflow 릴리스 체크리스트
-- [STATUS.md](./STATUS.md) - 전체 기능 구현 현황
+- [WORKFLOW_FEATURE.md](./WORKFLOW_FEATURE.md) - Workflow 기능 상세 명세
+- [WORKFLOW_RELEASE.md](./WORKFLOW_RELEASE.md) - Workflow 릴리스 체크리스트
+- [_STATUS.md](./_STATUS.md) - 전체 기능 구현 현황
 
 ---
 

@@ -934,7 +934,7 @@ dli lineage downstream <resource> --depth 1
 
 ## Appendix B: Catalog 연계 (Impact 섹션)
 
-FEATURE_CATALOG.md의 Impact 섹션에서 LineageClient를 재사용합니다:
+CATALOG_FEATURE.md의 Impact 섹션에서 LineageClient를 재사용합니다:
 
 ```python
 # commands/catalog.py

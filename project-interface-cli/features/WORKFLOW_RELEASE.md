@@ -8,7 +8,7 @@
 
 ## 1. Release Summary
 
-FEATURE_WORKFLOW.md v3.0.0 스펙에 따라 WorkflowAPI Library Interface를 구현했습니다.
+WORKFLOW_FEATURE.md v3.0.0 스펙에 따라 WorkflowAPI Library Interface를 구현했습니다.
 Basecamp Server를 통해 Airflow 기반 Workflow를 프로그래매틱하게 관리할 수 있습니다.
 
 **핵심 변경 사항:**
@@ -445,7 +445,7 @@ elif status.is_terminal:
 
 ## Related Documents
 
-- [FEATURE_WORKFLOW.md](./FEATURE_WORKFLOW.md) - Feature specification
+- [WORKFLOW_FEATURE.md](./WORKFLOW_FEATURE.md) - Feature specification
 - [README.md](../README.md) - CLI documentation
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 

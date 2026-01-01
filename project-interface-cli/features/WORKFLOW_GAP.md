@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-FEATURE_WORKFLOW.md v3.0.0 명세와 실제 구현(RELEASE_WORKFLOW.md) 사이에 발생한 Gap을 분석하고, 근본 원인과 개선 방안을 도출했습니다.
+WORKFLOW_FEATURE.md v3.0.0 명세와 실제 구현(WORKFLOW_RELEASE.md) 사이에 발생한 Gap을 분석하고, 근본 원인과 개선 방안을 도출했습니다.
 
 **Gap 요약:**
 
@@ -38,7 +38,7 @@ FEATURE_WORKFLOW.md v3.0.0 명세와 실제 구현(RELEASE_WORKFLOW.md) 사이�
    - WorkflowAPI 11개 메서드 모두 구현 ✅
    - CLI Commands는 기존 커맨드만 유지, 새 커맨드(`register`, `unregister`) 미추가 ❌
 
-3. **STATUS.md 거짓 상태**
+3. **_STATUS.md 거짓 상태**
    ```markdown
    | dli workflow | commands/workflow.py | ✅ Complete |
    ```
@@ -246,10 +246,10 @@ STATUS 업데이트  ← NEW: 검증 결과 기반
 
 ## Related Documents
 
-- [FEATURE_WORKFLOW.md](./FEATURE_WORKFLOW.md) - 기능 명세
-- [RELEASE_WORKFLOW.md](./RELEASE_WORKFLOW.md) - 구현 결과
-- [REFACTOR_WORKFLOW.md](./REFACTOR_WORKFLOW.md) - 리팩토링 계획
-- [STATUS.md](./STATUS.md) - 현황 요약
+- [WORKFLOW_FEATURE.md](./WORKFLOW_FEATURE.md) - 기능 명세
+- [WORKFLOW_RELEASE.md](./WORKFLOW_RELEASE.md) - 구현 결과
+- [WORKFLOW_REFACTOR.md](./WORKFLOW_REFACTOR.md) - 리팩토링 계획
+- [_STATUS.md](./_STATUS.md) - 현황 요약
 
 ---
 

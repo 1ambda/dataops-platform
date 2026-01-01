@@ -502,7 +502,7 @@ server:
 ### Phase 1: Core Execution (MVP) - 약 1주
 
 > **Status:** ✅ Complete (2025-12-30)
-> **Implementation Details:** [RELEASE_EXECUTION.md](./RELEASE_EXECUTION.md)
+> **Implementation Details:** [EXECUTION_RELEASE.md](./EXECUTION_RELEASE.md)
 
 #### 1.1 모델 확장 (1일)
 - [x] `ExecutionMode` enum 추가 (`models/common.py`)

@@ -8,7 +8,7 @@
 
 ## 1. Release Summary
 
-FEATURE_QUALITY.md v1.0.0 스펙에 따라 Quality Spec 분리 구현을 완료했습니다.
+QUALITY_FEATURE.md v1.0.0 스펙에 따라 Quality Spec 분리 구현을 완료했습니다.
 Quality Spec을 Dataset/Metric Spec에서 분리하여 독립적인 데이터 품질 검증 체계를 구축합니다.
 
 **핵심 변경 사항:**
@@ -256,7 +256,7 @@ Quality Spec 샘플 파일 3개:
 
 ## 5. Code Review Summary (expert-python)
 
-### 5.1 Issues Fixed from FEATURE_QUALITY.md Review
+### 5.1 Issues Fixed from QUALITY_FEATURE.md Review
 
 | File | Issue | Fix |
 |------|-------|-----|

@@ -19,7 +19,7 @@
 | Spec Quality Grade | B- |
 | Documentation Drift | High |
 
-The Lineage feature MVP (CLI commands and core models) is **functionally complete**, but the **Library API layer is completely missing**. This creates an API parity gap where all other features (Dataset, Metric, Quality, Workflow, Catalog, Transpile) have Library APIs, but Lineage does not. The feature also has **documentation drift** where RELEASE_LINEAGE.md states "0 tests" but 52 tests actually exist.
+The Lineage feature MVP (CLI commands and core models) is **functionally complete**, but the **Library API layer is completely missing**. This creates an API parity gap where all other features (Dataset, Metric, Quality, Workflow, Catalog, Transpile) have Library APIs, but Lineage does not. The feature also has **documentation drift** where LINEAGE_RELEASE.md states "0 tests" but 52 tests actually exist.
 
 ### 1.2 Severity Assessment
 
@@ -34,7 +34,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 | Finding | Severity | Root Cause | Status |
 |---------|----------|------------|--------|
-| ~~**No LineageAPI class**~~ | Critical | Listed as "Phase 2" in RELEASE_LIBRARY.md, never prioritized | ✅ **Resolved** |
+| ~~**No LineageAPI class**~~ | Critical | Listed as "Phase 2" in LIBRARY_RELEASE.md, never prioritized | ✅ **Resolved** |
 | ~~**No DLI-9xx error codes**~~ | High | LineageClientError not integrated with DLIError hierarchy | ✅ **Resolved** |
 | **No column-level lineage** | High | Scoped out of MVP (expected) | Deferred |
 | **Documentation drift** (test count) | Medium | RELEASE says "0 tests" but 52 tests exist | Open |
@@ -49,11 +49,11 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 | ID | Gap | FEATURE Spec | Current Status | Business Impact |
 |----|-----|--------------|----------------|-----------------|
-| GAP-L01 | ~~**LineageAPI class missing**~~ | FEATURE_LIBRARY.md Section 3.7 | ✅ **Implemented** (api/lineage.py, 367 lines) | ~~Airflow DAGs cannot programmatically query lineage~~ |
+| GAP-L01 | ~~**LineageAPI class missing**~~ | LIBRARY_FEATURE.md Section 3.7 | ✅ **Implemented** (api/lineage.py, 367 lines) | ~~Airflow DAGs cannot programmatically query lineage~~ |
 
 **Impact Analysis for GAP-L01:**
 - All other API classes exist: DatasetAPI, MetricAPI, QualityAPI, WorkflowAPI, CatalogAPI, TranspileAPI
-- LineageAPI specified in FEATURE_LIBRARY.md with 4 methods: `get_lineage()`, `get_upstream()`, `get_downstream()`, `get_impact_analysis()`
+- LineageAPI specified in LIBRARY_FEATURE.md with 4 methods: `get_lineage()`, `get_upstream()`, `get_downstream()`, `get_impact_analysis()`
 - Without LineageAPI, users must shell out to CLI (`subprocess.run(["dli", "lineage", ...])`)
 
 ### 2.2 High Severity Gaps (Major Functionality Missing)
@@ -61,7 +61,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 | ID | Gap | FEATURE Spec | Current Status | Impact |
 |----|-----|--------------|----------------|--------|
 | GAP-L02 | ~~**No DLI-9xx error codes**~~ | Pattern from DLI-6xx (Quality), DLI-7xx (Catalog), DLI-8xx (Workflow) | ✅ **Implemented** (DLI-900 ~ DLI-904, 3 exception classes) | ~~No programmatic error handling~~ |
-| GAP-L03 | **Column-level lineage not supported** | RELEASE_LINEAGE.md:334 "Phase 2" | Table-level only | Cannot trace column transformations |
+| GAP-L03 | **Column-level lineage not supported** | LINEAGE_RELEASE.md:334 "Phase 2" | Table-level only | Cannot trace column transformations |
 
 **Recommended DLI-9xx Error Codes:**
 
@@ -77,7 +77,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 | ID | Gap | Notes | Status |
 |----|-----|-------|--------|
-| GAP-L04 | **Documentation drift: test count** | RELEASE_LINEAGE.md says "Test count: 0 (pending)" but 52 tests exist | Open |
+| GAP-L04 | **Documentation drift: test count** | LINEAGE_RELEASE.md says "Test count: 0 (pending)" but 52 tests exist | Open |
 | GAP-L05 | **No Mermaid/GraphViz export** | Only table/JSON supported; RELEASE mentions Phase 3 | Deferred |
 | GAP-L06 | **No local SQLGlot processing** | Server-based only; cannot extract lineage from local specs | Deferred |
 | GAP-L07 | **No impact analysis flag** | `--impact` flag mentioned in RELEASE but not implemented | Deferred |
@@ -93,9 +93,9 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 | ID | Gap | Location | Issue |
 |----|-----|----------|-------|
-| GAP-L10 | Test count mismatch | RELEASE_LINEAGE.md:374 | States "0" but actual count is 52 |
+| GAP-L10 | Test count mismatch | LINEAGE_RELEASE.md:374 | States "0" but actual count is 52 |
 | GAP-L11 | LineageAPI not in api/__init__.py | api/__init__.py | Missing from public exports |
-| GAP-L12 | No FEATURE_LINEAGE.md | features/ | Only RELEASE exists, no FEATURE spec |
+| GAP-L12 | No LINEAGE_FEATURE.md | features/ | Only RELEASE exists, no FEATURE spec |
 
 ---
 
@@ -105,7 +105,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 | Root Cause | Affected Gaps | Explanation | Recommended Fix |
 |------------|---------------|-------------|-----------------|
-| **RC-1: Phase 2 Deprioritization** | GAP-L01, GAP-L03, GAP-L05-07 | LineageAPI listed as "P1" in RELEASE_LIBRARY.md but never implemented; QualityAPI and WorkflowAPI were prioritized first | Add phase-completion gates to `completion-gate` skill |
+| **RC-1: Phase 2 Deprioritization** | GAP-L01, GAP-L03, GAP-L05-07 | LineageAPI listed as "P1" in LIBRARY_RELEASE.md but never implemented; QualityAPI and WorkflowAPI were prioritized first | Add phase-completion gates to `completion-gate` skill |
 | **RC-2: Exception Hierarchy Isolation** | GAP-L02 | `LineageClientError` created as standalone class, not integrated with `DLIError` hierarchy | Add "exception integration check" to `implementation-checklist` skill |
 | **RC-3: Documentation-Implementation Drift** | GAP-L04, GAP-L10 | RELEASE document frozen after initial creation; tests added but RELEASE not updated | Strengthen `docs-synchronize` skill triggers |
 | **RC-4: API Parity Check Missing** | GAP-L01 | No skill verifies all features have corresponding API classes | Add `api-parity` skill |
@@ -115,15 +115,15 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 | Root Cause | Symptoms | Recommended Fix |
 |------------|----------|-----------------|
 | **RC-5: No Feature-API Alignment Gate** | LineageAPI specified but never implemented | Add pre-release "API parity check" |
-| **RC-6: Backlog Decay** | P1 items in RELEASE_LIBRARY.md never addressed | Add backlog review skill |
+| **RC-6: Backlog Decay** | P1 items in LIBRARY_RELEASE.md never addressed | Add backlog review skill |
 | **RC-7: No Cross-Module Exception Standard** | Each module creates its own exception class | Create "exception standardization" checklist |
 
 ### 3.3 Why LineageAPI Was Not Created
 
 **Timeline Analysis:**
 
-1. **FEATURE_LIBRARY.md** specified LineageAPI (Section 3.7) with 4 methods
-2. **RELEASE_LIBRARY.md** listed LineageAPI as "P1" priority in "Future Work"
+1. **LIBRARY_FEATURE.md** specified LineageAPI (Section 3.7) with 4 methods
+2. **LIBRARY_RELEASE.md** listed LineageAPI as "P1" priority in "Future Work"
 3. **Implementation order:** DatasetAPI -> MetricAPI -> TranspileAPI -> CatalogAPI -> ConfigAPI -> QualityAPI -> WorkflowAPI
 4. **LineageAPI was skipped** because:
    - Lineage CLI was already working (reduced urgency)
@@ -132,7 +132,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 
 ### 3.4 Why Tests Exist But Documentation Says Zero
 
-**Root Cause:** The RELEASE_LINEAGE.md was created when MVP shipped, correctly stating "0 tests". Tests were added later (52 tests) but the RELEASE was never updated. The `docs-synchronize` skill exists but lacks triggers for test count changes.
+**Root Cause:** The LINEAGE_RELEASE.md was created when MVP shipped, correctly stating "0 tests". Tests were added later (52 tests) but the RELEASE was never updated. The `docs-synchronize` skill exists but lacks triggers for test count changes.
 
 ---
 
@@ -169,7 +169,7 @@ The Lineage feature MVP (CLI commands and core models) is **functionally complet
 |------|--------|--------|----------------|
 | LineageAPI class | 4 hours | High | Wrap LineageClient in API pattern |
 | DLI-9xx errors | 1 hour | Medium | Add to exceptions.py, refactor LineageClientError |
-| Fix RELEASE test count | 10 min | Low | Update RELEASE_LINEAGE.md:374 |
+| Fix RELEASE test count | 10 min | Low | Update LINEAGE_RELEASE.md:374 |
 | Add test_lineage_api.py | 2 hours | Medium | Follow test_workflow_api.py pattern |
 
 ---
@@ -328,8 +328,8 @@ cd project-interface-cli && uv run pytest tests/core/lineage/ tests/cli/test_lin
 ### 7.3 Documentation Sync Verification
 
 ```bash
-# Verify RELEASE_LINEAGE.md test count is updated
-grep "Test count" project-interface-cli/features/RELEASE_LINEAGE.md
+# Verify LINEAGE_RELEASE.md test count is updated
+grep "Test count" project-interface-cli/features/LINEAGE_RELEASE.md
 # Should return: 52+ (not 0)
 
 # Verify LineageAPI in api/__init__.py __all__
@@ -374,7 +374,7 @@ grep -A20 "__all__" project-interface-cli/src/dli/api/__init__.py | grep "Lineag
 | 2026-01-01 | - | Initial GAP analysis created | Complete |
 | - | GAP-L01 | Implement LineageAPI class | Pending |
 | - | GAP-L02 | Add DLI-9xx error codes | Pending |
-| - | GAP-L04 | Update RELEASE_LINEAGE.md test count | Pending |
+| - | GAP-L04 | Update LINEAGE_RELEASE.md test count | Pending |
 
 ---
 

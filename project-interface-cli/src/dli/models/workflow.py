@@ -12,7 +12,7 @@ Models:
     WorkflowHistoryResult: Result of history query
 
 References:
-    - Feature Spec: features/FEATURE_WORKFLOW.md Section 4.2
+    - Feature Spec: features/WORKFLOW_FEATURE.md Section 4.2
     - Pattern: models/common.py result models
 """
 

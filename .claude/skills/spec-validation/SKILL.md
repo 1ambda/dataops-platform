@@ -9,7 +9,7 @@ Systematic quality validation for specifications using structured checklists and
 
 ## When to Use
 
-- After drafting FEATURE_*.md specifications
+- After drafting *_FEATURE.md specifications
 - Reviewing PRDs for completeness
 - Validating requirements before handoff
 - Self-checking document quality
@@ -136,7 +136,7 @@ mcp__sequential-thinking__sequentialthinking(
 ### After requirements-discovery
 ```
 Discovery Interview Complete
-    -> Draft FEATURE_*.md
+    -> Draft *_FEATURE.md
     -> spec-validation (this skill)
     -> Identify gaps
     -> Follow-up questions
@@ -145,7 +145,7 @@ Discovery Interview Complete
 
 ### Before implementation
 ```
-FEATURE_*.md Finalized
+*_FEATURE.md Finalized
     -> spec-validation final check
     -> Engineering review
     -> Implementation begins

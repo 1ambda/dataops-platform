@@ -104,6 +104,6 @@ search(pattern) → CatalogSearchResult
 ## 상세 문서
 
 - `features/STATUS.md` - 전체 상태
-- `features/RELEASE_EXECUTION.md` - 구현 상세
+- `features/EXECUTION_RELEASE.md` - 구현 상세
 - `docs/PATTERNS.md` - 개발 패턴
-- `features/GAP_WORKFLOW.md` - Gap 분석 (2025-12-31)
+- `features/WORKFLOW_GAP.md` - Gap 분석 (2025-12-31)

@@ -324,7 +324,7 @@ Impact 정보는 기존 `LineageClient.get_downstream()` 활용 가능 (Phase 2�
 
 ### v1.2.0 (2025-12-31)
 
-- **Result Models**: FEATURE_CATALOG.md 명세 기반 Result 모델 구현
+- **Result Models**: CATALOG_FEATURE.md 명세 기반 Result 모델 구현
   - `CatalogListResult`: 테이블 목록 조회 결과 (status, tables, total_count, has_more)
   - `TableDetailResult`: 테이블 상세 조회 결과 (status, table, error_message)
   - `CatalogSearchResult`: 검색 결과 (status, tables, total_matches, keyword)
@@ -343,7 +343,7 @@ Impact 정보는 기존 `LineageClient.get_downstream()` 활용 가능 (Phase 2�
   - `CatalogTableNotFoundError` (DLI-702)
   - `InvalidIdentifierError` (DLI-703)
   - `UnsupportedEngineError` (DLI-705)
-- **FEATURE_CATALOG.md v1.2.0**: 업계 표준 벤치마킹 (Databricks, DBT, SqlMesh)
+- **CATALOG_FEATURE.md v1.2.0**: 업계 표준 벤치마킹 (Databricks, DBT, SqlMesh)
 - **Code Review**: expert-python Agent 리뷰 통과 (리팩토링 불필요)
 - **테스트**: API 테스트 30개 추가 (총 114 catalog 테스트)
 

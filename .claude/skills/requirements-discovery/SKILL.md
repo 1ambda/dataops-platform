@@ -27,7 +27,7 @@ WebSearch("{competitor} {feature} implementation")
 claude-mem.search(query="{feature_domain}", project="<project>")
 
 # 3. Existing Specifications
-Read: project-*/features/FEATURE_*.md
+Read: project-*/features/*_FEATURE.md
 Read: docs/architecture.md
 
 # 4. Technical Context (Secondary - When Relevant)
@@ -219,7 +219,7 @@ Surface risk and failure modes:
 
 ---
 
-## Output: FEATURE_*.md Structure
+## Output: *_FEATURE.md Structure
 
 **IMPORTANT**: Follow existing document conventions. If existing docs are Korean, write in Korean.
 
@@ -314,7 +314,7 @@ Surface risk and failure modes:
    └─ Surface contradictions immediately
 
 3. Synthesis
-   └─ Draft FEATURE_*.md
+   └─ Draft *_FEATURE.md
    └─ Highlight open questions
 
 4. Validation

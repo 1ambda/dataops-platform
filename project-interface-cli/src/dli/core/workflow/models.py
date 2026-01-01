@@ -17,7 +17,7 @@ Models:
 
 References:
     - Airflow REST API: https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html
-    - Feature Spec: features/FEATURE_WORKFLOW.md
+    - Feature Spec: features/WORKFLOW_FEATURE.md
 """
 
 from __future__ import annotations

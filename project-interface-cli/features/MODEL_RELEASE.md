@@ -12,7 +12,7 @@
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **FEATURE_MODEL.md** | ✅ | MODEL 추상화 개념 정의 (metric + dataset) |
+| **MODEL_FEATURE.md** | ✅ | MODEL 추상화 개념 정의 (metric + dataset) |
 | **`dli render` 제거** | ✅ | `dli dataset run --dry-run --show-sql`로 대체 |
 | **`dli validate` 제거** | ✅ | 서브커맨드만 유지 (`dli dataset validate`, `dli metric validate`) |
 | **`dli server` → `dli config` 개명** | ✅ | 설정 관리 명령어로 개명 |
@@ -22,7 +22,7 @@
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `features/FEATURE_MODEL.md` | ~350 | MODEL 추상화 개념 명세 |
+| `features/MODEL_FEATURE.md` | ~350 | MODEL 추상화 개념 명세 |
 | `commands/config.py` | 149 | 설정 관리 명령어 (server.py 대체) |
 | `tests/cli/test_config_cmd.py` | 66 | config 명령어 테스트 |
 
@@ -255,7 +255,7 @@ $ cd project-interface-cli && uv run pytest tests/cli/test_config_cmd.py -v
 6. MODEL = metric + dataset의 추상 개념으로 정의
 
 **Documentation Updated:**
-- FEATURE_MODEL.md 생성
+- MODEL_FEATURE.md 생성
 - README.md 업데이트
 - CONTRIBUTING.md 업데이트
 - docs/PATTERNS.md Deprecated Commands 섹션 추가

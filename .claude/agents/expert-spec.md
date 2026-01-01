@@ -1,6 +1,6 @@
 ---
 name: expert-spec
-description: Platform Integration Architect for system-integrated feature design. Eliminates development uncertainty by defining clear system policies, integration patterns, and trade-off decisions. Produces FEATURE_*.md specifications that ensure fast implementation without architectural blockers. Use PROACTIVELY when designing features that integrate with existing systems. Triggers on "feature spec", "system integration", "platform design", "requirements", "PRD", "specification".
+description: Platform Integration Architect for system-integrated feature design. Eliminates development uncertainty by defining clear system policies, integration patterns, and trade-off decisions. Produces *_FEATURE.md specifications that ensure fast implementation without architectural blockers. Use PROACTIVELY when designing features that integrate with existing systems. Triggers on "feature spec", "system integration", "platform design", "requirements", "PRD", "specification".
 model: inherit
 skills:
   - mcp-efficiency         # Parallel MCP calls to gather existing patterns
@@ -81,7 +81,7 @@ mcp__plugin_claude-mem_mem-search__search(query="{feature_domain} architecture d
 mcp__serena__read_memory(memory_file_name="cli_patterns")  # CLI 패턴 if CLI feature
 mcp__serena__read_memory(memory_file_name="spring_boot_patterns")  # Backend if API feature
 mcp__serena__search_for_pattern("class.*Service|Repository|Controller")  # Existing patterns
-Glob(pattern="project-*/features/FEATURE_*.md")  # Existing feature specs
+Glob(pattern="project-*/features/*_FEATURE.md")  # Existing feature specs
 WebSearch(query="{feature} system integration patterns 2025")  # External patterns
 ```
 
@@ -100,7 +100,7 @@ WebSearch(query="{feature} system integration patterns 2025")  # External patter
 - 데이터 모델: [Pydantic/Entity 패턴 if 발견]
 
 **참조 가능한 기존 기능:**
-- [유사 기능 FEATURE_*.md if 존재]
+- [유사 기능 *_FEATURE.md if 존재]
 
 **확인된 아키텍처 제약사항:**
 - [기존 기술 스택 제약사항 if 발견]
@@ -130,7 +130,7 @@ AskUserQuestion(
 
 ### Step 4: Synthesis & Platform-Aligned Output
 
-- Draft `FEATURE_*.md` in **project-*/features/** directory
+- Draft `*_FEATURE.md` in **project-*/features/** directory
 - **Critical**: Include "핵심 결정 사항" section with explicit trade-offs
 - **Critical**: Include "Appendix: 결정 사항 (인터뷰 기반)" with rationale
 - Follow existing document style and reference existing patterns
@@ -196,9 +196,9 @@ mcp__sequential-thinking__sequentialthinking(
 
 ---
 
-## Output: FEATURE_*.md Template
+## Output: *_FEATURE.md Template
 
-> **기본 템플릿**: `requirements-discovery` skill의 FEATURE_*.md 구조 참조
+> **기본 템플릿**: `requirements-discovery` skill의 *_FEATURE.md 구조 참조
 
 ### Platform Integration 전용 섹션 (추가 필수)
 
@@ -331,4 +331,4 @@ mcp__sequential-thinking__sequentialthinking(
 | `serena.read_memory("cli_patterns")` | 프로젝트별 패턴 로드 |
 | `serena.search_for_pattern("class.*Service")` | 기존 코드 패턴 검색 |
 | `claude-mem.search("architecture decision")` | 과거 결정사항 조회 |
-| `jetbrains.find_files_by_glob("**/FEATURE_*.md")` | 기존 명세 문서 검색 |
+| `jetbrains.find_files_by_glob("**/*_FEATURE.md")` | 기존 명세 문서 검색 |

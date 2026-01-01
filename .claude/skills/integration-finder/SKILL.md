@@ -16,7 +16,7 @@ Agent가 새 모듈을 구현할 때 발생하는 문제:
 
 이 skill은 다음 상황에서 **자동** 적용:
 - 새 모듈/패키지 생성 시 (`mkdir`, `touch` 등)
-- FEATURE_*.md에서 새 기능 구현 시작 시
+- *_FEATURE.md에서 새 기능 구현 시작 시
 - "XX 모듈 구현", "XX 기능 추가" 요청 시
 
 ---
@@ -237,7 +237,7 @@ class TranspileEngine:
 ### feature-interface-cli Agent 워크플로우
 
 ```
-FEATURE_*.md 수신
+*_FEATURE.md 수신
        ↓
 [integration-finder skill 실행] ← 신규
        ↓

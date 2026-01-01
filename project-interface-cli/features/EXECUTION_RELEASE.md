@@ -8,7 +8,7 @@
 
 ## Implementation Summary
 
-REFACTOR_EXECUTION.md 사양에 따른 Execution Model Phase 1 구현이 완료되었습니다.
+EXECUTION_REFACTOR.md 사양에 따른 Execution Model Phase 1 구현이 완료되었습니다.
 
 ### Implementation Status
 
