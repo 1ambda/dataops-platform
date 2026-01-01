@@ -22,11 +22,13 @@ import java.time.LocalDateTime
 interface PipelineRepositoryJpaImpl :
     PipelineRepositoryJpa,
     JpaRepository<PipelineEntity, Long> {
-
     // 도메인 특화 조회 메서드 (Spring Data JPA auto-implements)
     override fun findByIdAndIsActiveTrue(id: Long): PipelineEntity?
+
     override fun findAllByIsActive(isActive: Boolean): List<PipelineEntity>
+
     override fun findByOwner(owner: String): List<PipelineEntity>
+
     override fun findByStatus(status: PipelineStatus): List<PipelineEntity>
 
     // 페이지네이션 조회
@@ -69,5 +71,6 @@ interface PipelineRepositoryJpaImpl :
 
     // 통계 및 집계
     override fun countByStatus(status: PipelineStatus): Long
+
     override fun countByOwner(owner: String): Long
 }

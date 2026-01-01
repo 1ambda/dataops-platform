@@ -24,7 +24,6 @@ class DatasetService(
     private val datasetRepositoryJpa: DatasetRepositoryJpa,
     private val datasetRepositoryDsl: DatasetRepositoryDsl,
 ) {
-
     // === 명령(Command) 처리 ===
 
     /**
@@ -57,25 +56,30 @@ class DatasetService(
      * @throws DatasetNotFoundException Dataset을 찾을 수 없는 경우
      */
     @Transactional
-    fun updateDataset(name: String, updatedDataset: DatasetEntity): DatasetEntity {
-        val existing = datasetRepositoryJpa.findByName(name)
-            ?: throw DatasetNotFoundException(name)
+    fun updateDataset(
+        name: String,
+        updatedDataset: DatasetEntity,
+    ): DatasetEntity {
+        val existing =
+            datasetRepositoryJpa.findByName(name)
+                ?: throw DatasetNotFoundException(name)
 
         // 이름은 변경할 수 없음 (이미 name으로 조회했으므로)
         // DatasetEntity는 클래스이므로 새 인스턴스 생성
-        val updated = DatasetEntity(
-            id = existing.id,
-            name = existing.name, // 이름 변경 불가
-            owner = updatedDataset.owner,
-            team = updatedDataset.team,
-            description = updatedDataset.description,
-            sql = updatedDataset.sql,
-            tags = updatedDataset.tags,
-            dependencies = updatedDataset.dependencies,
-            scheduleCron = updatedDataset.scheduleCron,
-            scheduleTimezone = updatedDataset.scheduleTimezone,
-            createdAt = existing.createdAt, // 생성일은 유지
-        )
+        val updated =
+            DatasetEntity(
+                id = existing.id,
+                name = existing.name, // 이름 변경 불가
+                owner = updatedDataset.owner,
+                team = updatedDataset.team,
+                description = updatedDataset.description,
+                sql = updatedDataset.sql,
+                tags = updatedDataset.tags,
+                dependencies = updatedDataset.dependencies,
+                scheduleCron = updatedDataset.scheduleCron,
+                scheduleTimezone = updatedDataset.scheduleTimezone,
+                createdAt = existing.createdAt, // 생성일은 유지
+            )
 
         validateDataset(updated)
 
@@ -105,8 +109,7 @@ class DatasetService(
      * @param name Dataset 이름
      * @return Dataset Entity (없으면 null)
      */
-    fun getDataset(name: String): DatasetEntity? =
-        datasetRepositoryJpa.findByName(name)
+    fun getDataset(name: String): DatasetEntity? = datasetRepositoryJpa.findByName(name)
 
     /**
      * Dataset 단건 조회 (Not Null)
@@ -115,8 +118,7 @@ class DatasetService(
      * @return Dataset Entity
      * @throws DatasetNotFoundException Dataset을 찾을 수 없는 경우
      */
-    fun getDatasetOrThrow(name: String): DatasetEntity =
-        getDataset(name) ?: throw DatasetNotFoundException(name)
+    fun getDatasetOrThrow(name: String): DatasetEntity = getDataset(name) ?: throw DatasetNotFoundException(name)
 
     /**
      * Dataset 목록 조회 (필터링 및 페이지네이션)
@@ -132,8 +134,7 @@ class DatasetService(
         owner: String? = null,
         search: String? = null,
         pageable: Pageable,
-    ): Page<DatasetEntity> =
-        datasetRepositoryDsl.findByFilters(tag, owner, search, pageable)
+    ): Page<DatasetEntity> = datasetRepositoryDsl.findByFilters(tag, owner, search, pageable)
 
     /**
      * 소유자별 Dataset 조회
@@ -142,8 +143,10 @@ class DatasetService(
      * @param pageable 페이지네이션 정보
      * @return 소유자의 Dataset 목록
      */
-    fun getDatasetsByOwner(owner: String, pageable: Pageable): Page<DatasetEntity> =
-        datasetRepositoryJpa.findByOwnerOrderByUpdatedAtDesc(owner, pageable)
+    fun getDatasetsByOwner(
+        owner: String,
+        pageable: Pageable,
+    ): Page<DatasetEntity> = datasetRepositoryJpa.findByOwnerOrderByUpdatedAtDesc(owner, pageable)
 
     /**
      * 태그별 Dataset 조회
@@ -151,8 +154,7 @@ class DatasetService(
      * @param tag 태그
      * @return 해당 태그를 가진 Dataset 목록
      */
-    fun getDatasetsByTag(tag: String): List<DatasetEntity> =
-        datasetRepositoryJpa.findByTagsContaining(tag)
+    fun getDatasetsByTag(tag: String): List<DatasetEntity> = datasetRepositoryJpa.findByTagsContaining(tag)
 
     /**
      * Dataset 통계 조회
@@ -160,8 +162,7 @@ class DatasetService(
      * @param owner 특정 소유자로 제한 (null이면 전체)
      * @return 통계 정보
      */
-    fun getDatasetStatistics(owner: String? = null): Map<String, Any> =
-        datasetRepositoryDsl.getDatasetStatistics(owner)
+    fun getDatasetStatistics(owner: String? = null): Map<String, Any> = datasetRepositoryDsl.getDatasetStatistics(owner)
 
     /**
      * 최근에 업데이트된 Dataset 조회
@@ -170,8 +171,10 @@ class DatasetService(
      * @param daysSince 몇 일 전부터
      * @return 최근 업데이트된 Dataset 목록
      */
-    fun getRecentlyUpdatedDatasets(limit: Int, daysSince: Int): List<DatasetEntity> =
-        datasetRepositoryDsl.findRecentlyUpdatedDatasets(limit, daysSince)
+    fun getRecentlyUpdatedDatasets(
+        limit: Int,
+        daysSince: Int,
+    ): List<DatasetEntity> = datasetRepositoryDsl.findRecentlyUpdatedDatasets(limit, daysSince)
 
     /**
      * 의존성이 있는 Dataset들 조회
@@ -199,8 +202,7 @@ class DatasetService(
      * @param name Dataset 이름
      * @return 존재 여부
      */
-    fun existsDataset(name: String): Boolean =
-        datasetRepositoryJpa.existsByName(name)
+    fun existsDataset(name: String): Boolean = datasetRepositoryJpa.existsByName(name)
 
     // === 비즈니스 규칙 검증 ===
 

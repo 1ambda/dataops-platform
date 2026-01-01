@@ -21,7 +21,6 @@ import java.time.LocalDateTime
 interface DatasetRepositoryJpaImpl :
     DatasetRepositoryJpa,
     JpaRepository<DatasetEntity, String> {
-
     // 기본 CRUD 작업 (save는 JpaRepository와 시그니처가 동일하므로 자동으로 맞춰짐)
     // override fun save(dataset: DatasetEntity): DatasetEntity - JpaRepository에서 자동 제공
 
@@ -63,7 +62,8 @@ interface DatasetRepositoryJpaImpl :
     ): Int
 
     // 복잡한 검색 쿼리
-    @Query("""
+    @Query(
+        """
         SELECT d FROM DatasetEntity d
         WHERE (:owner IS NULL OR LOWER(d.owner) LIKE LOWER(CONCAT('%', :owner, '%')))
         AND (:tag IS NULL OR :tag MEMBER OF d.tags)
@@ -71,7 +71,8 @@ interface DatasetRepositoryJpaImpl :
              LOWER(d.name) LIKE LOWER(CONCAT('%', :search, '%')) OR
              LOWER(d.description) LIKE LOWER(CONCAT('%', :search, '%')))
         ORDER BY d.updatedAt DESC
-    """)
+    """,
+    )
     fun findByComplexFilters(
         @Param("owner") owner: String?,
         @Param("tag") tag: String?,
@@ -79,14 +80,16 @@ interface DatasetRepositoryJpaImpl :
         pageable: Pageable,
     ): Page<DatasetEntity>
 
-    @Query("""
+    @Query(
+        """
         SELECT COUNT(d) FROM DatasetEntity d
         WHERE (:owner IS NULL OR LOWER(d.owner) LIKE LOWER(CONCAT('%', :owner, '%')))
         AND (:tag IS NULL OR :tag MEMBER OF d.tags)
         AND (:search IS NULL OR
              LOWER(d.name) LIKE LOWER(CONCAT('%', :search, '%')) OR
              LOWER(d.description) LIKE LOWER(CONCAT('%', :search, '%')))
-    """)
+    """,
+    )
     fun countByComplexFilters(
         @Param("owner") owner: String?,
         @Param("tag") tag: String?,

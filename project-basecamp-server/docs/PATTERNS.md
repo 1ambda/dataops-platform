@@ -4,6 +4,40 @@
 
 ---
 
+## 🚨 CRITICAL: Repository Naming Convention (MUST READ)
+
+**모든 Repository 클래스/인터페이스는 반드시 `Jpa` 또는 `Dsl` 접미사를 포함해야 합니다:**
+
+| Layer | Pattern | Example |
+|-------|---------|---------|
+| **module-core-domain** | `{Entity}RepositoryJpa` | `CatalogTableRepositoryJpa` |
+| **module-core-domain** | `{Entity}RepositoryDsl` | `CatalogTableRepositoryDsl` |
+| **module-core-infra** | `{Entity}RepositoryJpaImpl` | `CatalogTableRepositoryJpaImpl` |
+| **module-core-infra** | `{Entity}RepositoryDslImpl` | `CatalogTableRepositoryDslImpl` |
+
+**❌ 절대 금지 (이 패턴은 거부됩니다):**
+```kotlin
+interface SampleQueryRepository      // ❌ Jpa/Dsl 없음 - 금지!
+class SampleQueryRepositoryImpl      // ❌ Jpa/Dsl 없음 - 금지!
+interface ItemRepositoryJpaSpringData // ❌ SpringData 별도 인터페이스 - 금지!
+```
+
+**✅ 올바른 패턴:**
+```kotlin
+// Domain (module-core-domain/repository/)
+interface SampleQueryRepositoryJpa { ... }   // CRUD
+interface SampleQueryRepositoryDsl { ... }   // Complex queries
+
+// Infra (module-core-infra/repository/)
+@Repository("sampleQueryRepositoryJpa")
+interface SampleQueryRepositoryJpaImpl : SampleQueryRepositoryJpa, JpaRepository<...>
+
+@Repository("sampleQueryRepositoryDsl")
+class SampleQueryRepositoryDslImpl : SampleQueryRepositoryDsl { ... }
+```
+
+---
+
 ## Deep Dive Documentation
 
 For comprehensive implementation guides, see:

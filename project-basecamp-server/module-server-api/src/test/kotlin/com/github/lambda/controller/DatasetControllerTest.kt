@@ -5,7 +5,6 @@ import com.github.lambda.common.exception.DatasetNotFoundException
 import com.github.lambda.domain.model.dataset.DatasetEntity
 import com.github.lambda.domain.service.DatasetService
 import com.github.lambda.dto.dataset.*
-import com.github.lambda.mapper.DatasetMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
@@ -32,7 +31,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import tools.jackson.databind.json.JsonMapper
-import java.time.LocalDateTime
 
 /**
  * DatasetController REST API Tests
@@ -46,7 +44,6 @@ import java.time.LocalDateTime
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
 class DatasetControllerTest {
-
     @Autowired
     private lateinit var mockMvc: MockMvc
 
@@ -63,59 +60,63 @@ class DatasetControllerTest {
 
     @BeforeEach
     fun setUp() {
-        testDatasetEntity = DatasetEntity(
-            name = "test_catalog.test_schema.test_dataset",
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test dataset description",
-            sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
-            tags = setOf("test", "user"),
-            dependencies = setOf("users"),
-            scheduleCron = "0 9 * * *",
-            scheduleTimezone = "UTC"
-        )
+        testDatasetEntity =
+            DatasetEntity(
+                name = "test_catalog.test_schema.test_dataset",
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test dataset description",
+                sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
+                tags = setOf("test", "user"),
+                dependencies = setOf("users"),
+                scheduleCron = "0 9 * * *",
+                scheduleTimezone = "UTC",
+            )
 
-        testDatasetDto = DatasetDto(
-            name = "test_catalog.test_schema.test_dataset",
-            type = "Dataset",
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test dataset description",
-            tags = listOf("test", "user"),
-            sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
-            dependencies = listOf("users"),
-            schedule = ScheduleDto(cron = "0 9 * * *", timezone = "UTC"),
-            createdAt = "2024-01-01T09:00:00Z",
-            updatedAt = "2024-01-01T09:00:00Z"
-        )
+        testDatasetDto =
+            DatasetDto(
+                name = "test_catalog.test_schema.test_dataset",
+                type = "Dataset",
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test dataset description",
+                tags = listOf("test", "user"),
+                sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
+                dependencies = listOf("users"),
+                schedule = ScheduleDto(cron = "0 9 * * *", timezone = "UTC"),
+                createdAt = "2024-01-01T09:00:00Z",
+                updatedAt = "2024-01-01T09:00:00Z",
+            )
 
         // List response without SQL and dependencies (for list view)
-        testDatasetListDto = DatasetListDto(
-            name = "test_catalog.test_schema.test_dataset",
-            type = "Dataset",
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test dataset description",
-            tags = listOf("test", "user"),
-            createdAt = "2024-01-01T09:00:00Z",
-            updatedAt = "2024-01-01T09:00:00Z"
-        )
+        testDatasetListDto =
+            DatasetListDto(
+                name = "test_catalog.test_schema.test_dataset",
+                type = "Dataset",
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test dataset description",
+                tags = listOf("test", "user"),
+                createdAt = "2024-01-01T09:00:00Z",
+                updatedAt = "2024-01-01T09:00:00Z",
+            )
 
-        testExecutionResultDto = ExecutionResultDto(
-            rows = listOf(
-                mapOf("id" to 1, "name" to "Alice", "created_at" to "2024-01-01T09:00:00Z"),
-                mapOf("id" to 2, "name" to "Bob", "created_at" to "2024-01-01T09:00:00Z")
-            ),
-            rowCount = 2,
-            durationSeconds = 0.5,
-            renderedSql = "SELECT id, name, created_at FROM users WHERE created_at >= '2024-01-01'"
-        )
+        testExecutionResultDto =
+            ExecutionResultDto(
+                rows =
+                    listOf(
+                        mapOf("id" to 1, "name" to "Alice", "created_at" to "2024-01-01T09:00:00Z"),
+                        mapOf("id" to 2, "name" to "Bob", "created_at" to "2024-01-01T09:00:00Z"),
+                    ),
+                rowCount = 2,
+                durationSeconds = 0.5,
+                renderedSql = "SELECT id, name, created_at FROM users WHERE created_at >= '2024-01-01'",
+            )
     }
 
     @Nested
     @DisplayName("GET /api/v1/datasets")
     inner class ListDatasets {
-
         @Test
         @DisplayName("should return empty list when no datasets exist")
         fun `should return empty list when no datasets exist`() {
@@ -168,9 +169,8 @@ class DatasetControllerTest {
             mockMvc
                 .perform(
                     get("/api/v1/datasets")
-                        .param("tag", tag)
-                )
-                .andExpect(status().isOk)
+                        .param("tag", tag),
+                ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.length()").value(1))
 
             verify(exactly = 1) { datasetService.listDatasets(tag, null, null, pageable) }
@@ -189,9 +189,8 @@ class DatasetControllerTest {
             mockMvc
                 .perform(
                     get("/api/v1/datasets")
-                        .param("owner", owner)
-                )
-                .andExpect(status().isOk)
+                        .param("owner", owner),
+                ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.length()").value(1))
 
             verify(exactly = 1) { datasetService.listDatasets(null, owner, null, pageable) }
@@ -210,9 +209,8 @@ class DatasetControllerTest {
             mockMvc
                 .perform(
                     get("/api/v1/datasets")
-                        .param("search", search)
-                )
-                .andExpect(status().isOk)
+                        .param("search", search),
+                ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.length()").value(1))
 
             verify(exactly = 1) { datasetService.listDatasets(null, null, search, pageable) }
@@ -232,9 +230,8 @@ class DatasetControllerTest {
                 .perform(
                     get("/api/v1/datasets")
                         .param("limit", limit.toString())
-                        .param("offset", offset.toString())
-                )
-                .andExpect(status().isOk)
+                        .param("offset", offset.toString()),
+                ).andExpect(status().isOk)
 
             verify(exactly = 1) { datasetService.listDatasets(null, null, null, pageable) }
         }
@@ -260,9 +257,8 @@ class DatasetControllerTest {
                         .param("owner", owner)
                         .param("search", search)
                         .param("limit", limit.toString())
-                        .param("offset", offset.toString())
-                )
-                .andExpect(status().isOk)
+                        .param("offset", offset.toString()),
+                ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.length()").value(1))
 
             verify(exactly = 1) { datasetService.listDatasets(tag, owner, search, pageable) }
@@ -275,9 +271,8 @@ class DatasetControllerTest {
             mockMvc
                 .perform(
                     get("/api/v1/datasets")
-                        .param("limit", "501") // Exceeds max 500
-                )
-                .andExpect(status().isBadRequest)
+                        .param("limit", "501"), // Exceeds max 500
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -287,16 +282,14 @@ class DatasetControllerTest {
             mockMvc
                 .perform(
                     get("/api/v1/datasets")
-                        .param("offset", "-1")
-                )
-                .andExpect(status().isBadRequest)
+                        .param("offset", "-1"),
+                ).andExpect(status().isBadRequest)
         }
     }
 
     @Nested
     @DisplayName("GET /api/v1/datasets/{name}")
     inner class GetDataset {
-
         @Test
         @DisplayName("should return dataset by name")
         fun `should return dataset by name`() {
@@ -326,9 +319,10 @@ class DatasetControllerTest {
             every { datasetService.getDataset(name) } returns null
 
             // When & Then
-            val exception = org.junit.jupiter.api.assertThrows<Exception> {
-                mockMvc.perform(get("/api/v1/datasets/$name")).andReturn()
-            }
+            val exception =
+                org.junit.jupiter.api.assertThrows<Exception> {
+                    mockMvc.perform(get("/api/v1/datasets/$name")).andReturn()
+                }
 
             assertThat(exception.cause).isInstanceOf(DatasetNotFoundException::class.java)
             verify(exactly = 1) { datasetService.getDataset(name) }
@@ -338,19 +332,19 @@ class DatasetControllerTest {
     @Nested
     @DisplayName("POST /api/v1/datasets")
     inner class RegisterDataset {
-
         @Test
         @DisplayName("should register dataset successfully")
         fun `should register dataset successfully`() {
             // Given
-            val request = CreateDatasetRequest(
-                name = "new_catalog.new_schema.new_dataset",
-                owner = "new@example.com",
-                sql = "SELECT * FROM new_table",
-                description = "New dataset",
-                tags = listOf("new"),
-                schedule = ScheduleRequest(cron = "0 8 * * *")
-            )
+            val request =
+                CreateDatasetRequest(
+                    name = "new_catalog.new_schema.new_dataset",
+                    owner = "new@example.com",
+                    sql = "SELECT * FROM new_table",
+                    description = "New dataset",
+                    tags = listOf("new"),
+                    schedule = ScheduleRequest(cron = "0 8 * * *"),
+                )
 
             every { datasetService.registerDataset(any()) } returns testDatasetEntity
 
@@ -360,9 +354,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(request))
-                )
-                .andExpect(status().isCreated)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isCreated)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.name").value(testDatasetEntity.name))
                 .andExpect(jsonPath("$.message").exists())
@@ -374,10 +367,11 @@ class DatasetControllerTest {
         @DisplayName("should return 400 for invalid request - missing name")
         fun `should return 400 for invalid request - missing name`() {
             // Given
-            val invalidRequest = mapOf(
-                "owner" to "test@example.com",
-                "sql" to "SELECT 1"
-            )
+            val invalidRequest =
+                mapOf(
+                    "owner" to "test@example.com",
+                    "sql" to "SELECT 1",
+                )
 
             // When & Then
             mockMvc
@@ -385,20 +379,20 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
         @DisplayName("should return 400 for invalid dataset name format")
         fun `should return 400 for invalid dataset name format`() {
             // Given
-            val invalidRequest = mapOf(
-                "name" to "invalid-name-without-dots",
-                "owner" to "test@example.com",
-                "sql" to "SELECT 1"
-            )
+            val invalidRequest =
+                mapOf(
+                    "name" to "invalid-name-without-dots",
+                    "owner" to "test@example.com",
+                    "sql" to "SELECT 1",
+                )
 
             // When & Then
             mockMvc
@@ -406,20 +400,20 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
         @DisplayName("should return 400 for invalid email format")
         fun `should return 400 for invalid email format`() {
             // Given
-            val invalidRequest = mapOf(
-                "name" to "catalog.schema.dataset",
-                "owner" to "not-an-email",
-                "sql" to "SELECT 1"
-            )
+            val invalidRequest =
+                mapOf(
+                    "name" to "catalog.schema.dataset",
+                    "owner" to "not-an-email",
+                    "sql" to "SELECT 1",
+                )
 
             // When & Then
             mockMvc
@@ -427,9 +421,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -437,12 +430,13 @@ class DatasetControllerTest {
         fun `should return 400 when tags exceed maximum limit`() {
             // Given
             val tooManyTags = (1..15).map { "tag$it" } // 15 tags, limit is 10
-            val invalidRequest = mapOf(
-                "name" to "catalog.schema.dataset",
-                "owner" to "test@example.com",
-                "sql" to "SELECT 1",
-                "tags" to tooManyTags
-            )
+            val invalidRequest =
+                mapOf(
+                    "name" to "catalog.schema.dataset",
+                    "owner" to "test@example.com",
+                    "sql" to "SELECT 1",
+                    "tags" to tooManyTags,
+                )
 
             // When & Then
             mockMvc
@@ -450,9 +444,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -460,12 +453,13 @@ class DatasetControllerTest {
         fun `should return 400 when description exceeds maximum length`() {
             // Given
             val tooLongDescription = "x".repeat(1001) // Description > 1000 chars
-            val invalidRequest = mapOf(
-                "name" to "catalog.schema.dataset",
-                "owner" to "test@example.com",
-                "sql" to "SELECT 1",
-                "description" to tooLongDescription
-            )
+            val invalidRequest =
+                mapOf(
+                    "name" to "catalog.schema.dataset",
+                    "owner" to "test@example.com",
+                    "sql" to "SELECT 1",
+                    "description" to tooLongDescription,
+                )
 
             // When & Then
             mockMvc
@@ -473,9 +467,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -483,12 +476,13 @@ class DatasetControllerTest {
         fun `should return 400 when team name exceeds maximum length`() {
             // Given
             val tooLongTeam = "x".repeat(101) // Team > 100 chars
-            val invalidRequest = mapOf(
-                "name" to "catalog.schema.dataset",
-                "owner" to "test@example.com",
-                "sql" to "SELECT 1",
-                "team" to tooLongTeam
-            )
+            val invalidRequest =
+                mapOf(
+                    "name" to "catalog.schema.dataset",
+                    "owner" to "test@example.com",
+                    "sql" to "SELECT 1",
+                    "team" to tooLongTeam,
+                )
 
             // When & Then
             mockMvc
@@ -496,33 +490,34 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
         @DisplayName("should throw DatasetAlreadyExistsException when dataset already exists")
         fun `should throw DatasetAlreadyExistsException when dataset already exists`() {
             // Given
-            val request = CreateDatasetRequest(
-                name = "existing_catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1"
-            )
+            val request =
+                CreateDatasetRequest(
+                    name = "existing_catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
 
             every { datasetService.registerDataset(any()) } throws DatasetAlreadyExistsException(request.name)
 
             // When & Then
-            val exception = org.junit.jupiter.api.assertThrows<Exception> {
-                mockMvc
-                    .perform(
-                        post("/api/v1/datasets")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(jsonMapper.writeValueAsString(request))
-                    ).andReturn()
-            }
+            val exception =
+                org.junit.jupiter.api.assertThrows<Exception> {
+                    mockMvc
+                        .perform(
+                            post("/api/v1/datasets")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(jsonMapper.writeValueAsString(request)),
+                        ).andReturn()
+                }
 
             assertThat(exception.cause).isInstanceOf(DatasetAlreadyExistsException::class.java)
         }
@@ -531,17 +526,17 @@ class DatasetControllerTest {
     @Nested
     @DisplayName("POST /api/v1/datasets/{name}/run")
     inner class ExecuteDataset {
-
         @Test
         @DisplayName("should execute dataset successfully")
         fun `should execute dataset successfully`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val request = ExecuteDatasetRequest(
-                parameters = mapOf("date" to "2024-01-01"),
-                limit = 100,
-                timeout = 60
-            )
+            val request =
+                ExecuteDatasetRequest(
+                    parameters = mapOf("date" to "2024-01-01"),
+                    limit = 100,
+                    timeout = 60,
+                )
 
             every { datasetService.getDataset(name) } returns testDatasetEntity
 
@@ -551,9 +546,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(request))
-                )
-                .andExpect(status().isOk)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.rows").isArray())
                 .andExpect(jsonPath("$.rowCount").isNumber())
@@ -572,15 +566,16 @@ class DatasetControllerTest {
             every { datasetService.getDataset(name) } returns null
 
             // When & Then
-            val exception = org.junit.jupiter.api.assertThrows<Exception> {
-                mockMvc
-                    .perform(
-                        post("/api/v1/datasets/$name/run")
-                            .with(csrf())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(jsonMapper.writeValueAsString(request))
-                    ).andReturn()
-            }
+            val exception =
+                org.junit.jupiter.api.assertThrows<Exception> {
+                    mockMvc
+                        .perform(
+                            post("/api/v1/datasets/$name/run")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(jsonMapper.writeValueAsString(request)),
+                        ).andReturn()
+                }
 
             assertThat(exception.cause).isInstanceOf(DatasetNotFoundException::class.java)
         }
@@ -590,10 +585,11 @@ class DatasetControllerTest {
         fun `should return 400 when limit is less than 1`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val invalidRequest = mapOf(
-                "parameters" to emptyMap<String, Any>(),
-                "limit" to 0 // Invalid - must be at least 1
-            )
+            val invalidRequest =
+                mapOf(
+                    "parameters" to emptyMap<String, Any>(),
+                    "limit" to 0, // Invalid - must be at least 1
+                )
 
             // When & Then
             mockMvc
@@ -601,9 +597,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -611,10 +606,11 @@ class DatasetControllerTest {
         fun `should return 400 when limit exceeds maximum`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val invalidRequest = mapOf(
-                "parameters" to emptyMap<String, Any>(),
-                "limit" to 10001 // Invalid - must not exceed 10000
-            )
+            val invalidRequest =
+                mapOf(
+                    "parameters" to emptyMap<String, Any>(),
+                    "limit" to 10001, // Invalid - must not exceed 10000
+                )
 
             // When & Then
             mockMvc
@@ -622,9 +618,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -632,10 +627,11 @@ class DatasetControllerTest {
         fun `should return 400 when timeout is less than 1`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val invalidRequest = mapOf(
-                "parameters" to emptyMap<String, Any>(),
-                "timeout" to 0 // Invalid - must be at least 1
-            )
+            val invalidRequest =
+                mapOf(
+                    "parameters" to emptyMap<String, Any>(),
+                    "timeout" to 0, // Invalid - must be at least 1
+                )
 
             // When & Then
             mockMvc
@@ -643,9 +639,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -653,10 +648,11 @@ class DatasetControllerTest {
         fun `should return 400 when timeout exceeds maximum`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val invalidRequest = mapOf(
-                "parameters" to emptyMap<String, Any>(),
-                "timeout" to 3601 // Invalid - must not exceed 3600
-            )
+            val invalidRequest =
+                mapOf(
+                    "parameters" to emptyMap<String, Any>(),
+                    "timeout" to 3601, // Invalid - must not exceed 3600
+                )
 
             // When & Then
             mockMvc
@@ -664,9 +660,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest))
-                )
-                .andExpect(status().isBadRequest)
+                        .content(jsonMapper.writeValueAsString(invalidRequest)),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
@@ -684,9 +679,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/$name/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(request))
-                )
-                .andExpect(status().isOk)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isOk)
 
             verify(exactly = 1) { datasetService.getDataset(name) }
         }
@@ -695,24 +689,25 @@ class DatasetControllerTest {
     @Nested
     @DisplayName("Integration Tests")
     inner class IntegrationTests {
-
         @Test
         @DisplayName("should handle complete register-get-run flow")
         fun `should handle complete register-get-run flow`() {
             // Given - Setup for register
-            val registerRequest = CreateDatasetRequest(
-                name = "integration_catalog.schema.dataset",
-                owner = "integration@example.com",
-                sql = "SELECT COUNT(*) FROM test_table WHERE date = '{{date}}'",
-                description = "Integration test dataset"
-            )
+            val registerRequest =
+                CreateDatasetRequest(
+                    name = "integration_catalog.schema.dataset",
+                    owner = "integration@example.com",
+                    sql = "SELECT COUNT(*) FROM test_table WHERE date = '{{date}}'",
+                    description = "Integration test dataset",
+                )
 
-            val registeredDataset = DatasetEntity(
-                name = registerRequest.name,
-                owner = registerRequest.owner,
-                sql = registerRequest.sql,
-                description = registerRequest.description
-            )
+            val registeredDataset =
+                DatasetEntity(
+                    name = registerRequest.name,
+                    owner = registerRequest.owner,
+                    sql = registerRequest.sql,
+                    description = registerRequest.description,
+                )
 
             every { datasetService.registerDataset(any()) } returns registeredDataset
 
@@ -722,9 +717,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(registerRequest))
-                )
-                .andExpect(status().isCreated)
+                        .content(jsonMapper.writeValueAsString(registerRequest)),
+                ).andExpect(status().isCreated)
                 .andExpect(jsonPath("$.name").value(registerRequest.name))
 
             // Given - Setup for get
@@ -737,9 +731,10 @@ class DatasetControllerTest {
                 .andExpect(jsonPath("$.name").value(registerRequest.name))
 
             // Given - Setup for run
-            val runRequest = ExecuteDatasetRequest(
-                parameters = mapOf("date" to "2024-01-01")
-            )
+            val runRequest =
+                ExecuteDatasetRequest(
+                    parameters = mapOf("date" to "2024-01-01"),
+                )
 
             // When & Then - Run
             mockMvc
@@ -747,9 +742,8 @@ class DatasetControllerTest {
                     post("/api/v1/datasets/${registerRequest.name}/run")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(runRequest))
-                )
-                .andExpect(status().isOk)
+                        .content(jsonMapper.writeValueAsString(runRequest)),
+                ).andExpect(status().isOk)
 
             // Verify all calls
             verify(exactly = 1) { datasetService.registerDataset(any()) }

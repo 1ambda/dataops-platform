@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-01-02
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 28% (10/36 endpoints completed)
+> **Current Progress:** 39% (14/36 endpoints completed)
 
 ---
 
@@ -11,47 +11,47 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 10 endpoints | Health + Metrics + Datasets API |
+| **Completed** | 14 endpoints | Health + Metrics + Datasets + Catalog API |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 26 endpoints | P0-P3 priorities |
-| **Overall Progress** | **28%** | 🟢 Phase 1 nearly complete |
+| **Not Started** | 22 endpoints | P1-P3 priorities |
+| **Overall Progress** | **39%** | 🟢 Phase 1 complete, Phase 2 started |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
-| **Estimated Timeline** | 8.5 weeks | ~2.1 months with 1.5 FTE (revised) |
+| **Estimated Timeline** | 7 weeks | ~1.8 months with 1.5 FTE (revised) |
 
-**Key Insight:** Both Metrics API (4 endpoints, 23 tests) and Datasets API (4 endpoints, 80+ tests) completed with full hexagonal architecture implementation. Exception handling refactored and comprehensive cross-review completed. Foundation enables rapid P1-P3 development.
+**Key Insight:** P0 Critical APIs (Health, Metrics, Datasets) and P1 Catalog API completed with full hexagonal architecture, 170+ tests total. Catalog API uses self-managed JPA entities for efficient metadata management. Foundation enables rapid P2-P3 development.
 
 ---
 
 ## 🎯 BASECAMP API Implementation Status
 
-### Current Status by Priority (2026-01-01)
+### Current Status by Priority (2026-01-02)
 
 | Priority | Category | Required | Completed | Progress | CLI Command |
 |----------|----------|----------|-----------|----------|-------------|
 | **P0 Critical** | Health | 2 | 2 | ✅ **100%** | `dli debug` |
 | **P0 Critical** | Metrics | 5 | 4 | ✅ **80%** | `dli metric` |
 | **P0 Critical** | Datasets | 4 | 4 | ✅ **100%** | `dli dataset` |
-| **P1 High** | Catalog | 4 | 0 | ❌ **0%** | `dli catalog` |
+| **P1 High** | Catalog | 4 | 4 | ✅ **100%** | `dli catalog` |
 | **P1 High** | Lineage | 1 | 0 | ❌ **0%** | `dli lineage` |
 | **P2 Medium** | Workflow | 9 | 0 | ❌ **0%** | `dli workflow` |
 | **P3 Low** | Quality | 3 | 0 | ❌ **0%** | `dli quality` |
 | **P3 Low** | Query | 3 | 0 | ❌ **0%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
 | **P3 Low** | Run | 2 | 0 | ❌ **0%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **10** | 🟢 **28%** | All CLI commands |
+| **TOTAL** | **10 features** | **36** | **14** | 🟢 **39%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
 | Phase | Priority | APIs | Timeline | Status |
 |-------|----------|------|----------|--------|
 | **Phase 1** | P0 Critical | 11 endpoints | Week 1-2.5 | 🟢 Nearly Complete (10/11) |
-| **Phase 2** | P1 High | 5 endpoints | Week 3-5 | ⏳ Pending P0 |
-| **Phase 3** | P2 Medium | 9 endpoints | Week 6-9 | ⏳ Pending P1 |
-| **Phase 4** | P3 Low | 11 endpoints | Week 10-12.5 | ⏳ Pending P2 |
+| **Phase 2** | P1 High | 5 endpoints | Week 3-5 | 🟢 In Progress (4/5) |
+| **Phase 3** | P2 Medium | 9 endpoints | Week 6-9 | ⏳ Pending |
+| **Phase 4** | P3 Low | 11 endpoints | Week 10-12.5 | ⏳ Pending |
 
 ---
 
-## ✅ Completed Implementation (10/36)
+## ✅ Completed Implementation (14/36)
 
 ### Health & System API - 100% Complete
 
@@ -96,6 +96,19 @@
 | `POST /api/v1/datasets/{name}/run` | ✅ Complete |
 
 **Summary:** 80+ tests, hexagonal architecture, business validation, SQL execution with parameter substitution, exception refactoring, repository pattern fixes, comprehensive cross-review completed
+
+### Catalog API - 100% Complete (4/4 endpoints)
+
+> **📖 Detailed Documentation:** [`CATALOG_RELEASE.md`](./CATALOG_RELEASE.md)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/catalog/tables` | ✅ Complete |
+| `GET /api/v1/catalog/search` | ✅ Complete |
+| `GET /api/v1/catalog/tables/{table_ref}` | ✅ Complete |
+| `GET /api/v1/catalog/tables/{table_ref}/queries` | ✅ Complete |
+
+**Summary:** 70+ tests, self-managed JPA entities (CatalogTableEntity, CatalogColumnEntity, SampleQueryEntity), PII masking, search with match context, hexagonal architecture, comprehensive cross-review completed
 
 ---
 
@@ -142,15 +155,17 @@
 
 ---
 
-## 🔄 Phase 2-4: Remaining APIs (0/25)
+## 🔄 Phase 2-4: Remaining APIs (0/21)
 
-### Phase 2: P1 High Priority (Week 3-5) - 0/5 APIs
+### Phase 2: P1 High Priority (Week 3-5) - 4/5 APIs
 
-**Catalog API (0/4):**
-- `GET /api/v1/catalog/tables` - List tables
-- `GET /api/v1/catalog/search` - Search tables/columns
-- `GET /api/v1/catalog/tables/{table_ref}` - Table details
-- `GET /api/v1/catalog/tables/{table_ref}/queries` - Sample queries
+**Catalog API (4/4):** ✅ **Complete**
+- ✅ `GET /api/v1/catalog/tables` - List tables
+- ✅ `GET /api/v1/catalog/search` - Search tables/columns
+- ✅ `GET /api/v1/catalog/tables/{table_ref}` - Table details
+- ✅ `GET /api/v1/catalog/tables/{table_ref}/queries` - Sample queries
+
+> **📖 See:** [`CATALOG_RELEASE.md`](./CATALOG_RELEASE.md) for full implementation details
 
 **Lineage API (0/1):**
 - `GET /api/v1/lineage/{resource_name}` - Dependency graph
@@ -326,21 +341,24 @@ project-basecamp-server/
 
 ### Immediate Actions (This Week)
 
-1. **Complete Phase 1 Remaining Work**
+1. **Complete Phase 2 Remaining Work**
    - [x] ~~Review [`METRIC_FEATURE.md`](./METRIC_FEATURE.md) specification~~ ✅ Done
    - [x] ~~Implement Metrics API (4/5 endpoints)~~ ✅ Done
+   - [x] ~~Implement Datasets API (4/4 endpoints)~~ ✅ Done
+   - [x] ~~Implement Catalog API (4/4 endpoints)~~ ✅ Done
    - [ ] Add `POST /api/v1/metrics/{name}/transpile` endpoint
-   - [ ] Start Datasets API implementation (4 endpoints)
+   - [ ] Start Lineage API implementation (1 endpoint)
 
 2. **Technical Preparation**
    - [x] ~~Configure test data for Metric entities~~ ✅ Done (23 tests)
+   - [x] ~~Configure test data for Dataset entities~~ ✅ Done (80+ tests)
+   - [x] ~~Configure test data for Catalog entities~~ ✅ Done (70+ tests)
    - [ ] Verify Keycloak OAuth2 for API testing
-   - [ ] Configure test data for Dataset entities
    - [ ] Set up Postman/Insomnia collections
 
 3. **Team Alignment**
-   - [x] ~~Review hexagonal architecture patterns~~ ✅ Used for Metrics
-   - [ ] Review simplified repository pattern (see docs/PATTERNS.md)
+   - [x] ~~Review hexagonal architecture patterns~~ ✅ Used for all APIs
+   - [x] ~~Review simplified repository pattern~~ ✅ Applied
    - [ ] Understand error handling requirements ([`ERROR_CODES.md`](./ERROR_CODES.md))
    - [ ] Validate CLI compatibility ([`CLI_API_MAPPING.md`](../docs/CLI_API_MAPPING.md))
 
@@ -383,6 +401,8 @@ project-basecamp-server/
 | API | Release Document | Status |
 |-----|------------------|--------|
 | **Metric API** | [`METRIC_RELEASE.md`](./METRIC_RELEASE.md) | ✅ 80% (4/5 endpoints) |
+| **Dataset API** | [`DATASET_RELEASE.md`](./DATASET_RELEASE.md) | ✅ 100% (4/4 endpoints) |
+| **Catalog API** | [`CATALOG_RELEASE.md`](./CATALOG_RELEASE.md) | ✅ 100% (4/4 endpoints) |
 
 ### Implementation Guides
 
@@ -455,4 +475,4 @@ The codebase contains 11 dummy Pipeline endpoints that serve as **implementation
 
 ---
 
-*Last Updated: 2026-01-01 (Metrics API completed) | Next Review: Weekly during Phase 1*
+*Last Updated: 2026-01-02 (Catalog API completed) | Next Review: Weekly during Phase 2*

@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import java.time.LocalDateTime
 
@@ -27,7 +26,6 @@ import java.time.LocalDateTime
  */
 @DisplayName("DatasetService Unit Tests")
 class DatasetServiceTest {
-
     private val datasetRepositoryJpa: DatasetRepositoryJpa = mockk()
     private val datasetRepositoryDsl: DatasetRepositoryDsl = mockk()
     private val datasetService = DatasetService(datasetRepositoryJpa, datasetRepositoryDsl)
@@ -36,34 +34,35 @@ class DatasetServiceTest {
 
     @BeforeEach
     fun setUp() {
-        testDataset = DatasetEntity(
-            name = "test_catalog.test_schema.test_dataset",
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test dataset description",
-            sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
-            tags = setOf("test", "user"),
-            dependencies = setOf("users"),
-            scheduleCron = "0 9 * * *",
-            scheduleTimezone = "UTC"
-        )
+        testDataset =
+            DatasetEntity(
+                name = "test_catalog.test_schema.test_dataset",
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test dataset description",
+                sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
+                tags = setOf("test", "user"),
+                dependencies = setOf("users"),
+                scheduleCron = "0 9 * * *",
+                scheduleTimezone = "UTC",
+            )
     }
 
     @Nested
     @DisplayName("registerDataset")
     inner class RegisterDataset {
-
         @Test
         @DisplayName("should register dataset successfully when name does not exist")
         fun `should register dataset successfully when name does not exist`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "new_catalog.new_schema.new_dataset",
-                owner = "new@example.com",
-                sql = "SELECT * FROM new_table",
-                description = "New dataset",
-                tags = setOf("new")
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "new_catalog.new_schema.new_dataset",
+                    owner = "new@example.com",
+                    sql = "SELECT * FROM new_table",
+                    description = "New dataset",
+                    tags = setOf("new"),
+                )
 
             every { datasetRepositoryJpa.existsByName(dataset.name) } returns false
 
@@ -89,17 +88,19 @@ class DatasetServiceTest {
         fun `should throw DatasetAlreadyExistsException when dataset already exists`() {
             // Given
             val name = "existing_catalog.schema.dataset"
-            val dataset = DatasetEntity(
-                name = name,
-                owner = "test@example.com",
-                sql = "SELECT 1"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = name,
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
             every { datasetRepositoryJpa.existsByName(name) } returns true
 
             // When & Then
-            val exception = assertThrows<DatasetAlreadyExistsException> {
-                datasetService.registerDataset(dataset)
-            }
+            val exception =
+                assertThrows<DatasetAlreadyExistsException> {
+                    datasetService.registerDataset(dataset)
+                }
 
             assertThat(exception.message).contains(name)
             verify(exactly = 1) { datasetRepositoryJpa.existsByName(name) }
@@ -110,18 +111,20 @@ class DatasetServiceTest {
         @DisplayName("should throw InvalidDatasetNameException for invalid name format")
         fun `should throw InvalidDatasetNameException for invalid name format`() {
             // Given
-            val invalidDataset = DatasetEntity(
-                name = "invalid-name-without-dots",
-                owner = "test@example.com",
-                sql = "SELECT 1"
-            )
+            val invalidDataset =
+                DatasetEntity(
+                    name = "invalid-name-without-dots",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
 
             every { datasetRepositoryJpa.existsByName(invalidDataset.name) } returns false
 
             // When & Then
-            val exception = assertThrows<InvalidDatasetNameException> {
-                datasetService.registerDataset(invalidDataset)
-            }
+            val exception =
+                assertThrows<InvalidDatasetNameException> {
+                    datasetService.registerDataset(invalidDataset)
+                }
 
             assertThat(exception.message).contains("invalid-name-without-dots")
             verify(exactly = 1) { datasetRepositoryJpa.existsByName(invalidDataset.name) }
@@ -133,19 +136,21 @@ class DatasetServiceTest {
         fun `should throw TooManyTagsException when tags exceed limit`() {
             // Given
             val tooManyTags = (1..15).map { "tag$it" }.toSet() // 15 tags, limit is 10
-            val invalidDataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                tags = tooManyTags
-            )
+            val invalidDataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    tags = tooManyTags,
+                )
 
             every { datasetRepositoryJpa.existsByName(invalidDataset.name) } returns false
 
             // When & Then
-            val exception = assertThrows<TooManyTagsException> {
-                datasetService.registerDataset(invalidDataset)
-            }
+            val exception =
+                assertThrows<TooManyTagsException> {
+                    datasetService.registerDataset(invalidDataset)
+                }
 
             assertThat(exception.message).contains("15")
             verify(exactly = 1) { datasetRepositoryJpa.existsByName(invalidDataset.name) }
@@ -156,18 +161,20 @@ class DatasetServiceTest {
         @DisplayName("should throw InvalidOwnerEmailException for invalid email format")
         fun `should throw InvalidOwnerEmailException for invalid email format`() {
             // Given
-            val invalidDataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "not-an-email",
-                sql = "SELECT 1"
-            )
+            val invalidDataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "not-an-email",
+                    sql = "SELECT 1",
+                )
 
             every { datasetRepositoryJpa.existsByName(invalidDataset.name) } returns false
 
             // When & Then
-            val exception = assertThrows<InvalidOwnerEmailException> {
-                datasetService.registerDataset(invalidDataset)
-            }
+            val exception =
+                assertThrows<InvalidOwnerEmailException> {
+                    datasetService.registerDataset(invalidDataset)
+                }
 
             assertThat(exception.message).contains("not-an-email")
             verify(exactly = 1) { datasetRepositoryJpa.existsByName(invalidDataset.name) }
@@ -178,19 +185,21 @@ class DatasetServiceTest {
         @DisplayName("should throw InvalidCronException for invalid cron expression")
         fun `should throw InvalidCronException for invalid cron expression`() {
             // Given
-            val invalidDataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                scheduleCron = "invalid cron expression"
-            )
+            val invalidDataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    scheduleCron = "invalid cron expression",
+                )
 
             every { datasetRepositoryJpa.existsByName(invalidDataset.name) } returns false
 
             // When & Then
-            val exception = assertThrows<InvalidCronException> {
-                datasetService.registerDataset(invalidDataset)
-            }
+            val exception =
+                assertThrows<InvalidCronException> {
+                    datasetService.registerDataset(invalidDataset)
+                }
 
             assertThat(exception.message).contains("invalid cron expression")
             verify(exactly = 1) { datasetRepositoryJpa.existsByName(invalidDataset.name) }
@@ -201,12 +210,13 @@ class DatasetServiceTest {
         @DisplayName("should accept valid cron expressions")
         fun `should accept valid cron expressions`() {
             // Given
-            val validDataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                scheduleCron = "0 9 * * *" // Valid cron: daily at 9 AM
-            )
+            val validDataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    scheduleCron = "0 9 * * *", // Valid cron: daily at 9 AM
+                )
 
             every { datasetRepositoryJpa.existsByName(validDataset.name) } returns false
             every { datasetRepositoryJpa.save(any()) } returns validDataset
@@ -223,7 +233,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDataset")
     inner class GetDataset {
-
         @Test
         @DisplayName("should return dataset when found by name")
         fun `should return dataset when found by name`() {
@@ -260,7 +269,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDatasetOrThrow")
     inner class GetDatasetOrThrow {
-
         @Test
         @DisplayName("should return dataset when found")
         fun `should return dataset when found`() {
@@ -283,9 +291,10 @@ class DatasetServiceTest {
             every { datasetRepositoryJpa.findByName(name) } returns null
 
             // When & Then
-            val exception = assertThrows<DatasetNotFoundException> {
-                datasetService.getDatasetOrThrow(name)
-            }
+            val exception =
+                assertThrows<DatasetNotFoundException> {
+                    datasetService.getDatasetOrThrow(name)
+                }
 
             assertThat(exception.message).contains(name)
         }
@@ -294,7 +303,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("listDatasets")
     inner class ListDatasets {
-
         @Test
         @DisplayName("should return all datasets without filters")
         fun `should return all datasets without filters`() {
@@ -367,7 +375,8 @@ class DatasetServiceTest {
         fun `should return empty list when no datasets match filters`() {
             // Given
             val pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            every { datasetRepositoryDsl.findByFilters("nonexistent", null, null, pageable) } returns PageImpl(emptyList())
+            every { datasetRepositoryDsl.findByFilters("nonexistent", null, null, pageable) } returns
+                PageImpl(emptyList())
 
             // When
             val result = datasetService.listDatasets(tag = "nonexistent", pageable = pageable)
@@ -399,23 +408,23 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("updateDataset")
     inner class UpdateDataset {
-
         @Test
         @DisplayName("should update dataset successfully")
         fun `should update dataset successfully`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val updatedDataset = DatasetEntity(
-                name = testDataset.name,
-                owner = testDataset.owner,
-                team = testDataset.team,
-                description = "Updated description",
-                sql = "SELECT * FROM updated_table",
-                tags = setOf("updated", "new"),
-                dependencies = testDataset.dependencies,
-                scheduleCron = testDataset.scheduleCron,
-                scheduleTimezone = testDataset.scheduleTimezone
-            )
+            val updatedDataset =
+                DatasetEntity(
+                    name = testDataset.name,
+                    owner = testDataset.owner,
+                    team = testDataset.team,
+                    description = "Updated description",
+                    sql = "SELECT * FROM updated_table",
+                    tags = setOf("updated", "new"),
+                    dependencies = testDataset.dependencies,
+                    scheduleCron = testDataset.scheduleCron,
+                    scheduleTimezone = testDataset.scheduleTimezone,
+                )
 
             every { datasetRepositoryJpa.findByName(name) } returns testDataset
             every { datasetRepositoryJpa.save(any()) } answers { firstArg() }
@@ -450,29 +459,31 @@ class DatasetServiceTest {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
             val originalCreatedAt = LocalDateTime.of(2024, 1, 1, 9, 0, 0)
-            val existingDataset = DatasetEntity(
-                name = testDataset.name,
-                owner = testDataset.owner,
-                team = testDataset.team,
-                description = testDataset.description,
-                sql = testDataset.sql,
-                tags = testDataset.tags,
-                dependencies = testDataset.dependencies,
-                scheduleCron = testDataset.scheduleCron,
-                scheduleTimezone = testDataset.scheduleTimezone,
-                createdAt = originalCreatedAt
-            )
-            val updatedDataset = DatasetEntity(
-                name = testDataset.name,
-                owner = testDataset.owner,
-                team = testDataset.team,
-                description = "Updated",
-                sql = testDataset.sql,
-                tags = testDataset.tags,
-                dependencies = testDataset.dependencies,
-                scheduleCron = testDataset.scheduleCron,
-                scheduleTimezone = testDataset.scheduleTimezone
-            )
+            val existingDataset =
+                DatasetEntity(
+                    name = testDataset.name,
+                    owner = testDataset.owner,
+                    team = testDataset.team,
+                    description = testDataset.description,
+                    sql = testDataset.sql,
+                    tags = testDataset.tags,
+                    dependencies = testDataset.dependencies,
+                    scheduleCron = testDataset.scheduleCron,
+                    scheduleTimezone = testDataset.scheduleTimezone,
+                    createdAt = originalCreatedAt,
+                )
+            val updatedDataset =
+                DatasetEntity(
+                    name = testDataset.name,
+                    owner = testDataset.owner,
+                    team = testDataset.team,
+                    description = "Updated",
+                    sql = testDataset.sql,
+                    tags = testDataset.tags,
+                    dependencies = testDataset.dependencies,
+                    scheduleCron = testDataset.scheduleCron,
+                    scheduleTimezone = testDataset.scheduleTimezone,
+                )
 
             every { datasetRepositoryJpa.findByName(name) } returns existingDataset
             every { datasetRepositoryJpa.save(any()) } answers { firstArg() }
@@ -490,17 +501,18 @@ class DatasetServiceTest {
         fun `should validate updated dataset`() {
             // Given
             val name = "test_catalog.test_schema.test_dataset"
-            val invalidUpdatedDataset = DatasetEntity(
-                name = testDataset.name,
-                owner = "invalid-email", // Invalid email format
-                team = testDataset.team,
-                description = testDataset.description,
-                sql = testDataset.sql,
-                tags = testDataset.tags,
-                dependencies = testDataset.dependencies,
-                scheduleCron = testDataset.scheduleCron,
-                scheduleTimezone = testDataset.scheduleTimezone
-            )
+            val invalidUpdatedDataset =
+                DatasetEntity(
+                    name = testDataset.name,
+                    owner = "invalid-email", // Invalid email format
+                    team = testDataset.team,
+                    description = testDataset.description,
+                    sql = testDataset.sql,
+                    tags = testDataset.tags,
+                    dependencies = testDataset.dependencies,
+                    scheduleCron = testDataset.scheduleCron,
+                    scheduleTimezone = testDataset.scheduleTimezone,
+                )
 
             every { datasetRepositoryJpa.findByName(name) } returns testDataset
 
@@ -514,7 +526,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("deleteDataset")
     inner class DeleteDataset {
-
         @Test
         @DisplayName("should delete dataset successfully")
         fun `should delete dataset successfully`() {
@@ -551,7 +562,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDatasetsByOwner")
     inner class GetDatasetsByOwner {
-
         @Test
         @DisplayName("should return datasets by owner")
         fun `should return datasets by owner`() {
@@ -573,7 +583,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDatasetsByTag")
     inner class GetDatasetsByTag {
-
         @Test
         @DisplayName("should return datasets by tag")
         fun `should return datasets by tag`() {
@@ -594,7 +603,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("existsDataset")
     inner class ExistsDataset {
-
         @Test
         @DisplayName("should return true when dataset exists")
         fun `should return true when dataset exists`() {
@@ -627,16 +635,16 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDatasetStatistics")
     inner class GetDatasetStatistics {
-
         @Test
         @DisplayName("should return dataset statistics")
         fun `should return dataset statistics`() {
             // Given
-            val stats = mapOf(
-                "total_datasets" to 10,
-                "total_tags" to 5,
-                "avg_dependencies_per_dataset" to 2.5
-            )
+            val stats =
+                mapOf(
+                    "total_datasets" to 10,
+                    "total_tags" to 5,
+                    "avg_dependencies_per_dataset" to 2.5,
+                )
             every { datasetRepositoryDsl.getDatasetStatistics(null) } returns stats
 
             // When
@@ -653,10 +661,11 @@ class DatasetServiceTest {
         fun `should return statistics filtered by owner`() {
             // Given
             val owner = "test@example.com"
-            val stats = mapOf(
-                "total_datasets" to 3,
-                "total_tags" to 2
-            )
+            val stats =
+                mapOf(
+                    "total_datasets" to 3,
+                    "total_tags" to 2,
+                )
             every { datasetRepositoryDsl.getDatasetStatistics(owner) } returns stats
 
             // When
@@ -671,7 +680,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getRecentlyUpdatedDatasets")
     inner class GetRecentlyUpdatedDatasets {
-
         @Test
         @DisplayName("should return recently updated datasets")
         fun `should return recently updated datasets`() {
@@ -693,7 +701,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getDatasetsByDependency")
     inner class GetDatasetsByDependency {
-
         @Test
         @DisplayName("should return datasets that depend on given dataset")
         fun `should return datasets that depend on given dataset`() {
@@ -714,7 +721,6 @@ class DatasetServiceTest {
     @Nested
     @DisplayName("getScheduledDatasets")
     inner class GetScheduledDatasets {
-
         @Test
         @DisplayName("should return all scheduled datasets")
         fun `should return all scheduled datasets`() {

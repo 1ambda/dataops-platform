@@ -1,10 +1,8 @@
 package com.github.lambda.exception
 
 import com.github.lambda.common.exception.BusinessException
-import com.github.lambda.common.exception.ResourceNotFoundException
-import com.github.lambda.common.exception.MetricAlreadyExistsException
-import com.github.lambda.common.exception.MetricExecutionTimeoutException
-import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.common.exception.CatalogServiceException
+import com.github.lambda.common.exception.CatalogTimeoutException
 import com.github.lambda.common.exception.DatasetAlreadyExistsException
 import com.github.lambda.common.exception.DatasetExecutionFailedException
 import com.github.lambda.common.exception.DatasetExecutionTimeoutException
@@ -13,9 +11,16 @@ import com.github.lambda.common.exception.InvalidCronException
 import com.github.lambda.common.exception.InvalidDatasetNameException
 import com.github.lambda.common.exception.InvalidOwnerEmailException
 import com.github.lambda.common.exception.InvalidSqlException
+import com.github.lambda.common.exception.InvalidTableReferenceException
+import com.github.lambda.common.exception.MetricAlreadyExistsException
+import com.github.lambda.common.exception.MetricExecutionTimeoutException
+import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.common.exception.ResourceNotFoundException
+import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.common.exception.TooManyTagsException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
+import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -112,10 +117,11 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "dataset_name" to ex.datasetName,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                    ),
             )
 
         return ResponseEntity
@@ -136,10 +142,11 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "dataset_name" to ex.datasetName,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                    ),
             )
 
         return ResponseEntity
@@ -160,11 +167,12 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "dataset_name" to ex.datasetName,
-                    "timeout_seconds" to ex.timeoutSeconds,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                        "timeout_seconds" to ex.timeoutSeconds,
+                    ),
             )
 
         return ResponseEntity
@@ -185,11 +193,12 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "dataset_name" to ex.datasetName,
-                    "sql_error" to ex.sqlError,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                        "sql_error" to ex.sqlError,
+                    ),
             )
 
         return ResponseEntity
@@ -210,11 +219,12 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "dataset_name" to ex.datasetName,
-                    "expected_pattern" to "[catalog].[schema].[name]",
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                        "expected_pattern" to "[catalog].[schema].[name]",
+                    ),
             )
 
         return ResponseEntity
@@ -235,10 +245,11 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "sql_error" to ex.sqlError,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "sql_error" to ex.sqlError,
+                    ),
             )
 
         return ResponseEntity
@@ -259,10 +270,11 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "email" to ex.email,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "email" to ex.email,
+                    ),
             )
 
         return ResponseEntity
@@ -283,11 +295,12 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "tag_count" to ex.tagCount,
-                    "max_allowed" to ex.maxAllowed,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "tag_count" to ex.tagCount,
+                        "max_allowed" to ex.maxAllowed,
+                    ),
             )
 
         return ResponseEntity
@@ -308,15 +321,120 @@ class GlobalExceptionHandler {
         val errorDetails =
             ErrorDetails(
                 code = ex.errorCode,
-                details = mapOf(
-                    "path" to request.getDescription(false),
-                    "cron_expression" to ex.cronExpression,
-                ),
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "cron_expression" to ex.cronExpression,
+                    ),
             )
 
         return ResponseEntity
             .status(HttpStatus.UNPROCESSABLE_ENTITY)
             .body(ApiResponse.error(ex.message ?: "Invalid cron expression", errorDetails))
+    }
+
+    // === Catalog-specific exception handlers ===
+
+    /**
+     * Table not found exception (404)
+     */
+    @ExceptionHandler(TableNotFoundException::class)
+    fun handleTableNotFoundException(
+        ex: TableNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Table not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "table_ref" to ex.tableRef,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Table not found", errorDetails))
+    }
+
+    /**
+     * Invalid table reference exception (400 Bad Request)
+     */
+    @ExceptionHandler(InvalidTableReferenceException::class)
+    fun handleInvalidTableReferenceException(
+        ex: InvalidTableReferenceException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid table reference: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "table_ref" to ex.tableRef,
+                        "expected_format" to "project.dataset.table",
+                    ),
+            )
+
+        return ResponseEntity
+            .badRequest()
+            .body(ApiResponse.error(ex.message ?: "Invalid table reference", errorDetails))
+    }
+
+    /**
+     * Catalog service exception (502 Bad Gateway)
+     */
+    @ExceptionHandler(CatalogServiceException::class)
+    fun handleCatalogServiceException(
+        ex: CatalogServiceException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.error { "Catalog service error: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "operation" to ex.operation,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.BAD_GATEWAY)
+            .body(ApiResponse.error(ex.message ?: "Catalog service error", errorDetails))
+    }
+
+    /**
+     * Catalog timeout exception (504 Gateway Timeout)
+     */
+    @ExceptionHandler(CatalogTimeoutException::class)
+    fun handleCatalogTimeoutException(
+        ex: CatalogTimeoutException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Catalog timeout: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "table_ref" to ex.tableRef,
+                        "timeout_seconds" to ex.timeoutSeconds,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.GATEWAY_TIMEOUT)
+            .body(ApiResponse.error(ex.message ?: "Catalog timeout", errorDetails))
     }
 
     // === General exception handlers ===
@@ -394,6 +512,31 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ApiResponse.error("Validation failed", errors.firstOrNull()))
+    }
+
+    /**
+     * Constraint violation exception handling (for @Validated parameter validation)
+     */
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolationException(
+        ex: ConstraintViolationException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Constraint violation: ${ex.message}" }
+
+        val violations =
+            ex.constraintViolations.map { violation ->
+                ErrorDetails(
+                    code = "CONSTRAINT_VIOLATION",
+                    field = violation.propertyPath.toString(),
+                    rejectedValue = violation.invalidValue,
+                    details = mapOf("message" to violation.message),
+                )
+            }
+
+        return ResponseEntity
+            .badRequest()
+            .body(ApiResponse.error("Constraint violation", violations.firstOrNull()))
     }
 
     /**

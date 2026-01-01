@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*
 class DatasetController(
     private val datasetService: DatasetService,
 ) {
-
     /**
      * Dataset 목록 조회 with 필터링
      *
@@ -46,11 +45,12 @@ class DatasetController(
         @RequestParam(defaultValue = "50") @Min(1) @Max(500) limit: Int,
         @RequestParam(defaultValue = "0") @Min(0) offset: Int,
     ): ResponseEntity<List<DatasetListDto>> {
-        val pageRequest = PageRequest.of(
-            offset / limit,
-            limit,
-            Sort.by(Sort.Direction.DESC, "updatedAt")
-        )
+        val pageRequest =
+            PageRequest.of(
+                offset / limit,
+                limit,
+                Sort.by(Sort.Direction.DESC, "updatedAt"),
+            )
 
         val datasets = datasetService.listDatasets(tag, owner, search, pageRequest)
         val dtos = datasets.content.map { DatasetMapper.toListDto(it) }
@@ -65,9 +65,12 @@ class DatasetController(
      * @return Dataset 상세 정보
      */
     @GetMapping("/{name}")
-    fun getDataset(@PathVariable name: String): ResponseEntity<DatasetDto> {
-        val dataset = datasetService.getDataset(name)
-            ?: throw DatasetNotFoundException(name)
+    fun getDataset(
+        @PathVariable name: String,
+    ): ResponseEntity<DatasetDto> {
+        val dataset =
+            datasetService.getDataset(name)
+                ?: throw DatasetNotFoundException(name)
 
         val dto = DatasetMapper.toDto(dataset)
         return ResponseEntity.ok(dto)
@@ -103,20 +106,23 @@ class DatasetController(
         @Valid @RequestBody request: ExecuteDatasetRequest,
     ): ResponseEntity<ExecutionResultDto> {
         // Dataset 존재 여부 확인
-        val dataset = datasetService.getDataset(name)
-            ?: throw DatasetNotFoundException(name)
+        val dataset =
+            datasetService.getDataset(name)
+                ?: throw DatasetNotFoundException(name)
 
         // TODO: DatasetExecutionService 구현 필요
         // 현재는 mock 응답 반환
-        val mockResult = DatasetMapper.toExecutionResult(
-            rows = listOf(
-                mapOf("message" to "Mock execution result for dataset: ${dataset.name}"),
-                mapOf("sql" to dataset.sql),
-                mapOf("parameters" to request.parameters)
-            ),
-            durationSeconds = 1.5,
-            renderedSql = renderSqlWithParameters(dataset.sql, request.parameters)
-        )
+        val mockResult =
+            DatasetMapper.toExecutionResult(
+                rows =
+                    listOf(
+                        mapOf("message" to "Mock execution result for dataset: ${dataset.name}"),
+                        mapOf("sql" to dataset.sql),
+                        mapOf("parameters" to request.parameters),
+                    ),
+                durationSeconds = 1.5,
+                renderedSql = renderSqlWithParameters(dataset.sql, request.parameters),
+            )
 
         return ResponseEntity.ok(mockResult)
     }
@@ -127,7 +133,10 @@ class DatasetController(
      * SQL 템플릿에 파라미터를 적용하여 렌더링
      * TODO: 실제 템플릿 엔진 연동 필요
      */
-    private fun renderSqlWithParameters(sql: String, parameters: Map<String, Any>): String {
+    private fun renderSqlWithParameters(
+        sql: String,
+        parameters: Map<String, Any>,
+    ): String {
         var rendered = sql
         parameters.forEach { (key, value) ->
             // 간단한 변수 치환 ({{variable}} 또는 ${variable} 형태)

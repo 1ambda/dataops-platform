@@ -124,10 +124,10 @@ class DatasetNotFoundException(
     val datasetName: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Dataset '$datasetName' not found",
-    errorCode = "DATASET_NOT_FOUND",
-    cause = cause,
-)
+        message = "Dataset '$datasetName' not found",
+        errorCode = "DATASET_NOT_FOUND",
+        cause = cause,
+    )
 
 /**
  * Dataset이 이미 존재하는 경우
@@ -136,10 +136,10 @@ class DatasetAlreadyExistsException(
     val datasetName: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Dataset '$datasetName' already exists",
-    errorCode = "DATASET_ALREADY_EXISTS",
-    cause = cause,
-)
+        message = "Dataset '$datasetName' already exists",
+        errorCode = "DATASET_ALREADY_EXISTS",
+        cause = cause,
+    )
 
 /**
  * Dataset 실행이 타임아웃된 경우
@@ -149,10 +149,10 @@ class DatasetExecutionTimeoutException(
     val timeoutSeconds: Int,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Dataset execution timed out after $timeoutSeconds seconds",
-    errorCode = "DATASET_EXECUTION_TIMEOUT",
-    cause = cause,
-)
+        message = "Dataset execution timed out after $timeoutSeconds seconds",
+        errorCode = "DATASET_EXECUTION_TIMEOUT",
+        cause = cause,
+    )
 
 /**
  * Dataset 실행이 실패한 경우
@@ -162,10 +162,10 @@ class DatasetExecutionFailedException(
     val sqlError: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Query execution failed: $sqlError",
-    errorCode = "DATASET_EXECUTION_FAILED",
-    cause = cause,
-)
+        message = "Query execution failed: $sqlError",
+        errorCode = "DATASET_EXECUTION_FAILED",
+        cause = cause,
+    )
 
 /**
  * Dataset 이름이 잘못된 형식인 경우
@@ -174,10 +174,10 @@ class InvalidDatasetNameException(
     val datasetName: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Dataset name '$datasetName' must follow pattern: catalog.schema.name",
-    errorCode = "INVALID_DATASET_NAME",
-    cause = cause,
-)
+        message = "Dataset name '$datasetName' must follow pattern: catalog.schema.name",
+        errorCode = "INVALID_DATASET_NAME",
+        cause = cause,
+    )
 
 /**
  * Dataset SQL이 잘못된 경우
@@ -187,10 +187,10 @@ class InvalidSqlException(
     val sqlError: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Invalid SQL expression: $sqlError",
-    errorCode = "INVALID_SQL",
-    cause = cause,
-)
+        message = "Invalid SQL expression: $sqlError",
+        errorCode = "INVALID_SQL",
+        cause = cause,
+    )
 
 /**
  * Dataset 소유자 이메일이 잘못된 경우
@@ -199,10 +199,10 @@ class InvalidOwnerEmailException(
     val email: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Invalid owner email format: $email",
-    errorCode = "INVALID_OWNER_EMAIL",
-    cause = cause,
-)
+        message = "Invalid owner email format: $email",
+        errorCode = "INVALID_OWNER_EMAIL",
+        cause = cause,
+    )
 
 /**
  * Dataset 태그가 너무 많은 경우
@@ -212,10 +212,10 @@ class TooManyTagsException(
     val maxAllowed: Int = 10,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Too many tags: $tagCount (maximum $maxAllowed allowed)",
-    errorCode = "TOO_MANY_TAGS",
-    cause = cause,
-)
+        message = "Too many tags: $tagCount (maximum $maxAllowed allowed)",
+        errorCode = "TOO_MANY_TAGS",
+        cause = cause,
+    )
 
 /**
  * Cron 표현식이 잘못된 경우
@@ -224,7 +224,70 @@ class InvalidCronException(
     val cronExpression: String,
     cause: Throwable? = null,
 ) : BusinessException(
-    message = "Invalid cron expression: $cronExpression",
-    errorCode = "INVALID_CRON",
-    cause = cause,
-)
+        message = "Invalid cron expression: $cronExpression",
+        errorCode = "INVALID_CRON",
+        cause = cause,
+    )
+
+// ============= Catalog Exceptions =============
+
+/**
+ * Table not found in catalog
+ */
+class TableNotFoundException(
+    val tableRef: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Table '$tableRef' not found in catalog",
+        errorCode = "TABLE_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Invalid table reference format
+ */
+class InvalidTableReferenceException(
+    val tableRef: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Invalid table reference format: '$tableRef'. Expected format: project.dataset.table",
+        errorCode = "INVALID_TABLE_REFERENCE",
+        cause = cause,
+    )
+
+/**
+ * Catalog service error (external system failure)
+ */
+class CatalogServiceException(
+    val operation: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Catalog service error during operation: $operation",
+        errorCode = "CATALOG_SERVICE_ERROR",
+        cause = cause,
+    )
+
+/**
+ * Catalog operation timeout
+ */
+class CatalogTimeoutException(
+    val tableRef: String,
+    val timeoutSeconds: Int,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Catalog operation for '$tableRef' timed out after $timeoutSeconds seconds",
+        errorCode = "CATALOG_TIMEOUT",
+        cause = cause,
+    )
+
+/**
+ * Unsupported catalog engine
+ */
+class UnsupportedEngineException(
+    val engine: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Unsupported catalog engine: '$engine'",
+        errorCode = "UNSUPPORTED_ENGINE",
+        cause = cause,
+    )

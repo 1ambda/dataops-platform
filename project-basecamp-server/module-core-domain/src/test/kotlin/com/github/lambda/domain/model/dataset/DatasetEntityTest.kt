@@ -13,20 +13,19 @@ import java.time.LocalDateTime
  */
 @DisplayName("DatasetEntity Unit Tests")
 class DatasetEntityTest {
-
     @Nested
     @DisplayName("Constructor and Basic Properties")
     inner class ConstructorAndBasicProperties {
-
         @Test
         @DisplayName("should create dataset entity with required fields")
         fun `should create dataset entity with required fields`() {
             // Given & When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
 
             // Then
             assertThat(dataset.name).isEqualTo("catalog.schema.dataset")
@@ -47,17 +46,18 @@ class DatasetEntityTest {
         @DisplayName("should create dataset entity with all optional fields")
         fun `should create dataset entity with all optional fields`() {
             // Given & When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                team = "data-team",
-                description = "Test dataset",
-                sql = "SELECT * FROM users WHERE active = true",
-                tags = setOf("test", "user", "active"),
-                dependencies = setOf("users", "user_profiles"),
-                scheduleCron = "0 9 * * *",
-                scheduleTimezone = "America/New_York"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test dataset",
+                    sql = "SELECT * FROM users WHERE active = true",
+                    tags = setOf("test", "user", "active"),
+                    dependencies = setOf("users", "user_profiles"),
+                    scheduleCron = "0 9 * * *",
+                    scheduleTimezone = "America/New_York",
+                )
 
             // Then
             assertThat(dataset.name).isEqualTo("catalog.schema.dataset")
@@ -75,16 +75,18 @@ class DatasetEntityTest {
         @DisplayName("should generate unique IDs for different instances")
         fun `should generate unique IDs for different instances`() {
             // Given & When
-            val dataset1 = DatasetEntity(
-                name = "catalog.schema.dataset1",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table1"
-            )
-            val dataset2 = DatasetEntity(
-                name = "catalog.schema.dataset2",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table2"
-            )
+            val dataset1 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset1",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table1",
+                )
+            val dataset2 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset2",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table2",
+                )
 
             // Then
             assertThat(dataset1.id).isNotEqualTo(dataset2.id)
@@ -99,11 +101,12 @@ class DatasetEntityTest {
             val beforeCreation = LocalDateTime.now().minusSeconds(1)
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
 
             val afterCreation = LocalDateTime.now().plusSeconds(1)
 
@@ -116,17 +119,17 @@ class DatasetEntityTest {
     @Nested
     @DisplayName("Business Logic Methods")
     inner class BusinessLogicMethods {
-
         @Test
         @DisplayName("hasSchedule should return true when scheduleCron is set")
         fun `hasSchedule should return true when scheduleCron is set`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                scheduleCron = "0 9 * * *"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    scheduleCron = "0 9 * * *",
+                )
 
             // When & Then
             assertThat(dataset.hasSchedule()).isTrue()
@@ -136,12 +139,13 @@ class DatasetEntityTest {
         @DisplayName("hasSchedule should return false when scheduleCron is null")
         fun `hasSchedule should return false when scheduleCron is null`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                scheduleCron = null
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    scheduleCron = null,
+                )
 
             // When & Then
             assertThat(dataset.hasSchedule()).isFalse()
@@ -151,12 +155,13 @@ class DatasetEntityTest {
         @DisplayName("hasSchedule should return false when scheduleCron is empty")
         fun `hasSchedule should return false when scheduleCron is empty`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                scheduleCron = ""
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    scheduleCron = "",
+                )
 
             // When & Then
             assertThat(dataset.hasSchedule()).isFalse()
@@ -166,12 +171,13 @@ class DatasetEntityTest {
         @DisplayName("hasSchedule should return false when scheduleCron is blank")
         fun `hasSchedule should return false when scheduleCron is blank`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                scheduleCron = "   "
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    scheduleCron = "   ",
+                )
 
             // When & Then
             assertThat(dataset.hasSchedule()).isFalse()
@@ -181,12 +187,13 @@ class DatasetEntityTest {
         @DisplayName("hasDependencies should return true when dependencies exist")
         fun `hasDependencies should return true when dependencies exist`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM users JOIN orders ON users.id = orders.user_id",
-                dependencies = setOf("users", "orders")
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM users JOIN orders ON users.id = orders.user_id",
+                    dependencies = setOf("users", "orders"),
+                )
 
             // When & Then
             assertThat(dataset.hasDependencies()).isTrue()
@@ -196,12 +203,13 @@ class DatasetEntityTest {
         @DisplayName("hasDependencies should return false when no dependencies")
         fun `hasDependencies should return false when no dependencies`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT COUNT(*) FROM users",
-                dependencies = emptySet()
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT COUNT(*) FROM users",
+                    dependencies = emptySet(),
+                )
 
             // When & Then
             assertThat(dataset.hasDependencies()).isFalse()
@@ -211,12 +219,13 @@ class DatasetEntityTest {
         @DisplayName("hasTags should return true when tags exist")
         fun `hasTags should return true when tags exist`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                tags = setOf("test", "user")
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    tags = setOf("test", "user"),
+                )
 
             // When & Then
             assertThat(dataset.hasTags()).isTrue()
@@ -226,12 +235,13 @@ class DatasetEntityTest {
         @DisplayName("hasTags should return false when no tags")
         fun `hasTags should return false when no tags`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                tags = emptySet()
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    tags = emptySet(),
+                )
 
             // When & Then
             assertThat(dataset.hasTags()).isFalse()
@@ -241,21 +251,22 @@ class DatasetEntityTest {
     @Nested
     @DisplayName("Equals and HashCode")
     inner class EqualsAndHashCode {
-
         @Test
         @DisplayName("should be equal when names are the same")
         fun `should be equal when names are the same`() {
             // Given
-            val dataset1 = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test1@example.com",
-                sql = "SELECT * FROM table1"
-            )
-            val dataset2 = DatasetEntity(
-                name = "catalog.schema.dataset", // Same name
-                owner = "test2@example.com",     // Different owner
-                sql = "SELECT * FROM table2"     // Different SQL
-            )
+            val dataset1 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test1@example.com",
+                    sql = "SELECT * FROM table1",
+                )
+            val dataset2 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset", // Same name
+                    owner = "test2@example.com", // Different owner
+                    sql = "SELECT * FROM table2", // Different SQL
+                )
 
             // When & Then
             assertThat(dataset1).isEqualTo(dataset2)
@@ -266,16 +277,18 @@ class DatasetEntityTest {
         @DisplayName("should not be equal when names are different")
         fun `should not be equal when names are different`() {
             // Given
-            val dataset1 = DatasetEntity(
-                name = "catalog.schema.dataset1",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
-            val dataset2 = DatasetEntity(
-                name = "catalog.schema.dataset2", // Different name
-                owner = "test@example.com",       // Same owner
-                sql = "SELECT * FROM table"       // Same SQL
-            )
+            val dataset1 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset1",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
+            val dataset2 =
+                DatasetEntity(
+                    name = "catalog.schema.dataset2", // Different name
+                    owner = "test@example.com", // Same owner
+                    sql = "SELECT * FROM table", // Same SQL
+                )
 
             // When & Then
             assertThat(dataset1).isNotEqualTo(dataset2)
@@ -286,11 +299,12 @@ class DatasetEntityTest {
         @DisplayName("should be equal to itself")
         fun `should be equal to itself`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
 
             // When & Then
             assertThat(dataset).isEqualTo(dataset)
@@ -301,11 +315,12 @@ class DatasetEntityTest {
         @DisplayName("should not be equal to null")
         fun `should not be equal to null`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
 
             // When & Then
             assertThat(dataset).isNotEqualTo(null)
@@ -315,11 +330,12 @@ class DatasetEntityTest {
         @DisplayName("should not be equal to different type")
         fun `should not be equal to different type`() {
             // Given
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table"
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                )
 
             // When & Then
             assertThat(dataset).isNotEqualTo("not a dataset")
@@ -330,7 +346,6 @@ class DatasetEntityTest {
     @Nested
     @DisplayName("Edge Cases and Constraints")
     inner class EdgeCasesAndConstraints {
-
         @Test
         @DisplayName("should handle long SQL strings")
         fun `should handle long SQL strings`() {
@@ -338,11 +353,12 @@ class DatasetEntityTest {
             val longSql = "SELECT " + "column, ".repeat(1000) + "id FROM very_long_table_name"
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = longSql
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = longSql,
+                )
 
             // Then
             assertThat(dataset.sql).isEqualTo(longSql)
@@ -355,12 +371,13 @@ class DatasetEntityTest {
             val manyTags = (1..10).map { "tag$it" }.toSet()
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                tags = manyTags
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    tags = manyTags,
+                )
 
             // Then
             assertThat(dataset.tags).hasSize(10)
@@ -374,12 +391,13 @@ class DatasetEntityTest {
             val manyDependencies = (1..5).map { "table$it" }.toSet()
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table1 JOIN table2 JOIN table3 JOIN table4 JOIN table5",
-                dependencies = manyDependencies
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table1 JOIN table2 JOIN table3 JOIN table4 JOIN table5",
+                    dependencies = manyDependencies,
+                )
 
             // Then
             assertThat(dataset.dependencies).hasSize(5)
@@ -394,12 +412,13 @@ class DatasetEntityTest {
 
             timezones.forEach { timezone ->
                 // When
-                val dataset = DatasetEntity(
-                    name = "catalog.schema.dataset",
-                    owner = "test@example.com",
-                    sql = "SELECT * FROM table",
-                    scheduleTimezone = timezone
-                )
+                val dataset =
+                    DatasetEntity(
+                        name = "catalog.schema.dataset",
+                        owner = "test@example.com",
+                        sql = "SELECT * FROM table",
+                        scheduleTimezone = timezone,
+                    )
 
                 // Then
                 assertThat(dataset.scheduleTimezone).isEqualTo(timezone)
@@ -410,7 +429,8 @@ class DatasetEntityTest {
         @DisplayName("should handle complex SQL with comments and formatting")
         fun `should handle complex SQL with comments and formatting`() {
             // Given
-            val complexSql = """
+            val complexSql =
+                """
                 -- Daily user activity report
                 SELECT
                     u.id,
@@ -424,17 +444,18 @@ class DatasetEntityTest {
                 GROUP BY u.id, u.email
                 HAVING COUNT(a.id) > 0
                 ORDER BY last_activity DESC
-            """.trimIndent()
+                """.trimIndent()
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.daily_user_activity",
-                owner = "analyst@example.com",
-                description = "Daily report of user activity with metrics",
-                sql = complexSql,
-                tags = setOf("daily", "users", "activity", "report"),
-                dependencies = setOf("users", "activities")
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.daily_user_activity",
+                    owner = "analyst@example.com",
+                    description = "Daily report of user activity with metrics",
+                    sql = complexSql,
+                    tags = setOf("daily", "users", "activity", "report"),
+                    dependencies = setOf("users", "activities"),
+                )
 
             // Then
             assertThat(dataset.sql).isEqualTo(complexSql)
@@ -446,23 +467,25 @@ class DatasetEntityTest {
         @DisplayName("should handle various cron expressions")
         fun `should handle various cron expressions`() {
             // Given
-            val cronExpressions = listOf(
-                "0 9 * * *",           // Daily at 9 AM
-                "0 */6 * * *",         // Every 6 hours
-                "0 0 1 * *",           // First day of month
-                "0 9 * * 1",           // Every Monday at 9 AM
-                "*/30 * * * *",        // Every 30 minutes
-                "0 9-17 * * 1-5"       // Business hours on weekdays
-            )
+            val cronExpressions =
+                listOf(
+                    "0 9 * * *", // Daily at 9 AM
+                    "0 */6 * * *", // Every 6 hours
+                    "0 0 1 * *", // First day of month
+                    "0 9 * * 1", // Every Monday at 9 AM
+                    "*/30 * * * *", // Every 30 minutes
+                    "0 9-17 * * 1-5", // Business hours on weekdays
+                )
 
             cronExpressions.forEach { cron ->
                 // When
-                val dataset = DatasetEntity(
-                    name = "catalog.schema.dataset_$cron".replace(" ", "_").replace("*", "star"),
-                    owner = "test@example.com",
-                    sql = "SELECT * FROM table",
-                    scheduleCron = cron
-                )
+                val dataset =
+                    DatasetEntity(
+                        name = "catalog.schema.dataset_$cron".replace(" ", "_").replace("*", "star"),
+                        owner = "test@example.com",
+                        sql = "SELECT * FROM table",
+                        scheduleCron = cron,
+                    )
 
                 // Then
                 assertThat(dataset.scheduleCron).isEqualTo(cron)
@@ -477,12 +500,13 @@ class DatasetEntityTest {
             val specialDescription = "Dataset with special chars: @#\$%^&*()_+{}[]|\\:;\"'<>?,./"
 
             // When
-            val dataset = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT * FROM table",
-                description = specialDescription
-            )
+            val dataset =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT * FROM table",
+                    description = specialDescription,
+                )
 
             // Then
             assertThat(dataset.description).isEqualTo(specialDescription)

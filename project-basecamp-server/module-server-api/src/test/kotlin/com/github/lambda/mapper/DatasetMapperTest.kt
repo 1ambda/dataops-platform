@@ -16,46 +16,47 @@ import java.time.LocalDateTime
  */
 @DisplayName("DatasetMapper Unit Tests")
 class DatasetMapperTest {
-
     private lateinit var testDatasetEntity: DatasetEntity
     private lateinit var testCreateRequest: CreateDatasetRequest
 
     @BeforeEach
     fun setUp() {
-        testDatasetEntity = DatasetEntity(
-            id = "test-id-123",
-            name = "test_catalog.test_schema.test_dataset",
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test dataset description",
-            sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
-            tags = setOf("test", "user", "analytics"),
-            dependencies = setOf("users", "user_profiles"),
-            scheduleCron = "0 9 * * *",
-            scheduleTimezone = "America/New_York",
-            createdAt = LocalDateTime.of(2024, 1, 1, 9, 0, 0),
-            updatedAt = LocalDateTime.of(2024, 1, 2, 10, 30, 0)
-        )
-
-        testCreateRequest = CreateDatasetRequest(
-            name = "new_catalog.new_schema.new_dataset",
-            owner = "new@example.com",
-            team = "new-team",
-            description = "New dataset description",
-            sql = "SELECT * FROM new_table WHERE active = true",
-            tags = listOf("new", "test"),
-            dependencies = listOf("new_table", "lookup_table"),
-            schedule = ScheduleRequest(
-                cron = "0 8 * * *",
-                timezone = "UTC"
+        testDatasetEntity =
+            DatasetEntity(
+                id = "test-id-123",
+                name = "test_catalog.test_schema.test_dataset",
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test dataset description",
+                sql = "SELECT id, name, created_at FROM users WHERE created_at >= '{{date}}'",
+                tags = setOf("test", "user", "analytics"),
+                dependencies = setOf("users", "user_profiles"),
+                scheduleCron = "0 9 * * *",
+                scheduleTimezone = "America/New_York",
+                createdAt = LocalDateTime.of(2024, 1, 1, 9, 0, 0),
+                updatedAt = LocalDateTime.of(2024, 1, 2, 10, 30, 0),
             )
-        )
+
+        testCreateRequest =
+            CreateDatasetRequest(
+                name = "new_catalog.new_schema.new_dataset",
+                owner = "new@example.com",
+                team = "new-team",
+                description = "New dataset description",
+                sql = "SELECT * FROM new_table WHERE active = true",
+                tags = listOf("new", "test"),
+                dependencies = listOf("new_table", "lookup_table"),
+                schedule =
+                    ScheduleRequest(
+                        cron = "0 8 * * *",
+                        timezone = "UTC",
+                    ),
+            )
     }
 
     @Nested
     @DisplayName("Request DTO → Entity Mapping")
     inner class RequestToEntityMapping {
-
         @Test
         @DisplayName("should map CreateDatasetRequest to DatasetEntity with all fields")
         fun `should map CreateDatasetRequest to DatasetEntity with all fields`() {
@@ -81,11 +82,12 @@ class DatasetMapperTest {
         @DisplayName("should map CreateDatasetRequest with minimal fields")
         fun `should map CreateDatasetRequest with minimal fields`() {
             // Given
-            val minimalRequest = CreateDatasetRequest(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1"
-            )
+            val minimalRequest =
+                CreateDatasetRequest(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
 
             // When
             val entity = DatasetMapper.toEntity(minimalRequest)
@@ -106,15 +108,17 @@ class DatasetMapperTest {
         @DisplayName("should map schedule request when provided")
         fun `should map schedule request when provided`() {
             // Given
-            val requestWithSchedule = CreateDatasetRequest(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                schedule = ScheduleRequest(
-                    cron = "0 12 * * *",
-                    timezone = "Europe/London"
+            val requestWithSchedule =
+                CreateDatasetRequest(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    schedule =
+                        ScheduleRequest(
+                            cron = "0 12 * * *",
+                            timezone = "Europe/London",
+                        ),
                 )
-            )
 
             // When
             val entity = DatasetMapper.toEntity(requestWithSchedule)
@@ -128,15 +132,17 @@ class DatasetMapperTest {
         @DisplayName("should use default timezone when schedule timezone is null")
         fun `should use default timezone when schedule timezone is null`() {
             // Given
-            val requestWithScheduleNoTimezone = CreateDatasetRequest(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                schedule = ScheduleRequest(
-                    cron = "0 12 * * *",
-                    timezone = "UTC" // Explicit UTC
+            val requestWithScheduleNoTimezone =
+                CreateDatasetRequest(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    schedule =
+                        ScheduleRequest(
+                            cron = "0 12 * * *",
+                            timezone = "UTC", // Explicit UTC
+                        ),
                 )
-            )
 
             // When
             val entity = DatasetMapper.toEntity(requestWithScheduleNoTimezone)
@@ -149,13 +155,14 @@ class DatasetMapperTest {
         @DisplayName("should handle empty lists for tags and dependencies")
         fun `should handle empty lists for tags and dependencies`() {
             // Given
-            val requestWithEmptyLists = CreateDatasetRequest(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                tags = emptyList(),
-                dependencies = emptyList()
-            )
+            val requestWithEmptyLists =
+                CreateDatasetRequest(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    tags = emptyList(),
+                    dependencies = emptyList(),
+                )
 
             // When
             val entity = DatasetMapper.toEntity(requestWithEmptyLists)
@@ -169,7 +176,6 @@ class DatasetMapperTest {
     @Nested
     @DisplayName("Entity → DTO Mapping")
     inner class EntityToDtoMapping {
-
         @Test
         @DisplayName("should map DatasetEntity to DatasetDto with all fields")
         fun `should map DatasetEntity to DatasetDto with all fields`() {
@@ -214,15 +220,16 @@ class DatasetMapperTest {
         @DisplayName("should handle entity with null optional fields")
         fun `should handle entity with null optional fields`() {
             // Given
-            val minimalEntity = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                team = null,
-                description = null,
-                scheduleCron = null,
-                scheduleTimezone = null
-            )
+            val minimalEntity =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    team = null,
+                    description = null,
+                    scheduleCron = null,
+                    scheduleTimezone = null,
+                )
 
             // When
             val dto = DatasetMapper.toDto(minimalEntity)
@@ -242,13 +249,14 @@ class DatasetMapperTest {
         @DisplayName("should sort tags and dependencies in DTO")
         fun `should sort tags and dependencies in DTO`() {
             // Given
-            val entityWithUnsortedCollections = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                tags = setOf("zebra", "apple", "banana"),
-                dependencies = setOf("table_z", "table_a", "table_b")
-            )
+            val entityWithUnsortedCollections =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    tags = setOf("zebra", "apple", "banana"),
+                    dependencies = setOf("table_z", "table_a", "table_b"),
+                )
 
             // When
             val dto = DatasetMapper.toDto(entityWithUnsortedCollections)
@@ -262,13 +270,14 @@ class DatasetMapperTest {
         @DisplayName("should format timestamps correctly")
         fun `should format timestamps correctly`() {
             // Given
-            val specificEntity = DatasetEntity(
-                name = "catalog.schema.dataset",
-                owner = "test@example.com",
-                sql = "SELECT 1",
-                createdAt = LocalDateTime.of(2023, 12, 25, 14, 30, 45),
-                updatedAt = LocalDateTime.of(2024, 1, 15, 8, 15, 30)
-            )
+            val specificEntity =
+                DatasetEntity(
+                    name = "catalog.schema.dataset",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                    createdAt = LocalDateTime.of(2023, 12, 25, 14, 30, 45),
+                    updatedAt = LocalDateTime.of(2024, 1, 15, 8, 15, 30),
+                )
 
             // When
             val dto = DatasetMapper.toDto(specificEntity)
@@ -282,7 +291,6 @@ class DatasetMapperTest {
     @Nested
     @DisplayName("Response DTO Creation")
     inner class ResponseDtoCreation {
-
         @Test
         @DisplayName("should create registration response with dataset name")
         fun `should create registration response with dataset name`() {
@@ -301,10 +309,11 @@ class DatasetMapperTest {
         @DisplayName("should create execution result DTO")
         fun `should create execution result DTO`() {
             // Given
-            val rows = listOf(
-                mapOf("id" to 1, "name" to "Alice"),
-                mapOf("id" to 2, "name" to "Bob")
-            )
+            val rows =
+                listOf(
+                    mapOf("id" to 1, "name" to "Alice"),
+                    mapOf("id" to 2, "name" to "Bob"),
+                )
             val durationSeconds = 1.5
             val renderedSql = "SELECT id, name FROM users WHERE active = true"
 
@@ -340,7 +349,6 @@ class DatasetMapperTest {
     @Nested
     @DisplayName("Error Response Creation")
     inner class ErrorResponseCreation {
-
         @Test
         @DisplayName("should create generic error response")
         fun `should create generic error response`() {
@@ -460,21 +468,21 @@ class DatasetMapperTest {
     @Nested
     @DisplayName("Edge Cases and Data Integrity")
     inner class EdgeCasesAndDataIntegrity {
-
         @Test
         @DisplayName("should preserve data integrity in round-trip mapping")
         fun `should preserve data integrity in round-trip mapping`() {
             // Given
-            val originalRequest = CreateDatasetRequest(
-                name = "test.catalog.roundtrip",
-                owner = "roundtrip@example.com",
-                team = "test-team",
-                description = "Round-trip test",
-                sql = "SELECT * FROM test_table",
-                tags = listOf("test", "roundtrip"),
-                dependencies = listOf("test_table"),
-                schedule = ScheduleRequest(cron = "0 10 * * *", timezone = "UTC")
-            )
+            val originalRequest =
+                CreateDatasetRequest(
+                    name = "test.catalog.roundtrip",
+                    owner = "roundtrip@example.com",
+                    team = "test-team",
+                    description = "Round-trip test",
+                    sql = "SELECT * FROM test_table",
+                    tags = listOf("test", "roundtrip"),
+                    dependencies = listOf("test_table"),
+                    schedule = ScheduleRequest(cron = "0 10 * * *", timezone = "UTC"),
+                )
 
             // When
             val entity = DatasetMapper.toEntity(originalRequest)
@@ -496,15 +504,16 @@ class DatasetMapperTest {
         @DisplayName("should handle special characters in all string fields")
         fun `should handle special characters in all string fields`() {
             // Given
-            val requestWithSpecialChars = CreateDatasetRequest(
-                name = "test_catalog.test_schema.special_dataset",
-                owner = "test+special@example.com",
-                team = "team-with-dashes_and_underscores",
-                description = "Description with special chars: @#\$%^&*()[]{}|\\:;\"'<>?,./ and unicode: 🚀 ✨",
-                sql = "SELECT * FROM table WHERE field = 'value with ''quotes'' and \\'escapes\\'",
-                tags = listOf("tag-with-dash", "tag_with_underscore", "tag@with@at"),
-                dependencies = listOf("table_name", "schema.table", "catalog.schema.table")
-            )
+            val requestWithSpecialChars =
+                CreateDatasetRequest(
+                    name = "test_catalog.test_schema.special_dataset",
+                    owner = "test+special@example.com",
+                    team = "team-with-dashes_and_underscores",
+                    description = "Description with special chars: @#\$%^&*()[]{}|\\:;\"'<>?,./ and unicode: 🚀 ✨",
+                    sql = "SELECT * FROM table WHERE field = 'value with ''quotes'' and \\'escapes\\'",
+                    tags = listOf("tag-with-dash", "tag_with_underscore", "tag@with@at"),
+                    dependencies = listOf("table_name", "schema.table", "catalog.schema.table"),
+                )
 
             // When
             val entity = DatasetMapper.toEntity(requestWithSpecialChars)
@@ -527,12 +536,13 @@ class DatasetMapperTest {
             val longSql = "SELECT " + "very_long_column_name, ".repeat(100) + "id FROM table"
             val longDescription = "This is a ".repeat(50) + "very long description"
 
-            val requestWithLongStrings = CreateDatasetRequest(
-                name = "catalog.schema.long_dataset",
-                owner = "test@example.com",
-                description = longDescription,
-                sql = longSql
-            )
+            val requestWithLongStrings =
+                CreateDatasetRequest(
+                    name = "catalog.schema.long_dataset",
+                    owner = "test@example.com",
+                    description = longDescription,
+                    sql = longSql,
+                )
 
             // When
             val entity = DatasetMapper.toEntity(requestWithLongStrings)

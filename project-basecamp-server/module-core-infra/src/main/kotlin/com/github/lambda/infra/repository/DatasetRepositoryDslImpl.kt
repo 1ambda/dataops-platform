@@ -2,13 +2,13 @@ package com.github.lambda.infra.repository
 
 import com.github.lambda.domain.model.dataset.DatasetEntity
 import com.github.lambda.domain.repository.DatasetRepositoryDsl
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
-import jakarta.persistence.EntityManager
-import jakarta.persistence.PersistenceContext
 
 /**
  * Dataset DSL 리포지토리 구현체
@@ -18,7 +18,6 @@ import jakarta.persistence.PersistenceContext
  */
 @Repository
 class DatasetRepositoryDslImpl : DatasetRepositoryDsl {
-
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
@@ -54,10 +53,11 @@ class DatasetRepositoryDslImpl : DatasetRepositoryDsl {
         val query = entityManager.createQuery(queryBuilder.toString(), DatasetEntity::class.java)
         parameters.forEach { (key, value) -> query.setParameter(key, value) }
 
-        val results = query
-            .setFirstResult(pageable.offset.toInt())
-            .setMaxResults(pageable.pageSize)
-            .resultList
+        val results =
+            query
+                .setFirstResult(pageable.offset.toInt())
+                .setMaxResults(pageable.pageSize)
+                .resultList
 
         // Count query for total elements
         val totalCount = countByFilters(tag, owner, search)
@@ -95,11 +95,12 @@ class DatasetRepositoryDslImpl : DatasetRepositoryDsl {
     }
 
     override fun getDatasetStatistics(owner: String?): Map<String, Any> {
-        val totalQuery = if (owner != null) {
-            "SELECT COUNT(d) FROM DatasetEntity d WHERE d.owner = :owner"
-        } else {
-            "SELECT COUNT(d) FROM DatasetEntity d"
-        }
+        val totalQuery =
+            if (owner != null) {
+                "SELECT COUNT(d) FROM DatasetEntity d WHERE d.owner = :owner"
+            } else {
+                "SELECT COUNT(d) FROM DatasetEntity d"
+            }
 
         val query = entityManager.createQuery(totalQuery, Long::class.java)
         if (owner != null) {
@@ -109,11 +110,12 @@ class DatasetRepositoryDslImpl : DatasetRepositoryDsl {
         val totalDatasets = query.singleResult
 
         // 스케줄이 있는 dataset 개수
-        val scheduledQuery = if (owner != null) {
-            "SELECT COUNT(d) FROM DatasetEntity d WHERE d.owner = :owner AND d.scheduleCron IS NOT NULL"
-        } else {
-            "SELECT COUNT(d) FROM DatasetEntity d WHERE d.scheduleCron IS NOT NULL"
-        }
+        val scheduledQuery =
+            if (owner != null) {
+                "SELECT COUNT(d) FROM DatasetEntity d WHERE d.owner = :owner AND d.scheduleCron IS NOT NULL"
+            } else {
+                "SELECT COUNT(d) FROM DatasetEntity d WHERE d.scheduleCron IS NOT NULL"
+            }
 
         val scheduledCountQuery = entityManager.createQuery(scheduledQuery, Long::class.java)
         if (owner != null) {
@@ -201,20 +203,21 @@ class DatasetRepositoryDslImpl : DatasetRepositoryDsl {
     }
 
     override fun findScheduledDatasets(cronPattern: String?): List<DatasetEntity> {
-        val jpql = if (cronPattern != null) {
-            """
+        val jpql =
+            if (cronPattern != null) {
+                """
                 SELECT d FROM DatasetEntity d
                 WHERE d.scheduleCron IS NOT NULL
                 AND d.scheduleCron LIKE :cronPattern
                 ORDER BY d.scheduleCron ASC, d.name ASC
             """
-        } else {
-            """
+            } else {
+                """
                 SELECT d FROM DatasetEntity d
                 WHERE d.scheduleCron IS NOT NULL
                 ORDER BY d.scheduleCron ASC, d.name ASC
             """
-        }
+            }
 
         val query = entityManager.createQuery(jpql, DatasetEntity::class.java)
         if (cronPattern != null) {
