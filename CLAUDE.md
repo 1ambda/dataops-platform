@@ -241,6 +241,7 @@ class UserRepositoryJpaImpl(
 | `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
 | `dli query` | Query execution metadata (list, show, cancel) |
 | `dli run` | Ad-hoc SQL file execution with result download |
+| `dli debug` | Environment diagnostics (system, config, server, auth, network checks) |
 
 ### Library API (v0.7.0)
 
@@ -257,6 +258,7 @@ class UserRepositoryJpaImpl(
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 | `QueryAPI` | list_queries, get, cancel | Query execution metadata access |
 | `RunAPI` | run, dry_run, render_sql | Ad-hoc SQL execution |
+| `DebugAPI` | run_all, check_system, check_project, check_server, check_auth, check_connection, check_network | Environment diagnostics and connection testing |
 
 **ExecutionMode (v0.2.1):**
 

@@ -77,7 +77,7 @@ Complete command reference: `make help`
 ### interface-cli (Python + Typer)
 **Development**: `cd project-interface-cli && uv run dli --help`
 **Testing**: `cd project-interface-cli && uv run pytest` (1650+ tests)
-**Commands**: `dli config`, `dli metric`, `dli dataset`, `dli workflow`, `dli catalog`, `dli transpile`, `dli lineage`, `dli quality`, `dli query`, `dli run`
+**Commands**: `dli config`, `dli metric`, `dli dataset`, `dli workflow`, `dli catalog`, `dli transpile`, `dli lineage`, `dli quality`, `dli query`, `dli run`, `dli debug`
 **Structure**: Uses `metrics/` and `datasets/` directories for resource definitions (YAML specs)
 **Pattern**: Rich CLI with Library API (DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, QueryAPI, RunAPI) for Airflow integration
 **Config**: Hierarchical config via ConfigLoader (`~/.dli/config.yaml` < `dli.yaml` < `.dli.local.yaml` < `DLI_*` env vars < CLI args). Template syntax: `${VAR:-default}`

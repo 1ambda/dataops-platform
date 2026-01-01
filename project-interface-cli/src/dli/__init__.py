@@ -60,6 +60,7 @@ from dli.api import (
     CatalogAPI,
     ConfigAPI,
     DatasetAPI,
+    DebugAPI,
     LineageAPI,
     MetricAPI,
     QualityAPI,
@@ -77,6 +78,8 @@ from dli.exceptions import (
     ConfigWriteError,
     ConfigurationError,
     DatasetNotFoundError,
+    DebugCheckError,
+    DebugTimeoutError,
     DLIError,
     DLIValidationError,
     ErrorCode,
@@ -122,11 +125,15 @@ from dli.models.config import (
 # Run models (public API)
 from dli.models.run import ExecutionPlan, OutputFormat, RunResult
 
+# Debug models (public API)
+from dli.core.debug.models import CheckCategory, CheckResult, CheckStatus, DebugResult
+
 __all__ = [
     # API Classes
     "CatalogAPI",
     "ConfigAPI",
     "DatasetAPI",
+    "DebugAPI",
     "LineageAPI",
     "MetricAPI",
     "QualityAPI",
@@ -140,12 +147,19 @@ __all__ = [
     "ConfigValue",
     "ConfigValueInfo",
     "EnvironmentProfile",
+    # Debug models
+    "CheckCategory",
+    "CheckResult",
+    "CheckStatus",
+    "DebugResult",
     # Exceptions
     "ConfigEnvNotFoundError",
     "ConfigTemplateError",
     "ConfigValidationError",
     "ConfigWriteError",
     "ConfigurationError",
+    "DebugCheckError",
+    "DebugTimeoutError",
     "DLIError",
     "DLIValidationError",
     "DatasetNotFoundError",

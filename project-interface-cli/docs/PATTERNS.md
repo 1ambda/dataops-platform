@@ -18,7 +18,8 @@ dli
 ├── query (list, show, cancel)             # Query execution metadata
 ├── lineage (show, upstream, downstream)   # Top-level
 ├── catalog                                # Top-level
-└── transpile                              # Top-level
+├── transpile                              # Top-level
+└── debug                                  # Environment diagnostics
 ```
 
 ---
@@ -38,6 +39,7 @@ dli
 | **API models** | `src/dli/models/common.py` | Pydantic + BaseSettings |
 | **Exceptions** | `src/dli/exceptions.py` | Dataclass + ErrorCode |
 | **API tests** | `tests/api/test_dataset_api.py` | Mock mode + pytest fixture |
+| **Debug checks** | `src/dli/core/debug/` | Diagnostic check pattern |
 
 ---
 

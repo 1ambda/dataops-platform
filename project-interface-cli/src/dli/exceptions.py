@@ -126,6 +126,15 @@ class ErrorCode(str, Enum):
     LINEAGE_SERVER_ERROR = "DLI-903"
     LINEAGE_TIMEOUT = "DLI-904"
 
+    # Debug Errors (DLI-95x) - Sub-range of Lineage (DLI-9xx)
+    DEBUG_SYSTEM_CHECK_FAILED = "DLI-950"
+    DEBUG_CONFIG_CHECK_FAILED = "DLI-951"
+    DEBUG_SERVER_CHECK_FAILED = "DLI-952"
+    DEBUG_AUTH_CHECK_FAILED = "DLI-953"
+    DEBUG_CONNECTION_CHECK_FAILED = "DLI-954"
+    DEBUG_NETWORK_CHECK_FAILED = "DLI-955"
+    DEBUG_TIMEOUT = "DLI-956"
+
 
 @dataclass
 class DLIError(Exception):
@@ -1124,6 +1133,56 @@ class RunParameterInvalidError(DLIError):
         return f"[{self.code.value}] {self.message}"
 
 
+# Debug Errors (DLI-95x)
+
+
+@dataclass
+class DebugCheckError(DLIError):
+    """Base debug check error.
+
+    Raised when a debug diagnostic check fails.
+
+    Attributes:
+        check_name: Name of the check that failed.
+        category: Check category (system, config, server, etc.).
+    """
+
+    code: ErrorCode = ErrorCode.DEBUG_SYSTEM_CHECK_FAILED
+    check_name: str = ""
+    category: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.check_name:
+            return f"[{self.code.value}] Debug check failed: {self.check_name}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class DebugTimeoutError(DLIError):
+    """Debug check timeout error.
+
+    Raised when a debug check exceeds the configured timeout.
+
+    Attributes:
+        check_name: Name of the check that timed out.
+        timeout_seconds: The timeout duration that was exceeded.
+    """
+
+    code: ErrorCode = ErrorCode.DEBUG_TIMEOUT
+    check_name: str = ""
+    timeout_seconds: float | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Debug check timed out"
+        if self.check_name:
+            base += f": {self.check_name}"
+        if self.timeout_seconds is not None:
+            base += f" after {self.timeout_seconds}s"
+        return base
+
+
 __all__ = [
     # Catalog Errors
     "CatalogAccessDeniedError",
@@ -1139,6 +1198,9 @@ __all__ = [
     "DLIError",
     "DLIValidationError",
     "DatasetNotFoundError",
+    # Debug Errors
+    "DebugCheckError",
+    "DebugTimeoutError",
     "ErrorCode",
     "ExecutionError",
     "InvalidIdentifierError",

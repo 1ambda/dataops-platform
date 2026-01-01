@@ -57,6 +57,8 @@ uv run pytest -k "test_run" -v
 | `tests/cli/` | CLI command tests |
 | `tests/core/` | Core module tests |
 | `tests/core/query/` | Query model tests |
+| `tests/core/debug/` | Debug check tests |
+| `tests/api/test_debug_api.py` | DebugAPI tests |
 
 ### Writing Tests
 
@@ -131,6 +133,26 @@ class TestQueryAPI:
     def test_list_queries(self, mock_api: QueryAPI) -> None:
         result = mock_api.list_queries(scope=QueryScope.SYSTEM)
         assert result.status == ResultStatus.SUCCESS
+```
+
+### DebugAPI Test Example
+
+```python
+"""DebugAPI testing pattern."""
+
+import pytest
+from dli import DebugAPI, ExecutionContext
+from dli.models.common import ExecutionMode
+
+class TestDebugAPI:
+    @pytest.fixture
+    def mock_api(self) -> DebugAPI:
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+        return DebugAPI(context=ctx)
+
+    def test_run_all(self, mock_api: DebugAPI) -> None:
+        result = mock_api.run_all()
+        assert result.success  # Mock mode always succeeds
 ```
 
 ### Workflow CLI Test Example

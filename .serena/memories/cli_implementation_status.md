@@ -74,7 +74,7 @@ search(pattern) → CatalogSearchResult
 - CLI --local/--server 플래그
 - --output 결과 저장
 
-## CLI Commands (v0.4.0)
+## CLI Commands (v0.8.0)
 
 | Command | Subcommands |
 |---------|-------------|

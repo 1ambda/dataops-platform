@@ -63,6 +63,14 @@ dli config env --list        # List available environments
 dli config env staging       # Switch to named environment
 dli config init              # Initialize config files
 dli config set server.url "http://localhost:8081"  # Set config value
+
+# Environment Diagnostics
+dli debug                     # Run all diagnostic checks
+dli debug --connection        # Database connectivity only
+dli debug --auth              # Authentication validation
+dli debug --network           # Network diagnostics
+dli debug --verbose           # Detailed output
+dli debug --json              # JSON format output
 ```
 
 ### Resource Management
@@ -343,6 +351,7 @@ v0.4.0 provides a full-featured Library API for programmatic access from Airflow
 | `QualityAPI` | list_qualities, get, run, validate | Quality spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 | `RunAPI` | run, dry_run, render_sql | Ad-hoc SQL execution with result download |
+| `DebugAPI` | run_all, check_system, check_project, check_server, check_auth, check_connection, check_network | Environment diagnostics and connection testing |
 
 ### ExecutionMode
 
@@ -497,6 +506,17 @@ plan = api.dry_run(sql_path=Path("query.sql"), output_path=Path("results.csv"))
 print(f"Would execute: {plan.rendered_sql}")
 ```
 
+### DebugAPI Example
+
+```python
+from dli import DebugAPI, ExecutionContext, ExecutionMode
+
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+api = DebugAPI(context=ctx)
+result = api.run_all()
+print(f"Passed: {result.passed_count}/{result.total_count}")
+```
+
 ### Exception Handling
 
 ```python
@@ -589,6 +609,7 @@ project-interface-cli/
 │   │   ├── quality/             # Quality testing
 │   │   ├── workflow/            # Workflow models
 │   │   ├── catalog/             # Catalog models
+│   │   ├── debug/               # Environment diagnostics
 │   │   ├── service.py           # DatasetService, MetricService
 │   │   ├── discovery.py         # Spec file discovery
 │   │   ├── registry.py          # Resource registry

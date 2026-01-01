@@ -9,6 +9,7 @@ Commands:
 - metric: Metric management and execution subcommand (list, get, run, validate, register)
 - dataset: Dataset management and execution subcommand (list, get, run, validate, register)
 - config: Configuration management subcommand (show, status)
+- debug: Environment diagnostics and connection testing
 - lineage: Data lineage commands (table-level, server-based)
 - quality: Data quality testing subcommand
 - workflow: Workflow execution and management (server-based via Airflow)
@@ -21,6 +22,7 @@ Commands:
 from dli.commands.catalog import catalog_app
 from dli.commands.config import config_app
 from dli.commands.dataset import dataset_app
+from dli.commands.debug import debug_app
 from dli.commands.info import info
 from dli.commands.lineage import lineage_app
 from dli.commands.metric import metric_app
@@ -35,6 +37,7 @@ __all__ = [
     "catalog_app",
     "config_app",
     "dataset_app",
+    "debug_app",
     "info",
     "lineage_app",
     "metric_app",

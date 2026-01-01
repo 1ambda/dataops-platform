@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-01
-> **Version:** 0.7.0
+> **Version:** 0.8.0
 
 ---
 
@@ -9,15 +9,16 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.7.0 | ConfigAPI extensions (get_all, validate, get_environment) |
-| CLI Commands | ✅ v0.7.0 | `dli config` extended (show --show-source, validate, env, init, set) |
+| Library API | ✅ v0.8.0 | DebugAPI (7 methods) |
+| CLI Commands | ✅ v0.8.0 | `dli debug` (diagnostics, connection testing) |
+| Debug | ✅ v1.0.0 | DebugAPI, 11 checks, DLI-95x error codes |
 | Environment | ✅ v1.0.0 | ConfigLoader, template resolution, layer priority |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
 | Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2300 passed | pyright 0 errors |
+| Tests | ✅ ~2450 passed | pyright 0 errors |
 
 ---
 
@@ -49,8 +50,9 @@
 | LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
 | QueryAPI | `api/query.py` | ✅ Complete | ✅ client 파라미터 |
 | RunAPI | `api/run.py` | ✅ Complete | ✅ executor 파라미터 |
+| DebugAPI | `api/debug.py` | ✅ Complete | - |
 
-### CLI Commands (v0.7.0)
+### CLI Commands (v0.8.0)
 
 | Command | File | Status |
 |---------|------|--------|
@@ -65,6 +67,7 @@
 | dli quality | `commands/quality.py` | ✅ Complete (list, get, run, validate) |
 | dli query | `commands/query.py` | ✅ Complete |
 | dli run | `commands/run.py` | ✅ Complete |
+| dli debug | `commands/debug.py` | ✅ Complete |
 
 ---
 
@@ -83,6 +86,7 @@
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 | DLI-41x | Run | DLI-416 | ✅ Complete (410-416) |
+| DLI-95x | Debug | DLI-956 | ✅ Complete (950-956) |
 
 ### Configuration Error Codes (DLI-00x Extended)
 
@@ -96,16 +100,30 @@
 | DLI-006 | CONFIG_VALIDATION_FAILED | Configuration validation failed |
 | DLI-007 | CONFIG_WRITE_FAILED | Failed to write configuration |
 
+### Debug Error Codes (DLI-95x)
+
+| Code | Name | Description |
+|------|------|-------------|
+| DLI-950 | DEBUG_SYSTEM_CHECK_FAILED | System environment check failed |
+| DLI-951 | DEBUG_CONFIG_CHECK_FAILED | Configuration check failed |
+| DLI-952 | DEBUG_SERVER_CHECK_FAILED | Server connection check failed |
+| DLI-953 | DEBUG_AUTH_CHECK_FAILED | Authentication check failed |
+| DLI-954 | DEBUG_CONNECTION_CHECK_FAILED | Database connection check failed |
+| DLI-955 | DEBUG_NETWORK_CHECK_FAILED | Network check failed |
+| DLI-956 | DEBUG_TIMEOUT | Check timed out |
+
 ---
 
 ## Test Coverage
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | ~507 (+80 ConfigAPI ext) | ✅ All pass |
-| CLI Tests | ~948 (+70 Config ext) | ✅ All pass |
-| Core Tests | ~716 (+100 ConfigLoader, +50 Config models) | ✅ All pass |
-| **Total** | **~2300** | ✅ All pass |
+| API Tests | ~539 (+32 DebugAPI) | ✅ All pass |
+| CLI Tests | ~987 (+39 Debug cmd) | ✅ All pass |
+| Core Tests | ~753 (+37 Debug checks) | ✅ All pass |
+| Model Tests | ~171 (+39 Debug models) | ✅ All pass |
+| Integration | ~15 Debug integration | ✅ All pass |
+| **Total** | **~2450** | ✅ All pass |
 
 ---
 
@@ -131,6 +149,8 @@
 | RUN_RELEASE.md | ✅ Created | `project-interface-cli/features/RUN_RELEASE.md` |
 | ENV_FEATURE.md | ✅ Updated | `project-interface-cli/features/ENV_FEATURE.md` |
 | ENV_RELEASE.md | ✅ Created | `project-interface-cli/features/ENV_RELEASE.md` |
+| DEBUG_FEATURE.md | ✅ Created | `project-interface-cli/features/DEBUG_FEATURE.md` |
+| DEBUG_RELEASE.md | ✅ Created | `project-interface-cli/features/DEBUG_RELEASE.md` |
 
 ---
 
@@ -144,6 +164,41 @@
 ---
 
 ## Changelog
+
+### v0.8.0 (2026-01-01)
+- **Debug Feature 구현 완료**
+  - `dli debug` - 환경 진단 및 연결 테스트
+  - 11개 Check 구현 (Python, OS, Config, Server, Auth, Network)
+  - `--connection`, `--auth`, `--network`, `--server`, `--project` 플래그
+  - `--verbose`, `--json` 출력 옵션
+  - `--dialect`, `--path`, `--timeout` 파라미터
+- **DebugAPI 구현** (`api/debug.py`)
+  - run_all(), check_system(), check_project(), check_server()
+  - check_auth(), check_connection(), check_network()
+  - MOCK/LOCAL/SERVER 모드 지원
+- **DLI-95x Debug 에러 코드 추가**
+  - DLI-950: DEBUG_SYSTEM_CHECK_FAILED
+  - DLI-951: DEBUG_CONFIG_CHECK_FAILED
+  - DLI-952: DEBUG_SERVER_CHECK_FAILED
+  - DLI-953: DEBUG_AUTH_CHECK_FAILED
+  - DLI-954: DEBUG_CONNECTION_CHECK_FAILED
+  - DLI-955: DEBUG_NETWORK_CHECK_FAILED
+  - DLI-956: DEBUG_TIMEOUT
+- **Debug Exception 클래스 2종**
+  - DebugCheckError (base)
+  - DebugTimeoutError
+- **Debug 모델 추가**
+  - core/debug/models.py: CheckStatus, CheckCategory, CheckResult, DebugResult
+  - core/debug/checks.py: BaseCheck, 11 concrete checks
+- **~162개 신규 테스트 추가**
+  - tests/models/test_debug_models.py (39 tests)
+  - tests/core/debug/test_debug_checks.py (37 tests)
+  - tests/api/test_debug_api.py (32 tests)
+  - tests/cli/test_debug_cmd.py (39 tests)
+  - tests/integration/test_debug_integration.py (15 tests)
+- **dli/__init__.py Export 업데이트**
+  - DebugAPI, CheckStatus, CheckCategory, CheckResult, DebugResult
+  - DebugCheckError, DebugTimeoutError
 
 ### v0.7.0 (2026-01-01)
 - **Environment Feature 구현 완료**

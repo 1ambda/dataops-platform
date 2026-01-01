@@ -31,6 +31,7 @@ Example:
 from dli.api.catalog import CatalogAPI
 from dli.api.config import ConfigAPI
 from dli.api.dataset import DatasetAPI
+from dli.api.debug import DebugAPI
 from dli.api.lineage import LineageAPI
 from dli.api.metric import MetricAPI
 from dli.api.quality import QualityAPI
@@ -43,6 +44,7 @@ __all__ = [
     "CatalogAPI",
     "ConfigAPI",
     "DatasetAPI",
+    "DebugAPI",
     "LineageAPI",
     "MetricAPI",
     "QualityAPI",

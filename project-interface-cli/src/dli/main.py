@@ -9,6 +9,7 @@ Commands:
     metric: Metric management (list, get, run, validate, register)
     dataset: Dataset management (list, get, run, validate, register)
     config: Configuration management (show, status)
+    debug: Environment diagnostics and connection testing
     lineage: Data lineage queries (upstream, downstream, table-level)
     quality: Data quality testing (list, run, show)
     workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
@@ -45,6 +46,7 @@ import typer
 from dli.commands import catalog_app
 from dli.commands import config_app
 from dli.commands import dataset_app
+from dli.commands import debug_app
 from dli.commands import info as info_cmd
 from dli.commands import lineage_app
 from dli.commands import metric_app
@@ -111,6 +113,7 @@ app.command()(info_cmd)
 app.add_typer(catalog_app, name="catalog")
 app.add_typer(config_app, name="config")
 app.add_typer(dataset_app, name="dataset")
+app.add_typer(debug_app, name="debug")
 app.add_typer(lineage_app, name="lineage")
 app.add_typer(metric_app, name="metric")
 app.add_typer(quality_app, name="quality")
