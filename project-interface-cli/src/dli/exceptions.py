@@ -66,6 +66,15 @@ class ErrorCode(str, Enum):
     EXECUTION_PERMISSION = "DLI-404"  # No execution permission
     EXECUTION_QUERY = "DLI-405"  # SQL execution error
 
+    # Run Errors (DLI-41x) - Sub-range of Execution (DLI-4xx)
+    RUN_FILE_NOT_FOUND = "DLI-410"
+    RUN_LOCAL_DENIED = "DLI-411"
+    RUN_SERVER_UNAVAILABLE = "DLI-412"
+    RUN_EXECUTION_FAILED = "DLI-413"
+    RUN_OUTPUT_FAILED = "DLI-414"
+    RUN_TIMEOUT = "DLI-415"
+    RUN_PARAMETER_INVALID = "DLI-416"
+
     # Server Errors (DLI-5xx)
     SERVER_UNREACHABLE = "DLI-501"
     SERVER_AUTH_FAILED = "DLI-502"
@@ -858,6 +867,167 @@ class LineageTimeoutError(DLIError):
         return base
 
 
+# Run Errors (DLI-41x)
+
+
+@dataclass
+class RunFileNotFoundError(DLIError):
+    """Run SQL file not found error.
+
+    Raised when the SQL file specified for run command cannot be found.
+
+    Attributes:
+        path: Path to the SQL file that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_FILE_NOT_FOUND
+    path: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.path:
+            return f"[{self.code.value}] SQL file not found: {self.path}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class RunLocalDeniedError(DLIError):
+    """Local execution denied by server policy.
+
+    Raised when the server denies a request for local execution.
+
+    Attributes:
+        server_message: Message from the server explaining the denial.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_LOCAL_DENIED
+    server_message: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Local execution not permitted by server policy"
+        if self.server_message:
+            base += f": {self.server_message}"
+        elif self.message:
+            base += f": {self.message}"
+        return base
+
+
+@dataclass
+class RunServerUnavailableError(DLIError):
+    """Server execution unavailable.
+
+    Raised when server execution is requested but the server is unreachable.
+
+    Attributes:
+        server_url: URL of the server that was unavailable.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_SERVER_UNAVAILABLE
+    server_url: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Server execution unavailable"
+        if self.server_url:
+            base += f" at {self.server_url}"
+        elif self.message:
+            base += f": {self.message}"
+        return base
+
+
+@dataclass
+class RunExecutionError(DLIError):
+    """Run query execution failed.
+
+    Raised when the SQL query execution fails.
+
+    Attributes:
+        cause: Original exception or error description that caused the failure.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_EXECUTION_FAILED
+    cause: str | Exception | None = None
+
+    def __post_init__(self) -> None:
+        """Chain the cause exception and initialize base class."""
+        super().__post_init__()
+        if isinstance(self.cause, Exception):
+            self.__cause__ = self.cause
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Query execution failed"
+        if self.message:
+            base += f": {self.message}"
+        if self.cause:
+            base += f" (cause: {self.cause})"
+        return base
+
+
+@dataclass
+class RunOutputError(DLIError):
+    """Run output file write failed.
+
+    Raised when the output file cannot be written.
+
+    Attributes:
+        path: Path to the output file that could not be written.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_OUTPUT_FAILED
+    path: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.path:
+            return f"[{self.code.value}] Cannot write output file: {self.path}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class RunTimeoutError(DLIError):
+    """Run query timeout error.
+
+    Raised when a run query exceeds the configured timeout duration.
+
+    Attributes:
+        timeout_seconds: The timeout duration that was exceeded.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_TIMEOUT
+    timeout_seconds: float | None = None
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        base = f"[{self.code.value}] Query execution timed out"
+        if self.timeout_seconds is not None:
+            base += f" after {self.timeout_seconds}s"
+        elif self.message:
+            base += f": {self.message}"
+        return base
+
+
+@dataclass
+class RunParameterInvalidError(DLIError):
+    """Run parameter invalid error.
+
+    Raised when a parameter has an invalid format or value.
+
+    Attributes:
+        parameter: The invalid parameter string.
+    """
+
+    code: ErrorCode = ErrorCode.RUN_PARAMETER_INVALID
+    parameter: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.parameter:
+            return f"[{self.code.value}] Invalid parameter format: '{self.parameter}'. Expected 'key=value'"
+        return f"[{self.code.value}] {self.message}"
+
+
 __all__ = [
     # Catalog Errors
     "CatalogAccessDeniedError",
@@ -888,6 +1058,14 @@ __all__ = [
     "QueryCancelError",
     "QueryInvalidFilterError",
     "QueryNotFoundError",
+    # Run Errors
+    "RunExecutionError",
+    "RunFileNotFoundError",
+    "RunLocalDeniedError",
+    "RunOutputError",
+    "RunParameterInvalidError",
+    "RunServerUnavailableError",
+    "RunTimeoutError",
     "ServerError",
     "TableNotFoundError",
     "TranspileError",

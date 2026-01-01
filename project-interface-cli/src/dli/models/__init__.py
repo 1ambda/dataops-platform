@@ -46,6 +46,12 @@ from dli.models.query import (
     QueryDetailResult,
     QueryListResult,
 )
+from dli.models.run import (
+    # Run result models
+    ExecutionPlan,
+    OutputFormat,
+    RunResult,
+)
 from dli.models.workflow import (
     # Workflow result models
     WorkflowHistoryResult,
@@ -81,6 +87,10 @@ __all__ = [
     "QueryListResult",
     # Enums
     "ResultStatus",
+    # Run result models
+    "ExecutionPlan",
+    "OutputFormat",
+    "RunResult",
     # Type aliases
     "SQLDialect",
     "TranspileResult",

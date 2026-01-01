@@ -9,12 +9,13 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.5.0 | QueryAPI 추가 |
-| CLI Commands | ✅ v0.5.0 | query list/show/cancel 추가 |
+| Library API | ✅ v0.6.0 | RunAPI 추가 |
+| CLI Commands | ✅ v0.6.0 | `dli run` 추가 |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
 | Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
+| Run | ✅ v1.0.0 | RunAPI (3 methods) |
 | Tests | ✅ ~2000 passed | pyright 0 errors |
 
 ---
@@ -46,6 +47,7 @@
 | WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
 | LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
 | QueryAPI | `api/query.py` | ✅ Complete | ✅ client 파라미터 |
+| RunAPI | `api/run.py` | ✅ Complete | ✅ executor 파라미터 |
 
 ### CLI Commands (v0.3.0)
 
@@ -61,6 +63,7 @@
 | dli lineage | `commands/lineage.py` | ✅ Complete |
 | dli quality | `commands/quality.py` | ✅ Complete (list, get, run, validate) |
 | dli query | `commands/query.py` | ✅ Complete |
+| dli run | `commands/run.py` | ✅ Complete |
 
 ---
 
@@ -78,6 +81,7 @@
 | DLI-7xx | Catalog | DLI-784 | ✅ Complete (701-706, 780-784 Query) |
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
+| DLI-41x | Run | DLI-416 | ✅ Complete (410-416) |
 
 ---
 
@@ -110,6 +114,8 @@
 | LINEAGE_GAP.md | ✅ Created | `project-interface-cli/features/LINEAGE_GAP.md` |
 | QUERY_FEATURE.md | ✅ Created | `project-interface-cli/features/QUERY_FEATURE.md` |
 | QUERY_RELEASE.md | ✅ Created | `project-interface-cli/features/QUERY_RELEASE.md` |
+| RUN_FEATURE.md | ✅ Updated | `project-interface-cli/features/RUN_FEATURE.md` |
+| RUN_RELEASE.md | ✅ Created | `project-interface-cli/features/RUN_RELEASE.md` |
 
 ---
 
@@ -123,6 +129,37 @@
 ---
 
 ## Changelog
+
+### v0.6.0 (2026-01-01)
+- **Run Command 구현 완료**
+  - `dli run` - Ad-hoc SQL 파일 실행 및 결과 다운로드
+  - CSV, TSV, JSON (JSONL) 출력 형식 지원
+  - `--local` / `--server` 실행 모드 선택
+  - `--param key=value` Jinja 스타일 파라미터 치환
+  - `--dry-run` 실행 계획 미리보기
+- **RunAPI 구현** (`api/run.py`)
+  - run(), dry_run(), render_sql()
+  - MOCK/SERVER/LOCAL 모드 지원, DI 지원 (executor 파라미터)
+- **DLI-41x Run 에러 코드 추가**
+  - DLI-410: RUN_FILE_NOT_FOUND
+  - DLI-411: RUN_LOCAL_DENIED
+  - DLI-412: RUN_SERVER_UNAVAILABLE
+  - DLI-413: RUN_EXECUTION_FAILED
+  - DLI-414: RUN_OUTPUT_FAILED
+  - DLI-415: RUN_TIMEOUT
+  - DLI-416: RUN_INVALID_PARAM
+- **Run Exception 클래스 7종**
+  - RunFileNotFoundError, RunLocalDeniedError, RunServerUnavailableError
+  - RunExecutionError, RunOutputError, RunTimeoutError, RunInvalidParamError
+- **Run 모델 추가**
+  - models/run.py: OutputFormat, RunResult, ExecutionPlan
+  - core/run/models.py: RunConfig, ExecutionData
+- **~120개 신규 테스트 추가**
+  - tests/cli/test_run_cmd.py (~50 tests)
+  - tests/api/test_run_api.py (~40 tests)
+  - tests/core/run/test_models.py (~30 tests)
+- **dli/__init__.py Export 업데이트**
+  - RunAPI, Run 관련 Exception 클래스들
 
 ### v0.5.0 (2026-01-01)
 - **Query Command 구현 완료**

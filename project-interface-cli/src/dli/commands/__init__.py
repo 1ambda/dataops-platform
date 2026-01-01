@@ -14,6 +14,7 @@ Commands:
 - workflow: Workflow execution and management (server-based via Airflow)
 - catalog: Data catalog browsing and search (server-based)
 - query: Query execution metadata (list, show, cancel)
+- run: Ad-hoc SQL execution with result download
 - transpile: SQL transpile operations (table substitution, METRIC expansion)
 """
 
@@ -25,6 +26,7 @@ from dli.commands.lineage import lineage_app
 from dli.commands.metric import metric_app
 from dli.commands.quality import quality_app
 from dli.commands.query import query_app
+from dli.commands.run import run_app
 from dli.commands.transpile import transpile_app
 from dli.commands.version import version
 from dli.commands.workflow import workflow_app
@@ -38,6 +40,7 @@ __all__ = [
     "metric_app",
     "quality_app",
     "query_app",
+    "run_app",
     "transpile_app",
     "version",
     "workflow_app",

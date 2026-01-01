@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.5.0 | **Python:** 3.12+
+> **Version:** 0.6.0 | **Python:** 3.12+
 
 ## Features
 
@@ -14,9 +14,10 @@
 - **Quality Testing**: Quality Spec YAML 기반 독립적 품질 검증 (Generic + Singular tests)
 - **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
 - **Query Metadata**: Browse and analyze query execution history (scope-based filtering, cancellation)
+- **Ad-hoc SQL Execution**: Execute SQL files with result download (CSV/TSV/JSON)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
-- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, LineageAPI, QueryAPI for Airflow/orchestrator integration
+- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, LineageAPI, QueryAPI, RunAPI for Airflow/orchestrator integration
 
 ## Installation
 
@@ -149,6 +150,27 @@ dli query show <query_id>
 # Cancel running query
 dli query cancel <query_id>
 dli query cancel --user airflow-prod
+```
+
+### Ad-hoc SQL Execution
+
+Execute SQL files directly and download results to local files.
+
+```bash
+# Basic usage
+dli run --sql query.sql --output results.csv
+
+# With parameters
+dli run --sql report.sql -o out.csv -p date=2026-01-01 -p region=us-west
+
+# JSON output with limit
+dli run --sql users.sql -o users.json -f json -n 100
+
+# Dry run (show execution plan)
+dli run --sql query.sql -o results.csv --dry-run
+
+# Local execution (if allowed by policy)
+dli run --sql query.sql -o results.csv --local
 ```
 
 ### Data Catalog
@@ -286,6 +308,7 @@ v0.4.0 provides a full-featured Library API for programmatic access from Airflow
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | Settings (read-only) |
 | `QualityAPI` | list_qualities, get, run, validate | Quality spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
+| `RunAPI` | run, dry_run, render_sql | Ad-hoc SQL execution with result download |
 
 ### ExecutionMode
 
@@ -419,6 +442,28 @@ workflows = api.list_workflows(source="code", running=True)
 api.pause("my_dataset")
 ```
 
+### RunAPI Example
+
+```python
+from dli import RunAPI, ExecutionContext
+from pathlib import Path
+
+ctx = ExecutionContext()
+api = RunAPI(context=ctx)
+
+# Execute SQL and save to CSV
+result = api.run(
+    sql_path=Path("query.sql"),
+    output_path=Path("results.csv"),
+    parameters={"date": "2026-01-01"},
+)
+print(f"Saved {result.row_count} rows")
+
+# Dry run
+plan = api.dry_run(sql_path=Path("query.sql"), output_path=Path("results.csv"))
+print(f"Would execute: {plan.rendered_sql}")
+```
+
 ### Exception Handling
 
 ```python
@@ -484,7 +529,8 @@ project-interface-cli/
 │   │   ├── catalog.py           # CatalogAPI
 │   │   ├── config.py            # ConfigAPI
 │   │   ├── quality.py           # QualityAPI
-│   │   └── workflow.py          # WorkflowAPI
+│   │   ├── workflow.py          # WorkflowAPI
+│   │   └── run.py               # RunAPI
 │   ├── models/                  # Shared models (v0.4.0)
 │   │   ├── __init__.py          # Model exports
 │   │   └── common.py            # ExecutionContext, Results
@@ -497,6 +543,7 @@ project-interface-cli/
 │   │   ├── workflow.py          # dli workflow subcommands
 │   │   ├── catalog.py           # dli catalog subcommands
 │   │   ├── transpile.py         # dli transpile subcommands
+│   │   ├── run.py               # dli run subcommands
 │   │   └── utils.py             # Shared CLI utilities
 │   ├── core/                    # Core library
 │   │   ├── models/              # Spec models

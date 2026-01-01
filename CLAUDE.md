@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.5.0** with QueryAPI)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Ad-hoc SQL execution**, **Library API v0.6.0** with RunAPI)
 
 ---
 
@@ -226,7 +226,7 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.5.0)
+### CLI Commands (v0.6.0)
 
 | Command | Description |
 |---------|-------------|
@@ -240,8 +240,9 @@ class UserRepositoryJpaImpl(
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
 | `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
 | `dli query` | Query execution metadata (list, show, cancel) |
+| `dli run` | Ad-hoc SQL file execution with result download |
 
-### Library API (v0.5.0)
+### Library API (v0.6.0)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
@@ -255,6 +256,7 @@ class UserRepositoryJpaImpl(
 | `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
 | `QueryAPI` | list_queries, get, cancel | Query execution metadata access |
+| `RunAPI` | run, dry_run, render_sql | Ad-hoc SQL execution |
 
 **ExecutionMode (v0.2.1):**
 
@@ -292,7 +294,7 @@ project-interface-cli/src/dli/
 ├── models/
 │   ├── __init__.py       # Model exports
 │   └── common.py         # ExecutionContext, ResultStatus, *Result models
-├── api/                  # Library API (v0.5.0)
+├── api/                  # Library API (v0.6.0)
 │   ├── __init__.py       # API exports
 │   ├── dataset.py        # DatasetAPI
 │   ├── metric.py         # MetricAPI
@@ -418,5 +420,5 @@ See [.claude/README.md](./.claude/README.md) for complete agent/skill documentat
 
 ---
 
-**Last Updated:** 2025-12-31
+**Last Updated:** 2026-01-01
 

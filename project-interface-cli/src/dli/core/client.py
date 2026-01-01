@@ -2155,6 +2155,90 @@ class BasecampClient:
             status_code=501,
         )
 
+    # Run operations
+
+    def run_get_policy(self) -> ServerResponse:
+        """Get execution policy from server.
+
+        Returns:
+            ServerResponse with policy data:
+            {
+                "allow_local": bool,
+                "server_available": bool,
+                "default_mode": "local" | "server",
+            }
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "allow_local": True,
+                    "server_available": True,
+                    "default_mode": "server",
+                },
+            )
+
+        # TODO: Implement actual HTTP call: GET /api/v1/run/policy
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def run_execute(
+        self,
+        sql: str,
+        *,
+        dialect: str = "bigquery",
+        limit: int | None = None,
+        timeout: int = 300,
+    ) -> ServerResponse:
+        """Execute SQL query via server.
+
+        Args:
+            sql: Rendered SQL to execute.
+            dialect: SQL dialect.
+            limit: Maximum rows.
+            timeout: Timeout in seconds.
+
+        Returns:
+            ServerResponse with execution result:
+            {
+                "rows": list[dict],
+                "row_count": int,
+                "duration_seconds": float,
+                "bytes_processed": int | None,
+                "bytes_billed": int | None,
+            }
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "rows": [
+                        {"id": 1, "name": "mock_1", "value": 100},
+                        {"id": 2, "name": "mock_2", "value": 200},
+                    ],
+                    "row_count": 2,
+                    "duration_seconds": 0.5,
+                    "bytes_processed": 1024,
+                    "bytes_billed": 1024,
+                },
+            )
+
+        # TODO: Implement actual HTTP call: POST /api/v1/run/execute
+        # payload = {
+        #     "sql": sql,
+        #     "dialect": dialect,
+        #     "limit": limit,
+        #     "timeout": timeout,
+        # }
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
 
 def create_client(
     url: str | None = None,

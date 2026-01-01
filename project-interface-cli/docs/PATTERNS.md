@@ -28,6 +28,7 @@ dli
 | Task | Reference File | Key Pattern |
 |------|----------------|-------------|
 | New CLI command | `src/dli/commands/dataset.py` | Typer subcommand app |
+| `dli run` | `src/dli/commands/run.py` | Ad-hoc SQL execution |
 | Config subcommand | `src/dli/commands/config.py` | Simple settings management |
 | Data models | `src/dli/core/workflow/models.py` | Pydantic BaseModel |
 | Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
@@ -932,6 +933,7 @@ except DLIError as e:
 | DLI-2xx | Validation | `DLIValidationError` |
 | DLI-3xx | Transpile | `TranspileError` |
 | DLI-4xx | Execution | `ExecutionError` |
+| DLI-41x | Run | `RunFileNotFoundError`, `RunLocalDeniedError`, etc. |
 | DLI-5xx | Server | `ServerError` |
 | DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
 | DLI-7xx | Catalog | `CatalogError`, `CatalogNotFoundError` |

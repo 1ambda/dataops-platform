@@ -64,6 +64,7 @@ from dli.api import (
     MetricAPI,
     QualityAPI,
     QueryAPI,
+    RunAPI,
     TranspileAPI,
     WorkflowAPI,
 )
@@ -88,6 +89,11 @@ from dli.exceptions import (
     QueryCancelError,
     QueryInvalidFilterError,
     QueryNotFoundError,
+    RunExecutionError,
+    RunFileNotFoundError,
+    RunLocalDeniedError,
+    RunOutputError,
+    RunServerUnavailableError,
     ServerError,
     TableNotFoundError,
     TranspileError,
@@ -100,6 +106,9 @@ from dli.exceptions import (
 # Context and Configuration
 from dli.models.common import ExecutionContext, ExecutionMode
 
+# Run models (public API)
+from dli.models.run import ExecutionPlan, OutputFormat, RunResult
+
 __all__ = [
     # API Classes
     "CatalogAPI",
@@ -109,6 +118,7 @@ __all__ = [
     "MetricAPI",
     "QualityAPI",
     "QueryAPI",
+    "RunAPI",
     "TranspileAPI",
     "WorkflowAPI",
     # Exceptions
@@ -130,6 +140,11 @@ __all__ = [
     "QueryCancelError",
     "QueryInvalidFilterError",
     "QueryNotFoundError",
+    "RunExecutionError",
+    "RunFileNotFoundError",
+    "RunLocalDeniedError",
+    "RunOutputError",
+    "RunServerUnavailableError",
     "ServerError",
     "TableNotFoundError",
     "TranspileError",
@@ -140,6 +155,10 @@ __all__ = [
     # Context
     "ExecutionContext",
     "ExecutionMode",
+    # Run models
+    "ExecutionPlan",
+    "OutputFormat",
+    "RunResult",
     # Version
     "__version__",
 ]
