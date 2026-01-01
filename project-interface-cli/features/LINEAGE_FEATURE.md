@@ -1,7 +1,7 @@
 # FEATURE: Lineage 기능
 
-> **Version:** 1.0.0
-> **Status:** Phase 1 Complete (CLI + Core)
+> **Version:** 1.1.0
+> **Status:** ✅ Complete (CLI + Library API + Tests)
 > **Last Updated:** 2026-01-01
 > **Industry Benchmarked:** OpenLineage, DataHub, dbt, SqlMesh
 
@@ -22,22 +22,23 @@
 | **심층 탐색** | 다단계 의존성 탐색 지원 (`--depth` 옵션) |
 | **다중 출력 형식** | Tree, Table, JSON 형식 지원 (Mermaid/GraphViz는 Phase 2) |
 
-### 1.3 주요 기능 (Phase 1 - Implemented)
+### 1.3 구현 완료 기능 (v1.1.0)
 
-- **전체 Lineage 조회**: 업스트림 + 다운스트림 동시 표시
-- **업스트림 분석**: 리소스가 의존하는 소스 테이블 탐색
-- **다운스트림 분석**: 리소스를 사용하는 소비자 탐색
-- **트리 시각화**: Rich 기반 계층 구조 출력
-- **JSON 출력**: 프로그래매틱 처리용 구조화 데이터
+- ✅ **전체 Lineage 조회**: 업스트림 + 다운스트림 동시 표시
+- ✅ **업스트림 분석**: 리소스가 의존하는 소스 테이블 탐색
+- ✅ **다운스트림 분석**: 리소스를 사용하는 소비자 탐색
+- ✅ **트리 시각화**: Rich 기반 계층 구조 출력
+- ✅ **JSON 출력**: 프로그래매틱 처리용 구조화 데이터
+- ✅ **LineageAPI**: Library API 클래스 (get_lineage, get_upstream, get_downstream)
+- ✅ **DLI-9xx 에러 코드**: LineageError, LineageNotFoundError, LineageTimeoutError
+- ✅ **테스트 커버리지**: 60개 테스트 (CLI 17 + API 43)
 
-### 1.4 Phase 2 기능 (미구현)
+### 1.4 향후 확장 기능 (Phase 2+)
 
-- **LineageAPI**: Library API 클래스
-- **컬럼 레벨 Lineage**: 컬럼 단위 의존성 추적
-- **OpenLineage 통합**: 표준 메타데이터 포맷 지원
-- **Export 형식**: Mermaid, GraphViz, JSON-LD
-- **Impact Analysis**: 변경 영향도 분석
-- **테스트 커버리지**: CLI 및 Core 테스트
+- ⏸ **컬럼 레벨 Lineage**: 컬럼 단위 의존성 추적
+- ⏸ **OpenLineage 통합**: 표준 메타데이터 포맷 지원
+- ⏸ **Export 형식**: Mermaid, GraphViz, JSON-LD
+- ⏸ **Impact Analysis**: 변경 영향도 분석 (고급 기능)
 
 ### 1.5 업계 표준 벤치마킹
 
@@ -301,163 +302,42 @@ Section 3.4 참조
 
 ---
 
-## 5. Library API 설계 (Phase 2)
+## 5. Library API 설계
 
 ### 5.1 LineageAPI 클래스
 
-> **Status:** 미구현 - Phase 2 예정
+> **Status:** ✅ Implemented (v1.1.0) - See [LINEAGE_RELEASE.md](./LINEAGE_RELEASE.md) for implementation details
 
+**API 인터페이스:**
+- `get_lineage(resource_name, direction, depth)`: 전체 Lineage 조회
+- `get_upstream(resource_name, depth)`: 업스트림 의존성 조회
+- `get_downstream(resource_name, depth)`: 다운스트림 의존성 조회
+
+**실행 모드:**
+- MOCK: 테스트용 모의 데이터
+- SERVER: Basecamp Server API 호출
+- DI 지원: `client` 파라미터로 BasecampClient 주입 가능
+
+**사용 예시:**
 ```python
-# src/dli/api/lineage.py
-from dli.models.common import ExecutionContext
-from dli.core.lineage import LineageResult, LineageDirection
+from dli import LineageAPI, ExecutionContext, ExecutionMode
 
-class LineageAPI:
-    """Programmatic Lineage API for integration with Airflow, Jupyter, etc."""
-
-    def __init__(self, context: ExecutionContext | None = None) -> None:
-        self.context = context or ExecutionContext()
-        self._client: LineageClient | None = None
-
-    def get_lineage(
-        self,
-        resource_name: str,
-        *,
-        direction: LineageDirection = LineageDirection.BOTH,
-        depth: int = -1,
-    ) -> LineageResult:
-        """Get lineage information for a resource.
-
-        Args:
-            resource_name: Fully qualified resource name
-            direction: Lineage direction (UPSTREAM, DOWNSTREAM, BOTH)
-            depth: Maximum traversal depth (-1 for unlimited)
-
-        Returns:
-            LineageResult with nodes and edges
-        """
-        ...
-
-    def get_upstream(
-        self,
-        resource_name: str,
-        *,
-        depth: int = -1,
-    ) -> LineageResult:
-        """Get upstream dependencies for a resource."""
-        return self.get_lineage(
-            resource_name,
-            direction=LineageDirection.UPSTREAM,
-            depth=depth,
-        )
-
-    def get_downstream(
-        self,
-        resource_name: str,
-        *,
-        depth: int = -1,
-    ) -> LineageResult:
-        """Get downstream dependents for a resource."""
-        return self.get_lineage(
-            resource_name,
-            direction=LineageDirection.DOWNSTREAM,
-            depth=depth,
-        )
-
-    def get_impact_summary(
-        self,
-        resource_name: str,
-        *,
-        depth: int = 1,
-    ) -> ImpactSummary:
-        """Get impact analysis summary for a resource.
-
-        Used by CatalogAPI for the Impact section.
-
-        Args:
-            resource_name: Resource to analyze
-            depth: Depth for downstream analysis
-
-        Returns:
-            ImpactSummary with counts and affected resources
-        """
-        downstream = self.get_downstream(resource_name, depth=depth)
-
-        return ImpactSummary(
-            total_downstream=downstream.total_downstream,
-            tables=[n.name for n in downstream.nodes if n.type == "Dataset"],
-            metrics=[n.name for n in downstream.nodes if n.type == "Metric"],
-            dashboards=[],  # Future: Dashboard integration
-        )
-
-    def export_mermaid(
-        self,
-        result: LineageResult,
-    ) -> str:
-        """Export lineage as Mermaid diagram.
-
-        Args:
-            result: LineageResult to export
-
-        Returns:
-            Mermaid diagram string
-        """
-        ...
-
-    def export_graphviz(
-        self,
-        result: LineageResult,
-    ) -> str:
-        """Export lineage as GraphViz DOT format.
-
-        Args:
-            result: LineageResult to export
-
-        Returns:
-            GraphViz DOT string
-        """
-        ...
-```
-
-### 5.2 사용 예시
-
-```python
-from dli import LineageAPI, ExecutionContext
-
-# Airflow DAG에서 사용
-ctx = ExecutionContext(project_path=Path("/opt/airflow/dags/models"))
+# Mock 모드 (테스트)
+ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
 api = LineageAPI(context=ctx)
+result = api.get_lineage("iceberg.analytics.daily_clicks")
 
-# 영향도 분석
-impact = api.get_impact_summary("iceberg.raw.click_events")
-if impact.total_downstream > 10:
-    print(f"Warning: {impact.total_downstream} resources will be affected")
-
-# Mermaid 다이어그램 생성
-lineage = api.get_lineage("iceberg.analytics.daily_clicks")
-mermaid = api.export_mermaid(lineage)
+# Server 모드 (프로덕션)
+ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER)
+api = LineageAPI(context=ctx)
+upstream = api.get_upstream("iceberg.analytics.daily_clicks", depth=2)
 ```
 
-### 5.3 결과 모델
+### 5.2 향후 확장 (Phase 2+)
 
-```python
-# src/dli/models/lineage.py
-from pydantic import BaseModel, Field
-
-class ImpactSummary(BaseModel):
-    """Impact analysis summary."""
-    total_downstream: int = Field(..., description="Total downstream resource count")
-    tables: list[str] = Field(default_factory=list, description="Affected table names")
-    datasets: list[str] = Field(default_factory=list, description="Affected dataset names")
-    metrics: list[str] = Field(default_factory=list, description="Affected metric names")
-    dashboards: list[str] = Field(default_factory=list, description="Affected dashboard names")
-
-class LineageExportResult(BaseModel):
-    """Export result with format metadata."""
-    format: str = Field(..., description="Export format (mermaid, graphviz, json-ld)")
-    content: str = Field(..., description="Exported content")
-    resource_count: int = Field(..., description="Number of resources in export")
-```
+- `get_impact_summary()`: 영향도 분석 요약
+- `export_mermaid()`: Mermaid 다이어그램 생성
+- `export_graphviz()`: GraphViz DOT 포맷 변환
 
 ---
 
@@ -615,296 +495,112 @@ class LineageDirection(str, Enum):
 
 ---
 
-## 8. 에러 처리 및 코드
+## 8. 에러 처리
 
-### 8.1 Error Code 할당 (DLI-6xx 범위)
+### 8.1 Error Code 할당 (DLI-9xx 범위)
 
-```python
-# src/dli/exceptions.py에 추가
-class ErrorCode(str, Enum):
-    # ... 기존 코드들 ...
+> **Status:** ✅ Implemented (v1.1.0)
 
-    # Lineage errors (DLI-6xx)
-    LINEAGE_CONNECTION_ERROR = "DLI-601"
-    LINEAGE_RESOURCE_NOT_FOUND = "DLI-602"
-    LINEAGE_INVALID_RESOURCE = "DLI-603"
-    LINEAGE_DEPTH_EXCEEDED = "DLI-604"
-    LINEAGE_CYCLE_DETECTED = "DLI-605"
-    LINEAGE_EXPORT_ERROR = "DLI-606"
+| Code | Name | Exception Class |
+|------|------|-----------------|
+| DLI-900 | LINEAGE_NOT_FOUND | LineageNotFoundError |
+| DLI-901 | LINEAGE_DEPTH_EXCEEDED | LineageError |
+| DLI-902 | LINEAGE_CYCLE_DETECTED | LineageError |
+| DLI-903 | LINEAGE_SERVER_ERROR | LineageError |
+| DLI-904 | LINEAGE_TIMEOUT | LineageTimeoutError |
 
-class LineageError(DLIError):
-    """Base lineage error."""
-    pass
+### 8.2 Exception 클래스
 
-class ResourceNotFoundError(LineageError):
-    def __init__(self, resource_name: str):
-        super().__init__(
-            message=f"Resource '{resource_name}' not found in lineage graph",
-            code=ErrorCode.LINEAGE_RESOURCE_NOT_FOUND
-        )
+- `LineageError`: Base exception for lineage operations
+- `LineageNotFoundError`: Resource not found in lineage graph
+- `LineageTimeoutError`: Lineage query timeout
 
-class InvalidResourceError(LineageError):
-    def __init__(self, resource_name: str, reason: str):
-        super().__init__(
-            message=f"Invalid resource '{resource_name}': {reason}",
-            code=ErrorCode.LINEAGE_INVALID_RESOURCE
-        )
-```
-
-### 8.2 현재 예외 (구현 완료)
+### 8.3 내부 예외 (core/lineage/client.py)
 
 ```python
-# core/lineage/client.py
 class LineageClientError(Exception):
     """Exception raised for lineage client errors."""
-
     def __init__(self, message: str, status_code: int = 500):
-        super().__init__(message)
         self.message = message
         self.status_code = status_code
 ```
 
-### 8.3 에러 메시지 매핑
+---
 
-| 상황 | Error Code | Exception | 메시지 |
-|------|-----------|-----------|--------|
-| 서버 연결 불가 | DLI-601 | `LineageConnectionError` | `Cannot connect to Basecamp server` |
-| 리소스 없음 | DLI-602 | `ResourceNotFoundError` | `Resource '{name}' not found` |
-| 잘못된 리소스명 | DLI-603 | `InvalidResourceError` | `Invalid resource: {reason}` |
-| 깊이 초과 | DLI-604 | `DepthExceededError` | `Maximum depth exceeded` |
-| 순환 의존성 | DLI-605 | `CycleDetectedError` | `Circular dependency detected` |
+## 9. 구현 현황
+
+### 9.1 v1.1.0 완료 항목
+
+- ✅ `LineageDirection` enum
+- ✅ `LineageNode` dataclass
+- ✅ `LineageEdge` dataclass
+- ✅ `LineageResult` dataclass
+- ✅ `LineageClient` 클래스 (core/lineage/client.py)
+- ✅ `LineageClientError` 예외
+- ✅ `dli lineage show` 커맨드
+- ✅ `dli lineage upstream` 커맨드
+- ✅ `dli lineage downstream` 커맨드
+- ✅ Tree 시각화 출력
+- ✅ Table 출력 지원
+- ✅ JSON 출력 지원
+- ✅ `--depth` 옵션
+- ✅ 순환 의존성 방지 (visited set)
+- ✅ `LineageAPI` 클래스 (api/lineage.py, 367 lines)
+- ✅ DLI-9xx 에러 코드 (DLI-900 ~ DLI-904)
+- ✅ Exception 클래스 (LineageError, LineageNotFoundError, LineageTimeoutError)
+- ✅ 테스트 커버리지 (60 tests: CLI 17 + API 43)
+- ✅ Mock 모드 지원
+
+### 9.2 향후 확장 (Phase 2+)
+
+- ⏸ `--export` 옵션 (Mermaid, GraphViz)
+- ⏸ 컬럼 레벨 Lineage
+- ⏸ OpenLineage 호환 출력
+- ⏸ JSON-LD 형식 지원
+- ⏸ Impact Analysis 고급 기능
+- ⏸ 실시간 Lineage 업데이트
 
 ---
 
-## 9. Mock 모드 설계
+## 10. 디렉토리 구조
 
-### 9.1 Mock 데이터 구조
-
-```python
-# core/client.py에 추가
-MOCK_LINEAGE_DATA = {
-    "iceberg.analytics.daily_clicks": {
-        "root": {
-            "name": "iceberg.analytics.daily_clicks",
-            "type": "Dataset",
-            "owner": "analytics-team@company.com",
-            "team": "analytics",
-            "description": "Daily aggregated click events",
-            "tags": ["tier::critical"],
-        },
-        "nodes": [
-            {
-                "name": "iceberg.raw.click_events",
-                "type": "Dataset",
-                "owner": "data-team@company.com",
-                "depth": -1,
-            },
-            {
-                "name": "kafka.events.clicks",
-                "type": "External",
-                "depth": -2,
-            },
-            {
-                "name": "metrics.daily_ctr",
-                "type": "Metric",
-                "owner": "ml-team@company.com",
-                "depth": 1,
-            },
-        ],
-        "edges": [
-            {
-                "source": "kafka.events.clicks",
-                "target": "iceberg.raw.click_events",
-                "edge_type": "direct",
-            },
-            {
-                "source": "iceberg.raw.click_events",
-                "target": "iceberg.analytics.daily_clicks",
-                "edge_type": "direct",
-            },
-            {
-                "source": "iceberg.analytics.daily_clicks",
-                "target": "metrics.daily_ctr",
-                "edge_type": "direct",
-            },
-        ],
-        "total_upstream": 2,
-        "total_downstream": 1,
-    },
-}
-```
-
-### 9.2 Mock 클라이언트 메서드
-
-```python
-# BasecampClient._mock_lineage()
-def _mock_lineage(
-    self,
-    resource_name: str,
-    direction: str,
-    depth: int,
-) -> ServerResponse:
-    """Generate mock lineage data."""
-    if resource_name in MOCK_LINEAGE_DATA:
-        data = MOCK_LINEAGE_DATA[resource_name].copy()
-
-        # Filter by direction
-        if direction == "upstream":
-            data["nodes"] = [n for n in data["nodes"] if n.get("depth", 0) < 0]
-            data["edges"] = [e for e in data["edges"] if e["target"] == resource_name]
-        elif direction == "downstream":
-            data["nodes"] = [n for n in data["nodes"] if n.get("depth", 0) > 0]
-            data["edges"] = [e for e in data["edges"] if e["source"] == resource_name]
-
-        # Apply depth limit
-        if depth > 0:
-            data["nodes"] = [n for n in data["nodes"] if abs(n.get("depth", 0)) <= depth]
-
-        return ServerResponse(success=True, data=data)
-
-    return ServerResponse(
-        success=False,
-        error=f"Resource '{resource_name}' not found",
-        status_code=404,
-    )
-```
-
----
-
-## 10. 테스트 계획 (Phase 2)
-
-### 10.1 테스트 파일 구조
-
-```
-tests/
-├── cli/
-│   └── test_lineage_cmd.py        # CLI 커맨드 테스트
-├── core/
-│   └── lineage/
-│       ├── test_client.py         # LineageClient 테스트
-│       └── test_models.py         # 데이터 모델 테스트
-└── api/
-    └── test_lineage_api.py        # LineageAPI 테스트 (Phase 2)
-```
-
-### 10.2 CLI 테스트 케이스
-
-| 테스트 | 설명 |
-|--------|------|
-| `test_show_lineage_default` | 기본 출력 (Tree 형식) |
-| `test_show_lineage_json` | JSON 출력 |
-| `test_upstream_with_depth` | 깊이 제한된 업스트림 조회 |
-| `test_downstream_with_depth` | 깊이 제한된 다운스트림 조회 |
-| `test_resource_not_found` | 존재하지 않는 리소스 에러 |
-| `test_empty_lineage` | Lineage 없는 리소스 처리 |
-
-### 10.3 Core 테스트 케이스
-
-| 테스트 | 설명 |
-|--------|------|
-| `test_lineage_node_creation` | LineageNode 생성 |
-| `test_lineage_result_properties` | upstream/downstream 프로퍼티 |
-| `test_lineage_client_parse_response` | 응답 파싱 |
-| `test_lineage_client_error_handling` | 에러 처리 |
-| `test_cycle_detection` | 순환 의존성 감지 |
-
----
-
-## 11. 구현 현황
-
-### 11.1 Phase 1 (완료)
-
-- [x] `LineageDirection` enum
-- [x] `LineageNode` dataclass
-- [x] `LineageEdge` dataclass
-- [x] `LineageResult` dataclass
-- [x] `LineageClient` 클래스
-- [x] `LineageClientError` 예외
-- [x] `dli lineage show` 커맨드
-- [x] `dli lineage upstream` 커맨드
-- [x] `dli lineage downstream` 커맨드
-- [x] Tree 시각화 출력
-- [x] JSON 출력 지원
-- [x] `--depth` 옵션
-- [x] 순환 의존성 방지 (visited set)
-
-### 11.2 Phase 2 (미구현)
-
-- [ ] `LineageAPI` 클래스 (Library API)
-- [ ] Error Code 할당 (DLI-6xx)
-- [ ] 테스트 파일 작성
-- [ ] Mock 데이터 확장
-- [ ] `--export` 옵션 (Mermaid, GraphViz)
-- [ ] 컬럼 레벨 Lineage
-
-### 11.3 Phase 3 (향후 고려)
-
-- [ ] OpenLineage 호환 출력
-- [ ] JSON-LD 형식 지원
-- [ ] Impact Analysis 고급 기능
-- [ ] 실시간 Lineage 업데이트
-
----
-
-## 12. 디렉토리 구조
-
-### 12.1 현재 구조 (구현 완료)
-
-```
-src/dli/
-├── commands/
-│   └── lineage.py              # CLI 커맨드 (383 lines)
-└── core/
-    └── lineage/
-        ├── __init__.py         # 모델 정의 (108 lines)
-        └── client.py           # LineageClient (211 lines)
-```
-
-### 12.2 Phase 2 추가 예정
+### 10.1 구현 완료 (v1.1.0)
 
 ```
 src/dli/
 ├── api/
-│   └── lineage.py              # LineageAPI (Phase 2)
-├── models/
-│   └── lineage.py              # Pydantic 모델 (Phase 2)
+│   └── lineage.py              # LineageAPI (367 lines) ✅
+├── commands/
+│   └── lineage.py              # CLI 커맨드 (383 lines) ✅
 └── core/
     └── lineage/
-        └── export.py           # Export 기능 (Phase 2)
+        ├── __init__.py         # 모델 정의 (108 lines) ✅
+        └── client.py           # LineageClient (211 lines) ✅
 
 tests/
-├── cli/
-│   └── test_lineage_cmd.py     # CLI 테스트 (Phase 2)
-├── core/
-│   └── lineage/
-│       ├── test_client.py      # Client 테스트 (Phase 2)
-│       └── test_models.py      # 모델 테스트 (Phase 2)
-└── api/
-    └── test_lineage_api.py     # API 테스트 (Phase 2)
+├── api/
+│   └── test_lineage_api.py     # API 테스트 (43 tests) ✅
+└── cli/
+    └── test_lineage_cmd.py     # CLI 테스트 (17 tests) ✅
+```
+
+### 10.2 향후 확장 (Phase 2+)
+
+```
+src/dli/
+└── core/
+    └── lineage/
+        └── export.py           # Export 기능 (Mermaid, GraphViz)
 ```
 
 ---
 
-## 13. CLI 등록 (구현 완료)
+## 11. CLI 등록
 
-### 13.1 commands/__init__.py
+> **Status:** ✅ Complete
 
-```python
-from .lineage import lineage_app
-
-__all__ = [
-    # ... other exports ...
-    "lineage_app",
-]
-```
-
-### 13.2 main.py
-
-```python
-from dli.commands import lineage_app
-
-app.add_typer(lineage_app, name="lineage")
-```
+- `commands/__init__.py`: Export `lineage_app`
+- `main.py`: Register `lineage_app` as `dli lineage` subcommand
 
 ---
 
@@ -963,6 +659,6 @@ def get_impact_summary(client: BasecampClient, table_ref: str) -> ImpactSummary:
 | Lineage 소스 | Server Only | 등록된 Dataset 정합성 보장 |
 | 기본 깊이 | -1 (무제한) | 전체 의존성 파악이 일반적 |
 | 기본 출력 | Tree | 직관적 계층 시각화 |
-| 컬럼 레벨 | Phase 2 | MVP 범위 제한 |
+| 컬럼 레벨 | Phase 2+ | MVP 범위 제한, 테이블 레벨 우선 |
 | 순환 처리 | visited set | 무한 루프 방지 |
-| Error Code | DLI-9xx | Quality(DLI-6xx), Catalog(DLI-7xx), Workflow(DLI-8xx)와 구분 |
+| Error Code | DLI-9xx | Quality(DLI-6xx), Catalog(DLI-7xx), Workflow(DLI-8xx), Debug(DLI-95x)와 구분 |

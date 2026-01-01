@@ -1,9 +1,9 @@
 # FEATURE: Workflow Library API and Enhanced Commands
 
 > **Version:** 3.0.0
-> **Status:** Draft
+> **Status:** ✅ Phase 1 Complete (v0.4.0)
 > **Created:** 2025-12-30
-> **Last Updated:** 2025-12-31
+> **Last Updated:** 2026-01-01
 
 ---
 
@@ -13,10 +13,10 @@
 
 `dli workflow` provides programmatic and CLI access to manage Dataset schedules on Airflow through Basecamp Server. This version adds:
 
-- **WorkflowAPI**: Library API for programmatic workflow management
-- **`workflow register`**: Register local Dataset as MANUAL workflow
-- **Enhanced `workflow list`**: Filter by source type (MANUAL/CODE)
-- **Enhanced `workflow history`**: Display Dataset metadata in execution history
+- ✅ **WorkflowAPI**: Library API for programmatic workflow management (v0.4.0)
+- ⏳ **`workflow register`**: Register local Dataset as MANUAL workflow (Phase 2)
+- ⏳ **Enhanced `workflow list`**: Filter by source type (MANUAL/CODE) (Phase 2)
+- ⏳ **Enhanced `workflow history`**: Display Dataset metadata in execution history (Phase 2)
 
 ### 1.2 Core Principles
 
@@ -179,880 +179,70 @@ When same Dataset name exists in both `code/` and `manual/`:
 
 ## 4. Library API Design (WorkflowAPI)
 
+> **Status:** ✅ Implemented in v0.4.0
+>
+> See [WORKFLOW_RELEASE.md](./WORKFLOW_RELEASE.md) for complete implementation details.
+
 ### 4.1 WorkflowAPI Class
 
+✅ **Implemented** - 11 methods available:
+
+| Method | Status | Description |
+|--------|--------|-------------|
+| `get()` | ✅ | Get workflow info for a dataset |
+| `register()` | ✅ | Register local Dataset as MANUAL workflow |
+| `unregister()` | ✅ | Unregister MANUAL workflow |
+| `run()` | ✅ | Trigger adhoc execution |
+| `backfill()` | ✅ | Run backfill for date range |
+| `stop()` | ✅ | Stop running workflow |
+| `get_status()` | ✅ | Get status of a workflow run |
+| `list_workflows()` | ✅ | List registered workflows |
+| `history()` | ✅ | Get workflow execution history |
+| `pause()` | ✅ | Pause workflow schedule |
+| `unpause()` | ✅ | Resume workflow schedule |
+
+Example usage:
+
 ```python
-# dli/api/workflow.py
+from dli import WorkflowAPI, ExecutionContext, ExecutionMode
 
-from __future__ import annotations
+ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER, server_url="http://basecamp:8080")
+api = WorkflowAPI(context=ctx)
 
-from datetime import datetime
-from typing import Any
+# Get workflow info
+info = api.get("iceberg.analytics.daily_clicks")
 
-from dli.core.client import BasecampClient
-from dli.core.workflow.models import (
-    SourceType,
-    WorkflowInfo,
-    WorkflowRun,
-    WorkflowStatus,
-    RunStatus,
-    ScheduleConfig,
-)
-from dli.exceptions import (
-    ConfigurationError,
-    ErrorCode,
-    WorkflowNotFoundError,
-    WorkflowRegistrationError,
-    WorkflowExecutionError,
-    WorkflowPermissionError,
-)
-from dli.models.common import ExecutionContext, ExecutionMode, ResultStatus
-from dli.models.workflow import (
-    WorkflowRegisterResult,
-    WorkflowRunResult,
-    WorkflowListResult,
-    WorkflowStatusResult,
-    WorkflowHistoryResult,
+# Register workflow
+result = api.register(
+    "iceberg.analytics.daily_clicks",
+    cron="0 9 * * *",
+    timezone="Asia/Seoul",
 )
 
-__all__ = ["WorkflowAPI"]
-
-
-class WorkflowAPI:
-    """Library API for workflow management.
-
-    Provides programmatic access to workflow operations including
-    registration, execution, and monitoring.
-
-    Example:
-        >>> from dli import WorkflowAPI, ExecutionContext, ExecutionMode
-        >>> ctx = ExecutionContext(
-        ...     execution_mode=ExecutionMode.SERVER,
-        ...     server_url="http://basecamp:8080",
-        ... )
-        >>> api = WorkflowAPI(context=ctx)
-        >>> result = api.run("iceberg.analytics.daily_clicks", parameters={"date": "2025-01-01"})
-        >>> print(result.run_id)
-
-    Attributes:
-        context: Execution context with mode, server URL, project path, etc.
-    """
-
-    def __init__(
-        self,
-        context: ExecutionContext | None = None,
-        *,
-        client: BasecampClient | None = None,  # DI for testing
-    ) -> None:
-        """Initialize WorkflowAPI.
-
-        Args:
-            context: Execution context. Defaults to ExecutionContext().
-            client: Optional BasecampClient for dependency injection.
-        """
-        self.context = context or ExecutionContext()
-        self._client = client
-
-    def __repr__(self) -> str:
-        return f"WorkflowAPI(context={self.context!r})"
-
-    @property
-    def _is_mock_mode(self) -> bool:
-        """Check if running in mock mode."""
-        return self.context.execution_mode == ExecutionMode.MOCK
-
-    def _get_client(self) -> BasecampClient:
-        """Get or create BasecampClient instance."""
-        if self._client is not None:
-            return self._client
-
-        if self._is_mock_mode:
-            return BasecampClient(mock_mode=True)
-
-        if not self.context.server_url:
-            raise ConfigurationError(
-                message="server_url required for SERVER mode",
-                code=ErrorCode.CONFIG_INVALID,
-            )
-
-        return BasecampClient(
-            server_url=self.context.server_url,
-            api_token=self.context.api_token,
-            mock_mode=False,
-        )
-
-    # =========================================================================
-    # Get / Lookup
-    # =========================================================================
-
-    def get(self, dataset_name: str) -> WorkflowInfo | None:
-        """Get workflow info for a dataset.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-
-        Returns:
-            WorkflowInfo if workflow exists, None otherwise.
-
-        Example:
-            >>> info = api.get("iceberg.analytics.daily_clicks")
-            >>> if info:
-            ...     print(info.status, info.cron)
-        """
-        if self._is_mock_mode:
-            return WorkflowInfo(
-                dataset_name=dataset_name,
-                source_type=SourceType.MANUAL,
-                status=WorkflowStatus.ACTIVE,
-                cron="0 9 * * *",
-                timezone="UTC",
-                next_run=datetime.now(),
-            )
-
-        client = self._get_client()
-        response = client.workflow_list(dataset_name=dataset_name)
-
-        if not response.success or not response.data:
-            return None
-
-        workflows = response.data.get("workflows", [])
-        if not workflows:
-            return None
-
-        return WorkflowInfo.model_validate(workflows[0])
-
-    # =========================================================================
-    # Registration
-    # =========================================================================
-
-    def register(
-        self,
-        dataset_name: str,
-        *,
-        cron: str,
-        timezone: str = "UTC",
-        enabled: bool = True,
-        retry_max_attempts: int = 1,
-        retry_delay_seconds: int = 300,
-        force: bool = False,
-    ) -> WorkflowRegisterResult:
-        """Register a local Dataset as MANUAL workflow.
-
-        Uploads the Dataset Spec to S3 manual/ path and registers
-        the schedule with Airflow via Basecamp Server.
-
-        Args:
-            dataset_name: Fully qualified dataset name (e.g., "iceberg.analytics.daily_clicks")
-            cron: Cron expression (5-field format, e.g., "0 9 * * *")
-            timezone: IANA timezone (default: "UTC")
-            enabled: Whether to enable schedule immediately (default: True)
-            retry_max_attempts: Max retry attempts on failure (default: 1)
-            retry_delay_seconds: Delay between retries in seconds (default: 300)
-            force: If True, overwrite existing MANUAL registration (default: False)
-
-        Returns:
-            WorkflowRegisterResult with registration status and workflow info.
-
-        Raises:
-            WorkflowRegistrationError: If registration fails.
-            WorkflowPermissionError: If CODE workflow exists (cannot override).
-            DatasetNotFoundError: If local Dataset Spec not found.
-
-        Example:
-            >>> result = api.register(
-            ...     "iceberg.analytics.daily_clicks",
-            ...     cron="0 9 * * *",
-            ...     timezone="Asia/Seoul",
-            ... )
-            >>> print(result.workflow_info.status)
-            active
-        """
-        if self._is_mock_mode:
-            return WorkflowRegisterResult(
-                dataset_name=dataset_name,
-                status=ResultStatus.SUCCESS,
-                source_type=SourceType.MANUAL,
-                workflow_info=WorkflowInfo(
-                    dataset_name=dataset_name,
-                    source_type=SourceType.MANUAL,
-                    status=WorkflowStatus.ACTIVE if enabled else WorkflowStatus.PAUSED,
-                    cron=cron,
-                    timezone=timezone,
-                    next_run=datetime.now() if enabled else None,
-                ),
-                message=f"Mock: Workflow '{dataset_name}' registered successfully",
-            )
-
-        client = self._get_client()
-        schedule_config = ScheduleConfig(
-            enabled=enabled,
-            cron=cron,
-            timezone=timezone,
-            retry_max_attempts=retry_max_attempts,
-            retry_delay_seconds=retry_delay_seconds,
-        )
-
-        response = client.workflow_register(
-            dataset_name=dataset_name,
-            schedule_config=schedule_config,
-            force=force,
-        )
-
-        if not response.success:
-            if response.status_code == 403:
-                raise WorkflowPermissionError(
-                    dataset_name=dataset_name,
-                    message=response.error or "Cannot register: CODE workflow exists",
-                )
-            raise WorkflowRegistrationError(
-                dataset_name=dataset_name,
-                message=response.error or "Registration failed",
-            )
-
-        workflow_info = WorkflowInfo.model_validate(response.data)
-        return WorkflowRegisterResult(
-            dataset_name=dataset_name,
-            status=ResultStatus.SUCCESS,
-            source_type=SourceType.MANUAL,
-            workflow_info=workflow_info,
-            message=f"Workflow '{dataset_name}' registered successfully",
-        )
-
-    def unregister(self, dataset_name: str) -> WorkflowRunResult:
-        """Unregister a MANUAL workflow.
-
-        Removes the workflow from S3 manual/ path and unschedules from Airflow.
-        Only MANUAL workflows can be unregistered via CLI/API.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-
-        Returns:
-            WorkflowRunResult indicating success.
-
-        Raises:
-            WorkflowNotFoundError: If workflow not found.
-            WorkflowPermissionError: If CODE workflow (cannot delete).
-
-        Example:
-            >>> result = api.unregister("iceberg.analytics.daily_clicks")
-            >>> print(result.message)
-            Workflow 'iceberg.analytics.daily_clicks' unregistered
-        """
-        if self._is_mock_mode:
-            return WorkflowRunResult(
-                dataset_name=dataset_name,
-                run_id=None,
-                status=ResultStatus.SUCCESS,
-                message=f"Mock: Workflow '{dataset_name}' unregistered",
-            )
-
-        client = self._get_client()
-        response = client.workflow_unregister(dataset_name=dataset_name)
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(dataset_name=dataset_name)
-            if response.status_code == 403:
-                raise WorkflowPermissionError(
-                    dataset_name=dataset_name,
-                    message="Cannot unregister: CODE workflow. Use Git to remove.",
-                )
-            raise WorkflowRegistrationError(
-                dataset_name=dataset_name,
-                message=response.error or "Unregister failed",
-                code=ErrorCode.WORKFLOW_UNREGISTER_FAILED,
-            )
-
-        return WorkflowRunResult(
-            dataset_name=dataset_name,
-            run_id=None,
-            status=ResultStatus.SUCCESS,
-            message=f"Workflow '{dataset_name}' unregistered",
-        )
-
-    # =========================================================================
-    # Execution
-    # =========================================================================
-
-    def run(
-        self,
-        dataset_name: str,
-        *,
-        parameters: dict[str, Any] | None = None,
-        dry_run: bool = False,
-    ) -> WorkflowRunResult:
-        """Trigger adhoc workflow execution on server.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-            parameters: Execution parameters (e.g., {"execution_date": "2025-01-01"}).
-            dry_run: If True, validate only without actual execution.
-
-        Returns:
-            WorkflowRunResult with run_id and status.
-
-        Raises:
-            WorkflowNotFoundError: If workflow not registered.
-            WorkflowExecutionError: If execution trigger fails.
-            WorkflowPermissionError: If workflow is overridden.
-
-        Example:
-            >>> result = api.run(
-            ...     "iceberg.analytics.daily_clicks",
-            ...     parameters={"execution_date": "2025-01-01"},
-            ... )
-            >>> print(result.run_id)
-        """
-        if self._is_mock_mode:
-            mock_run_id = f"mock_{dataset_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            return WorkflowRunResult(
-                dataset_name=dataset_name,
-                run_id=mock_run_id,
-                status=ResultStatus.SUCCESS,
-                run_status=RunStatus.PENDING if not dry_run else None,
-                dry_run=dry_run,
-                message="Mock: Run triggered successfully" if not dry_run else "Mock: Dry run validated",
-            )
-
-        client = self._get_client()
-        response = client.workflow_run(
-            dataset_name=dataset_name,
-            parameters=parameters or {},
-            dry_run=dry_run,
-        )
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(dataset_name=dataset_name)
-            raise WorkflowExecutionError(
-                dataset_name=dataset_name,
-                message=response.error or "Execution trigger failed",
-            )
-
-        return WorkflowRunResult(
-            dataset_name=dataset_name,
-            run_id=response.data.get("run_id"),
-            status=ResultStatus.SUCCESS,
-            run_status=RunStatus(response.data.get("status", "PENDING")),
-            dry_run=dry_run,
-            message=response.data.get("message"),
-        )
-
-    def backfill(
-        self,
-        dataset_name: str,
-        *,
-        start_date: str,
-        end_date: str,
-        parameters: dict[str, Any] | None = None,
-        dry_run: bool = False,
-    ) -> WorkflowRunResult:
-        """Run backfill for date range.
-
-        Executes workflow sequentially from start_date to end_date.
-        Stops on first failure.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-            start_date: Start date (YYYY-MM-DD format).
-            end_date: End date (YYYY-MM-DD format).
-            parameters: Additional parameters.
-            dry_run: If True, validate only.
-
-        Returns:
-            WorkflowRunResult with backfill run_id.
-
-        Raises:
-            WorkflowNotFoundError: If workflow not registered.
-            WorkflowExecutionError: If backfill trigger fails.
-        """
-        if self._is_mock_mode:
-            mock_run_id = f"mock_backfill_{dataset_name}_{start_date}_{end_date}"
-            return WorkflowRunResult(
-                dataset_name=dataset_name,
-                run_id=mock_run_id,
-                status=ResultStatus.SUCCESS,
-                run_status=RunStatus.PENDING if not dry_run else None,
-                dry_run=dry_run,
-                message=f"Mock: Backfill {start_date} to {end_date} triggered",
-            )
-
-        client = self._get_client()
-        response = client.workflow_backfill(
-            dataset_name=dataset_name,
-            start_date=start_date,
-            end_date=end_date,
-            parameters=parameters or {},
-            dry_run=dry_run,
-        )
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(dataset_name=dataset_name)
-            raise WorkflowExecutionError(
-                dataset_name=dataset_name,
-                message=response.error or "Backfill trigger failed",
-            )
-
-        return WorkflowRunResult(
-            dataset_name=dataset_name,
-            run_id=response.data.get("run_id"),
-            status=ResultStatus.SUCCESS,
-            run_status=RunStatus(response.data.get("status", "PENDING")),
-            dry_run=dry_run,
-            message=response.data.get("message"),
-        )
-
-    def stop(self, run_id: str) -> WorkflowRunResult:
-        """Stop a running workflow execution.
-
-        Args:
-            run_id: The run ID to stop.
-
-        Returns:
-            WorkflowRunResult with updated status.
-
-        Raises:
-            WorkflowExecutionError: If stop fails.
-        """
-        if self._is_mock_mode:
-            return WorkflowRunResult(
-                dataset_name="unknown",
-                run_id=run_id,
-                status=ResultStatus.SUCCESS,
-                run_status=RunStatus.KILLED,
-                message="Mock: Run stopped successfully",
-            )
-
-        client = self._get_client()
-        response = client.workflow_stop(run_id=run_id)
-
-        if not response.success:
-            raise WorkflowExecutionError(
-                dataset_name="unknown",
-                run_id=run_id,
-                message=response.error or "Stop failed",
-            )
-
-        return WorkflowRunResult(
-            dataset_name=response.data.get("dataset_name", "unknown"),
-            run_id=run_id,
-            status=ResultStatus.SUCCESS,
-            run_status=RunStatus.KILLED,
-            message="Run stopped successfully",
-        )
-
-    # =========================================================================
-    # Query
-    # =========================================================================
-
-    def get_status(self, run_id: str) -> WorkflowStatusResult:
-        """Get status of a workflow run.
-
-        Args:
-            run_id: The run ID to query.
-
-        Returns:
-            WorkflowStatusResult with detailed run information.
-
-        Raises:
-            WorkflowNotFoundError: If run_id not found.
-        """
-        if self._is_mock_mode:
-            return WorkflowStatusResult(
-                run_id=run_id,
-                dataset_name="mock_dataset",
-                source_type=SourceType.MANUAL,
-                run_status=RunStatus.COMPLETED,
-                run_type="adhoc",
-                parameters={},
-                started_at=datetime.now(),
-                finished_at=datetime.now(),
-            )
-
-        client = self._get_client()
-        response = client.workflow_status(run_id=run_id)
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(
-                    dataset_name="unknown",
-                    message=f"Run '{run_id}' not found",
-                )
-            raise WorkflowExecutionError(
-                dataset_name="unknown",
-                run_id=run_id,
-                message=response.error or "Status query failed",
-            )
-
-        run_data = response.data
-        return WorkflowStatusResult(
-            run_id=run_id,
-            dataset_name=run_data.get("dataset_name"),
-            source_type=SourceType(run_data.get("source_type", "manual")),
-            run_status=RunStatus(run_data.get("status")),
-            run_type=run_data.get("run_type", "adhoc"),
-            parameters=run_data.get("parameters", {}),
-            started_at=run_data.get("started_at"),
-            finished_at=run_data.get("finished_at"),
-            error_message=run_data.get("error_message"),
-        )
-
-    def list_workflows(
-        self,
-        *,
-        source_type: SourceType | None = None,
-        status: WorkflowStatus | None = None,
-        dataset_filter: str | None = None,
-        running_only: bool = False,
-        enabled_only: bool = False,
-        limit: int = 100,
-    ) -> WorkflowListResult:
-        """List registered workflows.
-
-        Args:
-            source_type: Filter by source type (MANUAL/CODE).
-            status: Filter by workflow status.
-            dataset_filter: Filter by dataset name pattern.
-            running_only: Show only currently running workflows.
-            enabled_only: Show only enabled (not paused) workflows.
-            limit: Maximum number of results.
-
-        Returns:
-            WorkflowListResult with list of WorkflowInfo.
-
-        Example:
-            >>> result = api.list_workflows(source_type=SourceType.MANUAL)
-            >>> for wf in result.workflows:
-            ...     print(f"{wf.dataset_name}: {wf.status}")
-        """
-        if self._is_mock_mode:
-            mock_workflows = [
-                WorkflowInfo(
-                    dataset_name="mock.dataset.one",
-                    source_type=SourceType.MANUAL,
-                    status=WorkflowStatus.ACTIVE,
-                    cron="0 9 * * *",
-                    timezone="UTC",
-                    next_run=datetime.now(),
-                ),
-                WorkflowInfo(
-                    dataset_name="mock.dataset.two",
-                    source_type=SourceType.CODE,
-                    status=WorkflowStatus.PAUSED,
-                    cron="0 10 * * *",
-                    timezone="Asia/Seoul",
-                ),
-            ]
-            # Apply filters
-            if source_type:
-                mock_workflows = [w for w in mock_workflows if w.source_type == source_type]
-            if status:
-                mock_workflows = [w for w in mock_workflows if w.status == status]
-
-            return WorkflowListResult(
-                workflows=mock_workflows[:limit],
-                total_count=len(mock_workflows),
-                status=ResultStatus.SUCCESS,
-            )
-
-        client = self._get_client()
-        response = client.workflow_list(
-            source_type=source_type.value if source_type else None,
-            status=status.value if status else None,
-            dataset_filter=dataset_filter,
-            running_only=running_only,
-            enabled_only=enabled_only,
-            limit=limit,
-        )
-
-        if not response.success:
-            raise WorkflowExecutionError(
-                dataset_name="unknown",
-                message=response.error or "List query failed",
-            )
-
-        workflows = [WorkflowInfo.model_validate(w) for w in response.data.get("workflows", [])]
-        return WorkflowListResult(
-            workflows=workflows,
-            total_count=response.data.get("total_count", len(workflows)),
-            status=ResultStatus.SUCCESS,
-        )
-
-    def history(
-        self,
-        *,
-        dataset_name: str | None = None,
-        source_type: SourceType | None = None,
-        run_status: RunStatus | None = None,
-        limit: int = 20,
-        include_dataset_info: bool = True,
-    ) -> WorkflowHistoryResult:
-        """Get workflow execution history.
-
-        Args:
-            dataset_name: Filter by dataset name.
-            source_type: Filter by source type.
-            run_status: Filter by run status.
-            limit: Maximum number of results.
-            include_dataset_info: Include Dataset metadata in results.
-
-        Returns:
-            WorkflowHistoryResult with list of WorkflowRun.
-
-        Example:
-            >>> result = api.history(dataset_name="iceberg.analytics.daily_clicks", limit=10)
-            >>> for run in result.runs:
-            ...     print(f"{run.run_id}: {run.status} ({run.duration_seconds}s)")
-        """
-        if self._is_mock_mode:
-            mock_runs = [
-                WorkflowRun(
-                    run_id="mock_run_001",
-                    dataset_name=dataset_name or "mock.dataset",
-                    source_type=SourceType.MANUAL,
-                    status=RunStatus.COMPLETED,
-                    run_type="adhoc",
-                    parameters={"execution_date": "2025-01-01"},
-                    started_at=datetime.now(),
-                    finished_at=datetime.now(),
-                ),
-            ]
-            return WorkflowHistoryResult(
-                runs=mock_runs[:limit],
-                total_count=len(mock_runs),
-                status=ResultStatus.SUCCESS,
-            )
-
-        client = self._get_client()
-        response = client.workflow_history(
-            dataset_name=dataset_name,
-            source_type=source_type.value if source_type else None,
-            status=run_status.value if run_status else None,
-            limit=limit,
-            include_dataset_info=include_dataset_info,
-        )
-
-        if not response.success:
-            raise WorkflowExecutionError(
-                dataset_name=dataset_name or "unknown",
-                message=response.error or "History query failed",
-            )
-
-        runs = [WorkflowRun.model_validate(r) for r in response.data.get("runs", [])]
-        return WorkflowHistoryResult(
-            runs=runs,
-            total_count=response.data.get("total_count", len(runs)),
-            status=ResultStatus.SUCCESS,
-            dataset_info=response.data.get("dataset_info"),
-        )
-
-    # =========================================================================
-    # Schedule Control
-    # =========================================================================
-
-    def pause(self, dataset_name: str) -> WorkflowRunResult:
-        """Pause a workflow schedule.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-
-        Returns:
-            WorkflowRunResult indicating success.
-
-        Raises:
-            WorkflowNotFoundError: If workflow not found.
-        """
-        if self._is_mock_mode:
-            return WorkflowRunResult(
-                dataset_name=dataset_name,
-                run_id=None,
-                status=ResultStatus.SUCCESS,
-                message=f"Mock: Workflow '{dataset_name}' paused",
-            )
-
-        client = self._get_client()
-        response = client.workflow_pause(dataset_name=dataset_name)
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(dataset_name=dataset_name)
-            raise WorkflowExecutionError(
-                dataset_name=dataset_name,
-                message=response.error or "Pause failed",
-            )
-
-        return WorkflowRunResult(
-            dataset_name=dataset_name,
-            run_id=None,
-            status=ResultStatus.SUCCESS,
-            message=f"Workflow '{dataset_name}' paused",
-        )
-
-    def unpause(self, dataset_name: str) -> WorkflowRunResult:
-        """Resume a paused workflow schedule.
-
-        Args:
-            dataset_name: Fully qualified dataset name.
-
-        Returns:
-            WorkflowRunResult indicating success.
-
-        Raises:
-            WorkflowNotFoundError: If workflow not found.
-            WorkflowPermissionError: If workflow is overridden.
-        """
-        if self._is_mock_mode:
-            return WorkflowRunResult(
-                dataset_name=dataset_name,
-                run_id=None,
-                status=ResultStatus.SUCCESS,
-                message=f"Mock: Workflow '{dataset_name}' resumed",
-            )
-
-        client = self._get_client()
-        response = client.workflow_unpause(dataset_name=dataset_name)
-
-        if not response.success:
-            if response.status_code == 404:
-                raise WorkflowNotFoundError(dataset_name=dataset_name)
-            if response.status_code == 403:
-                raise WorkflowPermissionError(
-                    dataset_name=dataset_name,
-                    message="Cannot unpause: Workflow is overridden by CODE",
-                )
-            raise WorkflowExecutionError(
-                dataset_name=dataset_name,
-                message=response.error or "Unpause failed",
-            )
-
-        return WorkflowRunResult(
-            dataset_name=dataset_name,
-            run_id=None,
-            status=ResultStatus.SUCCESS,
-            message=f"Workflow '{dataset_name}' resumed",
-        )
+# Run adhoc execution
+run_result = api.run("iceberg.analytics.daily_clicks", parameters={"date": "2025-01-01"})
+
+# Check status
+status = api.get_status(run_result.run_id)
 ```
 
 ### 4.2 Result Models
 
-```python
-# dli/models/workflow.py
-# Note: Separate from models/common.py due to workflow-specific complexity.
+✅ **Implemented** - 5 result models in `dli/models/workflow.py`:
 
-from __future__ import annotations
+| Model | Purpose | Key Fields |
+|-------|---------|------------|
+| `WorkflowRegisterResult` | Registration result | dataset_name, source_type, workflow_info |
+| `WorkflowRunResult` | Execution operations | run_id, run_status, dry_run |
+| `WorkflowListResult` | List query result | workflows, total_count |
+| `WorkflowStatusResult` | Run status details | is_running, is_terminal, duration_seconds |
+| `WorkflowHistoryResult` | Execution history | runs, dataset_info |
 
-from datetime import datetime
-from typing import Any, Literal
-
-from pydantic import BaseModel, ConfigDict, Field
-
-from dli.core.workflow.models import (
-    SourceType,
-    WorkflowInfo,
-    WorkflowRun,
-    WorkflowStatus,
-    RunStatus,
-)
-from dli.models.common import ResultStatus
-
-__all__ = [
-    "WorkflowRegisterResult",
-    "WorkflowRunResult",
-    "WorkflowListResult",
-    "WorkflowStatusResult",
-    "WorkflowHistoryResult",
-]
-
-
-class WorkflowRegisterResult(BaseModel):
-    """Result of workflow registration."""
-
-    model_config = ConfigDict(frozen=True)
-
-    dataset_name: str = Field(description="Registered dataset name")
-    status: ResultStatus = Field(description="Operation status")
-    source_type: SourceType = Field(description="Source type (always MANUAL for register)")
-    workflow_info: WorkflowInfo | None = Field(default=None, description="Registered workflow info")
-    message: str | None = Field(default=None, description="Status message")
-    warning: str | None = Field(default=None, description="Warning if CODE exists")
-
-
-class WorkflowRunResult(BaseModel):
-    """Result of workflow execution operation (run/backfill/stop/pause/unpause)."""
-
-    model_config = ConfigDict(frozen=True)
-
-    dataset_name: str = Field(description="Dataset name")
-    run_id: str | None = Field(default=None, description="Run ID (if applicable)")
-    status: ResultStatus = Field(description="Operation status")
-    run_status: RunStatus | None = Field(default=None, description="Current run status")
-    dry_run: bool = Field(default=False, description="Whether this was a dry run")
-    message: str | None = Field(default=None, description="Status message")
-
-
-class WorkflowListResult(BaseModel):
-    """Result of workflow list query."""
-
-    model_config = ConfigDict(frozen=True)
-
-    workflows: list[WorkflowInfo] = Field(default_factory=list, description="List of workflows")
-    total_count: int = Field(description="Total count (may differ from len(workflows) if paginated)")
-    status: ResultStatus = Field(description="Query status")
-
-
-class WorkflowStatusResult(BaseModel):
-    """Detailed status of a workflow run."""
-
-    model_config = ConfigDict(frozen=True)
-
-    run_id: str = Field(description="Run ID")
-    dataset_name: str = Field(description="Dataset name")
-    source_type: SourceType = Field(description="Source type")
-    run_status: RunStatus = Field(description="Current run status")
-    run_type: Literal["adhoc", "scheduled", "backfill"] = Field(description="Run type")
-    parameters: dict[str, Any] = Field(default_factory=dict, description="Execution parameters")
-    started_at: datetime | None = Field(default=None, description="Start time")
-    finished_at: datetime | None = Field(default=None, description="Finish time")
-    error_message: str | None = Field(default=None, description="Error message if failed")
-
-    @property
-    def is_running(self) -> bool:
-        """Check if workflow is currently running."""
-        return self.run_status in (RunStatus.RUNNING, RunStatus.PENDING)
-
-    @property
-    def is_terminal(self) -> bool:
-        """Check if workflow has reached terminal state."""
-        return self.run_status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.KILLED)
-
-    @property
-    def duration_seconds(self) -> float | None:
-        """Calculate run duration in seconds."""
-        if self.started_at and self.finished_at:
-            return (self.finished_at - self.started_at).total_seconds()
-        return None
-
-
-class WorkflowHistoryResult(BaseModel):
-    """Result of workflow history query."""
-
-    model_config = ConfigDict(frozen=True)
-
-    runs: list[WorkflowRun] = Field(default_factory=list, description="List of runs")
-    total_count: int = Field(description="Total count")
-    status: ResultStatus = Field(description="Query status")
-    dataset_info: dict[str, Any] | None = Field(
-        default=None,
-        description="Dataset metadata (owner, team, description) if include_dataset_info=True",
-    )
-```
+All models use `Pydantic BaseModel` with `ConfigDict(frozen=True)` for immutability.
 
 ### 4.3 Error Codes (DLI-8xx)
 
-> **Note:** `WORKFLOW_NOT_FOUND`를 기존 `DLI-104`에서 `DLI-800`으로 이동합니다.
-> 모든 Workflow 관련 에러 코드는 DLI-8xx 범위로 통합됩니다.
+✅ **Implemented** - All workflow errors in DLI-8xx range:
 
 ```python
 # Add to dli/exceptions.py
@@ -1422,28 +612,29 @@ def workflow_register(
 
 ## 8. Implementation Priority
 
-### Phase 1 (MVP)
+### Phase 1 (MVP) - ✅ Complete (v0.4.0)
 
-- [ ] **WorkflowAPI class** with mock support
-- [ ] **Result models** (`WorkflowRegisterResult`, etc.)
-- [ ] **Error codes** (DLI-8xx) and exceptions
-- [ ] **`workflow register`** CLI command
+- ✅ **WorkflowAPI class** with mock support (11 methods implemented)
+- ✅ **Result models** (5 models: WorkflowRegisterResult, WorkflowRunResult, WorkflowListResult, WorkflowStatusResult, WorkflowHistoryResult)
+- ✅ **Error codes** (DLI-800 ~ DLI-803) and exceptions (4 exception classes)
+- ✅ **BasecampClient extension** (workflow_register, workflow_unregister methods)
+- ✅ **Public exports** in `dli/__init__.py` (WorkflowAPI, exceptions, models)
+- ✅ **Unit tests** (59 tests covering all API methods in mock mode)
+
+### Phase 2 (CLI Enhancement) - ⏳ Planned
+
+- [ ] **`workflow register`** CLI command (programmatic API ready, CLI pending)
+- [ ] **`workflow unregister`** CLI command (programmatic API ready, CLI pending)
 - [ ] **Enhanced `workflow list`** with `--source` filter
-- [ ] **Unit tests** for WorkflowAPI mock mode
-
-### Phase 2
-
 - [ ] **Enhanced `workflow history`** with `--show-dataset-info`
-- [ ] **BasecampClient.workflow_register()** mock implementation
-- [ ] **Integration tests** with mock server
-- [ ] **Public exports** in `dli/__init__.py`
+- [ ] **Integration tests** with Basecamp Server
 
-### Phase 3 (Server Implementation Required)
+### Phase 3 (Server Implementation) - ⏳ Planned
 
-- [ ] **Basecamp Server API** endpoints for workflow management
-- [ ] **S3 integration** for manual/ path uploads
-- [ ] **Airflow integration** for schedule registration
-- [ ] **End-to-end tests** with real server
+- [ ] **Basecamp Server API** endpoints for workflow registration
+- [ ] **S3 integration** for manual/ path uploads (server-side)
+- [ ] **Airflow integration** for schedule registration (server-side)
+- [ ] **End-to-end tests** with real server and Airflow
 
 ---
 

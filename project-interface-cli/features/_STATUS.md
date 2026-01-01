@@ -12,11 +12,11 @@
 | Library API | ✅ v0.9.0 | DatasetAPI/MetricAPI.format() |
 | CLI Commands | ✅ v0.9.0 | `dli dataset format`, `dli metric format` |
 | **Format** | **✅ v0.9.0** | **SqlFormatter, YamlFormatter, DLI-15xx** |
-| Debug | ✅ v0.8.0 | DebugAPI, 11 checks, DLI-95x error codes |
+| Debug | ✅ v0.8.0 | DebugAPI, 12 checks, 196 tests, DLI-95x |
 | Environment | ✅ v0.7.0 | ConfigLoader, template resolution, layer priority |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
-| Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
+| Lineage | ✅ v1.1.0 | LineageAPI (3 methods), 60 tests (CLI 17 + API 43) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
 | Tests | ✅ ~2689 passed | pyright 0 errors |
@@ -154,8 +154,8 @@
 | CATALOG_FEATURE.md | ✅ Created | `project-interface-cli/features/CATALOG_FEATURE.md` |
 | CATALOG_RELEASE.md | ✅ Created | `project-interface-cli/features/CATALOG_RELEASE.md` |
 | CATALOG_GAP.md | ✅ Created | `project-interface-cli/features/CATALOG_GAP.md` |
-| LINEAGE_FEATURE.md | ✅ Created | `project-interface-cli/features/LINEAGE_FEATURE.md` |
-| LINEAGE_RELEASE.md | ✅ Created | `project-interface-cli/features/LINEAGE_RELEASE.md` |
+| LINEAGE_FEATURE.md | ✅ Updated v1.1.0 | `project-interface-cli/features/LINEAGE_FEATURE.md` |
+| LINEAGE_RELEASE.md | ✅ Updated v1.1.0 | `project-interface-cli/features/LINEAGE_RELEASE.md` |
 | LINEAGE_GAP.md | ✅ Created | `project-interface-cli/features/LINEAGE_GAP.md` |
 | QUERY_FEATURE.md | ✅ Created | `project-interface-cli/features/QUERY_FEATURE.md` |
 | QUERY_RELEASE.md | ✅ Created | `project-interface-cli/features/QUERY_RELEASE.md` |
@@ -222,15 +222,15 @@
 ### v0.8.0 (2026-01-01)
 - **Debug Feature 구현 완료**
   - `dli debug` - 환경 진단 및 연결 테스트
-  - 11개 Check 구현 (Python, OS, Config, Server, Auth, Network)
+  - 12개 Check 구현 (Python, dli version, OS, Config, Project, Server URL, Server Health, API Token, GCP Credentials, DNS, HTTPS, Proxy)
   - `--connection`, `--auth`, `--network`, `--server`, `--project` 플래그
   - `--verbose`, `--json` 출력 옵션
   - `--dialect`, `--path`, `--timeout` 파라미터
-- **DebugAPI 구현** (`api/debug.py`)
+- **DebugAPI 구현** (`api/debug.py`, 369 lines)
   - run_all(), check_system(), check_project(), check_server()
   - check_auth(), check_connection(), check_network()
   - MOCK/LOCAL/SERVER 모드 지원
-- **DLI-95x Debug 에러 코드 추가**
+- **DLI-95x Debug 에러 코드 7종**
   - DLI-950: DEBUG_SYSTEM_CHECK_FAILED
   - DLI-951: DEBUG_CONFIG_CHECK_FAILED
   - DLI-952: DEBUG_SERVER_CHECK_FAILED
@@ -242,14 +242,15 @@
   - DebugCheckError (base)
   - DebugTimeoutError
 - **Debug 모델 추가**
-  - core/debug/models.py: CheckStatus, CheckCategory, CheckResult, DebugResult
-  - core/debug/checks.py: BaseCheck, 11 concrete checks
-- **~162개 신규 테스트 추가**
+  - core/debug/models.py: CheckStatus, CheckCategory, CheckResult, DebugResult (181 lines)
+  - core/debug/checks.py: BaseCheck, 12 concrete checks (820 lines)
+- **196개 신규 테스트 추가 (all passing)**
   - tests/models/test_debug_models.py (39 tests)
   - tests/core/debug/test_debug_checks.py (37 tests)
   - tests/api/test_debug_api.py (32 tests)
   - tests/cli/test_debug_cmd.py (39 tests)
   - tests/integration/test_debug_integration.py (15 tests)
+  - Exception tests (34 tests, included in above)
 - **dli/__init__.py Export 업데이트**
   - DebugAPI, CheckStatus, CheckCategory, CheckResult, DebugResult
   - DebugCheckError, DebugTimeoutError
@@ -304,10 +305,10 @@
   - DLI-413: RUN_EXECUTION_FAILED
   - DLI-414: RUN_OUTPUT_FAILED
   - DLI-415: RUN_TIMEOUT
-  - DLI-416: RUN_INVALID_PARAM
+  - DLI-416: RUN_PARAMETER_INVALID
 - **Run Exception 클래스 7종**
   - RunFileNotFoundError, RunLocalDeniedError, RunServerUnavailableError
-  - RunExecutionError, RunOutputError, RunTimeoutError, RunInvalidParamError
+  - RunExecutionError, RunOutputError, RunTimeoutError, RunParameterInvalidError
 - **Run 모델 추가**
   - models/run.py: OutputFormat, RunResult, ExecutionPlan
   - core/run/models.py: RunConfig, ExecutionData

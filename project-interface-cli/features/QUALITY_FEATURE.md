@@ -1,8 +1,8 @@
 # FEATURE: Quality Spec 분리 및 확장
 
 > **Version:** 1.0.0
-> **Status:** Phase 1 MVP Implemented
-> **Last Updated:** 2025-12-31
+> **Status:** ✅ Phase 1 MVP Complete (v0.3.0)
+> **Last Updated:** 2026-01-01
 
 ---
 
@@ -249,476 +249,138 @@ Results saved to Basecamp Server.
 
 ## 4. 인터페이스 설계 (CLI/API)
 
-### 4.1 CLI 커맨드 구조
+### 4.1 CLI 커맨드 구조 ✅
 
 ```
 dli quality
 ├── list     # 서버 등록된 Quality 목록 조회
 ├── get      # 특정 Quality 상세 조회 (서버)
 ├── run      # Quality Spec 실행 (LOCAL/SERVER)
-└── validate # Quality Spec YML 유효성 검증 (로컬 Spec 상세 보기 포함)
+└── validate # Quality Spec YML 유효성 검증
 ```
 
-> **Note**: 기존 `show` 커맨드는 `validate` 및 `get`으로 대체하여 제거합니다.
-> - 로컬 Spec 내용 확인: `dli quality validate <spec_path>`
-> - 서버 등록된 Quality 조회: `dli quality get <name>`
+**핵심 설계 결정:**
+- `show` 커맨드 제거 → `validate` (로컬 Spec) / `get` (서버 등록) 분리
+- `--target-type` 옵션 사용 (기존 `-t`와 충돌 방지)
+- `table|json` 출력 포맷만 지원 (일관성)
 
-### 4.2 커맨드별 옵션
+**상세 구현:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#24-cli-commands) 참조
 
-#### `dli quality list`
-```bash
-dli quality list [OPTIONS]
+### 4.2 Library API ✅
 
-Options:
-  --target-type [dataset|metric]  대상 타입으로 필터링 (기존 -t와 충돌 방지)
-  --target TEXT                   대상 이름으로 필터링 (부분 일치)
-  --status [active|inactive]      상태로 필터링
-  --format, -f [table|json]       출력 포맷 (기본: table)
-  --path, -p PATH                 프로젝트 경로 (기본: 현재 디렉토리)
-```
+**QualityAPI 메서드:**
+- `list_qualities(target_type?, target_name?, status?)` → 서버 Quality 목록
+- `get(name)` → 특정 Quality 상세
+- `run(spec_path, tests?, parameters?)` → Spec 실행
+- `validate(spec_path, strict?)` → Spec 검증
+- `get_spec(spec_path)` → Spec 로드
 
-> **Note**: `--type, -t` 대신 `--target-type`을 사용합니다. 기존 CLI에서 `-t`는 `--tag` 옵션으로 사용되어 충돌을 방지합니다.
-
-#### `dli quality get`
-```bash
-dli quality get QUALITY_NAME [OPTIONS]
-
-Arguments:
-  QUALITY_NAME                  조회할 Quality 이름 (URN 또는 이름)
-
-Options:
-  --format, -f [table|json]     출력 포맷 (기본: table)
-  --include-history             최근 실행 이력 포함
-```
-
-> **Note**: `yaml` 출력 포맷은 CLI 전체 패턴과의 일관성을 위해 제거합니다. machine-readable 출력이 필요하면 `json`을 사용합니다.
-
-#### `dli quality run`
-```bash
-dli quality run SPEC_PATH [OPTIONS]
-
-Arguments:
-  SPEC_PATH                     Quality Spec YML 파일 경로
-
-Options:
-  --mode, -m [local|server]     실행 모드 (기본: local)
-  --test, -t TEXT               특정 테스트만 실행 (여러 개 가능)
-  --fail-fast                   첫 실패 시 중단
-  --format, -f [table|json]     출력 포맷 (기본: table)
-  --path, -p PATH               프로젝트 경로
-  --param, -P KEY=VALUE         실행 파라미터 전달 (여러 개 가능)
-```
-
-#### `dli quality validate`
-```bash
-dli quality validate SPEC_PATH [OPTIONS]
-
-Arguments:
-  SPEC_PATH                     Quality Spec YML 파일 경로
-
-Options:
-  --strict                      참조 대상 존재 여부도 검증
-  --format, -f [table|json]     출력 포맷 (기본: table)
-  --test, -t TEXT               특정 테스트 상세 보기 (show 기능 대체)
-```
-
-> **Note**: `validate` 커맨드가 기존 `show` 커맨드의 역할도 수행합니다.
-> 로컬 Spec의 상세 내용을 확인하려면 `dli quality validate <path>`를 사용하세요.
-
-### 4.3 Library API
-
-```python
-from dli import QualityAPI, ExecutionContext, ExecutionMode
-from dli.models.quality import QualitySpec, QualityResult
-
-# API 인스턴스 생성
-ctx = ExecutionContext(
-    execution_mode=ExecutionMode.LOCAL,
-    project_path=Path("/opt/airflow/dags/models"),
-)
-api = QualityAPI(context=ctx)
-
-# 서버 등록된 Quality 목록 조회
-qualities = api.list_qualities(target_type="dataset")
-
-# 특정 Quality 조회
-quality = api.get("pk_unique")
-
-# Quality Spec 실행
-result: QualityResult = api.run(
-    spec_path="quality.iceberg.analytics.daily_clicks.yaml",
-    tests=["pk_unique", "not_null_user_id"],  # 특정 테스트만
-    parameters={"execution_date": "2025-01-01"},
-)
-
-# 결과 확인
-print(f"Status: {result.status}")  # PASS, FAIL, ERROR
-for test_result in result.test_results:
-    print(f"  {test_result.name}: {test_result.status}")
-```
+**상세 구현:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#23-api-class) 참조
 
 ---
 
 ## 5. 데이터 모델
 
-### 5.1 Quality Spec YML 스키마
+### 5.1 Quality Spec YML 스키마 ✅
 
-```yaml
-# quality.{catalog}.{schema}.{name}.yaml
-version: 1
+**구조:**
+- `target`: 대상 정보 (type: dataset|metric, name: catalog.schema.name)
+- `metadata`: owner, team, description, tags
+- `schedule`: cron, timezone, enabled (Airflow DAG용)
+- `notifications`: slack, email 설정
+- `tests`: 테스트 정의 목록
 
-# 대상 정보
-target:
-  type: dataset  # dataset | metric
-  name: iceberg.analytics.daily_clicks  # catalog.schema.name
+**상세 스키마 및 예시:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#33-quality-spec-yml-example) 참조
 
-# 메타데이터
-metadata:
-  owner: analyst@example.com
-  team: "@data-quality"
-  description: "Daily clicks 데이터셋 품질 검증"
-  tags:
-    - production
-    - critical
+### 5.2 Built-in Generic Test Types ✅
 
-# 스케줄링 (Airflow DAG 생성용)
-schedule:
-  cron: "0 6 * * *"  # 매일 06:00 UTC
-  timezone: "UTC"
-  enabled: true
+| Type | Phase | 설명 |
+|------|-------|------|
+| `not_null` | ✅ MVP | NULL 값 검사 |
+| `unique` | ✅ MVP | 고유값 검사 |
+| `accepted_values` | ✅ MVP | 허용 값 목록 검사 |
+| `relationships` | ✅ MVP | 참조 무결성 검사 |
+| `singular` | ✅ MVP | Custom SQL 테스트 |
+| `expression` | Phase 2 | SQL 표현식 검사 |
+| `row_count` | Phase 2 | 행 수 범위 검사 |
 
-# 알림 설정 (Basecamp Server에서 처리)
-notifications:
-  slack:
-    channel: "#data-quality-alerts"
-    on_failure: true
-    on_success: false
-  email:
-    recipients:
-      - analyst@example.com
-    on_failure: true
+### 5.3 Pydantic 모델 ✅
 
-# 테스트 정의
-tests:
-  # Generic Test (Built-in)
-  - name: pk_unique
-    type: unique
-    columns: [id]
-    severity: error
-    description: "Primary key must be unique"
+**핵심 모델:**
+- `QualitySpec` - YML 루트 모델
+- `QualityTarget` - 대상 정보 (URN 생성)
+- `DqTestDefinitionSpec` - 개별 테스트 정의
+- `DqQualityResult` - 실행 결과
+- `QualityInfo` - 서버 조회용
 
-  - name: not_null_user_id
-    type: not_null
-    columns: [user_id, event_time]
-    severity: error
+**설계 원칙:**
+- 기존 `Dq*` enum 재사용 (`DqTestType`, `DqSeverity`, `DqStatus`)
+- Pydantic (YAML 파싱) ↔ dataclass (core 모듈) 변환 지원
+- `Dq` prefix 유지 (pytest 충돌 방지)
 
-  - name: valid_status
-    type: accepted_values
-    column: status
-    values: [active, inactive, pending]
-    severity: warn
-
-  - name: valid_country_code
-    type: accepted_values
-    column: country_code
-    values_query: "SELECT DISTINCT code FROM reference.countries"
-    severity: warn
-
-  - name: fk_user_exists
-    type: relationships
-    column: user_id
-    to: iceberg.core.users
-    to_column: id
-    severity: error
-
-  # Singular Test (Custom SQL) - 기존 DqTestType.SINGULAR과 호환
-  - name: no_future_dates
-    type: singular
-    severity: error
-    description: "Event time should not be in the future"
-    sql: |
-      SELECT *
-      FROM {{ target }}
-      WHERE event_time > CURRENT_TIMESTAMP
-
-  - name: revenue_in_range
-    type: singular
-    severity: warn
-    file: tests/revenue_validation.sql  # 외부 SQL 파일 참조
-    params:
-      min_revenue: 0
-      max_revenue: 1000000
-```
-
-### 5.2 Built-in Generic Test Types
-
-| Type | 설명 | 필수 파라미터 | 선택 파라미터 | Phase |
-|------|------|--------------|--------------|-------|
-| `not_null` | NULL 값 검사 | columns | - | MVP |
-| `unique` | 고유값 검사 | columns | - | MVP |
-| `accepted_values` | 허용 값 목록 검사 | column, values/values_query | quote | MVP |
-| `relationships` | 참조 무결성 검사 | column, to, to_column | - | MVP |
-| `singular` | Custom SQL 테스트 | sql/file | params | MVP |
-| `expression` | SQL 표현식 검사 | expression | - | Phase 2 |
-| `row_count` | 행 수 범위 검사 | - | min, max | Phase 2 |
-
-### 5.3 Pydantic 모델
-
-> **Note**: 기존 `dli/core/quality/models.py`의 `Dq*` enum/dataclass와의 호환성을 유지합니다.
-> pytest 테스트 수집 충돌 방지를 위해 `Dq` prefix를 유지합니다.
-
-```python
-# dli/models/quality.py
-# 새 모델은 Pydantic 기반, 기존 Dq* enum 재사용
-
-from enum import Enum
-from typing import Any
-from pydantic import BaseModel, Field
-
-# 기존 enum 재사용 (dli/core/quality/models.py에서 import)
-from dli.core.quality.models import DqTestType, DqSeverity, DqStatus
-
-
-class QualityTargetType(str, Enum):
-    """Quality 테스트 대상 유형 (신규)."""
-    DATASET = "dataset"
-    METRIC = "metric"
-
-
-class QualityTarget(BaseModel):
-    """Quality 테스트 대상 정보."""
-    type: QualityTargetType
-    name: str = Field(..., description="catalog.schema.name 형식")
-
-    @property
-    def urn(self) -> str:
-        return f"{self.type.value}:{self.name}"
-
-
-class DqTestDefinitionSpec(BaseModel):
-    """개별 Quality 테스트 정의 (Pydantic 버전).
-
-    기존 DqTestDefinition (dataclass)과 호환되며 YAML 파싱용으로 사용합니다.
-    """
-    name: str
-    type: DqTestType  # 기존 enum 재사용
-    severity: DqSeverity = DqSeverity.ERROR  # 기존 enum 재사용
-    description: str | None = None
-    enabled: bool = True
-
-    # Generic test parameters
-    columns: list[str] | None = None
-    column: str | None = None
-    values: list[str] | None = None
-    values_query: str | None = None
-    to: str | None = None  # relationships target
-    to_column: str | None = None
-    expression: str | None = None
-    min: int | None = None
-    max: int | None = None
-
-    # Singular test parameters
-    sql: str | None = None
-    file: str | None = None
-    params: dict[str, Any] = Field(default_factory=dict)
-
-    def to_test_definition(self, resource_name: str) -> "DqTestDefinition":
-        """기존 DqTestDefinition (dataclass)으로 변환."""
-        from dli.core.quality.models import DqTestDefinition
-        return DqTestDefinition(
-            name=self.name,
-            test_type=self.type,
-            resource_name=resource_name,
-            columns=self.columns,
-            params=self.params,
-            description=self.description,
-            severity=self.severity,
-            sql=self.sql,
-            file=self.file,
-            enabled=self.enabled,
-        )
-
-
-class QualitySchedule(BaseModel):
-    """Airflow DAG 스케줄링 정보."""
-    cron: str = Field(..., description="Cron expression")
-    timezone: str = "UTC"
-    enabled: bool = True
-
-
-class SlackNotification(BaseModel):
-    channel: str
-    on_failure: bool = True
-    on_success: bool = False
-
-
-class EmailNotification(BaseModel):
-    recipients: list[str]
-    on_failure: bool = True
-    on_success: bool = False
-
-
-class QualityNotifications(BaseModel):
-    slack: SlackNotification | None = None
-    email: EmailNotification | None = None
-
-
-class QualityMetadata(BaseModel):
-    owner: str
-    team: str | None = None
-    description: str | None = None
-    tags: list[str] = Field(default_factory=list)
-
-
-class QualitySpec(BaseModel):
-    """Quality Spec YML의 루트 모델."""
-    version: int = 1
-    target: QualityTarget
-    metadata: QualityMetadata
-    schedule: QualitySchedule | None = None
-    notifications: QualityNotifications | None = None
-    tests: list[QualityTestDefinition]
-
-    @classmethod
-    def from_yaml_file(cls, path: Path) -> "QualitySpec":
-        """YML 파일에서 QualitySpec 로드."""
-        ...
-```
-
-### 5.4 실행 결과 모델
-
-> **Note**: 기존 `DqStatus`, `DqTestResult` (dataclass)를 재사용합니다.
-
-```python
-from datetime import datetime
-from dli.core.quality.models import DqStatus, DqTestResult  # 기존 모델 재사용
-from dli.models.common import ExecutionMode
-
-
-class DqQualityResult(BaseModel):
-    """Quality Spec 전체 실행 결과 (Pydantic 버전).
-
-    기존 QualityReport를 대체하며, QualitySpec 실행 결과를 담습니다.
-    """
-    target_urn: str
-    execution_mode: ExecutionMode
-    execution_id: str | None = None  # SERVER 모드일 때만
-    started_at: datetime
-    finished_at: datetime
-    test_results: list[DqTestResult]  # 기존 dataclass 재사용
-
-    @property
-    def status(self) -> DqStatus:
-        """전체 상태 (가장 심각한 상태 반환)."""
-        priority = {DqStatus.ERROR: 0, DqStatus.FAIL: 1, DqStatus.WARN: 2, DqStatus.PASS: 3, DqStatus.SKIPPED: 4}
-        return min((r.status for r in self.test_results), key=lambda s: priority.get(s, 99), default=DqStatus.PASS)
-
-    @property
-    def passed_count(self) -> int:
-        return sum(1 for r in self.test_results if r.status == DqStatus.PASS)
-
-    @property
-    def failed_count(self) -> int:
-        return sum(1 for r in self.test_results if r.status in (DqStatus.FAIL, DqStatus.ERROR))
-```
+**상세 구현:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#22-data-models) 참조
 
 ---
 
-## 6. 에러 처리
+## 6. 에러 처리 ✅
 
-### 6.1 에러 코드
+### 6.1 에러 코드 (DLI-6xx)
 
-> **Note**: DLI-6xx 범위를 사용하여 기존 에러 코드 순서(0xx~5xx)를 유지합니다.
-
-| Code | 이름 | 설명 |
-|------|------|------|
+| Code | Exception 클래스 | 설명 |
+|------|------------------|------|
 | DLI-601 | `QualitySpecNotFoundError` | Quality Spec 파일을 찾을 수 없음 |
 | DLI-602 | `QualitySpecParseError` | YML 파싱 오류 |
 | DLI-603 | `QualityTargetNotFoundError` | 참조 대상(Dataset/Metric)을 찾을 수 없음 |
 | DLI-604 | `QualityTestExecutionError` | 테스트 실행 중 오류 |
-| DLI-605 | `QualityTestTimeoutError` | 테스트 실행 타임아웃 (기존 DLI-402 재사용 가능) |
+| DLI-605 | `QualityTestTimeoutError` | 테스트 실행 타임아웃 |
 | DLI-606 | `QualityNotFoundError` | 서버에 등록된 Quality를 찾을 수 없음 |
 
-**기존 에러 코드 재사용:**
-- 서버 통신 오류: 기존 DLI-5xx (`ServerError`) 재사용
-- 타임아웃: 기존 DLI-402 (`TIMEOUT`) 재사용 가능
+**재사용 에러 코드:**
+- DLI-5xx: 서버 통신 오류
+- DLI-402: 타임아웃
 
-### 6.2 에러 메시지 예시
-
-```python
-# ErrorCode 확장 (dli/exceptions.py에 추가)
-class ErrorCode(str, Enum):
-    # ... 기존 코드 ...
-    # Quality Errors (DLI-6xx)
-    QUALITY_SPEC_NOT_FOUND = "DLI-601"
-    QUALITY_SPEC_PARSE = "DLI-602"
-    QUALITY_TARGET_NOT_FOUND = "DLI-603"
-    QUALITY_TEST_EXECUTION = "DLI-604"
-    QUALITY_TEST_TIMEOUT = "DLI-605"
-    QUALITY_NOT_FOUND = "DLI-606"
-
-
-# QualitySpecParseError
-raise QualitySpecParseError(
-    message="Invalid test type 'invalid_type' at tests[2]",
-    code=ErrorCode.QUALITY_SPEC_PARSE,
-    spec_path="quality.iceberg.analytics.daily_clicks.yaml",
-    line=45,
-    column=10,
-)
-
-# QualityTargetNotFoundError
-raise QualityTargetNotFoundError(
-    message="Target dataset 'iceberg.analytics.daily_clicks' not found",
-    code=ErrorCode.QUALITY_TARGET_NOT_FOUND,
-    target_urn="dataset:iceberg.analytics.daily_clicks",
-)
-```
+**상세 구현:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#21-exception-hierarchy) 참조
 
 ---
 
 ## 7. 구현 우선순위
 
-### Phase 1 (MVP)
+### ✅ Phase 1 (MVP) - v0.3.0 Complete
 
-1. **Quality Spec YML 스키마 정의**
+1. **Quality Spec YML 스키마 정의** ✅
    - QualitySpec Pydantic 모델
    - YML 파싱 및 검증
-   - Built-in Generic Test Types (not_null, unique, accepted_values, relationships)
+   - Built-in Generic Test Types (not_null, unique, accepted_values, relationships, singular)
 
-2. **QualityAPI 구현**
-   - list_qualities() - 서버 조회 (Mock 우선)
-   - get() - 서버 조회 (Mock 우선)
-   - run() - LOCAL/SERVER 실행
-   - validate() - Spec 검증
+2. **QualityAPI 구현** ✅
+   - list_qualities(), get(), run(), validate(), get_spec()
+   - MOCK/LOCAL/SERVER 모드 지원
 
-3. **CLI 커맨드 구현**
-   - dli quality list (서버 조회)
-   - dli quality get (서버 상세 조회)
-   - dli quality run (LOCAL/SERVER 실행)
-   - dli quality validate (로컬 Spec 검증 + 상세 보기)
+3. **CLI 커맨드 구현** ✅
+   - dli quality list, get, run, validate
+   - `show` 커맨드 제거 (validate로 통합)
 
-4. **기존 코드 정리**
-   - Dataset/Metric Spec 내 test 필드 제거 (있는 경우)
-   - 기존 quality 모듈과의 통합/마이그레이션
+4. **Exception Hierarchy** ✅
+   - DLI-6xx 에러 코드 (601-606)
+   - 6개 Quality Exception 클래스
 
-### Phase 2
+5. **테스트 작성** ✅
+   - 47개 테스트 (API 19 + CLI 28)
+   - pyright 0 errors, ruff clean
 
-1. **Airflow DAG 메타데이터**
-   - schedule 섹션 처리
-   - DAG 생성 로직 (Basecamp Server 또는 별도 컴포넌트)
+**상세:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md) 참조
 
-2. **알림 기능**
-   - notifications 섹션 처리
-   - Basecamp Server에서 Slack/Email 발송
+### Phase 2 (향후 계획)
 
-3. **Git Sync**
-   - PR 머지 시 Quality Spec 자동 등록
-   - 버전 관리 및 변경 이력
-
-4. **Basecamp UI 연동**
-   - Quality Spec YML 에디터
-   - 실행 결과 대시보드
+| Priority | Feature | Description |
+|----------|---------|-------------|
+| P0 | SERVER 모드 구현 | Basecamp Server API 연동 (현재 Mock) |
+| P1 | Airflow DAG 메타데이터 | schedule 섹션 처리 및 DAG 생성 |
+| P1 | 알림 기능 | Slack/Email 발송 (Server에서 처리) |
+| P2 | Git Sync | PR 머지 시 Quality Spec 자동 등록 |
+| P2 | Basecamp UI 연동 | Quality Spec 에디터, 결과 대시보드 |
+| P2 | Expression Test | SQL 표현식 기반 테스트 타입 추가 |
+| P2 | Row Count Test | 행 수 범위 검사 테스트 타입 추가 |
 
 ---
 
@@ -800,86 +462,30 @@ raise QualityTargetNotFoundError(
 
 ## Appendix C: 구현 상태 (Implementation Status)
 
-> **Last Updated:** 2025-12-31
-> **Status:** Phase 1 MVP 완료
+> **Last Updated:** 2026-01-01
+> **Status:** ✅ Phase 1 MVP Complete (v0.3.0)
 
-### C.1 구현 완료 항목
+### C.1 구현 완료 항목 ✅
 
-| 구분 | 파일 | 설명 |
-|------|------|------|
-| **Models** | `dli/models/quality.py` | QualitySpec, DqTestDefinitionSpec, DqQualityResult 등 Pydantic 모델 |
-| **API** | `dli/api/quality.py` | QualityAPI (list_qualities, get, run, validate) |
-| **CLI** | `dli/commands/quality.py` | list, get, run, validate 커맨드 |
-| **Exceptions** | `dli/exceptions.py` | DLI-6xx 에러 코드 및 Quality 관련 예외 클래스 |
-| **Tests** | `tests/api/test_quality_api.py` | API 테스트 19개 |
-| **Tests** | `tests/cli/test_quality_cmd.py` | CLI 테스트 28개 |
-| **Fixtures** | `tests/fixtures/sample_project/` | Quality Spec 샘플 3개 |
+| 구분 | 파일/Component | 완료 |
+|------|---------------|------|
+| Models | `dli/models/quality.py` (12 classes) | ✅ |
+| API | `dli/api/quality.py` (5 methods) | ✅ |
+| CLI | `dli/commands/quality.py` (4 commands) | ✅ |
+| Exceptions | `dli/exceptions.py` (DLI-601~606) | ✅ |
+| Tests | 47 tests (API 19 + CLI 28) | ✅ |
+| Fixtures | 3 Quality Spec 샘플 | ✅ |
 
-### C.2 CLI 커맨드 요약
+**상세 구현:** [QUALITY_RELEASE.md](./QUALITY_RELEASE.md#2-implemented-components) 참조
 
-```bash
-# 서버에서 Quality 목록 조회
-dli quality list [--target-type dataset|metric] [--target TEXT] [--format table|json]
-
-# 서버에서 특정 Quality 상세 조회
-dli quality get QUALITY_NAME [--format table|json] [--include-history]
-
-# Quality Spec 실행 (LOCAL/SERVER 모드)
-dli quality run SPEC_PATH [--mode local|server] [--test TEXT] [--fail-fast] [--format table|json]
-
-# Quality Spec YML 유효성 검증
-dli quality validate SPEC_PATH [--strict] [--format table|json] [--test TEXT]
-```
-
-### C.3 Library API 사용 예시
-
-```python
-from dli import QualityAPI, ExecutionContext, ExecutionMode
-from pathlib import Path
-
-# API 인스턴스 생성
-ctx = ExecutionContext(
-    execution_mode=ExecutionMode.MOCK,  # 또는 LOCAL, SERVER
-    project_path=Path("/opt/airflow/dags/models"),
-)
-api = QualityAPI(context=ctx)
-
-# 서버에서 Quality 목록 조회
-qualities = api.list_qualities(target_type="dataset")
-
-# Quality Spec 실행
-result = api.run(
-    spec_path="quality.iceberg.analytics.daily_clicks.yaml",
-    tests=["pk_unique"],
-    parameters={"execution_date": "2025-01-01"},
-)
-
-# Spec 검증
-validation = api.validate("quality.iceberg.analytics.daily_clicks.yaml")
-```
-
-### C.4 테스트 결과
-
-```
-============= 47 passed in 0.90s =============
-pyright: 0 errors, 0 warnings, 0 informations
-ruff: All checks passed!
-```
-
-### C.5 삭제된 파일/코드
+### C.2 삭제된 코드
 
 | 항목 | 이유 |
 |------|------|
-| `dli/core/quality/registry.py` | 로컬 레지스트리 기반 → SERVER 기반으로 변경 |
-| `QualityRegistry`, `create_registry` | registry.py 삭제에 따른 export 제거 |
+| `dli/core/quality/registry.py` | 로컬 레지스트리 → SERVER 기반으로 변경 |
+| `QualityRegistry` class | registry.py 삭제에 따른 제거 |
 | `show` 커맨드 | `validate` 커맨드로 통합 |
 
-### C.6 향후 구현 예정 (Phase 2)
+### C.3 Phase 2 향후 계획
 
-| 기능 | 설명 | 우선순위 |
-|------|------|----------|
-| SERVER 모드 실행 | Basecamp Server API 연동 구현 | P0 |
-| Airflow DAG 메타데이터 | schedule 섹션 처리 및 DAG 생성 | P1 |
-| 알림 기능 | Slack/Email 발송 (Server에서 처리) | P1 |
-| Git Sync | PR 머지 시 자동 등록 | P2 |
-| Basecamp UI 연동 | Quality Spec 에디터, 결과 대시보드 | P2 |
+[Section 7. 구현 우선순위 - Phase 2](#phase-2-향후-계획) 참조

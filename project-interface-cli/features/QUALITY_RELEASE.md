@@ -1,8 +1,8 @@
 # RELEASE: Quality Spec Implementation
 
 > **Version:** 0.3.0
-> **Release Date:** 2025-12-31
-> **Status:** Phase 1 MVP Implemented
+> **Release Date:** 2026-01-01
+> **Status:** ✅ Phase 1 MVP Complete
 
 ---
 
@@ -66,12 +66,58 @@ Quality Spec을 Dataset/Metric Spec에서 분리하여 독립적인 데이터 �
 
 ### 2.4 CLI Commands (`dli/commands/quality.py`)
 
-| Command | Options | Description |
-|---------|---------|-------------|
-| `dli quality list` | `--target-type`, `--target`, `--status`, `--format` | 서버에서 Quality 목록 조회 |
-| `dli quality get` | `--format`, `--include-history` | 특정 Quality 상세 조회 |
-| `dli quality run` | `--mode`, `--test`, `--fail-fast`, `--format`, `--param` | Quality Spec 실행 |
-| `dli quality validate` | `--strict`, `--format`, `--test` | Spec YML 유효성 검증 |
+#### `dli quality list`
+```bash
+dli quality list [OPTIONS]
+
+Options:
+  --target-type [dataset|metric]  대상 타입으로 필터링
+  --target TEXT                   대상 이름으로 필터링 (부분 일치)
+  --status [active|inactive]      상태로 필터링
+  --format, -f [table|json]       출력 포맷 (기본: table)
+  --path, -p PATH                 프로젝트 경로 (기본: 현재 디렉토리)
+```
+
+#### `dli quality get`
+```bash
+dli quality get QUALITY_NAME [OPTIONS]
+
+Arguments:
+  QUALITY_NAME                  조회할 Quality 이름 (URN 또는 이름)
+
+Options:
+  --format, -f [table|json]     출력 포맷 (기본: table)
+  --include-history             최근 실행 이력 포함
+```
+
+#### `dli quality run`
+```bash
+dli quality run SPEC_PATH [OPTIONS]
+
+Arguments:
+  SPEC_PATH                     Quality Spec YML 파일 경로
+
+Options:
+  --mode, -m [local|server]     실행 모드 (기본: local)
+  --test, -t TEXT               특정 테스트만 실행 (여러 개 가능)
+  --fail-fast                   첫 실패 시 중단
+  --format, -f [table|json]     출력 포맷 (기본: table)
+  --path, -p PATH               프로젝트 경로
+  --param, -P KEY=VALUE         실행 파라미터 전달 (여러 개 가능)
+```
+
+#### `dli quality validate`
+```bash
+dli quality validate SPEC_PATH [OPTIONS]
+
+Arguments:
+  SPEC_PATH                     Quality Spec YML 파일 경로
+
+Options:
+  --strict                      참조 대상 존재 여부도 검증
+  --format, -f [table|json]     출력 포맷 (기본: table)
+  --test, -t TEXT               특정 테스트 상세 보기
+```
 
 ---
 
