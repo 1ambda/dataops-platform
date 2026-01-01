@@ -8,7 +8,8 @@ skills:
   - testing                # TDD workflow, pytest strategies
   - test-structure-analysis # DRY violations, coverage gap detection
   - refactoring            # Safe restructuring with test protection
-  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - debugging              # 버그 조사, 루트 원인 분석
+  - completion-gate        # 완료 선언 Gate + 코드 존재 검증
 ---
 
 ## Token Efficiency (MCP-First)
@@ -152,7 +153,7 @@ uv run mypy src/ --strict  # Alternative
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **구현 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
 ### 거짓 보고 방지
 

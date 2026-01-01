@@ -256,8 +256,7 @@ pytest tests/ → 1740 passed
 
 ## 관련 Skills
 
-- `implementation-verification`: 구현 완료 검증 (이 skill과 함께 사용)
-- `completion-gate`: 완료 선언 Gate (체크리스트 완료 후 적용)
+- `completion-gate`: 완료 선언 Gate + 코드 존재 검증 (체크리스트 완료 후 적용)
 - `spec-validation`: 명세 품질 검증
 - `testing`: TDD 워크플로우
 

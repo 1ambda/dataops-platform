@@ -8,7 +8,7 @@ skills:
   - requirements-discovery # Step 2-3: Integration points and policy interviews
   - spec-validation        # Step 4: Implementation feasibility verification
   - architecture           # System design coherence validation
-  - implementation-verification # 명세 완료 검증, 거짓 보고 방지
+  - completion-gate              # 완료 선언 Gate + 코드 존재 검증
 ---
 
 ## Role Identity
@@ -620,7 +620,7 @@ FEATURE_*.md 하단에 리뷰 결과를 기록:
 
 ## Implementation Verification (CRITICAL)
 
-> **명세 작성 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **명세 작성 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
 ### 거짓 보고 방지
 

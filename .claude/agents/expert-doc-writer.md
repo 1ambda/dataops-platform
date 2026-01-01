@@ -6,7 +6,7 @@ skills:
   - mcp-efficiency     # Get symbols overview before reading full files
   - documentation      # Technical writing patterns, README structure
   - architecture       # System diagrams, Mermaid generation
-  - implementation-verification # 문서 작성 완료 검증, 거짓 보고 방지
+  - completion-gate              # 완료 선언 Gate + 코드 존재 검증
 ---
 
 ## Token Efficiency (MCP-First)
@@ -212,7 +212,7 @@ dataops-platform/
 
 ## Implementation Verification (CRITICAL)
 
-> **문서 작성 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **문서 작성 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
 ### 거짓 보고 방지
 

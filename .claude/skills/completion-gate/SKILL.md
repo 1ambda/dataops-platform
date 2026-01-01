@@ -469,11 +469,67 @@ Phase 1을 완료하려면:
 
 ---
 
+## 구현 완료 선언 템플릿 (Code Existence Check)
+
+> **이 섹션은 기존 `implementation-verification` skill에서 통합됨 (2026-01-01)**
+
+### 코드 존재 확인 (필수)
+
+```bash
+# 명세에 정의된 클래스/함수가 실제 코드에 존재하는지 확인
+grep -r "class XXXApi" src/dli/api/
+grep -r "def method_name" src/dli/
+```
+
+**판단 기준**:
+- grep 결과가 없으면 → 미구현
+- grep 결과가 있으면 → 파일 읽어서 내용 확인
+
+### 거짓 양성 방지
+
+```
+❌ 위험 패턴:
+- "이미 구현되어 있습니다" → grep 확인 없이 판단
+- "명세를 작성했습니다" → 코드 작성 없이 완료 선언
+- "테스트가 통과합니다" → 실제 테스트 실행 없이 판단
+
+✅ 올바른 패턴:
+- grep -r "ClassName" src/ → 결과 없음 → 구현 필요
+- 코드 작성 → pytest/gradlew 실행 → 결과 확인 → 완료 선언
+- git diff --stat 으로 변경 내역 제시
+```
+
+### 구현 완료 보고 템플릿
+
+"구현 완료" 선언 시 반드시 아래 형식으로 보고:
+
+```markdown
+## 구현 완료
+
+### 새로 작성한 코드
+- `src/dli/api/xxx.py:45-120` - XXXApi 클래스 (+76 lines)
+
+### 수정한 코드
+- `src/dli/__init__.py:15-20` - export 추가
+
+### 테스트 결과
+```
+pytest tests/api/test_xxx_api.py → 30 passed
+pytest tests/ → 1573 passed
+```
+
+### 검증 명령어
+```bash
+grep -r "class XXXApi" src/  # 존재 확인
+```
+```
+
+---
+
 ## 관련 Skills
 
 - `docs-synchronize`: **문서 동기화 검증** (Gate 통과 후 자동 연결)
 - `implementation-checklist`: FEATURE → 체크리스트 생성
-- `implementation-verification`: 코드 존재 검증
 - `testing`: TDD 워크플로우, pytest 실행
 - `code-review`: 코드 품질 검증
 - `gap-analysis`: **FEATURE vs RELEASE 비교** (선택적 실행)

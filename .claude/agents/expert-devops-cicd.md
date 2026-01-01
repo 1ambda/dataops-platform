@@ -9,7 +9,7 @@ skills:
   - git-workflow       # Branch strategies, release automation
   - performance        # Build speed optimization, resource limits
   - documentation      # Runbooks, deployment guides
-  - implementation-verification # 인프라 변경 검증, 거짓 보고 방지
+  - completion-gate            # 완료 선언 Gate + 코드 존재 검증
 ---
 
 ## Token Efficiency (MCP-First)
@@ -122,7 +122,7 @@ jobs:
 
 ## Implementation Verification (CRITICAL)
 
-> **인프라 변경 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **인프라 변경 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
 ### 거짓 보고 방지
 

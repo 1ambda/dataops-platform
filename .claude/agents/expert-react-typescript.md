@@ -8,7 +8,8 @@ skills:
   - performance        # Re-render analysis, bundle size optimization
   - refactoring        # Component extraction, hook composition
   - architecture       # State management design, component boundaries
-  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - debugging          # 버그 조사, 루트 원인 분석
+  - completion-gate    # 완료 선언 Gate + 코드 존재 검증
 ---
 
 ## Token Efficiency (MCP-First)
@@ -135,7 +136,7 @@ function Dialog({ isOpen, onClose, title, children }: DialogProps) {
 
 ## Implementation Verification (CRITICAL)
 
-> **구현 완료 선언 전 반드시 검증** (implementation-verification skill 적용)
+> **구현 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
 ### 거짓 보고 방지
 

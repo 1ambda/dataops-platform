@@ -7,9 +7,8 @@ skills:
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
   - performance        # N+1 detection, query optimization
-  - implementation-verification # 구현 완료 검증, 거짓 보고 방지
+  - completion-gate             # 완료 선언 Gate + 코드 존재 검증
   - implementation-checklist    # FEATURE → 체크리스트 자동 생성
-  - completion-gate             # 완료 선언 Gate + Phase 경계 검사
   - gap-analysis                # FEATURE vs RELEASE 체계적 비교
   - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
   - dependency-coordination     # 크로스 Agent 의존성 추적
@@ -191,7 +190,7 @@ class PipelineService(
 
 ## Implementation Verification (CRITICAL)
 
-> **Protocol**: `implementation-verification` skill 참조
+> **Protocol**: `completion-gate` skill 참조
 > **Gate**: `completion-gate` skill 참조
 
 ### Project Commands
