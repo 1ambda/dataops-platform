@@ -40,6 +40,12 @@ from dli.models.quality import (
     QualityTarget,
     QualityTargetType,
 )
+from dli.models.query import (
+    # Query result models
+    QueryCancelResult,
+    QueryDetailResult,
+    QueryListResult,
+)
 from dli.models.workflow import (
     # Workflow result models
     WorkflowHistoryResult,
@@ -69,6 +75,10 @@ __all__ = [
     "QualitySpec",
     "QualityTarget",
     "QualityTargetType",
+    # Query result models
+    "QueryCancelResult",
+    "QueryDetailResult",
+    "QueryListResult",
     # Enums
     "ResultStatus",
     # Type aliases

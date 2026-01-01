@@ -146,6 +146,7 @@ ignore = [
 "build_standalone.py" = ["S602", "TRY300", "PLR0911", "PLC0415"]  # build script allowances
 "src/dli/main.py" = ["PLC0415", "PLR2004"]  # allow late imports and magic numbers for CLI
 "src/dli/api/**/*" = ["ARG002", "PLC0415", "PLR2004", "TRY300"]  # API layer: unused args for future, late imports, magic numbers
+"src/dli/commands/**/*" = ["PLR2004"]  # allow magic numbers for CLI formatting (status codes, byte sizes, duration)
 
 [tool.ruff.lint.isort]
 known-first-party = ["dli"]

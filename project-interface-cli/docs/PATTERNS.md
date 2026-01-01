@@ -1,7 +1,7 @@
 # DLI CLI Development Patterns
 
 > **Purpose:** Accelerate new feature development by providing reference patterns for common tasks.
-> **Last Updated:** 2025-12-31
+> **Last Updated:** 2026-01-01
 
 ---
 
@@ -15,6 +15,7 @@ dli
 ├── dataset (list, get, run, validate, register)
 ├── workflow (register, unregister, run, backfill, stop, status, list, history, pause, unpause)
 ├── quality (list, get, run, validate)
+├── query (list, show, cancel)             # Query execution metadata
 ├── lineage (show, upstream, downstream)   # Top-level
 ├── catalog                                # Top-level
 └── transpile                              # Top-level
@@ -934,6 +935,7 @@ except DLIError as e:
 | DLI-5xx | Server | `ServerError` |
 | DLI-6xx | Quality | `QualitySpecNotFoundError`, `QualityNotFoundError` |
 | DLI-7xx | Catalog | `CatalogError`, `CatalogNotFoundError` |
+| DLI-78x | Query | `QueryNotFoundError`, `QueryAccessDeniedError`, `QueryCancelError`, `QueryInvalidFilterError` |
 | DLI-8xx | Workflow | `WorkflowNotFoundError`, `WorkflowRegistrationError`, `WorkflowExecutionError`, `WorkflowPermissionError` |
 
 ### Module Exports (`__init__.py`)

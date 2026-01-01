@@ -2,7 +2,7 @@
 
 **DataOps CLI** is a command-line interface and library for the DataOps platform, providing resource management, validation, lineage tracking, and data quality testing for metrics and datasets.
 
-> **Version:** 0.4.0 | **Python:** 3.12+
+> **Version:** 0.5.0 | **Python:** 3.12+
 
 ## Features
 
@@ -13,9 +13,10 @@
 - **Lineage Tracking**: Visualize upstream/downstream dependencies
 - **Quality Testing**: Quality Spec YAML 기반 독립적 품질 검증 (Generic + Singular tests)
 - **Workflow Management**: Server-based workflow execution via Airflow (run, backfill, pause/unpause)
+- **Query Metadata**: Browse and analyze query execution history (scope-based filtering, cancellation)
 - **SQL Transpilation**: Table substitution, METRIC expansion, dialect support (Trino/BigQuery)
 - **Safe Templating**: dbt/SQLMesh compatible (ds, ds_nodash, var(), date_add(), ref(), env_var())
-- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI for Airflow/orchestrator integration
+- **Library API**: DatasetAPI, MetricAPI, TranspileAPI, CatalogAPI, ConfigAPI, QualityAPI, WorkflowAPI, LineageAPI, QueryAPI for Airflow/orchestrator integration
 
 ## Installation
 
@@ -126,6 +127,28 @@ dli workflow history -d <dataset_name>    # Execution history
 # Pause/unpause schedules
 dli workflow pause <dataset_name>
 dli workflow unpause <dataset_name>
+```
+
+### Query Metadata
+
+Browse and analyze query execution history from the server.
+
+```bash
+# List my queries (default scope)
+dli query list
+
+# List system queries (airflow, dbt-runner, etc.)
+dli query list --scope system
+
+# Filter by account and status
+dli query list airflow --scope system --status failed
+
+# Show query detail
+dli query show <query_id>
+
+# Cancel running query
+dli query cancel <query_id>
+dli query cancel --user airflow-prod
 ```
 
 ### Data Catalog

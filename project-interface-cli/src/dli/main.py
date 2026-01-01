@@ -13,6 +13,7 @@ Commands:
     quality: Data quality testing (list, run, show)
     workflow: Workflow execution and management (run, backfill, stop, status, list, history, pause, unpause)
     catalog: Data catalog browsing and search
+    query: Query execution metadata (list, show, cancel)
     transpile: SQL transpile operations (table substitution, METRIC expansion, warnings)
 
 Example:
@@ -26,6 +27,7 @@ Example:
     $ dli quality run iceberg.analytics.daily_clicks --server
     $ dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
     $ dli catalog my-project.analytics.users
+    $ dli query list --scope my
     $ dli transpile "SELECT * FROM analytics.users"
 """
 
@@ -45,6 +47,7 @@ from dli.commands import info as info_cmd
 from dli.commands import lineage_app
 from dli.commands import metric_app
 from dli.commands import quality_app
+from dli.commands import query_app
 from dli.commands import transpile_app
 from dli.commands import version as version_cmd
 from dli.commands import workflow_app
@@ -108,6 +111,7 @@ app.add_typer(dataset_app, name="dataset")
 app.add_typer(lineage_app, name="lineage")
 app.add_typer(metric_app, name="metric")
 app.add_typer(quality_app, name="quality")
+app.add_typer(query_app, name="query")
 app.add_typer(transpile_app, name="transpile")
 app.add_typer(workflow_app, name="workflow")
 

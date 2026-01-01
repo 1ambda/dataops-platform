@@ -56,6 +56,7 @@ uv run pytest -k "test_run" -v
 | `tests/api/` | Library API tests |
 | `tests/cli/` | CLI command tests |
 | `tests/core/` | Core module tests |
+| `tests/core/query/` | Query model tests |
 
 ### Writing Tests
 
@@ -109,6 +110,27 @@ class TestWorkflowAPI:
         result = mock_api.run("catalog.schema.dataset", execution_date="2025-01-01")
         assert result.status == ResultStatus.SUCCESS
         assert result.run_id is not None
+```
+
+### QueryAPI Test Example
+
+```python
+"""QueryAPI testing pattern."""
+
+import pytest
+from dli import QueryAPI, ExecutionContext
+from dli.core.query.models import QueryScope
+from dli.models.common import ExecutionMode, ResultStatus
+
+class TestQueryAPI:
+    @pytest.fixture
+    def mock_api(self) -> QueryAPI:
+        ctx = ExecutionContext(execution_mode=ExecutionMode.MOCK)
+        return QueryAPI(context=ctx)
+
+    def test_list_queries(self, mock_api: QueryAPI) -> None:
+        result = mock_api.list_queries(scope=QueryScope.SYSTEM)
+        assert result.status == ResultStatus.SUCCESS
 ```
 
 ### Workflow CLI Test Example

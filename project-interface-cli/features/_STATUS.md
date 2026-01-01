@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-01
-> **Version:** 0.4.3
+> **Version:** 0.5.0
 
 ---
 
@@ -9,12 +9,13 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
-| Library API | ✅ v0.4.3 | LineageAPI 추가 |
-| CLI Commands | ✅ v0.3.0 | quality validate 추가 |
+| Library API | ✅ v0.5.0 | QueryAPI 추가 |
+| CLI Commands | ✅ v0.5.0 | query list/show/cancel 추가 |
 | Quality | ✅ v0.3.0 | list, get, run, validate |
 | Workflow | ✅ v0.4.0 | WorkflowAPI (11 methods) |
 | Lineage | ✅ v0.4.3 | LineageAPI (3 methods) |
-| Tests | ✅ 1758 passed | pyright 0 errors |
+| Query | ✅ v1.0.0 | QueryAPI (3 methods) |
+| Tests | ✅ ~2000 passed | pyright 0 errors |
 
 ---
 
@@ -44,6 +45,7 @@
 | QualityAPI | `api/quality.py` | ✅ Complete | - |
 | WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
 | LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
+| QueryAPI | `api/query.py` | ✅ Complete | ✅ client 파라미터 |
 
 ### CLI Commands (v0.3.0)
 
@@ -58,6 +60,7 @@
 | dli transpile | `commands/transpile.py` | ✅ Complete |
 | dli lineage | `commands/lineage.py` | ✅ Complete |
 | dli quality | `commands/quality.py` | ✅ Complete (list, get, run, validate) |
+| dli query | `commands/query.py` | ✅ Complete |
 
 ---
 
@@ -72,7 +75,7 @@
 | DLI-4xx | Execution | DLI-405 | ✅ Complete |
 | DLI-5xx | Server | DLI-504 | ✅ Complete |
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
-| DLI-7xx | Catalog | DLI-706 | ✅ Complete (701-706) |
+| DLI-7xx | Catalog | DLI-784 | ✅ Complete (701-706, 780-784 Query) |
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 
@@ -82,10 +85,10 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | 373 (+43 LineageAPI) | ✅ All pass |
-| CLI Tests | ~828 | ✅ All pass |
-| Core Tests | ~500 | ✅ All pass |
-| **Total** | **1758** | ✅ All pass |
+| API Tests | 427 (+54 QueryAPI) | ✅ All pass |
+| CLI Tests | ~878 (+50 Query) | ✅ All pass |
+| Core Tests | ~566 (+66 Query models) | ✅ All pass |
+| **Total** | **~2000** | ✅ All pass |
 
 ---
 
@@ -105,6 +108,8 @@
 | LINEAGE_FEATURE.md | ✅ Created | `project-interface-cli/features/LINEAGE_FEATURE.md` |
 | LINEAGE_RELEASE.md | ✅ Created | `project-interface-cli/features/LINEAGE_RELEASE.md` |
 | LINEAGE_GAP.md | ✅ Created | `project-interface-cli/features/LINEAGE_GAP.md` |
+| QUERY_FEATURE.md | ✅ Created | `project-interface-cli/features/QUERY_FEATURE.md` |
+| QUERY_RELEASE.md | ✅ Created | `project-interface-cli/features/QUERY_RELEASE.md` |
 
 ---
 
@@ -118,6 +123,33 @@
 ---
 
 ## Changelog
+
+### v0.5.0 (2026-01-01)
+- **Query Command 구현 완료**
+  - `dli query list` - Scope 기반 쿼리 메타데이터 조회 (my/system/user/all)
+  - `dli query show` - 쿼리 상세 정보 조회
+  - `dli query cancel` - 쿼리 취소 (ID 또는 --user 계정)
+- **QueryAPI 구현** (`api/query.py`)
+  - list_queries(), get(), get_result(), cancel()
+  - MOCK/SERVER 모드 지원, DI 지원 (client 파라미터)
+- **DLI-78x Query 에러 코드 추가**
+  - DLI-780: QUERY_NOT_FOUND
+  - DLI-781: QUERY_ACCESS_DENIED
+  - DLI-782: QUERY_CANCEL_FAILED
+  - DLI-783: QUERY_INVALID_FILTER
+  - DLI-784: QUERY_SERVER_ERROR
+- **Query Exception 클래스 4종**
+  - QueryNotFoundError, QueryAccessDeniedError
+  - QueryCancelError, QueryInvalidFilterError
+- **Query 모델 추가**
+  - core/query/models.py: AccountType, QueryScope, QueryState, TableReference, QueryInfo, QueryDetail
+  - models/query.py: QueryListResult, QueryDetailResult, QueryCancelResult
+- **170개 신규 테스트 추가**
+  - tests/cli/test_query_cmd.py (50 tests)
+  - tests/api/test_query_api.py (54 tests)
+  - tests/core/query/test_models.py (66 tests)
+- **dli/__init__.py Export 업데이트**
+  - QueryAPI, QueryNotFoundError, QueryAccessDeniedError, QueryCancelError, QueryInvalidFilterError
 
 ### v0.4.3 (2026-01-01)
 - **LineageAPI 구현 완료**

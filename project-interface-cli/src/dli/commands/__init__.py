@@ -13,6 +13,7 @@ Commands:
 - quality: Data quality testing subcommand
 - workflow: Workflow execution and management (server-based via Airflow)
 - catalog: Data catalog browsing and search (server-based)
+- query: Query execution metadata (list, show, cancel)
 - transpile: SQL transpile operations (table substitution, METRIC expansion)
 """
 
@@ -23,6 +24,7 @@ from dli.commands.info import info
 from dli.commands.lineage import lineage_app
 from dli.commands.metric import metric_app
 from dli.commands.quality import quality_app
+from dli.commands.query import query_app
 from dli.commands.transpile import transpile_app
 from dli.commands.version import version
 from dli.commands.workflow import workflow_app
@@ -35,6 +37,7 @@ __all__ = [
     "lineage_app",
     "metric_app",
     "quality_app",
+    "query_app",
     "transpile_app",
     "version",
     "workflow_app",

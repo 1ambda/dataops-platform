@@ -99,6 +99,7 @@ class BasecampClient:
         now = datetime.now()
         return {
             "catalog_tables": self._init_mock_catalog_tables(now),
+            "queries": self._init_mock_queries(now),
             "metrics": [
                 {
                     "name": "iceberg.reporting.user_summary",
@@ -392,6 +393,110 @@ class BasecampClient:
                     "recent_tests": [],
                 },
                 "sample_queries": [],
+            },
+        ]
+
+    def _init_mock_queries(self, now: datetime) -> list[dict[str, Any]]:
+        """Initialize mock query execution data for testing."""
+        return [
+            # Personal query - current user, successful
+            {
+                "query_id": "bq_job_abc123",
+                "engine": "bigquery",
+                "state": "success",
+                "account": "current_user@company.com",
+                "account_type": "personal",
+                "started_at": (now - timedelta(hours=2)).isoformat(),
+                "finished_at": (now - timedelta(hours=2) + timedelta(seconds=12.5)).isoformat(),
+                "duration_seconds": 12.5,
+                "tables_used_count": 3,
+                "tags": ["team::analytics", "pipeline::daily"],
+                "query_preview": "SELECT user_id, COUNT(*) as event_count FROM analytics.raw_events...",
+            },
+            # Personal query - current user, failed
+            {
+                "query_id": "bq_job_def456",
+                "engine": "bigquery",
+                "state": "failed",
+                "account": "current_user@company.com",
+                "account_type": "personal",
+                "started_at": (now - timedelta(hours=3)).isoformat(),
+                "finished_at": (now - timedelta(hours=3) + timedelta(seconds=0.8)).isoformat(),
+                "duration_seconds": 0.8,
+                "tables_used_count": 1,
+                "error_message": "Quota exceeded: Your project exceeded quota for free query bytes scanned.",
+                "tags": [],
+                "query_preview": "SELECT * FROM analytics.large_table WHERE date = '2026-01-01'...",
+            },
+            # System account query - airflow, running
+            {
+                "query_id": "airflow_job_001",
+                "engine": "trino",
+                "state": "running",
+                "account": "airflow-prod",
+                "account_type": "system",
+                "started_at": (now - timedelta(minutes=5)).isoformat(),
+                "finished_at": None,
+                "duration_seconds": None,
+                "tables_used_count": 5,
+                "tags": ["pipeline::daily_aggregation", "team::data-eng"],
+                "query_preview": "INSERT INTO warehouse.daily_metrics SELECT date, SUM(amount)...",
+            },
+            # System account query - airflow, completed
+            {
+                "query_id": "airflow_job_002",
+                "engine": "bigquery",
+                "state": "success",
+                "account": "airflow-prod",
+                "account_type": "system",
+                "started_at": (now - timedelta(hours=1)).isoformat(),
+                "finished_at": (now - timedelta(hours=1) + timedelta(minutes=2)).isoformat(),
+                "duration_seconds": 120.5,
+                "tables_used_count": 8,
+                "tags": ["pipeline::hourly_sync", "team::data-eng"],
+                "query_preview": "MERGE INTO warehouse.users USING staging.users_delta...",
+            },
+            # System account query - dbt-runner, pending
+            {
+                "query_id": "dbt_run_xyz789",
+                "engine": "trino",
+                "state": "pending",
+                "account": "dbt-runner",
+                "account_type": "system",
+                "started_at": (now - timedelta(seconds=30)).isoformat(),
+                "finished_at": None,
+                "duration_seconds": None,
+                "tables_used_count": 0,
+                "tags": ["dbt::model", "team::analytics"],
+                "query_preview": "CREATE TABLE analytics.user_summary AS SELECT...",
+            },
+            # Other user query - alice
+            {
+                "query_id": "trino_alice_001",
+                "engine": "trino",
+                "state": "success",
+                "account": "alice@company.com",
+                "account_type": "personal",
+                "started_at": (now - timedelta(hours=4)).isoformat(),
+                "finished_at": (now - timedelta(hours=4) + timedelta(seconds=45.2)).isoformat(),
+                "duration_seconds": 45.2,
+                "tables_used_count": 2,
+                "tags": ["experiment::ab_test_v2"],
+                "query_preview": "SELECT * FROM users WHERE experiment_group = 'treatment'...",
+            },
+            # Other user query - bob, cancelled
+            {
+                "query_id": "bq_bob_cancelled",
+                "engine": "bigquery",
+                "state": "cancelled",
+                "account": "bob@company.com",
+                "account_type": "personal",
+                "started_at": (now - timedelta(hours=5)).isoformat(),
+                "finished_at": (now - timedelta(hours=5) + timedelta(minutes=3)).isoformat(),
+                "duration_seconds": 180.0,
+                "tables_used_count": 1,
+                "tags": [],
+                "query_preview": "SELECT * FROM warehouse.events WHERE date BETWEEN...",
             },
         ]
 
@@ -1748,6 +1853,305 @@ class BasecampClient:
         return ServerResponse(
             success=False,
             error="Not implemented",
+            status_code=501,
+        )
+
+    # Query operations
+
+    def _get_mock_queries_by_scope(
+        self,
+        scope: str,
+        account_keyword: str | None,
+        sql_pattern: str | None,
+    ) -> list[dict[str, Any]]:
+        """Filter mock queries based on scope and filters.
+
+        Args:
+            scope: Query scope - "my", "system", "user", or "all"
+            account_keyword: Optional keyword to filter by account name
+            sql_pattern: Optional pattern to filter by SQL query text
+
+        Returns:
+            List of filtered query dicts
+        """
+        queries = self._mock_data.get("queries", []).copy()
+
+        # Filter by scope
+        if scope == "my":
+            queries = [q for q in queries if q.get("account") == "current_user@company.com"]
+        elif scope == "system":
+            queries = [q for q in queries if q.get("account_type") == "system"]
+        elif scope == "user":
+            queries = [q for q in queries if q.get("account_type") == "personal"]
+        # "all" returns everything
+
+        # Filter by account keyword
+        if account_keyword:
+            keyword_lower = account_keyword.lower()
+            queries = [
+                q for q in queries
+                if keyword_lower in q.get("account", "").lower()
+            ]
+
+        # Filter by SQL pattern
+        if sql_pattern:
+            pattern_lower = sql_pattern.lower()
+            queries = [
+                q for q in queries
+                if pattern_lower in q.get("query_preview", "").lower()
+            ]
+
+        return queries
+
+    def query_list(
+        self,
+        *,
+        scope: str = "my",
+        account_keyword: str | None = None,
+        sql_pattern: str | None = None,
+        state: str | None = None,
+        tags: list[str] | None = None,
+        engine: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> ServerResponse:
+        """List queries with unified scope-based filtering.
+
+        Args:
+            scope: Query scope - "my", "system", "user", or "all".
+            account_keyword: Filter by account name.
+            sql_pattern: Filter by SQL query text content.
+            state: Filter by query state.
+            tags: Filter by tags (AND logic).
+            engine: Filter by query engine.
+            since: Start time (ISO8601 or relative).
+            until: End time.
+            limit: Max results.
+            offset: Pagination offset.
+
+        Returns:
+            ServerResponse with query list data.
+        """
+        if self.mock_mode:
+            # Filter mock data based on scope
+            mock_queries = self._get_mock_queries_by_scope(scope, account_keyword, sql_pattern)
+
+            # Apply additional filters
+            if state:
+                mock_queries = [q for q in mock_queries if q.get("state") == state]
+
+            if engine:
+                mock_queries = [q for q in mock_queries if q.get("engine") == engine]
+
+            if tags:
+                # AND logic for tags
+                for tag in tags:
+                    tag_lower = tag.lower()
+                    mock_queries = [
+                        q for q in mock_queries
+                        if any(tag_lower in t.lower() for t in q.get("tags", []))
+                    ]
+
+            # Apply pagination
+            total_count = len(mock_queries)
+            mock_queries = mock_queries[offset:offset + limit]
+
+            return ServerResponse(
+                success=True,
+                data={
+                    "queries": mock_queries,
+                    "total_count": total_count,
+                    "has_more": total_count > offset + limit,
+                },
+            )
+
+        # GET /api/v1/catalog/queries?scope={scope}&account={keyword}&sql={pattern}&...
+        params: dict[str, Any] = {
+            "scope": scope,
+            "limit": limit,
+            "offset": offset,
+        }
+        if account_keyword:
+            params["account"] = account_keyword
+        if sql_pattern:
+            params["sql"] = sql_pattern
+        if state:
+            params["state"] = state
+        if tags:
+            params["tags"] = ",".join(tags)
+        if engine:
+            params["engine"] = engine
+        if since:
+            params["since"] = since
+        if until:
+            params["until"] = until
+
+        # TODO: Implement actual HTTP call: self._get("/api/v1/catalog/queries", params=params)
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def query_get(
+        self,
+        query_id: str,
+        *,
+        include_full_query: bool = False,
+    ) -> ServerResponse:
+        """Get detailed query metadata.
+
+        Args:
+            query_id: The query ID to retrieve.
+            include_full_query: Include complete query text (not truncated).
+
+        Returns:
+            ServerResponse with query detail data.
+        """
+        if self.mock_mode:
+            # Find query in mock data
+            for query in self._mock_data.get("queries", []):
+                if query.get("query_id") == query_id:
+                    # Build detailed response
+                    detail = query.copy()
+
+                    # Add additional detail fields for mock
+                    detail.update({
+                        "queue_time_seconds": 0.2,
+                        "bytes_processed": 1200000000,  # 1.2 GB
+                        "bytes_billed": 1200000000,
+                        "slot_time_seconds": 45.0,
+                        "rows_affected": 50000,
+                        "tables_used": [
+                            {"name": "analytics.raw_events", "operation": "read", "alias": None},
+                            {"name": "analytics.users", "operation": "read", "alias": "u"},
+                            {"name": "analytics.daily_metrics", "operation": "write", "alias": None},
+                        ],
+                    })
+
+                    if include_full_query:
+                        detail["query_text"] = (
+                            "SELECT user_id, COUNT(*) as event_count\n"
+                            "FROM analytics.raw_events e\n"
+                            "JOIN analytics.users u ON e.user_id = u.id\n"
+                            "WHERE event_date = '2026-01-01'\n"
+                            "GROUP BY user_id\n"
+                            "ORDER BY event_count DESC\n"
+                            "LIMIT 1000"
+                        )
+
+                    return ServerResponse(success=True, data=detail)
+
+            return ServerResponse(
+                success=False,
+                error=f"Query '{query_id}' not found",
+                status_code=404,
+            )
+
+        # TODO: Implement actual HTTP call: GET /api/v1/catalog/queries/{query_id}
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def query_cancel(
+        self,
+        query_id: str | None = None,
+        *,
+        user: str | None = None,
+        dry_run: bool = False,
+    ) -> ServerResponse:
+        """Cancel running query(s).
+
+        Args:
+            query_id: Specific query ID to cancel.
+            user: Account name to cancel all running queries for.
+            dry_run: If True, return what would be cancelled without executing.
+
+        Returns:
+            ServerResponse with cancelled query details.
+        """
+        if self.mock_mode:
+            if query_id:
+                # Find specific query
+                for query in self._mock_data.get("queries", []):
+                    if query.get("query_id") == query_id:
+                        # Check if already completed
+                        if query.get("state") in ("success", "failed", "cancelled"):
+                            return ServerResponse(
+                                success=True,
+                                data={
+                                    "cancelled_count": 0,
+                                    "queries": [],
+                                    "warning": f"Query '{query_id}' already completed (state: {query.get('state')})",
+                                },
+                            )
+
+                        # Mock cancellation
+                        cancelled_query = query.copy()
+                        cancelled_query["state"] = "cancelled"
+                        return ServerResponse(
+                            success=True,
+                            data={
+                                "cancelled_count": 0 if dry_run else 1,
+                                "queries": [cancelled_query],
+                            },
+                        )
+
+                return ServerResponse(
+                    success=False,
+                    error=f"Query '{query_id}' not found",
+                    status_code=404,
+                )
+
+            if user:
+                # Find all running queries for user
+                running_states = ("pending", "running")
+                mock_running = [
+                    q for q in self._mock_data.get("queries", [])
+                    if q.get("account") == user and q.get("state") in running_states
+                ]
+
+                if not mock_running:
+                    return ServerResponse(
+                        success=True,
+                        data={
+                            "cancelled_count": 0,
+                            "queries": [],
+                            "message": f"No running queries found for account '{user}'",
+                        },
+                    )
+
+                # Mock cancellation
+                cancelled_queries = []
+                for q in mock_running:
+                    cancelled = q.copy()
+                    cancelled["state"] = "cancelled"
+                    cancelled_queries.append(cancelled)
+
+                return ServerResponse(
+                    success=True,
+                    data={
+                        "cancelled_count": 0 if dry_run else len(cancelled_queries),
+                        "queries": cancelled_queries,
+                    },
+                )
+
+            return ServerResponse(
+                success=False,
+                error="Must specify either query_id or user",
+                status_code=400,
+            )
+
+        # TODO: Implement actual HTTP call:
+        # - POST /api/v1/catalog/queries/{query_id}/cancel (for specific query)
+        # - POST /api/v1/catalog/queries/cancel?user={account} (for all user queries)
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
             status_code=501,
         )
 

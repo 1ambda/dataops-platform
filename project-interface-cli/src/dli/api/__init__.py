@@ -34,6 +34,7 @@ from dli.api.dataset import DatasetAPI
 from dli.api.lineage import LineageAPI
 from dli.api.metric import MetricAPI
 from dli.api.quality import QualityAPI
+from dli.api.query import QueryAPI
 from dli.api.transpile import TranspileAPI
 from dli.api.workflow import WorkflowAPI
 
@@ -44,6 +45,7 @@ __all__ = [
     "LineageAPI",
     "MetricAPI",
     "QualityAPI",
+    "QueryAPI",
     "TranspileAPI",
     "WorkflowAPI",
 ]

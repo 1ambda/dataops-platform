@@ -10,7 +10,7 @@ This file provides essential context for AI assistants working on the DataOps Pl
 - ✅ **project-basecamp-parser** - Python 3.12 + Flask (SQL parsing microservice)
 - ✅ **project-basecamp-ui** - React 19 + TypeScript (web dashboard)
 - ✅ **project-basecamp-connect** - Python 3.12 + Flask (GitHub/Jira/Slack integration service)
-- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.4.0** with WorkflowAPI)
+- ✅ **project-interface-cli** - Python 3.12 + Typer (CLI tool named `dli` - metric/dataset CRUD, catalog browsing, workflow orchestration, SQL transpilation, lineage analysis, query metadata, **Quality Spec** 기반 데이터 품질 검증, **Library API v0.5.0** with QueryAPI)
 
 ---
 
@@ -226,7 +226,7 @@ class UserRepositoryJpaImpl(
 2. **Check existing enums** in `client.py` before creating new ones
 3. **Check `commands/utils.py`** for shared helpers (`format_datetime`, etc.)
 
-### CLI Commands (v0.4.0)
+### CLI Commands (v0.5.0)
 
 | Command | Description |
 |---------|-------------|
@@ -239,8 +239,9 @@ class UserRepositoryJpaImpl(
 | `dli transpile` | SQL transpilation (table substitution, METRIC expansion, SQLGlot) |
 | `dli lineage` | Dependency visualization (show, upstream, downstream) |
 | `dli quality` | Quality Spec 실행 및 검증 (list, get, run, validate) |
+| `dli query` | Query execution metadata (list, show, cancel) |
 
-### Library API (v0.4.0)
+### Library API (v0.5.0)
 
 프로그래매틱 호출을 위한 Python Library Interface:
 
@@ -253,6 +254,7 @@ class UserRepositoryJpaImpl(
 | `ConfigAPI` | get, list_environments, get_current_environment, get_server_status | 설정 조회 |
 | `QualityAPI` | list_qualities, get, run, validate | Quality Spec 실행 및 검증 |
 | `WorkflowAPI` | get, register, unregister, run, backfill, stop, get_status, list_workflows, history, pause, unpause | Server-based workflow orchestration |
+| `QueryAPI` | list_queries, get, cancel | Query execution metadata access |
 
 **ExecutionMode (v0.2.1):**
 
@@ -290,7 +292,7 @@ project-interface-cli/src/dli/
 ├── models/
 │   ├── __init__.py       # Model exports
 │   └── common.py         # ExecutionContext, ResultStatus, *Result models
-├── api/                  # Library API (v0.4.0)
+├── api/                  # Library API (v0.5.0)
 │   ├── __init__.py       # API exports
 │   ├── dataset.py        # DatasetAPI
 │   ├── metric.py         # MetricAPI
@@ -298,7 +300,8 @@ project-interface-cli/src/dli/
 │   ├── catalog.py        # CatalogAPI
 │   ├── config.py         # ConfigAPI
 │   ├── quality.py        # QualityAPI
-│   └── workflow.py       # WorkflowAPI
+│   ├── workflow.py       # WorkflowAPI
+│   └── query.py          # QueryAPI
 ├── commands/             # CLI commands (Typer)
 │   ├── __init__.py       # Export all *_app
 │   ├── base.py           # Shared utilities (get_client, get_project_path)
@@ -310,7 +313,8 @@ project-interface-cli/src/dli/
 │   ├── transpile.py      # SQL transpilation commands
 │   ├── lineage.py        # Lineage commands
 │   ├── quality.py        # Quality test commands
-│   └── workflow.py       # Workflow operations
+│   ├── workflow.py       # Workflow operations
+│   └── query.py          # Query metadata commands
 ├── core/
 │   ├── __init__.py
 │   ├── client.py         # BasecampClient (mock + real API)

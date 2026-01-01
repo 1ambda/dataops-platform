@@ -88,6 +88,13 @@ class ErrorCode(str, Enum):
     CATALOG_ENGINE_NOT_SUPPORTED = "DLI-705"
     CATALOG_SCHEMA_TOO_LARGE = "DLI-706"
 
+    # Query Errors (DLI-78x) - Sub-range of Catalog (DLI-7xx)
+    QUERY_NOT_FOUND = "DLI-780"
+    QUERY_ACCESS_DENIED = "DLI-781"
+    QUERY_CANCEL_FAILED = "DLI-782"
+    QUERY_INVALID_FILTER = "DLI-783"
+    QUERY_SERVER_ERROR = "DLI-784"
+
     # Workflow Errors (DLI-8xx)
     WORKFLOW_NOT_FOUND = "DLI-800"
     WORKFLOW_REGISTRATION_FAILED = "DLI-801"
@@ -690,6 +697,91 @@ class CatalogSchemaError(DLIError):
         return msg
 
 
+# Query Errors (DLI-78x)
+
+
+@dataclass
+class QueryNotFoundError(DLIError):
+    """Query not found error.
+
+    Raised when a query cannot be found by ID.
+
+    Attributes:
+        query_id: The query ID that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.QUERY_NOT_FOUND
+    query_id: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return f"[{self.code.value}] Query '{self.query_id}' not found"
+
+
+@dataclass
+class QueryAccessDeniedError(DLIError):
+    """Query access denied error.
+
+    Raised when access to a query is denied.
+
+    Attributes:
+        query_id: The query ID that was denied.
+    """
+
+    code: ErrorCode = ErrorCode.QUERY_ACCESS_DENIED
+    query_id: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return f"[{self.code.value}] Access denied to query '{self.query_id}'"
+
+
+@dataclass
+class QueryCancelError(DLIError):
+    """Query cancellation error.
+
+    Raised when a query cancellation fails.
+
+    Attributes:
+        query_id: The query ID that failed to cancel.
+    """
+
+    code: ErrorCode = ErrorCode.QUERY_CANCEL_FAILED
+    query_id: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return f"[{self.code.value}] Failed to cancel query '{self.query_id}'"
+
+
+@dataclass
+class QueryInvalidFilterError(DLIError):
+    """Query invalid filter error.
+
+    Raised when query filter parameters are invalid.
+
+    Attributes:
+        filter_name: The invalid filter parameter name.
+        filter_value: The invalid filter value.
+    """
+
+    code: ErrorCode = ErrorCode.QUERY_INVALID_FILTER
+    filter_name: str = ""
+    filter_value: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.message:
+            return f"[{self.code.value}] {self.message}"
+        return f"[{self.code.value}] Invalid filter: {self.filter_name}={self.filter_value}"
+
+
 # Lineage Errors (DLI-9xx)
 
 
@@ -791,6 +883,11 @@ __all__ = [
     "QualityTargetNotFoundError",
     "QualityTestExecutionError",
     "QualityTestTimeoutError",
+    # Query Errors
+    "QueryAccessDeniedError",
+    "QueryCancelError",
+    "QueryInvalidFilterError",
+    "QueryNotFoundError",
     "ServerError",
     "TableNotFoundError",
     "TranspileError",
