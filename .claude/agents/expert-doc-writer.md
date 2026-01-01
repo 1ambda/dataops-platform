@@ -7,6 +7,7 @@ skills:
   - documentation      # Technical writing patterns, README structure
   - architecture       # System diagrams, Mermaid generation
   - completion-gate              # 완료 선언 Gate + 코드 존재 검증
+  - agent-cross-review           # 다른 Agent와 구조적 크로스 리뷰
 ---
 
 ## Token Efficiency (MCP-First)
@@ -345,44 +346,13 @@ mcp__jetbrains__replace_text_in_file(
 
 ---
 
-## MCP 활용 가이드
+## MCP 활용
 
-### Serena MCP (문서화 대상 탐색)
+> **상세 가이드**: `mcp-efficiency` skill 참조
 
-```python
-# 1. 메모리 읽기 (문서화 전 필수)
-mcp__serena__read_memory("cli_patterns")  # 또는 해당 프로젝트
-mcp__serena__read_memory("cli_implementation_status")
-
-# 2. 심볼 탐색 (코드 구조 파악)
-mcp__serena__get_symbols_overview("src/dli/api/", depth=1)
-mcp__serena__find_symbol("DatasetAPI", depth=1)  # 메서드 목록
-
-# 3. 패턴 검색
-mcp__serena__search_for_pattern("class.*API", restrict_search_to_code_files=True)
-
-# 4. 메모리 업데이트 (문서화 후)
-mcp__serena__edit_memory("cli_patterns", "old", "new", mode="literal")
-```
-
-### claude-mem MCP (과거 작업 참조)
-
-```python
-# 과거 문서화 작업 검색
-mcp__plugin_claude-mem_mem-search__search(
-    query="documentation update",
-    project="dataops-platform",
-    limit=10
-)
-
-# 상세 내용 조회
-mcp__plugin_claude-mem_mem-search__get_observations(ids=[2878, 2879])
-```
-
-### JetBrains MCP (IDE 연동)
-
-```python
-mcp__jetbrains__get_file_text_by_path("README.md")
-mcp__jetbrains__list_directory_tree("docs/", maxDepth=2)
-mcp__jetbrains__replace_text_in_file("README.md", "old", "new")
-```
+| 도구 | 용도 |
+|------|------|
+| `serena.read_memory("{project}_patterns")` | 프로젝트 패턴 로드 |
+| `serena.get_symbols_overview("src/")` | 코드 구조 파악 |
+| `claude-mem.search("documentation")` | 과거 문서 작업 |
+| `jetbrains.list_directory_tree("docs/")` | 문서 구조 탐색 |

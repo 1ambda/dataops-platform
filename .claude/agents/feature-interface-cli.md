@@ -13,6 +13,7 @@ skills:
   - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
   - dependency-coordination     # 크로스 Agent 의존성 추적
   - docs-synchronize            # 문서 동기화 검증
+  - integration-finder          # 기존 모듈 연동점 탐색
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -185,70 +186,17 @@ uv run dli {feature} --help
 
 ---
 
-## MCP 활용 가이드
+## MCP 활용
 
-### Serena MCP (코드 탐색/편집)
+> **상세 가이드**: `mcp-efficiency` skill 참조
 
-```python
-# 1. 메모리 읽기 (구현 전 필수)
-mcp__serena__read_memory("cli_patterns")
-mcp__serena__read_memory("cli_implementation_status")
-
-# 2. 심볼 탐색 (파일 전체 읽기 대신)
-mcp__serena__get_symbols_overview("src/dli/api/dataset.py", depth=1)
-mcp__serena__find_symbol("DatasetAPI", include_body=True)
-mcp__serena__find_symbol("ExecutionMode", relative_path="src/dli/models/")
-
-# 3. 패턴 검색
-mcp__serena__search_for_pattern("@app.command", restrict_search_to_code_files=True)
-
-# 4. 심볼 편집 (전체 파일 수정 대신)
-mcp__serena__replace_symbol_body("ClassName/method_name", "relative/path.py", "new body")
-mcp__serena__insert_after_symbol("ClassName", "relative/path.py", "new method")
-
-# 5. 메모리 업데이트 (구현 후)
-mcp__serena__edit_memory("cli_implementation_status", "old_text", "new_text", mode="literal")
-```
-
-### claude-mem MCP (과거 작업 검색)
-
-```python
-# 1. 과거 작업 검색 (이전 세션 참조)
-mcp__plugin_claude-mem_mem-search__search(
-    query="ExecutionMode implementation",
-    project="dataops-platform",
-    limit=10
-)
-
-# 2. 타임라인 컨텍스트 (특정 작업 전후 확인)
-mcp__plugin_claude-mem_mem-search__timeline(
-    anchor=2882,  # observation ID
-    depth_before=3,
-    depth_after=3,
-    project="dataops-platform"
-)
-
-# 3. 상세 내용 조회 (배치)
-mcp__plugin_claude-mem_mem-search__get_observations(ids=[2878, 2879, 2880])
-
-# 4. 최근 컨텍스트
-mcp__plugin_claude-mem_mem-search__get_recent_context(project="dataops-platform", limit=10)
-```
-
-### JetBrains MCP (IDE 연동)
-
-```python
-# 파일 탐색 (Serena 대신 사용 가능)
-mcp__jetbrains__get_file_text_by_path("src/dli/api/dataset.py")
-mcp__jetbrains__list_directory_tree("src/dli/", maxDepth=2)
-
-# 텍스트 검색/교체
-mcp__jetbrains__search_in_files_by_text("ExecutionMode", fileMask="*.py")
-mcp__jetbrains__replace_text_in_file("path", "old", "new")
-
-# 심볼 정보
-mcp__jetbrains__get_symbol_info("path", line=10, column=5)
-```
+| 도구 | 용도 |
+|------|------|
+| `serena.read_memory("cli_patterns")` | CLI 패턴 로드 |
+| `serena.get_symbols_overview("src/dli/api/")` | API 구조 파악 |
+| `serena.find_symbol("DatasetAPI")` | 심볼 상세 조회 |
+| `claude-mem.search("ExecutionMode")` | 과거 구현 참조 |
+| `jetbrains.search_in_files_by_text(...)` | 패턴 검색 |
 
 ---
 

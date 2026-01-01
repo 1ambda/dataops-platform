@@ -13,6 +13,7 @@ skills:
   - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
   - dependency-coordination     # 크로스 Agent 의존성 추적
   - docs-synchronize            # 문서 동기화 검증
+  - integration-finder          # 기존 모듈 연동점 탐색
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -244,38 +245,14 @@ Entity → Repository → Service → Controller → Tests
 
 ---
 
-## MCP 활용 가이드
+## MCP 활용
 
-### Serena MCP (코드 탐색/편집)
+> **상세 가이드**: `mcp-efficiency` skill 참조
 
-```python
-# 1. 메모리 읽기 (구현 전 필수)
-mcp__serena__read_memory("server_patterns")
-
-# 2. 심볼 탐색 (파일 전체 읽기 대신)
-mcp__serena__get_symbols_overview("module-core-domain/...", depth=1)
-mcp__serena__find_symbol("PipelineService", include_body=True)
-
-# 3. 패턴 검색
-mcp__serena__search_for_pattern("@Service", restrict_search_to_code_files=True)
-
-# 4. 심볼 편집
-mcp__serena__replace_symbol_body("ClassName/method", "path.kt", "new body")
-```
-
-### claude-mem MCP (과거 작업 검색)
-
-```python
-# 과거 작업 검색
-mcp__plugin_claude-mem_mem-search__search(query="PipelineService", project="dataops-platform")
-
-# 상세 내용 조회 (배치)
-mcp__plugin_claude-mem_mem-search__get_observations(ids=[1234, 1235])
-```
-
-### JetBrains MCP (IDE 연동)
-
-```python
-mcp__jetbrains__get_file_text_by_path("module-core-domain/...")
-mcp__jetbrains__search_in_files_by_text("@Repository", fileMask="*.kt")
-```
+| 도구 | 용도 |
+|------|------|
+| `serena.read_memory("server_patterns")` | Server 패턴 로드 |
+| `serena.get_symbols_overview("module-core-domain/")` | 도메인 구조 파악 |
+| `serena.find_symbol("PipelineService")` | 서비스 상세 조회 |
+| `claude-mem.search("PipelineService")` | 과거 구현 참조 |
+| `jetbrains.search_in_files_by_text("@Service")` | 패턴 검색 |

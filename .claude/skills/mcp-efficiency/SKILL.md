@@ -22,10 +22,27 @@ Master MCP tools to reduce token usage while improving code understanding.
 
 | Server | Purpose | Best For |
 |--------|---------|----------|
-| **serena** | Code structure | Symbol navigation, references |
+| **serena** | Semantic code analysis | Symbol navigation, references, refactoring, memory |
 | **context7** | Framework docs | Best practices, API usage |
-| **jetbrains** | IDE integration | Text search, file problems |
-| **claude-mem** | Memory | Past decisions, context |
+| **jetbrains** | IDE integration | Inspections, refactoring, run configurations |
+| **claude-mem** | Cross-session memory | Past decisions, timeline, batch queries |
+
+### Server Strengths
+
+**Serena** (30+ languages via LSP):
+- Symbol-level code understanding (not just text search)
+- Project memory for patterns and decisions
+- Semantic editing (insert_after_symbol, replace_symbol_body)
+
+**JetBrains** (IDE 2025.2+):
+- IntelliJ inspections (errors, warnings, code smells)
+- Rename refactoring (understands code structure)
+- Run configurations and terminal commands
+
+**claude-mem** (Cross-session):
+- Search past work across all sessions
+- Timeline context around decisions
+- Batch fetch for efficiency
 
 ## Serena Workflow (Primary)
 
@@ -80,6 +97,76 @@ serena.search_for_pattern(
 )
 ```
 
+### Step 5: Memory Management
+
+```python
+# Read project-specific patterns (ALWAYS do this first!)
+serena.read_memory(memory_file_name="cli_patterns")
+serena.read_memory(memory_file_name="server_patterns")
+
+# List all available memories
+serena.list_memories()
+
+# Write new patterns/decisions for future reference
+serena.write_memory(
+    memory_file_name="new_feature_patterns",
+    content="# Feature Patterns\n..."
+)
+
+# Edit existing memory
+serena.edit_memory(
+    memory_file_name="cli_patterns",
+    needle="old_pattern",
+    repl="new_pattern",
+    mode="literal"  # or "regex"
+)
+```
+
+### Step 6: Semantic Editing
+
+```python
+# Replace entire symbol body (method, class, function)
+serena.replace_symbol_body(
+    name_path="UserService/createUser",
+    relative_path="src/services/user.py",
+    body="def createUser(self, data: dict) -> User:\n    ..."
+)
+
+# Insert code after a symbol
+serena.insert_after_symbol(
+    name_path="UserService",
+    relative_path="src/services/user.py",
+    body="\n\ndef new_helper_function():\n    pass"
+)
+
+# Insert code before a symbol
+serena.insert_before_symbol(
+    name_path="UserService",
+    relative_path="src/services/user.py",
+    body="# New import\nfrom typing import Optional\n"
+)
+
+# Rename symbol across codebase
+serena.rename_symbol(
+    name_path="createUser",
+    relative_path="src/services/user.py",
+    new_name="create_user"
+)
+```
+
+### Step 7: Think Tools (Self-Reflection)
+
+```python
+# Use after gathering information
+serena.think_about_collected_information()
+
+# Use before making code changes
+serena.think_about_task_adherence()
+
+# Use when believing task is complete
+serena.think_about_whether_you_are_done()
+```
+
 ## Context7 Workflow (Framework Docs)
 
 ### Resolve Library First
@@ -115,49 +202,230 @@ context7.query-docs(
 
 ## JetBrains Integration
 
-### Text Search (Fast)
+### Text & Regex Search
 
 ```python
-# Find text in files
+# Text search (fast, index-based)
 jetbrains.search_in_files_by_text(
     searchText="@Repository",
     fileMask="*.kt",
     directoryToSearch="src/"
 )
-```
 
-### File Problems
-
-```python
-# Get errors/warnings for file
-jetbrains.get_file_problems(
-    filePath="src/services/UserService.kt",
-    errorsOnly=False  # Include warnings
+# Regex search (pattern matching)
+jetbrains.search_in_files_by_regex(
+    regexPattern=r"class\s+\w+Service",
+    fileMask="*.kt",
+    directoryToSearch="src/",
+    caseSensitive=True
 )
 ```
 
-### Symbol Info
+### Code Inspection & Problems
 
 ```python
-# Quick docs at position
+# Get errors/warnings using IntelliJ inspections
+jetbrains.get_file_problems(
+    filePath="src/services/UserService.kt",
+    errorsOnly=False,  # Include warnings
+    timeout=5000       # ms
+)
+# Returns: severity, description, line/column for each issue
+```
+
+### Symbol Info & Quick Docs
+
+```python
+# Get symbol documentation at position
 jetbrains.get_symbol_info(
     filePath="src/services/UserService.kt",
     line=42,
     column=15
 )
+# Returns: name, signature, type, documentation
 ```
 
-## Claude-mem (Memory Search)
+### Refactoring
 
 ```python
-# Search past conversations
-claude-mem.search(
-    query="authentication decision",
-    obs_type="decision"  # observation, decision, learning
+# Context-aware rename (updates ALL references)
+jetbrains.rename_refactoring(
+    pathInProject="src/services/UserService.kt",
+    symbolName="createUser",
+    newName="createNewUser"
+)
+# Much smarter than search-replace - understands code structure!
+
+# Reformat file with IDE rules
+jetbrains.reformat_file(path="src/services/UserService.kt")
+```
+
+### Run Configurations
+
+```python
+# List available run configs
+jetbrains.get_run_configurations()
+# Returns: config names, command lines, env vars
+
+# Execute a run configuration
+jetbrains.execute_run_configuration(
+    configurationName="Run Tests",
+    timeout=60000,  # ms
+    maxLinesCount=500
+)
+```
+
+### Terminal Integration
+
+```python
+# Execute shell command in IDE terminal
+jetbrains.execute_terminal_command(
+    command="./gradlew test",
+    timeout=120000,
+    maxLinesCount=1000,
+    executeInShell=True  # Use user's shell env
+)
+```
+
+### File Operations
+
+```python
+# Find files by glob pattern
+jetbrains.find_files_by_glob(
+    globPattern="**/test_*.py",
+    subDirectoryRelativePath="tests/"
 )
 
-# Recent context
-claude-mem.get_recent_context()
+# Fast file name search (index-based)
+jetbrains.find_files_by_name_keyword(
+    nameKeyword="Service",
+    fileCountLimit=50
+)
+
+# Create file with content
+jetbrains.create_new_file(
+    pathInProject="src/new_feature/service.py",
+    text="# New service\n...",
+    overwrite=False
+)
+
+# Get directory tree
+jetbrains.list_directory_tree(
+    directoryPath="src/",
+    maxDepth=3
+)
+```
+
+### Project Info
+
+```python
+# Get project dependencies
+jetbrains.get_project_dependencies()
+
+# Get project modules
+jetbrains.get_project_modules()
+
+# Get VCS roots (multi-repo support)
+jetbrains.get_repositories()
+
+# Get open files in editor
+jetbrains.get_all_open_file_paths()
+```
+
+## Claude-mem (Cross-Session Memory)
+
+### Search Past Work
+
+```python
+# Search all past sessions
+claude-mem.search(
+    query="authentication decision",
+    project="dataops-platform",  # Required
+    limit=20,
+    type="observations"  # observations, sessions, prompts
+)
+
+# Filter by observation type
+claude-mem.search(
+    query="bug",
+    obs_type="bugfix",  # bugfix, feature, decision, discovery, change
+    project="dataops-platform",
+    limit=20
+)
+
+# Date-filtered search
+claude-mem.search(
+    type="observations",
+    dateStart="2025-12-01",
+    dateEnd="2025-12-31",
+    project="dataops-platform"
+)
+```
+
+### Timeline Context
+
+```python
+# Get context around a specific observation
+claude-mem.timeline(
+    anchor=11131,        # Observation ID
+    depth_before=3,      # Items before
+    depth_after=3,       # Items after
+    project="dataops-platform"
+)
+
+# Auto-find anchor from query
+claude-mem.timeline(
+    query="authentication",
+    depth_before=5,
+    depth_after=5,
+    project="dataops-platform"
+)
+
+# Get context around observation ID
+claude-mem.get_context_timeline(
+    anchor=11131,
+    depth_before=3,
+    depth_after=3
+)
+```
+
+### Batch Fetching (10-100x Faster!)
+
+```python
+# ALWAYS use for 2+ observations (single HTTP request)
+claude-mem.get_observations(
+    ids=[11131, 10942, 10855],
+    orderBy="date_desc",
+    project="dataops-platform"
+)
+
+# Single observation (only when exactly 1 needed)
+claude-mem.get_observation(id=11131)
+
+# Fetch session details
+claude-mem.get_session(id=2005)
+
+# Fetch prompt details
+claude-mem.get_prompt(id=5421)
+```
+
+### Recent Context
+
+```python
+# Get most recent observations
+claude-mem.get_recent_context(
+    project="dataops-platform",
+    limit=10
+)
+```
+
+### Workflow Pattern
+
+```
+1. Search → Get index of results with IDs
+2. Timeline → Get context around top results
+3. Review → Pick relevant IDs from titles/dates
+4. Batch Fetch → Get full details only for needed IDs
 ```
 
 ## Decision Tree
@@ -171,13 +439,34 @@ Need to understand code?
 ├── Who uses X?
 │   └── serena.find_referencing_symbols
 ├── Where is pattern X used?
-│   └── serena.search_for_pattern
+│   └── serena.search_for_pattern OR jetbrains.search_in_files_by_regex
 ├── What's the best practice for X?
 │   └── context7.query-docs
 ├── What did we decide before?
-│   └── claude-mem.search
+│   └── claude-mem.search → timeline → get_observations
 └── Is there a problem in this file?
     └── jetbrains.get_file_problems
+
+Need to edit code?
+├── Rename a symbol everywhere?
+│   ├── serena.rename_symbol (LSP-based)
+│   └── jetbrains.rename_refactoring (IDE-based)
+├── Replace entire method/class?
+│   └── serena.replace_symbol_body
+├── Add new code after existing symbol?
+│   └── serena.insert_after_symbol
+└── Reformat file?
+    └── jetbrains.reformat_file
+
+Need project info?
+├── What memories exist for this project?
+│   └── serena.list_memories → read_memory
+├── What run configurations are available?
+│   └── jetbrains.get_run_configurations
+├── What are the project dependencies?
+│   └── jetbrains.get_project_dependencies
+└── What happened in past sessions?
+    └── claude-mem.get_recent_context
 ```
 
 ## Progressive Disclosure Pattern
@@ -226,3 +515,79 @@ Before reading ANY file, ask:
 | Find all usages | 15000 tokens | 800 tokens | 95% |
 | Understand API pattern | 3000 tokens | 500 tokens | 83% |
 | Check framework docs | N/A | 600 tokens | Faster |
+| Search past decisions | N/A | 200 tokens | Instant |
+| Run IDE inspections | Manual | 100 tokens | Automatic |
+
+---
+
+## Quick Reference: All MCP Tools
+
+### Serena (Semantic Code Analysis)
+
+| Tool | Purpose |
+|------|---------|
+| `get_symbols_overview` | File/directory structure overview |
+| `find_symbol` | Search symbols by name/pattern |
+| `find_referencing_symbols` | Find all references to a symbol |
+| `search_for_pattern` | Regex search across codebase |
+| `replace_symbol_body` | Replace entire symbol definition |
+| `insert_before_symbol` | Insert code before a symbol |
+| `insert_after_symbol` | Insert code after a symbol |
+| `rename_symbol` | Refactor symbol name globally |
+| `read_memory` | Load project-specific patterns |
+| `write_memory` | Save patterns for future |
+| `edit_memory` | Update existing memory |
+| `list_memories` | List available memories |
+| `list_dir` | Directory listing |
+| `find_file` | Find files by mask |
+| `think_about_*` | Self-reflection tools |
+
+### JetBrains (IDE Integration)
+
+| Tool | Purpose |
+|------|---------|
+| `search_in_files_by_text` | Fast text search (indexed) |
+| `search_in_files_by_regex` | Pattern-based search |
+| `get_file_problems` | IntelliJ inspections (errors/warnings) |
+| `get_symbol_info` | Quick docs at position |
+| `rename_refactoring` | Context-aware rename |
+| `reformat_file` | Apply IDE formatting |
+| `get_run_configurations` | List run configs |
+| `execute_run_configuration` | Run a configuration |
+| `execute_terminal_command` | Run shell command |
+| `find_files_by_glob` | Glob pattern file search |
+| `find_files_by_name_keyword` | Keyword file search |
+| `list_directory_tree` | Directory tree view |
+| `create_new_file` | Create file with content |
+| `get_project_dependencies` | List dependencies |
+| `get_project_modules` | List modules |
+| `get_repositories` | List VCS roots |
+
+### Claude-mem (Cross-Session Memory)
+
+| Tool | Purpose |
+|------|---------|
+| `search` | Search past work (required: project) |
+| `timeline` | Context around observation |
+| `get_observations` | Batch fetch (10-100x faster) |
+| `get_observation` | Single observation |
+| `get_session` | Session details |
+| `get_prompt` | Prompt details |
+| `get_recent_context` | Recent observations |
+| `get_context_timeline` | Timeline around ID |
+
+### Context7 (Framework Docs)
+
+| Tool | Purpose |
+|------|---------|
+| `resolve-library-id` | Get library ID for docs |
+| `query-docs` | Query framework documentation |
+
+---
+
+## Sources
+
+- [JetBrains MCP Server Documentation](https://www.jetbrains.com/help/idea/mcp-server.html)
+- [Serena GitHub Repository](https://github.com/oraios/serena)
+- [Serena Tools Documentation](https://oraios.github.io/serena/01-about/035_tools.html)
+- [IntelliJ IDEA 2025.1 MCP Blog](https://blog.jetbrains.com/idea/2025/05/intellij-idea-2025-1-model-context-protocol/)
