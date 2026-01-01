@@ -9,6 +9,7 @@
 
 ## Table of Contents
 
+0. [Custom Rules](#custom-rules)
 1. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
 2. [Service Implementation Patterns](#service-implementation-patterns)
 3. [Repository Layer Patterns](#repository-layer-patterns)
@@ -16,6 +17,17 @@
 5. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
 6. [Entity Patterns](#entity-patterns)
 7. [Testing Patterns](#testing-patterns)
+8. 
+---
+
+## Custom Rules (Critical)
+
+- 미래에는 MySQL 을 사용할 것이나, 현재는 H2 기반의 Entity 를 설계해 사용합니다. 단, MySQL 마이그레이션을 고려해주세요.
+- module-core-infra 에서 데이터 조회는 QueryDSL 을 사용합니다. 데이터 추가 / 변경 / 삭제는 JPA 를 사용할 수 있습니다.
+- module-core-domain 내 Entity 는 JPA 연관 관계를 절대로 (중요) 사용하지 않습니다.
+- Test 는 ServiceTest 를 위주로 작성합니다. ControllerTest 도 작성합니다.
+- SpringBootApplication 을 띄우는 무거운 테스트는 지양합니다.
+- Basecamp Server 의 자체 기능이 아니거나 외부와의 연동 (e.g, Airflow 연동, BigQuery 실행 등) 의 경우에는 Mock 방식으로 작업합니다.
 
 ---
 

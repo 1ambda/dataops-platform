@@ -555,24 +555,18 @@ interface MetricRepositoryDsl {
 ```kotlin
 // module-core-infra/src/main/kotlin/infra/repository/
 
-// Spring Data interface
-@Repository
-interface MetricRepositoryJpaSpringData : JpaRepository<MetricEntity, String> {
-    fun findByName(name: String): MetricEntity?
-    fun existsByName(name: String): Boolean
-}
-
-// JPA implementation
+// Simplified Pattern: Interface extends both domain interface and JpaRepository
+// (Same approach used in ResourceRepositoryJpaImpl)
 @Repository("metricRepositoryJpa")
-class MetricRepositoryJpaImpl(
-    private val springDataRepository: MetricRepositoryJpaSpringData,
-) : MetricRepositoryJpa {
-    override fun save(metric: MetricEntity) = springDataRepository.save(metric)
-    override fun findById(id: String) = springDataRepository.findById(id).orElse(null)
-    override fun findByName(name: String) = springDataRepository.findByName(name)
-    override fun findAll() = springDataRepository.findAll()
-    override fun delete(metric: MetricEntity) = springDataRepository.delete(metric)
-    override fun existsByName(name: String) = springDataRepository.existsByName(name)
+interface MetricRepositoryJpaImpl :
+    MetricRepositoryJpa,
+    JpaRepository<MetricEntity, Long> {
+
+    // Domain-specific queries (Spring Data JPA auto-implements)
+    override fun findByName(name: String): MetricEntity?
+    override fun existsByName(name: String): Boolean
+    override fun findByOwner(owner: String): List<MetricEntity>
+    override fun countByOwner(owner: String): Long
 }
 
 // QueryDSL implementation

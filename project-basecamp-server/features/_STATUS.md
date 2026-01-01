@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-01-01
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 8% (2/36 endpoints completed)
+> **Current Progress:** 17% (6/36 endpoints completed)
 
 ---
 
@@ -11,14 +11,14 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 2 endpoints | Health API only |
+| **Completed** | 6 endpoints | Health + Metrics API |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 34 endpoints | P0-P3 priorities |
-| **Overall Progress** | **8%** | 🟡 Early stage |
+| **Not Started** | 30 endpoints | P0-P3 priorities |
+| **Overall Progress** | **17%** | 🟢 Phase 1 in progress |
 | **Infrastructure Readiness** | **95%** | ✅ Ready for implementation |
-| **Estimated Timeline** | 12.5 weeks | 3.1 months with 1.5 FTE |
+| **Estimated Timeline** | 10.5 weeks | ~2.6 months with 1.5 FTE |
 
-**Key Insight:** Robust infrastructure (hexagonal architecture, multi-module, security) is fully implemented. Only 8% of BASECAMP feature APIs are complete, but the foundation enables rapid development using established patterns.
+**Key Insight:** Robust infrastructure (hexagonal architecture, multi-module, security) is fully implemented. Metrics API (4 endpoints) completed with 23 tests. Foundation enables rapid development using established patterns.
 
 ---
 
@@ -29,7 +29,7 @@
 | Priority | Category | Required | Completed | Progress | CLI Command |
 |----------|----------|----------|-----------|----------|-------------|
 | **P0 Critical** | Health | 2 | 2 | ✅ **100%** | `dli debug` |
-| **P0 Critical** | Metrics | 5 | 0 | ❌ **0%** | `dli metric` |
+| **P0 Critical** | Metrics | 5 | 4 | ✅ **80%** | `dli metric` |
 | **P0 Critical** | Datasets | 4 | 0 | ❌ **0%** | `dli dataset` |
 | **P1 High** | Catalog | 4 | 0 | ❌ **0%** | `dli catalog` |
 | **P1 High** | Lineage | 1 | 0 | ❌ **0%** | `dli lineage` |
@@ -38,20 +38,20 @@
 | **P3 Low** | Query | 3 | 0 | ❌ **0%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
 | **P3 Low** | Run | 2 | 0 | ❌ **0%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **2** | 🟡 **8%** | All CLI commands |
+| **TOTAL** | **10 features** | **36** | **6** | 🟢 **17%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
 | Phase | Priority | APIs | Timeline | Status |
 |-------|----------|------|----------|--------|
-| **Phase 1** | P0 Critical | 11 endpoints | Week 1-2.5 | ⏳ Not Started |
+| **Phase 1** | P0 Critical | 11 endpoints | Week 1-2.5 | 🟢 In Progress (4/11) |
 | **Phase 2** | P1 High | 5 endpoints | Week 3-5 | ⏳ Pending P0 |
 | **Phase 3** | P2 Medium | 9 endpoints | Week 6-9 | ⏳ Pending P1 |
 | **Phase 4** | P3 Low | 11 endpoints | Week 10-12.5 | ⏳ Pending P2 |
 
 ---
 
-## ✅ Completed Implementation (2/36)
+## ✅ Completed Implementation (6/36)
 
 ### Health & System API - 100% Complete
 
@@ -70,27 +70,33 @@
 - ❌ Extended health endpoint (`GET /api/v1/health/extended`) for `dli debug` command
 - **Recommendation:** Add extended health endpoint in Phase 1, Week 2.5
 
+### Metrics API - 80% Complete (4/5 endpoints)
+
+> **📖 Detailed Documentation:** [`METRIC_RELEASE.md`](./METRIC_RELEASE.md)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/metrics` | ✅ Complete |
+| `GET /api/v1/metrics/{name}` | ✅ Complete |
+| `POST /api/v1/metrics` | ✅ Complete |
+| `POST /api/v1/metrics/{name}/run` | ✅ Complete |
+| `POST /api/v1/metrics/{name}/transpile` | ❌ Not Started |
+
+**Summary:** 23 tests, full hexagonal architecture, soft delete pattern
+
 ---
 
-## 🚧 Phase 1: P0 Critical APIs (0/11 - Not Started)
+## 🚧 Phase 1: P0 Critical APIs (4/11 - In Progress)
 
-### Week 1: Metrics API Foundation (0/5)
+### Week 1: Metrics API Foundation (4/5) ✅ Mostly Complete
 
-| Endpoint | Method | Status | CLI Command |
-|----------|--------|--------|-------------|
-| `GET /api/v1/metrics` | GET | ❌ Not Started | `dli metric list` |
-| `GET /api/v1/metrics/{name}` | GET | ❌ Not Started | `dli metric get` |
-| `POST /api/v1/metrics` | POST | ❌ Not Started | `dli metric register` |
-| `POST /api/v1/metrics/{name}/run` | POST | ❌ Not Started | `dli metric run` |
-| `POST /api/v1/metrics/{name}/transpile` | POST | ❌ Not Started | `dli metric transpile` |
+> **📖 See:** [`METRIC_RELEASE.md`](./METRIC_RELEASE.md) for full implementation details
 
-**Required Implementation:**
-- `MetricEntity` - Domain model
-- `MetricService` - Business logic (concrete class)
-- `MetricRepositoryJpa/Dsl` - Domain interfaces
-- `MetricRepositoryJpaImpl/DslImpl` - Infrastructure implementations
-- `MetricController` - REST endpoints
-- `MetricDto`, `MetricMapper` - API layer
+- [x] `GET /api/v1/metrics` - List metrics
+- [x] `GET /api/v1/metrics/{name}` - Get metric
+- [x] `POST /api/v1/metrics` - Create metric
+- [x] `POST /api/v1/metrics/{name}/run` - Run metric
+- [ ] `POST /api/v1/metrics/{name}/transpile` - Transpile metric (P3)
 
 ### Week 2: Datasets API Completion (0/4)
 
@@ -217,7 +223,7 @@ project-basecamp-server/
 | `AuditResourceEntity` | `audit_resource_history` | ✅ Complete | Resource audit |
 
 **Missing Entities for BASECAMP:**
-- ❌ `MetricEntity` (P0 Week 1)
+- ✅ `MetricEntity` (P0 Week 1) - Completed
 - ❌ `WorkflowEntity` (P2 Week 6-7)
 - ❌ `QualityEntity` (P3 Week 10)
 
@@ -227,11 +233,7 @@ project-basecamp-server/
 
 ### Phase 1: P0 Critical APIs (Week 1-2.5)
 
-**Week 1: Metrics API**
-- Create `MetricEntity`, repositories, service, controller
-- Implement 5 Metric endpoints
-- Unit + integration tests
-- CLI integration verification
+**Week 1: Metrics API** ✅ 80% Complete → See [`METRIC_RELEASE.md`](./METRIC_RELEASE.md)
 
 **Week 2: Datasets API + Execution**
 - Complete Dataset service/controller (entity exists)
@@ -307,18 +309,21 @@ project-basecamp-server/
 
 ### Immediate Actions (This Week)
 
-1. **Phase 1 Kickoff Planning**
-   - [ ] Review [`METRIC_FEATURE.md`](./METRIC_FEATURE.md) specification
-   - [ ] Set up development environment (test BigQuery project)
-   - [ ] Create Phase 1 sprint backlog
+1. **Complete Phase 1 Remaining Work**
+   - [x] ~~Review [`METRIC_FEATURE.md`](./METRIC_FEATURE.md) specification~~ ✅ Done
+   - [x] ~~Implement Metrics API (4/5 endpoints)~~ ✅ Done
+   - [ ] Add `POST /api/v1/metrics/{name}/transpile` endpoint
+   - [ ] Start Datasets API implementation (4 endpoints)
 
 2. **Technical Preparation**
+   - [x] ~~Configure test data for Metric entities~~ ✅ Done (23 tests)
    - [ ] Verify Keycloak OAuth2 for API testing
-   - [ ] Configure test data for Metric/Dataset entities
+   - [ ] Configure test data for Dataset entities
    - [ ] Set up Postman/Insomnia collections
 
 3. **Team Alignment**
-   - [ ] Review hexagonal architecture patterns ([`INTEGRATION_PATTERNS.md`](./INTEGRATION_PATTERNS.md))
+   - [x] ~~Review hexagonal architecture patterns~~ ✅ Used for Metrics
+   - [ ] Review simplified repository pattern (see docs/PATTERNS.md)
    - [ ] Understand error handling requirements ([`ERROR_CODES.md`](./ERROR_CODES.md))
    - [ ] Validate CLI compatibility ([`CLI_API_MAPPING.md`](../docs/CLI_API_MAPPING.md))
 
@@ -355,6 +360,12 @@ project-basecamp-server/
 | **P3** | Query API | [`QUERY_FEATURE.md`](./QUERY_FEATURE.md) | 4.0/5 |
 | **P3** | Run API | [`RUN_FEATURE.md`](./RUN_FEATURE.md) | 3.5/5 |
 | **P3** | Transpile API | [`TRANSPILE_FEATURE.md`](./TRANSPILE_FEATURE.md) | 4.5/5 |
+
+### Release Documents (Completed Implementations)
+
+| API | Release Document | Status |
+|-----|------------------|--------|
+| **Metric API** | [`METRIC_RELEASE.md`](./METRIC_RELEASE.md) | ✅ 80% (4/5 endpoints) |
 
 ### Implementation Guides
 
@@ -427,4 +438,4 @@ The codebase contains 11 dummy Pipeline endpoints that serve as **implementation
 
 ---
 
-*Last Updated: 2026-01-01 | Next Review: Weekly during Phase 1*
+*Last Updated: 2026-01-01 (Metrics API completed) | Next Review: Weekly during Phase 1*

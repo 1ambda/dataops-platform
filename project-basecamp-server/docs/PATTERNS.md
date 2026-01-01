@@ -172,8 +172,11 @@ class MyServiceTest : DescribeSpec({
 // module-core-domain/repository/ItemRepositoryJpa.kt
 interface ItemRepositoryJpa {
     fun save(item: ItemEntity): ItemEntity
-    fun findById(id: Long): ItemEntity?
+    fun deleteById(id: Long)
+    fun existsById(id: Long): Boolean
     fun findAll(): List<ItemEntity>
+    // Domain-specific queries
+    fun findByName(name: String): ItemEntity?
 }
 
 // module-core-domain/repository/ItemRepositoryDsl.kt
@@ -182,7 +185,29 @@ interface ItemRepositoryDsl {
 }
 ```
 
-### Infrastructure Implementation (Adapter)
+### Infrastructure Implementation (Adapter) - Simplified Pattern (Recommended)
+
+> **Note:** Use this simplified pattern that combines domain interface and JpaRepository into one interface.
+
+```kotlin
+// module-core-infra/repository/ItemRepositoryJpaImpl.kt
+@Repository("itemRepositoryJpa")
+interface ItemRepositoryJpaImpl :
+    ItemRepositoryJpa,
+    JpaRepository<ItemEntity, Long> {
+
+    // Domain-specific queries (Spring Data JPA auto-implements)
+    override fun findByName(name: String): ItemEntity?
+}
+```
+
+This pattern:
+- ✅ Eliminates the need for a separate `*SpringData` interface
+- ✅ Reduces boilerplate code
+- ✅ Leverages Spring Data JPA's auto-implementation
+- ✅ Same approach used in `ResourceRepositoryJpaImpl`
+
+### Infrastructure Implementation (Adapter) - Composition Pattern (Legacy)
 
 ```kotlin
 // module-core-infra/repository/ItemRepositoryJpaImpl.kt
@@ -261,8 +286,7 @@ ext {
 - [ ] Create `{Entity}Entity.kt` in `module-core-domain/model/{feature}/`
 - [ ] Create `{Entity}RepositoryJpa.kt` interface in `module-core-domain/repository/`
 - [ ] Create `{Entity}RepositoryDsl.kt` interface (if complex queries needed)
-- [ ] Create `{Entity}RepositoryJpaImpl.kt` in `module-core-infra/repository/`
-- [ ] Create `{Entity}RepositoryJpaSpringData.kt` interface
+- [ ] Create `{Entity}RepositoryJpaImpl.kt` interface in `module-core-infra/repository/` (extends both domain interface and JpaRepository)
 - [ ] Add QueryDSL Q-class generation (kapt)
 
 ### Adding a New API Endpoint

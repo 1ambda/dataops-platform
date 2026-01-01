@@ -2,6 +2,9 @@ package com.github.lambda.exception
 
 import com.github.lambda.common.exception.BusinessException
 import com.github.lambda.common.exception.ResourceNotFoundException
+import com.github.lambda.domain.exception.MetricAlreadyExistsException
+import com.github.lambda.domain.exception.MetricExecutionTimeoutException
+import com.github.lambda.domain.exception.MetricNotFoundException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import mu.KotlinLogging
@@ -19,6 +22,73 @@ import org.springframework.web.context.request.WebRequest
 @RestControllerAdvice
 class GlobalExceptionHandler {
     private val logger = KotlinLogging.logger {}
+
+    // === Metric-specific exception handlers ===
+
+    /**
+     * Metric not found exception (404)
+     */
+    @ExceptionHandler(MetricNotFoundException::class)
+    fun handleMetricNotFoundException(
+        ex: MetricNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Metric not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Metric not found", errorDetails))
+    }
+
+    /**
+     * Metric already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(MetricAlreadyExistsException::class)
+    fun handleMetricAlreadyExistsException(
+        ex: MetricAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Metric already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Metric already exists", errorDetails))
+    }
+
+    /**
+     * Metric execution timeout exception (408 Request Timeout)
+     */
+    @ExceptionHandler(MetricExecutionTimeoutException::class)
+    fun handleMetricExecutionTimeoutException(
+        ex: MetricExecutionTimeoutException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Metric execution timeout: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.REQUEST_TIMEOUT)
+            .body(ApiResponse.error(ex.message ?: "Metric execution timeout", errorDetails))
+    }
+
+    // === General exception handlers ===
 
     /**
      * 비즈니스 예외 처리
