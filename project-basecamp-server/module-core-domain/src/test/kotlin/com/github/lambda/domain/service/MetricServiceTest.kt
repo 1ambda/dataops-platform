@@ -1,7 +1,7 @@
 package com.github.lambda.domain.service
 
-import com.github.lambda.domain.exception.MetricAlreadyExistsException
-import com.github.lambda.domain.exception.MetricNotFoundException
+import com.github.lambda.common.exception.MetricAlreadyExistsException
+import com.github.lambda.common.exception.MetricNotFoundException
 import com.github.lambda.domain.model.metric.MetricEntity
 import com.github.lambda.domain.repository.MetricRepositoryDsl
 import com.github.lambda.domain.repository.MetricRepositoryJpa

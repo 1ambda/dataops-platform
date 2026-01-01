@@ -29,7 +29,7 @@ make health                 # Verify services
 ## Components
 
 **Core Services**:
-- **basecamp-server** (8081): Spring Boot 4 + Kotlin 2 - API server & pipeline management
+- **basecamp-server** (8081): Spring Boot 4 + Kotlin 2 - API server with Metrics & Datasets APIs (28% complete)
 - **basecamp-parser** (5000): Python 3.12 + Flask - SQL parsing & validation
 - **basecamp-ui** (3000): React 19 + TypeScript - Web dashboard
 - **basecamp-connect** (5001): Python 3.12 + Flask - GitHub/Jira/Slack integration
@@ -37,7 +37,11 @@ make health                 # Verify services
 
 **Infrastructure**: MySQL (3306), Redis (6379), PostgreSQL (5432), Keycloak (8080)
 
-**Features**: Pipeline orchestration, Trino/Presto SQL processing, modern React UI, CLI automation, BuildKit optimization (30-60% faster builds)
+**Features**:
+- ✅ **Metrics & Datasets APIs**: Complete CRUD operations, SQL execution, business validation (10/36 endpoints)
+- ✅ **Production Architecture**: Hexagonal design, 80+ comprehensive tests, OAuth2 ready
+- 🚧 **In Progress**: Catalog API, Lineage API, Workflow orchestration
+- **Infrastructure**: Trino/Presto SQL processing, modern React UI, CLI automation, BuildKit optimization (30-60% faster builds)
 
 ---
 

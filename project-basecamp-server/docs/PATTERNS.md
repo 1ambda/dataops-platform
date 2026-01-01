@@ -207,6 +207,38 @@ This pattern:
 - ✅ Leverages Spring Data JPA's auto-implementation
 - ✅ Same approach used in `ResourceRepositoryJpaImpl`
 
+### ⚠️ Critical Repository Pattern Guidelines
+
+**DO NOT create `*RepositoryJpaSpringData` interfaces!** This is the most common mistake:
+
+```kotlin
+// ❌ WRONG - Do NOT create this
+interface ItemRepositoryJpaSpringData : JpaRepository<ItemEntity, Long>
+
+// ❌ WRONG - Do NOT use composition pattern
+@Repository
+class ItemRepositoryJpaImpl(
+    private val springDataRepository: ItemRepositoryJpaSpringData
+) : ItemRepositoryJpa
+```
+
+**Instead, use the Simplified Pattern:**
+
+```kotlin
+// ✅ CORRECT - Single interface extending both
+@Repository("itemRepositoryJpa")
+interface ItemRepositoryJpaImpl :
+    ItemRepositoryJpa,           // Domain interface
+    JpaRepository<ItemEntity, Long> {  // Spring Data JPA
+}
+```
+
+**Key Rules:**
+1. **No separate SpringData interfaces** - Extends JpaRepository directly
+2. **Complex business logic goes to Service layer** - Repository provides only primitive operations
+3. **Domain methods with LocalDateTime.now()** → Move to Service
+4. **Custom @Query methods are OK** - Keep them simple and focused
+
 ### Infrastructure Implementation (Adapter) - Composition Pattern (Legacy)
 
 ```kotlin

@@ -52,13 +52,9 @@ interface PipelineRepositoryJpa {
         pageable: Pageable,
     ): Page<PipelineEntity>
 
-    // 상태 업데이트
-    fun updateStatus(
-        id: Long,
-        status: PipelineStatus,
-    ): Boolean
-
-    fun toggleActive(id: Long): Boolean
+    // 상태 업데이트 - 복잡한 비즈니스 로직은 service layer로 이동
+    // updateStatus(id, status) -> 서비스에서 updateStatusById + 현재시간 처리
+    // toggleActive(id) -> 서비스에서 findById + updateIsActiveById + 현재시간 처리
 
     // 통계 및 집계
     fun countByStatus(status: PipelineStatus): Long

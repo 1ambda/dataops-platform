@@ -903,7 +903,7 @@ class MetricServiceTest {
 ])
 class MetricControllerIntegrationTest {
     @Autowired private lateinit var testRestTemplate: TestRestTemplate
-    @Autowired private lateinit var metricRepository: MetricRepositoryJpaSpringData
+    @Autowired private lateinit var metricRepository: MetricRepositoryJpaImpl
 
     @BeforeEach
     fun setUp() {

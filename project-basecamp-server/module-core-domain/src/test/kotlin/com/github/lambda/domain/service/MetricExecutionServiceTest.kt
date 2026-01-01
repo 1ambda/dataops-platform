@@ -1,6 +1,6 @@
 package com.github.lambda.domain.service
 
-import com.github.lambda.domain.exception.MetricNotFoundException
+import com.github.lambda.common.exception.MetricNotFoundException
 import com.github.lambda.domain.model.metric.MetricEntity
 import io.mockk.every
 import io.mockk.mockk

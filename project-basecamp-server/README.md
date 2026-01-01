@@ -50,6 +50,21 @@ cd project-basecamp-server
 - **Health Check**: http://localhost:8080/api/health
 - **Actuator**: http://localhost:8080/actuator/health
 
+### ✅ Implemented APIs (28% Complete - 10/36 endpoints)
+
+| API | Status | Endpoints | Documentation |
+|-----|--------|-----------|---------------|
+| **Health API** | ✅ Complete (2/2) | `/api/health`, `/api/info` | Basic health checks |
+| **Metrics API** | ✅ 80% (4/5) | `/api/v1/metrics/*` | [METRIC_RELEASE.md](./features/METRIC_RELEASE.md) |
+| **Datasets API** | ✅ Complete (4/4) | `/api/v1/datasets/*` | [DATASET_RELEASE.md](./features/DATASET_RELEASE.md) |
+
+**Key Features Implemented:**
+- REST CRUD operations for metrics and datasets
+- Business validation (email, cron expressions, naming patterns)
+- SQL execution with parameter substitution
+- Hexagonal architecture with 80+ comprehensive tests
+- OAuth2 authentication and authorization ready
+
 ---
 
 ## Architecture Overview
@@ -408,7 +423,11 @@ set("springdocVersion", "3.0.0")     // NOT 2.x
 - **[docs/CLI_API_MAPPING.md](./docs/CLI_API_MAPPING.md)** - CLI command to API endpoint mapping
 
 **Implementation Status:**
-- **[features/_STATUS.md](./features/_STATUS.md)** - 🆕 Current progress (8%, 2/36 endpoints)
+- **[features/_STATUS.md](./features/_STATUS.md)** - 🆕 Current progress (28%, 10/36 endpoints)
+
+**✅ Completed Implementations:**
+- **[features/METRIC_RELEASE.md](./features/METRIC_RELEASE.md)** - Metrics API (4/5 endpoints, 23 tests)
+- **[features/DATASET_RELEASE.md](./features/DATASET_RELEASE.md)** - Dataset API (4/4 endpoints, 80+ tests)
 
 **Feature Specifications:**
 - **[features/README.md](./features/README.md)** - Feature specifications overview

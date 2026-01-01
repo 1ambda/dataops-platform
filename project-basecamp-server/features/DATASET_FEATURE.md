@@ -563,37 +563,29 @@ interface DatasetRepositoryDsl {
 }
 ```
 
-#### Infrastructure Implementation (Adapter)
+#### Infrastructure Implementation (Adapter) - Simplified Pattern (Recommended)
+
+> **Note:** Use the simplified pattern that combines domain interface and JpaRepository into one interface.
 
 ```kotlin
 // module-core-infra/repository/DatasetRepositoryJpaImpl.kt
 @Repository("datasetRepositoryJpa")
-class DatasetRepositoryJpaImpl(
-    private val springDataRepository: DatasetRepositoryJpaSpringData,
-) : DatasetRepositoryJpa {
-    override fun save(dataset: DatasetEntity): DatasetEntity =
-        springDataRepository.save(dataset)
+interface DatasetRepositoryJpaImpl :
+    DatasetRepositoryJpa,
+    JpaRepository<DatasetEntity, String> {
 
-    override fun findById(id: String): DatasetEntity? =
-        springDataRepository.findById(id).orElse(null)
-
-    override fun findByName(name: String): DatasetEntity? =
-        springDataRepository.findByName(name)
-
-    override fun existsByName(name: String): Boolean =
-        springDataRepository.existsByName(name)
-
-    override fun deleteByName(name: String) =
-        springDataRepository.deleteByName(name)
-}
-
-// module-core-infra/repository/DatasetRepositoryJpaSpringData.kt
-interface DatasetRepositoryJpaSpringData : JpaRepository<DatasetEntity, String> {
-    fun findByName(name: String): DatasetEntity?
-    fun existsByName(name: String): Boolean
+    // Domain-specific queries (Spring Data JPA auto-implements)
+    override fun findByName(name: String): DatasetEntity?
+    override fun existsByName(name: String): Boolean
     fun deleteByName(name: String)
 }
 ```
+
+This pattern:
+- ✅ Eliminates the need for a separate `*SpringData` interface
+- ✅ Reduces boilerplate code
+- ✅ Leverages Spring Data JPA's auto-implementation
+- ✅ Same approach recommended in PATTERNS.md
 
 ### 5.2 Service Layer
 

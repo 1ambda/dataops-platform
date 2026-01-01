@@ -2,9 +2,18 @@ package com.github.lambda.exception
 
 import com.github.lambda.common.exception.BusinessException
 import com.github.lambda.common.exception.ResourceNotFoundException
-import com.github.lambda.domain.exception.MetricAlreadyExistsException
-import com.github.lambda.domain.exception.MetricExecutionTimeoutException
-import com.github.lambda.domain.exception.MetricNotFoundException
+import com.github.lambda.common.exception.MetricAlreadyExistsException
+import com.github.lambda.common.exception.MetricExecutionTimeoutException
+import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.common.exception.DatasetAlreadyExistsException
+import com.github.lambda.common.exception.DatasetExecutionFailedException
+import com.github.lambda.common.exception.DatasetExecutionTimeoutException
+import com.github.lambda.common.exception.DatasetNotFoundException
+import com.github.lambda.common.exception.InvalidCronException
+import com.github.lambda.common.exception.InvalidDatasetNameException
+import com.github.lambda.common.exception.InvalidOwnerEmailException
+import com.github.lambda.common.exception.InvalidSqlException
+import com.github.lambda.common.exception.TooManyTagsException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import mu.KotlinLogging
@@ -86,6 +95,228 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.REQUEST_TIMEOUT)
             .body(ApiResponse.error(ex.message ?: "Metric execution timeout", errorDetails))
+    }
+
+    // === Dataset-specific exception handlers ===
+
+    /**
+     * Dataset not found exception (404)
+     */
+    @ExceptionHandler(DatasetNotFoundException::class)
+    fun handleDatasetNotFoundException(
+        ex: DatasetNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Dataset not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "dataset_name" to ex.datasetName,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Dataset not found", errorDetails))
+    }
+
+    /**
+     * Dataset already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(DatasetAlreadyExistsException::class)
+    fun handleDatasetAlreadyExistsException(
+        ex: DatasetAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Dataset already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "dataset_name" to ex.datasetName,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Dataset already exists", errorDetails))
+    }
+
+    /**
+     * Dataset execution timeout exception (408 Request Timeout)
+     */
+    @ExceptionHandler(DatasetExecutionTimeoutException::class)
+    fun handleDatasetExecutionTimeoutException(
+        ex: DatasetExecutionTimeoutException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Dataset execution timeout: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "dataset_name" to ex.datasetName,
+                    "timeout_seconds" to ex.timeoutSeconds,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.REQUEST_TIMEOUT)
+            .body(ApiResponse.error(ex.message ?: "Dataset execution timeout", errorDetails))
+    }
+
+    /**
+     * Dataset execution failed exception (500 Internal Server Error)
+     */
+    @ExceptionHandler(DatasetExecutionFailedException::class)
+    fun handleDatasetExecutionFailedException(
+        ex: DatasetExecutionFailedException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.error { "Dataset execution failed: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "dataset_name" to ex.datasetName,
+                    "sql_error" to ex.sqlError,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ApiResponse.error(ex.message ?: "Dataset execution failed", errorDetails))
+    }
+
+    /**
+     * Invalid dataset name exception (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(InvalidDatasetNameException::class)
+    fun handleInvalidDatasetNameException(
+        ex: InvalidDatasetNameException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid dataset name: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "dataset_name" to ex.datasetName,
+                    "expected_pattern" to "[catalog].[schema].[name]",
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(ex.message ?: "Invalid dataset name", errorDetails))
+    }
+
+    /**
+     * Invalid SQL exception (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(InvalidSqlException::class)
+    fun handleInvalidSqlException(
+        ex: InvalidSqlException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid SQL: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "sql_error" to ex.sqlError,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(ex.message ?: "Invalid SQL", errorDetails))
+    }
+
+    /**
+     * Invalid owner email exception (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(InvalidOwnerEmailException::class)
+    fun handleInvalidOwnerEmailException(
+        ex: InvalidOwnerEmailException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid owner email: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "email" to ex.email,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(ex.message ?: "Invalid owner email", errorDetails))
+    }
+
+    /**
+     * Too many tags exception (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(TooManyTagsException::class)
+    fun handleTooManyTagsException(
+        ex: TooManyTagsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Too many tags: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "tag_count" to ex.tagCount,
+                    "max_allowed" to ex.maxAllowed,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(ex.message ?: "Too many tags", errorDetails))
+    }
+
+    /**
+     * Invalid cron exception (422 Unprocessable Entity)
+     */
+    @ExceptionHandler(InvalidCronException::class)
+    fun handleInvalidCronException(
+        ex: InvalidCronException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid cron expression: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf(
+                    "path" to request.getDescription(false),
+                    "cron_expression" to ex.cronExpression,
+                ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(ex.message ?: "Invalid cron expression", errorDetails))
     }
 
     // === General exception handlers ===

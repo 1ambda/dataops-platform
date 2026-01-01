@@ -27,10 +27,10 @@
 | `dli metric get <name>` | GET | `/api/v1/metrics/{name}` | ✅ P0 Week 1 |
 | `dli metric register <file>` | POST | `/api/v1/metrics` | ✅ P0 Week 1 |
 | `dli metric run <name>` | POST | `/api/v1/metrics/{name}/run` | ✅ P0 Week 2 |
-| `dli dataset list` | GET | `/api/v1/datasets` | ✅ P0 Week 2 |
-| `dli dataset get <name>` | GET | `/api/v1/datasets/{name}` | ✅ P0 Week 2 |
-| `dli dataset register <file>` | POST | `/api/v1/datasets` | ✅ P0 Week 2 |
-| `dli dataset run <name>` | POST | `/api/v1/datasets/{name}/run` | ✅ P0 Week 2 |
+| `dli dataset list` | GET | `/api/v1/datasets` | ✅ **Completed** |
+| `dli dataset get <name>` | GET | `/api/v1/datasets/{name}` | ✅ **Completed** |
+| `dli dataset register <file>` | POST | `/api/v1/datasets` | ✅ **Completed** |
+| `dli dataset run <name>` | POST | `/api/v1/datasets/{name}/run` | ✅ **Completed** |
 | `dli debug` | GET | `/api/v1/health/extended` | ✅ P0 Week 2.5 |
 
 **Total: 9 endpoints enabling core CLI functionality**
@@ -216,6 +216,151 @@ dependencies:
   "row_count": 2,
   "duration_seconds": 1.2,
   "rendered_sql": "SELECT user_id, COUNT(*) FROM events WHERE date = '2026-01-01' GROUP BY 1"
+}
+```
+
+### 3.4 Dataset API Examples
+
+**CLI List Output (dli dataset list):**
+```
+NAME                          OWNER              TAGS           UPDATED
+user_activity_daily           john@company.com   analytics      2026-01-02 08:30:00
+sales_summary_monthly         jane@company.com   sales,monthly  2026-01-01 15:20:00
+```
+
+**API Response (GET /api/v1/datasets):**
+```json
+{
+  "data": [
+    {
+      "name": "user_activity_daily",
+      "displayName": "User Activity Daily",
+      "description": "Daily user activity aggregation",
+      "tags": ["analytics", "daily"],
+      "owner": "john@company.com",
+      "schedule": "0 2 * * *",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2026-01-02T08:30:00Z"
+    }
+  ],
+  "metadata": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+**CLI Detail Output (dli dataset get user_activity_daily):**
+```yaml
+name: user_activity_daily
+displayName: "User Activity Daily"
+description: "Daily user activity aggregation"
+owner: john@company.com
+tags:
+  - analytics
+  - daily
+schedule: "0 2 * * *"
+sqlTemplate: "SELECT user_id, COUNT(*) as activity_count FROM activity WHERE date = '${date}' GROUP BY user_id"
+parameters:
+  - name: date
+    type: string
+    required: true
+    description: "Date in YYYY-MM-DD format"
+```
+
+**API Response (GET /api/v1/datasets/user_activity_daily):**
+```json
+{
+  "name": "user_activity_daily",
+  "displayName": "User Activity Daily",
+  "description": "Daily user activity aggregation",
+  "owner": "john@company.com",
+  "tags": ["analytics", "daily"],
+  "schedule": "0 2 * * *",
+  "sqlTemplate": "SELECT user_id, COUNT(*) as activity_count FROM activity WHERE date = '${date}' GROUP BY user_id",
+  "parameters": [
+    {
+      "name": "date",
+      "type": "string",
+      "required": true,
+      "description": "Date in YYYY-MM-DD format"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2026-01-02T08:30:00Z"
+}
+```
+
+**CLI Execution Output (dli dataset run user_activity_daily --parameters date=2024-01-01):**
+```
+✓ Executed user_activity_daily in 2.1 seconds
+
+   user_id  │ activity_count
+  ──────────┼────────────────
+   user_123 │            45
+   user_124 │            32
+   user_125 │            67
+
+  Rows: 3, Duration: 2.1s
+```
+
+**API Response (POST /api/v1/datasets/user_activity_daily/run):**
+```json
+{
+  "executionId": "exec_789012",
+  "status": "COMPLETED",
+  "resultSummary": {
+    "rowCount": 3,
+    "executionTime": "2.1s",
+    "bytesProcessed": 2048576
+  },
+  "data": [
+    {"user_id": 123, "activity_count": 45},
+    {"user_id": 124, "activity_count": 32},
+    {"user_id": 125, "activity_count": 67}
+  ],
+  "renderedSql": "SELECT user_id, COUNT(*) as activity_count FROM activity WHERE date = '2024-01-01' GROUP BY user_id"
+}
+```
+
+**CLI Registration (dli dataset register dataset.yaml):**
+```yaml
+# dataset.yaml
+name: user_activity_daily
+displayName: "User Activity Daily"
+description: "Daily user activity aggregation"
+owner: john@company.com
+tags:
+  - analytics
+  - daily
+schedule: "0 2 * * *"
+sqlTemplate: "SELECT user_id, COUNT(*) as activity_count FROM activity WHERE date = '${date}' GROUP BY user_id"
+parameters:
+  - name: date
+    type: string
+    required: true
+    description: "Date in YYYY-MM-DD format"
+```
+
+**API Request (POST /api/v1/datasets):**
+```json
+{
+  "name": "user_activity_daily",
+  "displayName": "User Activity Daily",
+  "description": "Daily user activity aggregation",
+  "owner": "john@company.com",
+  "tags": ["analytics", "daily"],
+  "schedule": "0 2 * * *",
+  "sqlTemplate": "SELECT user_id, COUNT(*) as activity_count FROM activity WHERE date = '${date}' GROUP BY user_id",
+  "parameters": [
+    {
+      "name": "date",
+      "type": "string",
+      "required": true,
+      "description": "Date in YYYY-MM-DD format"
+    }
+  ]
 }
 ```
 
