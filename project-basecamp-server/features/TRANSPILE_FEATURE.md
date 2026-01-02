@@ -5,6 +5,10 @@
 > **Implementation Timeline:** Week 11-12 (P3 Phase)
 > **Cross-Reference:** [`archive/P3_LOW_APIS.md`](./archive/P3_LOW_APIS.md) Section 4
 
+> **📦 Data Source:** ✅ Self-managed JPA (규칙 저장) + ✅ External API (basecamp-parser 변환)
+> **Entities:** `TranspileRuleEntity`
+> **External:** `BasecampParserClient` → basecamp-parser service
+
 ---
 
 ## 1. Overview

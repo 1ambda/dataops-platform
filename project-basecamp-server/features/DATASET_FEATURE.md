@@ -4,6 +4,10 @@
 > **CLI Commands:** `dli dataset list/get/register/run` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Week:** Week 2 | **Estimated Effort:** 3-4 days
 
+> **📦 Data Source:** ✅ Self-managed JPA (메타데이터 저장) + ✅ External API (쿼리 실행)
+> **Entities:** `DatasetEntity`
+> **External:** `QueryEngineClient` → BigQuery/Trino 실행
+
 ---
 
 ## 1. Overview

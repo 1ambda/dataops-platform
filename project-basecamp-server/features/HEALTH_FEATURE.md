@@ -4,6 +4,10 @@
 > **CLI Command:** `dli debug` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Time:** Week 2.5 (0.5 weeks)
 
+> **📦 Data Source:** ~~Self-managed JPA~~ | ✅ External API (Runtime Health Checks)
+> **Entities:** None (런타임 상태 조회만)
+> **External:** Database connection, Redis, Airflow API health checks
+
 ---
 
 ## 1. Overview

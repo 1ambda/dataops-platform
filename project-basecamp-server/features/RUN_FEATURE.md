@@ -3,6 +3,9 @@
 > **Version:** 0.1.0 | **Status:** Draft | **Priority:** P3 Low
 > **CLI Commands:** `dli run` (ad-hoc SQL execution) | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Week:** Week 11-12 | **Estimated Effort:** 3-4 days
+>
+> **📦 Data Source:** External API (Query Engine 실행)
+> **External:** BigQuery/Trino Query Engine | **Entities:** None (stateless execution)
 
 ---
 

@@ -3,6 +3,9 @@
 > **Version:** 0.1.0 | **Status:** Draft | **Priority:** P3 Low
 > **CLI Commands:** `dli query list/show/cancel` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Timeline:** Week 10 | **Endpoints:** 3
+>
+> **📦 Data Source:** Self-managed JPA (쿼리 메타데이터 저장)
+> **Entities:** `QueryExecutionEntity`
 
 ---
 

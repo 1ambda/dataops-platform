@@ -3,6 +3,9 @@
 > **Version:** 0.1.0 | **Status:** Draft | **Priority:** P3 Low
 > **CLI Commands:** `dli quality list/get/run` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Timeline:** Week 10 | **Endpoints:** 3
+>
+> **📦 Data Source:** Self-managed JPA (Quality Spec 저장)
+> **Entities:** `QualitySpecEntity`, `QualityResultEntity`
 
 ---
 

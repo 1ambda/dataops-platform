@@ -4,6 +4,10 @@
 > **CLI Commands:** `dli lineage show/upstream/downstream` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Timeline:** Week 5 | **Dependencies:** P0 Metrics/Datasets APIs
 
+> **📦 Data Source:** ✅ Self-managed JPA (lineage 저장) + ✅ External API (SQL 파싱)
+> **Entities:** `LineageNodeEntity`, `LineageEdgeEntity`
+> **External:** `SQLLineageParser` → basecamp-parser `/api/v1/parse/dependencies`
+
 ---
 
 ## 1. Overview

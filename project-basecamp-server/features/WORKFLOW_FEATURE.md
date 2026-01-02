@@ -3,6 +3,9 @@
 > **Version:** 0.1.0 | **Status:** Draft | **Priority:** P2 Medium
 > **CLI Commands:** `dli workflow run/backfill/stop/status/list/history/pause/unpause/register/unregister`
 > **Implementation Week:** Week 6-9 | **Estimated Effort:** 4 weeks
+>
+> **📦 Data Source:** Self-managed JPA (상태 저장) + External API (Airflow 연동)
+> **Entities:** `WorkflowEntity`, `WorkflowRunEntity` | **External:** Airflow REST API
 
 ---
 
