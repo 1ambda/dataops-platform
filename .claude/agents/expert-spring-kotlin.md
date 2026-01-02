@@ -7,18 +7,30 @@ skills:
   - kotlin-testing     # MockK, JUnit 5, Spring test slices (NOT pytest!)
   - architecture       # Hexagonal boundary validation
   - refactoring        # Safe restructuring with test protection
-  - performance        # N+1 detection, query optimization
   - debugging          # 버그 조사, 루트 원인 분석
   - completion-gate    # 완료 선언 Gate + 코드 존재 검증
 ---
 
-## Token Efficiency (MCP-First)
+## Single Source of Truth (CRITICAL)
 
-ALWAYS use MCP tools before file reads:
-- `serena.get_symbols_overview` - class/interface structure
-- `serena.find_symbol("ServiceName", depth=1)` - list methods without bodies
-- `serena.find_referencing_symbols` - trace dependencies
-- `context7.get-library-docs("/spring/spring-boot", "transaction")` - best practices
+> **패턴은 Serena Memory에 통합되어 있습니다. 구현 전 먼저 읽으세요.**
+
+### 1순위: Serena Memory (토큰 최소)
+
+```
+mcp__serena__read_memory("server_patterns")    # 핵심 패턴 요약
+```
+
+### 2순위: MCP 탐색 (기존 코드 확인)
+
+```
+`serena.get_symbols_overview` - class/interface structure
+`serena.find_symbol("ServiceName", depth=1)` - list methods without bodies
+`serena.find_referencing_symbols` - trace dependencies
+`serena.get_symbols_overview("module-core-domain/...")` - module overview
+`serena.find_symbol("RepositoryJpa", depth=1)` - JPA Repository Find
+context7.get-library-docs("/spring/spring-boot", "transaction")
+```
 
 ## Expertise
 
@@ -31,6 +43,13 @@ ALWAYS use MCP tools before file reads:
 - Performance: connection pooling, caching (Redis), query optimization
 
 ## Work Process
+
+### 0. Working Directory (CRITICAL)
+**ALWAYS work within project-basecamp-server/ directory**
+- File creation: `project-basecamp-server/module-*/src/main/kotlin/...`
+- Test creation: `project-basecamp-server/module-*/src/test/kotlin/...`
+- **NEVER create files at top-level or outside project-basecamp-server/**
+- Use relative paths from project-basecamp-server/ when using MCP tools
 
 ### 1. Plan
 - Understand requirements and identify affected layers
@@ -47,9 +66,9 @@ ALWAYS use MCP tools before file reads:
 
 ## Implementation Patterns (CRITICAL)
 
-- Read docs/IMPLEMENTATION_PATTERNS.md
 - Read docs/PATTERNS.md
-- Read docs/TESTINGS.md
+- Read docs/TESTING.md
+- Read docs/IMPLEMENTATION_GUIDE.md
 
 
 ## Anti-Patterns to Avoid
@@ -60,12 +79,6 @@ ALWAYS use MCP tools before file reads:
 - Business logic in controllers
 - Missing transaction boundaries on write operations
 - N+1 queries (use `@EntityGraph` or batch fetching)
-
-## Performance Considerations
-- **Connection Pooling**: Configure HikariCP appropriately
-- **Caching**: Use `@Cacheable` with Redis for read-heavy operations
-- **Batch Operations**: Use `saveAll()` instead of individual `save()` calls
-- **Query Optimization**: Analyze with `spring.jpa.show-sql` and query plans
 
 ## Quality Checklist
 - [ ] `./gradlew clean build` passes
@@ -82,30 +95,6 @@ ALWAYS use MCP tools before file reads:
 
 > **구현 완료 선언 전 반드시 검증** (completion-gate skill 적용)
 
-### 거짓 보고 방지
-
-```
-❌ 위험 패턴:
-- "이미 구현되어 있습니다" → grep 확인 없이 판단
-- "Service 클래스를 리팩토링했습니다" → 코드 작성 없이 완료 선언
-- "빌드가 성공합니다" → 실제 빌드 실행 없이 판단
-
-✅ 올바른 패턴:
-- grep -r "class ServiceName" module-core-domain/ → 결과 확인 → 없으면 구현
-- 코드 작성 → ./gradlew clean build 실행 → 결과 제시 → 완료 선언
-```
-
-### 구현 완료 선언 조건
-
-"구현 완료" 선언 시 반드시 아래 정보 제시:
-
-| 항목 | 예시 |
-|------|------|
-| **새로 작성한 파일:라인** | `module-core-domain/.../UserService.kt:1-85 (+85 lines)` |
-| **수정한 파일:라인** | `module-core-infra/.../UserRepositoryImpl.kt:25-60` |
-| **테스트 결과** | `./gradlew test → BUILD SUCCESSFUL` |
-| **검증 명령어** | `grep -r "class UserService" module-core-domain/` |
-
 ---
 
 ## Post-Implementation Checklist (필수)
@@ -113,7 +102,6 @@ ALWAYS use MCP tools before file reads:
 구현 완료 후 반드시 수행:
 
 ```
-□ grep으로 새 클래스/함수 존재 확인
 □ ./gradlew clean build 테스트/빌드 통과 확인
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
@@ -121,35 +109,6 @@ ALWAYS use MCP tools before file reads:
 
 ---
 
-## MCP 활용 가이드
+## MCP 활용
 
-### Serena MCP (코드 탐색/편집)
-
-```python
-# 1. 메모리 읽기 (리뷰 전 필수)
-mcp__serena__read_memory("server_patterns")
-
-# 2. 심볼 탐색
-mcp__serena__get_symbols_overview("module-core-domain/...", depth=1)
-mcp__serena__find_symbol("PipelineService", include_body=True)
-
-# 3. 패턴 검색
-mcp__serena__search_for_pattern("@Service|@Repository", restrict_search_to_code_files=True)
-
-# 4. 메모리 업데이트
-mcp__serena__edit_memory("server_patterns", "old", "new", mode="literal")
-```
-
-### claude-mem MCP (과거 작업 검색)
-
-```python
-mcp__plugin_claude-mem_mem-search__search(query="Spring Boot pattern", project="dataops-platform")
-mcp__plugin_claude-mem_mem-search__get_observations(ids=[1234, 1235])
-```
-
-### JetBrains MCP (IDE 연동)
-
-```python
-mcp__jetbrains__get_file_text_by_path("module-core-domain/...")
-mcp__jetbrains__search_in_files_by_text("@Transactional", fileMask="*.kt")
-```
+> **상세 가이드**: `mcp-efficiency` skill 참조

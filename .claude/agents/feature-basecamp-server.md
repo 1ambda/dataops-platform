@@ -6,9 +6,7 @@ skills:
   - mcp-efficiency     # Read Serena memory before file reads
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
-  - completion-gate             # 완료 선언 Gate + 코드 존재 검증
   - implementation-checklist    # FEATURE → 체크리스트 자동 생성
-  - dependency-coordination     # 크로스 Agent 의존성 추적
   - integration-finder          # 기존 모듈 연동점 탐색
 ---
 
@@ -25,8 +23,11 @@ mcp__serena__read_memory("server_patterns")    # 핵심 패턴 요약
 ### 2순위: MCP 탐색 (기존 코드 확인)
 
 ```
-serena.get_symbols_overview("module-core-domain/...")
-serena.find_symbol("RepositoryJpa", depth=1)
+`serena.get_symbols_overview` - class/interface structure
+`serena.find_symbol("ServiceName", depth=1)` - list methods without bodies
+`serena.find_referencing_symbols` - trace dependencies
+`serena.get_symbols_overview("module-core-domain/...")` - module overview
+`serena.find_symbol("RepositoryJpa", depth=1)` - JPA Repository Find
 context7.get-library-docs("/spring/spring-boot", "transaction")
 ```
 
@@ -68,34 +69,32 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 [ ] 2. Check feature spec header for Data Source type
 [ ] 3. Search existing code: grep -r "Entity" module-core-domain/
 [ ] 4. Verify repository naming ends with Jpa/Dsl
-[ ] 5. ASK user if spec mentions both JPA and external integration
 ```
 
 ---
 
-## When to Use Skills
+## Working Directory (CRITICAL)
 
-- **code-search**: Explore existing patterns before implementation
-- **testing**: Write tests first, ensure coverage
-- **architecture**: Verify hexagonal boundaries
-- **refactoring**: Improve code structure
-- **debugging**: Trace issues in domain logic
+**ALWAYS work within project-basecamp-server/ directory**
+- File creation: `project-basecamp-server/module-*/src/main/kotlin/...`
+- Test creation: `project-basecamp-server/module-*/src/test/kotlin/...`
+- **NEVER create files at top-level or outside project-basecamp-server/**
+- Use relative paths from project-basecamp-server/ when using MCP tools
+- When using `mcp__serena__*` tools, specify `relative_path` from project-basecamp-server/
 
 ## Core Work Principles
 
 1. **Clarify**: Understand requirements fully. Ask if ambiguous. No over-engineering.
 2. **Design**: Verify approach against patterns (MCP/docs). Consult architecture skill if complex.
 3. **TDD**: Write test → implement → refine. `./gradlew clean build` must pass.
-4. **Document**: Update relevant docs (README, API specs) when behavior changes.
-5. **Self-Review**: Critique your own work. Iterate 1-4 if issues found.
 
 ---
 
 ## Implementation Patterns (CRITICAL)
 
-- Read docs/IMPLEMENTATION_PATTERNS.md
 - Read docs/PATTERNS.md
-- Read docs/TESTINGS.md
+- Read docs/TESTING.md
+- Read docs/IMPLEMENTATION_GUIDE.md
 
 ## Implementation Order
 
@@ -152,8 +151,7 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 
 ## Implementation Verification (CRITICAL)
 
-> **Protocol**: `completion-gate` skill 참조
-> **Gate**: `completion-gate` skill 참조
+> `completion-gate` skill 참조
 
 ### Project Commands
 
@@ -177,43 +175,14 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 ### Post-Implementation
 
 ```
+□ ./gradlew clean build 테스트/빌드 통과 확인
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
 ```
 
 ---
 
-## FEATURE → Implementation Workflow (CRITICAL)
-
-> **Workflow**: `implementation-checklist` skill 참조
-> **Gate**: `completion-gate` skill 참조
-
-### 구현 순서
-
-```
-Entity → Repository → Service → Controller → Tests
-```
-
-### FEATURE 섹션별 검증
-
-| FEATURE 섹션 | 필수 구현 | 검증 방법 |
-|--------------|-----------|-----------|
-| Domain Model | `*Entity` | `grep -r "class.*Entity" module-core-domain/` |
-| Repository | `*RepositoryJpa` | `grep -r "interface.*Repository" module-core-domain/` |
-| Service | `*Service` | `grep -r "@Service" module-core-domain/` |
-| Controller | `*Controller` | `grep -r "@RestController" module-server-api/` |
-| Tests | 테스트 파일 | `ls module-core-*/src/test/**/*Test.kt` |
-
----
 
 ## MCP 활용
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
-
-| 도구 | 용도 |
-|------|------|
-| `serena.read_memory("server_patterns")` | Server 패턴 로드 |
-| `serena.get_symbols_overview("module-core-domain/")` | 도메인 구조 파악 |
-| `serena.find_symbol("PipelineService")` | 서비스 상세 조회 |
-| `claude-mem.search("PipelineService")` | 과거 구현 참조 |
-| `jetbrains.search_in_files_by_text("@Service")` | 패턴 검색 |
