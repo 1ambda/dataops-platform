@@ -15,6 +15,9 @@ import com.github.lambda.common.exception.InvalidTableReferenceException
 import com.github.lambda.common.exception.MetricAlreadyExistsException
 import com.github.lambda.common.exception.MetricExecutionTimeoutException
 import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.common.exception.QualityRunNotFoundException
+import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
+import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.common.exception.TooManyTagsException
@@ -100,6 +103,71 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.REQUEST_TIMEOUT)
             .body(ApiResponse.error(ex.message ?: "Metric execution timeout", errorDetails))
+    }
+
+    // === Quality-specific exception handlers ===
+
+    /**
+     * Quality spec not found exception (404)
+     */
+    @ExceptionHandler(QualitySpecNotFoundException::class)
+    fun handleQualitySpecNotFoundException(
+        ex: QualitySpecNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Quality spec not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Quality spec not found", errorDetails))
+    }
+
+    /**
+     * Quality spec already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(QualitySpecAlreadyExistsException::class)
+    fun handleQualitySpecAlreadyExistsException(
+        ex: QualitySpecAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Quality spec already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Quality spec already exists", errorDetails))
+    }
+
+    /**
+     * Quality run not found exception (404)
+     */
+    @ExceptionHandler(QualityRunNotFoundException::class)
+    fun handleQualityRunNotFoundException(
+        ex: QualityRunNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Quality run not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Quality run not found", errorDetails))
     }
 
     // === Dataset-specific exception handlers ===

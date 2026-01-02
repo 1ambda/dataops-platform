@@ -34,6 +34,10 @@ dependencies {
     // 검증
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // Jackson for JSON processing (JsonNode for Quality entities)
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     // 테스트 의존성
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")

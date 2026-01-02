@@ -1,0 +1,211 @@
+package com.github.lambda.infra.repository
+
+import com.github.lambda.domain.model.quality.TestResultEntity
+import com.github.lambda.domain.model.quality.TestStatus
+import com.github.lambda.domain.repository.TestResultRepositoryJpa
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import org.springframework.stereotype.Repository
+
+/**
+ * Test Result JPA Repository 구현 인터페이스
+ *
+ * Domain TestResultRepositoryJpa 인터페이스와 JpaRepository를 모두 확장하는 Simplified Pattern입니다.
+ * Pure Hexagonal Architecture 패턴에 따라 구현되었습니다.
+ */
+@Repository("testResultRepositoryJpa")
+interface TestResultRepositoryJpaImpl :
+    TestResultRepositoryJpa,
+    JpaRepository<TestResultEntity, Long> {
+    // 기본 CRUD 작업 (save는 JpaRepository와 시그니처가 동일하므로 자동으로 맞춰짐)
+    // override fun save(testResult: TestResultEntity): TestResultEntity - JpaRepository에서 자동 제공
+
+    // 도메인 특화 조회 메서드 (Spring Data JPA auto-implements)
+    override fun findByIdOrNull(id: Long): TestResultEntity? = findById(id).orElse(null)
+
+    override fun existsById(id: Long): Boolean
+
+    override fun deleteById(id: Long)
+
+    // Run별 결과 조회
+    override fun findByRunRunId(runId: String): List<TestResultEntity>
+
+    override fun findByRunRunIdOrderByExecutedAtDesc(
+        runId: String,
+        pageable: Pageable,
+    ): Page<TestResultEntity>
+
+    // Test별 결과 조회
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName")
+    override fun findByTestName(
+        @Param("testName") testName: String,
+    ): List<TestResultEntity>
+
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName ORDER BY tr.executedAt DESC")
+    override fun findByTestNameOrderByExecutedAtDesc(
+        @Param("testName") testName: String,
+        pageable: Pageable,
+    ): Page<TestResultEntity>
+
+    // 상태별 조회
+    override fun findByStatus(status: TestStatus): List<TestResultEntity>
+
+    override fun findByStatusOrderByExecutedAtDesc(
+        status: TestStatus,
+        pageable: Pageable,
+    ): Page<TestResultEntity>
+
+    // Run과 Test의 복합 조회
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.run.runId = :runId AND tr.test.name = :testName")
+    override fun findByRunRunIdAndTestName(
+        @Param("runId") runId: String,
+        @Param("testName") testName: String,
+    ): List<TestResultEntity>
+
+    override fun findByRunRunIdAndStatus(
+        runId: String,
+        status: TestStatus,
+    ): List<TestResultEntity>
+
+    // 전체 목록 조회 (페이지네이션)
+    override fun findAllByOrderByExecutedAtDesc(pageable: Pageable): Page<TestResultEntity>
+
+    // 통계 및 집계
+    override fun countByStatus(status: TestStatus): Long
+
+    override fun countByRunRunId(runId: String): Long
+
+    @Query("SELECT COUNT(tr) FROM TestResultEntity tr WHERE tr.test.name = :testName")
+    override fun countByTestName(
+        @Param("testName") testName: String,
+    ): Long
+
+    // 실행 시간 기반 조회
+    override fun findByDurationSecondsGreaterThan(durationSeconds: Double): List<TestResultEntity>
+
+    override fun findByDurationSecondsBetween(
+        minDuration: Double,
+        maxDuration: Double,
+    ): List<TestResultEntity>
+
+    // 에러 메시지 기반 검색
+    override fun findByErrorMessageContainingIgnoreCase(errorPattern: String): List<TestResultEntity>
+
+    override fun findByErrorMessageIsNotNull(): List<TestResultEntity>
+
+    override fun findByErrorMessageIsNull(): List<TestResultEntity>
+
+    // 상세 정보 검색
+    override fun findByDetailsContainingIgnoreCase(detailsPattern: String): List<TestResultEntity>
+
+    // 최근 실행 결과 조회
+    override fun findTop10ByOrderByExecutedAtDesc(): List<TestResultEntity>
+
+    // 특정 Run의 실패한 테스트 결과들
+    override fun findByRunRunIdAndStatusIn(
+        runId: String,
+        statuses: List<TestStatus>,
+    ): List<TestResultEntity>
+
+    // 특정 Run의 성공/실패 개수 조회
+    override fun countByRunRunIdAndStatus(
+        runId: String,
+        status: TestStatus,
+    ): Long
+
+    // 커스텀 업데이트 쿼리
+    @Modifying
+    @Query("UPDATE TestResultEntity tr SET tr.status = :status WHERE tr.run.runId = :runId")
+    fun updateStatusByRunId(
+        @Param("runId") runId: String,
+        @Param("status") status: TestStatus,
+    ): Int
+
+    // 복잡한 검색 쿼리
+    @Query(
+        """
+        SELECT tr FROM TestResultEntity tr
+        WHERE (:runId IS NULL OR tr.run.runId = :runId)
+        AND (:testName IS NULL OR tr.test.name = :testName)
+        AND (:status IS NULL OR tr.status = :status)
+        AND (:hasError IS NULL OR
+             (:hasError = true AND tr.errorMessage IS NOT NULL) OR
+             (:hasError = false AND tr.errorMessage IS NULL))
+        AND (:minDuration IS NULL OR tr.durationSeconds >= :minDuration)
+        AND (:maxDuration IS NULL OR tr.durationSeconds <= :maxDuration)
+        ORDER BY tr.executedAt DESC
+        """,
+    )
+    fun findByComplexFilters(
+        @Param("runId") runId: String?,
+        @Param("testName") testName: String?,
+        @Param("status") status: TestStatus?,
+        @Param("hasError") hasError: Boolean?,
+        @Param("minDuration") minDuration: Double?,
+        @Param("maxDuration") maxDuration: Double?,
+        pageable: Pageable,
+    ): Page<TestResultEntity>
+
+    @Query(
+        """
+        SELECT COUNT(tr) FROM TestResultEntity tr
+        WHERE (:runId IS NULL OR tr.run.runId = :runId)
+        AND (:testName IS NULL OR tr.test.name = :testName)
+        AND (:status IS NULL OR tr.status = :status)
+        AND (:hasError IS NULL OR
+             (:hasError = true AND tr.errorMessage IS NOT NULL) OR
+             (:hasError = false AND tr.errorMessage IS NULL))
+        AND (:minDuration IS NULL OR tr.durationSeconds >= :minDuration)
+        AND (:maxDuration IS NULL OR tr.durationSeconds <= :maxDuration)
+        """,
+    )
+    fun countByComplexFilters(
+        @Param("runId") runId: String?,
+        @Param("testName") testName: String?,
+        @Param("status") status: TestStatus?,
+        @Param("hasError") hasError: Boolean?,
+        @Param("minDuration") minDuration: Double?,
+        @Param("maxDuration") maxDuration: Double?,
+    ): Long
+
+    // 테스트 결과 통계 조회
+    @Query(
+        """
+        SELECT
+            tr.status as status,
+            COUNT(*) as count,
+            AVG(tr.durationSeconds) as avgDuration,
+            MIN(tr.durationSeconds) as minDuration,
+            MAX(tr.durationSeconds) as maxDuration
+        FROM TestResultEntity tr
+        WHERE tr.run.runId = :runId
+        GROUP BY tr.status
+        ORDER BY tr.status
+        """,
+    )
+    fun getResultStatisticsByRun(
+        @Param("runId") runId: String,
+    ): List<Map<String, Any>>
+
+    // 테스트별 성공률 조회
+    @Query(
+        """
+        SELECT
+            tr.test.name as testName,
+            COUNT(*) as totalRuns,
+            SUM(CASE WHEN tr.status = 'PASSED' THEN 1 ELSE 0 END) as passedRuns,
+            ROUND(SUM(CASE WHEN tr.status = 'PASSED' THEN 1.0 ELSE 0 END) / COUNT(*) * 100, 2) as successRate
+        FROM TestResultEntity tr
+        GROUP BY tr.test.name
+        HAVING COUNT(*) >= :minRuns
+        ORDER BY successRate DESC, totalRuns DESC
+        """,
+    )
+    fun getTestSuccessRates(
+        @Param("minRuns") minRuns: Int = 5,
+    ): List<Map<String, Any>>
+}

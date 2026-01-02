@@ -291,3 +291,79 @@ class UnsupportedEngineException(
         errorCode = "UNSUPPORTED_ENGINE",
         cause = cause,
     )
+
+// ============= Quality Exceptions =============
+
+/**
+ * Exception thrown when a quality spec is not found
+ */
+class QualitySpecNotFoundException(
+    val specName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality spec '$specName' not found",
+        errorCode = "QUALITY_SPEC_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a quality spec that already exists
+ */
+class QualitySpecAlreadyExistsException(
+    val specName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality spec '$specName' already exists",
+        errorCode = "QUALITY_SPEC_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a quality run is not found
+ */
+class QualityRunNotFoundException(
+    val runId: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality run '$runId' not found",
+        errorCode = "QUALITY_RUN_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when quality test execution times out
+ */
+class QualityTestExecutionTimeoutException(
+    val resourceName: String,
+    val timeoutSeconds: Int,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality test execution for '$resourceName' timed out after $timeoutSeconds seconds",
+        errorCode = "QUALITY_TEST_EXECUTION_TIMEOUT",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when quality test execution fails
+ */
+class QualityTestExecutionException(
+    val resourceName: String,
+    val testName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality test '$testName' execution failed for resource '$resourceName'",
+        errorCode = "QUALITY_TEST_EXECUTION_FAILED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when quality rule engine is unavailable
+ */
+class QualityRuleEngineUnavailableException(
+    val operation: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Quality rule engine unavailable for operation: $operation",
+        errorCode = "QUALITY_RULE_ENGINE_UNAVAILABLE",
+        cause = cause,
+    )
