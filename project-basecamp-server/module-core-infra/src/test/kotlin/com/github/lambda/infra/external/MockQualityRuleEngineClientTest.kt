@@ -1,8 +1,8 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.domain.external.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.GenerateSqlRequest
 import com.github.lambda.domain.model.quality.TestType
-import com.github.lambda.domain.repository.QualityRuleEngineException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

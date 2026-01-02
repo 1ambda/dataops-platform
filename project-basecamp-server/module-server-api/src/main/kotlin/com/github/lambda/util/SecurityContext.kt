@@ -34,6 +34,19 @@ object SecurityContext {
             ?: throw IllegalArgumentException("User ID not found in security context")
 
     /**
+     * 현재 사용자 이름(이메일)을 조회합니다.
+     */
+    fun getCurrentUsername(): String {
+        val context = SecurityContextHolder.getContext()
+        val principal = context?.authentication?.principal
+
+        return when (principal) {
+            is OidcUser -> principal.email ?: principal.subject ?: "unknown"
+            else -> "unknown"
+        }
+    }
+
+    /**
      * Principal을 SessionResponse로 변환합니다.
      */
     fun of(principal: Principal?): SessionResponse =

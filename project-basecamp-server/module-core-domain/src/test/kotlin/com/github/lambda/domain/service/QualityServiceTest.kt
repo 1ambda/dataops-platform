@@ -3,14 +3,13 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
-import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.RunStatus
-import com.github.lambda.domain.model.quality.Severity
-import com.github.lambda.domain.model.quality.TestStatus
-import com.github.lambda.domain.model.quality.TestType
 import com.github.lambda.domain.model.quality.QualityRunEntity
 import com.github.lambda.domain.model.quality.QualitySpecEntity
 import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.model.quality.ResourceType
+import com.github.lambda.domain.model.quality.RunStatus
+import com.github.lambda.domain.model.quality.Severity
+import com.github.lambda.domain.model.quality.TestType
 import com.github.lambda.domain.repository.QualityRunRepositoryJpa
 import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
 import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import java.time.Instant
@@ -44,13 +42,14 @@ class QualityServiceTest {
     private val qualityTestRepositoryJpa: QualityTestRepositoryJpa = mockk()
     private val qualityRuleEngineService: QualityRuleEngineService = mockk()
 
-    private val qualityService = QualityService(
-        qualitySpecRepositoryJpa,
-        qualitySpecRepositoryDsl,
-        qualityRunRepositoryJpa,
-        qualityTestRepositoryJpa,
-        qualityRuleEngineService
-    )
+    private val qualityService =
+        QualityService(
+            qualitySpecRepositoryJpa,
+            qualitySpecRepositoryDsl,
+            qualityRunRepositoryJpa,
+            qualityTestRepositoryJpa,
+            qualityRuleEngineService,
+        )
 
     private lateinit var testQualitySpec: QualitySpecEntity
     private lateinit var testQualityTest: QualityTestEntity
@@ -58,37 +57,40 @@ class QualityServiceTest {
 
     @BeforeEach
     fun setUp() {
-        testQualitySpec = QualitySpecEntity(
-            name = "test_dataset_quality_spec",
-            resourceName = "iceberg.analytics.users",
-            resourceType = ResourceType.DATASET,
-            owner = "test@example.com",
-            team = "data-team",
-            description = "Test quality spec for users dataset",
-            tags = mutableSetOf("test", "users"),
-            scheduleCron = "0 0 8 * * ?",
-            scheduleTimezone = "UTC",
-            enabled = true
-        )
+        testQualitySpec =
+            QualitySpecEntity(
+                name = "test_dataset_quality_spec",
+                resourceName = "iceberg.analytics.users",
+                resourceType = ResourceType.DATASET,
+                owner = "test@example.com",
+                team = "data-team",
+                description = "Test quality spec for users dataset",
+                tags = mutableSetOf("test", "users"),
+                scheduleCron = "0 0 8 * * ?",
+                scheduleTimezone = "UTC",
+                enabled = true,
+            )
 
-        testQualityTest = QualityTestEntity(
-            name = "user_id_not_null_test",
-            testType = TestType.NOT_NULL,
-            targetColumns = mutableListOf("user_id"),
-            severity = Severity.ERROR,
-            enabled = true,
-            description = "User ID should not be null"
-        )
+        testQualityTest =
+            QualityTestEntity(
+                name = "user_id_not_null_test",
+                testType = TestType.NOT_NULL,
+                targetColumns = mutableListOf("user_id"),
+                severity = Severity.ERROR,
+                enabled = true,
+                description = "User ID should not be null",
+            )
 
-        testQualityRun = QualityRunEntity(
-            runId = "run_20250102_120000_001",
-            resourceName = "iceberg.analytics.users",
-            status = RunStatus.RUNNING,
-            startedAt = Instant.now(),
-            passedTests = 0,
-            failedTests = 0,
-            executedBy = "test@example.com"
-        )
+        testQualityRun =
+            QualityRunEntity(
+                runId = "run_20250102_120000_001",
+                resourceName = "iceberg.analytics.users",
+                status = RunStatus.RUNNING,
+                startedAt = Instant.now(),
+                passedTests = 0,
+                failedTests = 0,
+                executedBy = "test@example.com",
+            )
     }
 
     @Nested
@@ -106,7 +108,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             } returns page
 
@@ -120,7 +122,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             }
         }
@@ -138,7 +140,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = ResourceType.DATASET,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             } returns page
 
@@ -152,7 +154,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = ResourceType.DATASET,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             }
         }
@@ -170,7 +172,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = tag,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             } returns page
 
@@ -196,7 +198,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             } returns page
 
@@ -209,7 +211,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = null,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             }
         }
@@ -226,7 +228,7 @@ class QualityServiceTest {
                 qualitySpecRepositoryDsl.findByFilters(
                     resourceType = null,
                     tag = tag,
-                    pageable = pageable
+                    pageable = pageable,
                 )
             } returns page
 
@@ -278,9 +280,10 @@ class QualityServiceTest {
         fun `should return null for soft-deleted quality spec`() {
             // Given
             val name = "deleted_quality_spec"
-            val deletedSpec = testQualitySpec.apply {
-                deletedAt = LocalDateTime.now()
-            }
+            val deletedSpec =
+                testQualitySpec.apply {
+                    deletedAt = LocalDateTime.now()
+                }
             every { qualitySpecRepositoryJpa.findByName(name) } returns deletedSpec
 
             // When
@@ -316,9 +319,10 @@ class QualityServiceTest {
             every { qualitySpecRepositoryJpa.findByName(name) } returns null
 
             // When & Then
-            val exception = assertThrows<QualitySpecNotFoundException> {
-                qualityService.getQualitySpecOrThrow(name)
-            }
+            val exception =
+                assertThrows<QualitySpecNotFoundException> {
+                    qualityService.getQualitySpecOrThrow(name)
+                }
 
             assertThat(exception.message).contains(name)
         }
@@ -331,15 +335,16 @@ class QualityServiceTest {
         @DisplayName("should create quality spec successfully when name does not exist")
         fun `should create quality spec successfully when name does not exist`() {
             // Given
-            val newSpec = QualitySpecEntity(
-                name = "new_quality_spec",
-                resourceName = "iceberg.analytics.orders",
-                resourceType = ResourceType.DATASET,
-                owner = "new@example.com",
-                description = "New quality spec",
-                tags = mutableSetOf("new"),
-                enabled = true
-            )
+            val newSpec =
+                QualitySpecEntity(
+                    name = "new_quality_spec",
+                    resourceName = "iceberg.analytics.orders",
+                    resourceType = ResourceType.DATASET,
+                    owner = "new@example.com",
+                    description = "New quality spec",
+                    tags = mutableSetOf("new"),
+                    enabled = true,
+                )
             newSpec.addTest(testQualityTest)
 
             every { qualitySpecRepositoryJpa.existsByName(newSpec.name) } returns false
@@ -369,19 +374,21 @@ class QualityServiceTest {
         fun `should throw QualitySpecAlreadyExistsException when spec already exists`() {
             // Given
             val existingName = "existing_quality_spec"
-            val newSpec = QualitySpecEntity(
-                name = existingName,
-                resourceName = "iceberg.analytics.orders",
-                resourceType = ResourceType.DATASET,
-                owner = "test@example.com",
-                enabled = true
-            )
+            val newSpec =
+                QualitySpecEntity(
+                    name = existingName,
+                    resourceName = "iceberg.analytics.orders",
+                    resourceType = ResourceType.DATASET,
+                    owner = "test@example.com",
+                    enabled = true,
+                )
             every { qualitySpecRepositoryJpa.existsByName(existingName) } returns true
 
             // When & Then
-            val exception = assertThrows<QualitySpecAlreadyExistsException> {
-                qualityService.createQualitySpec(newSpec)
-            }
+            val exception =
+                assertThrows<QualitySpecAlreadyExistsException> {
+                    qualityService.createQualitySpec(newSpec)
+                }
 
             assertThat(exception.message).contains(existingName)
             verify(exactly = 1) { qualitySpecRepositoryJpa.existsByName(existingName) }
@@ -403,10 +410,11 @@ class QualityServiceTest {
             every { qualitySpecRepositoryJpa.save(any()) } answers { firstArg() }
 
             // When
-            val result = qualityService.updateQualitySpec(
-                name = name,
-                description = newDescription
-            )
+            val result =
+                qualityService.updateQualitySpec(
+                    name = name,
+                    description = newDescription,
+                )
 
             // Then
             assertThat(result.description).isEqualTo(newDescription)
@@ -424,10 +432,11 @@ class QualityServiceTest {
             every { qualitySpecRepositoryJpa.save(any()) } answers { firstArg() }
 
             // When
-            val result = qualityService.updateQualitySpec(
-                name = name,
-                enabled = enabled
-            )
+            val result =
+                qualityService.updateQualitySpec(
+                    name = name,
+                    enabled = enabled,
+                )
 
             // Then
             assertThat(result.enabled).isEqualTo(enabled)
@@ -438,24 +447,26 @@ class QualityServiceTest {
         fun `should update tests`() {
             // Given
             val name = "test_dataset_quality_spec"
-            val newTests = listOf(
-                QualityTestEntity(
-                    name = "new_test",
-                    testType = TestType.UNIQUE,
-                    targetColumns = mutableListOf("email"),
-                    severity = Severity.ERROR,
-                    enabled = true
+            val newTests =
+                listOf(
+                    QualityTestEntity(
+                        name = "new_test",
+                        testType = TestType.UNIQUE,
+                        targetColumns = mutableListOf("email"),
+                        severity = Severity.ERROR,
+                        enabled = true,
+                    ),
                 )
-            )
 
             every { qualitySpecRepositoryJpa.findByName(name) } returns testQualitySpec
             every { qualitySpecRepositoryJpa.save(any()) } answers { firstArg() }
 
             // When
-            val result = qualityService.updateQualitySpec(
-                name = name,
-                tests = newTests
-            )
+            val result =
+                qualityService.updateQualitySpec(
+                    name = name,
+                    tests = newTests,
+                )
 
             // Then
             assertThat(result.tests).hasSize(1)
@@ -535,16 +546,18 @@ class QualityServiceTest {
             // Mock rule engine service
             every {
                 qualityRuleEngineService.generateNotNullTestSql(resourceName, "user_id")
-            } returns mockk {
-                every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
-            }
+            } returns
+                mockk {
+                    every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
+                }
 
             // When
-            val result = qualityService.executeQualityTests(
-                resourceName = resourceName,
-                qualitySpecName = qualitySpecName,
-                executedBy = executedBy
-            )
+            val result =
+                qualityService.executeQualityTests(
+                    resourceName = resourceName,
+                    qualitySpecName = qualitySpecName,
+                    executedBy = executedBy,
+                )
 
             // Then
             assertThat(result.resourceName).isEqualTo(resourceName)
@@ -578,15 +591,17 @@ class QualityServiceTest {
 
             every {
                 qualityRuleEngineService.generateNotNullTestSql(resourceName, "user_id")
-            } returns mockk {
-                every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
-            }
+            } returns
+                mockk {
+                    every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
+                }
 
             // When
-            val result = qualityService.executeQualityTests(
-                resourceName = resourceName,
-                executedBy = executedBy
-            )
+            val result =
+                qualityService.executeQualityTests(
+                    resourceName = resourceName,
+                    executedBy = executedBy,
+                )
 
             // Then
             assertThat(result.resourceName).isEqualTo(resourceName)
@@ -717,9 +732,10 @@ class QualityServiceTest {
             every { qualityRunRepositoryJpa.findByRunId(runId) } returns null
 
             // When & Then
-            val exception = assertThrows<QualityRunNotFoundException> {
-                qualityService.getQualityRunOrThrow(runId)
-            }
+            val exception =
+                assertThrows<QualityRunNotFoundException> {
+                    qualityService.getQualityRunOrThrow(runId)
+                }
 
             assertThat(exception.message).contains(runId)
         }

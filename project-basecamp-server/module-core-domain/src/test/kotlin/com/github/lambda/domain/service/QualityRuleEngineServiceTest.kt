@@ -1,10 +1,10 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.domain.external.QualityRuleEngineClient
+import com.github.lambda.domain.external.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.GenerateSqlRequest
 import com.github.lambda.domain.model.quality.GenerateSqlResponse
 import com.github.lambda.domain.model.quality.TestType
-import com.github.lambda.domain.external.QualityRuleEngineClient
-import com.github.lambda.domain.external.QualityRuleEngineException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

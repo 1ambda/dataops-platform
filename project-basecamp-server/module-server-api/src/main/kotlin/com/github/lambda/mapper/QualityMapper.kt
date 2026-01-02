@@ -20,7 +20,6 @@ import org.springframework.stereotype.Component
  */
 @Component
 class QualityMapper {
-
     /**
      * Convert QualitySpecEntity to QualitySpecSummaryDto (list view)
      *
@@ -143,24 +142,27 @@ class QualityMapper {
     private fun convertJsonNodeToMap(jsonNode: com.fasterxml.jackson.databind.JsonNode): Map<String, Any> {
         val result = mutableMapOf<String, Any>()
         jsonNode.fields().forEach { (key, value) ->
-            result[key] = when {
-                value.isTextual -> value.asText()
-                value.isNumber -> value.asLong()
-                value.isBoolean -> value.asBoolean()
-                value.isArray -> {
-                    val list = mutableListOf<Any>()
-                    value.forEach { item ->
-                        list.add(when {
-                            item.isTextual -> item.asText()
-                            item.isNumber -> item.asLong()
-                            item.isBoolean -> item.asBoolean()
-                            else -> item.toString()
-                        })
+            result[key] =
+                when {
+                    value.isTextual -> value.asText()
+                    value.isNumber -> value.asLong()
+                    value.isBoolean -> value.asBoolean()
+                    value.isArray -> {
+                        val list = mutableListOf<Any>()
+                        value.forEach { item ->
+                            list.add(
+                                when {
+                                    item.isTextual -> item.asText()
+                                    item.isNumber -> item.asLong()
+                                    item.isBoolean -> item.asBoolean()
+                                    else -> item.toString()
+                                },
+                            )
+                        }
+                        list
                     }
-                    list
+                    else -> value.toString()
                 }
-                else -> value.toString()
-            }
         }
         return result
     }

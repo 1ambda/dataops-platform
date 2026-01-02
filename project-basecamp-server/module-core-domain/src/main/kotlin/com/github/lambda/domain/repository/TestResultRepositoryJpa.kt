@@ -25,7 +25,7 @@ interface TestResultRepositoryJpa {
     // Run별 결과 조회
     fun findByRunRunId(runId: String): List<TestResultEntity>
 
-    fun findByRunRunIdOrderByExecutedAtDesc(
+    fun findByRunRunIdOrderByCreatedAtDesc(
         runId: String,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -33,7 +33,7 @@ interface TestResultRepositoryJpa {
     // Test별 결과 조회
     fun findByTestName(testName: String): List<TestResultEntity>
 
-    fun findByTestNameOrderByExecutedAtDesc(
+    fun findByTestNameOrderByCreatedAtDesc(
         testName: String,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -41,7 +41,7 @@ interface TestResultRepositoryJpa {
     // 상태별 조회
     fun findByStatus(status: TestStatus): List<TestResultEntity>
 
-    fun findByStatusOrderByExecutedAtDesc(
+    fun findByStatusOrderByCreatedAtDesc(
         status: TestStatus,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -58,7 +58,7 @@ interface TestResultRepositoryJpa {
     ): List<TestResultEntity>
 
     // 전체 목록 조회 (페이지네이션)
-    fun findAllByOrderByExecutedAtDesc(pageable: Pageable): Page<TestResultEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<TestResultEntity>
 
     // 통계 및 집계
     fun countByStatus(status: TestStatus): Long
@@ -88,7 +88,7 @@ interface TestResultRepositoryJpa {
     fun findByDetailsContainingIgnoreCase(detailsPattern: String): List<TestResultEntity>
 
     // 최근 실행 결과 조회
-    fun findTop10ByOrderByExecutedAtDesc(): List<TestResultEntity>
+    fun findTop10ByOrderByCreatedAtDesc(): List<TestResultEntity>
 
     // 특정 Run의 실패한 테스트 결과들
     fun findByRunRunIdAndStatusIn(

@@ -1,5 +1,7 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.domain.external.QualityRuleEngineClient
+import com.github.lambda.domain.external.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.AcceptedValuesConfig
 import com.github.lambda.domain.model.quality.ExpressionConfig
 import com.github.lambda.domain.model.quality.GenerateSqlRequest
@@ -7,8 +9,6 @@ import com.github.lambda.domain.model.quality.GenerateSqlResponse
 import com.github.lambda.domain.model.quality.RelationshipsConfig
 import com.github.lambda.domain.model.quality.RowCountConfig
 import com.github.lambda.domain.model.quality.TestType
-import com.github.lambda.domain.external.QualityRuleEngineClient
-import com.github.lambda.domain.external.QualityRuleEngineException
 import org.springframework.stereotype.Repository
 
 /**

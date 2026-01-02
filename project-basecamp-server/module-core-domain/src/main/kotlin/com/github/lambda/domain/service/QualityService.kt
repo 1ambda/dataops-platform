@@ -340,7 +340,11 @@ class QualityService(
                         qualityRuleEngineService.generateUniqueTestSql(resourceName, test.getPrimaryColumn()!!)
                     TestType.ACCEPTED_VALUES -> {
                         val values = test.config?.get("values")?.map { it.asText() } ?: emptyList()
-                        qualityRuleEngineService.generateAcceptedValuesTestSql(resourceName, test.getPrimaryColumn()!!, values)
+                        qualityRuleEngineService.generateAcceptedValuesTestSql(
+                            resourceName,
+                            test.getPrimaryColumn()!!,
+                            values,
+                        )
                     }
                     TestType.RELATIONSHIPS -> {
                         val toTable = test.config?.get("to_table")?.asText() ?: ""

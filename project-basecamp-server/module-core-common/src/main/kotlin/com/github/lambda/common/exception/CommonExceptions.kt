@@ -367,3 +367,133 @@ class QualityRuleEngineUnavailableException(
         errorCode = "QUALITY_RULE_ENGINE_UNAVAILABLE",
         cause = cause,
     )
+
+// ============= Workflow Exceptions =============
+
+/**
+ * Exception thrown when a workflow is not found
+ */
+class WorkflowNotFoundException(
+    val datasetName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow '$datasetName' not found",
+        errorCode = "WORKFLOW_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a workflow that already exists
+ */
+class WorkflowAlreadyExistsException(
+    val datasetName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow '$datasetName' already exists",
+        errorCode = "WORKFLOW_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a workflow run is not found
+ */
+class WorkflowRunNotFoundException(
+    val runId: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow run '$runId' not found",
+        errorCode = "WORKFLOW_RUN_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow is in invalid state for the operation
+ */
+class WorkflowInvalidStateException(
+    val datasetName: String,
+    val currentState: String,
+    val operation: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Cannot perform '$operation' on workflow '$datasetName'. Current state: $currentState",
+        errorCode = "WORKFLOW_INVALID_STATE",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow permission is denied (e.g., trying to modify CODE workflow)
+ */
+class WorkflowPermissionDeniedException(
+    val datasetName: String,
+    val operation: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Permission denied for '$operation' on workflow '$datasetName': $reason",
+        errorCode = "WORKFLOW_PERMISSION_DENIED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when Airflow API call fails
+ */
+class AirflowConnectionException(
+    val operation: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Airflow connection failed for operation: $operation",
+        errorCode = "AIRFLOW_CONNECTION_FAILED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow execution times out
+ */
+class WorkflowExecutionTimeoutException(
+    val runId: String,
+    val timeoutSeconds: Int,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow run '$runId' timed out after $timeoutSeconds seconds",
+        errorCode = "WORKFLOW_EXECUTION_TIMEOUT",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow execution fails
+ */
+class WorkflowExecutionException(
+    val runId: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow run '$runId' failed: $reason",
+        errorCode = "WORKFLOW_EXECUTION_FAILED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow registration fails
+ */
+class WorkflowRegistrationException(
+    val datasetName: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Failed to register workflow '$datasetName': $reason",
+        errorCode = "WORKFLOW_REGISTRATION_FAILED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow unregistration fails
+ */
+class WorkflowUnregistrationException(
+    val datasetName: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Failed to unregister workflow '$datasetName': $reason",
+        errorCode = "WORKFLOW_UNREGISTRATION_FAILED",
+        cause = cause,
+    )

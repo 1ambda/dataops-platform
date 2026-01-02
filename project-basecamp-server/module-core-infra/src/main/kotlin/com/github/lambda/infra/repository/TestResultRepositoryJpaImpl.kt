@@ -34,7 +34,7 @@ interface TestResultRepositoryJpaImpl :
     // Run별 결과 조회
     override fun findByRunRunId(runId: String): List<TestResultEntity>
 
-    override fun findByRunRunIdOrderByExecutedAtDesc(
+    override fun findByRunRunIdOrderByCreatedAtDesc(
         runId: String,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -45,8 +45,8 @@ interface TestResultRepositoryJpaImpl :
         @Param("testName") testName: String,
     ): List<TestResultEntity>
 
-    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName ORDER BY tr.executedAt DESC")
-    override fun findByTestNameOrderByExecutedAtDesc(
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName ORDER BY tr.createdAt DESC")
+    override fun findByTestNameOrderByCreatedAtDesc(
         @Param("testName") testName: String,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -54,7 +54,7 @@ interface TestResultRepositoryJpaImpl :
     // 상태별 조회
     override fun findByStatus(status: TestStatus): List<TestResultEntity>
 
-    override fun findByStatusOrderByExecutedAtDesc(
+    override fun findByStatusOrderByCreatedAtDesc(
         status: TestStatus,
         pageable: Pageable,
     ): Page<TestResultEntity>
@@ -72,7 +72,7 @@ interface TestResultRepositoryJpaImpl :
     ): List<TestResultEntity>
 
     // 전체 목록 조회 (페이지네이션)
-    override fun findAllByOrderByExecutedAtDesc(pageable: Pageable): Page<TestResultEntity>
+    override fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<TestResultEntity>
 
     // 통계 및 집계
     override fun countByStatus(status: TestStatus): Long
@@ -85,11 +85,15 @@ interface TestResultRepositoryJpaImpl :
     ): Long
 
     // 실행 시간 기반 조회
-    override fun findByDurationSecondsGreaterThan(durationSeconds: Double): List<TestResultEntity>
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.executionTimeSeconds > :durationSeconds")
+    override fun findByDurationSecondsGreaterThan(
+        @Param("durationSeconds") durationSeconds: Double,
+    ): List<TestResultEntity>
 
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.executionTimeSeconds BETWEEN :minDuration AND :maxDuration")
     override fun findByDurationSecondsBetween(
-        minDuration: Double,
-        maxDuration: Double,
+        @Param("minDuration") minDuration: Double,
+        @Param("maxDuration") maxDuration: Double,
     ): List<TestResultEntity>
 
     // 에러 메시지 기반 검색
@@ -99,11 +103,17 @@ interface TestResultRepositoryJpaImpl :
 
     override fun findByErrorMessageIsNull(): List<TestResultEntity>
 
-    // 상세 정보 검색
-    override fun findByDetailsContainingIgnoreCase(detailsPattern: String): List<TestResultEntity>
+    // 상세 정보 검색 (sampleFailures 필드 기반 - native query for LOB support)
+    @Query(
+        value = "SELECT * FROM quality_test_results WHERE LOWER(sample_failures) LIKE LOWER(:detailsPattern)",
+        nativeQuery = true,
+    )
+    override fun findByDetailsContainingIgnoreCase(
+        @Param("detailsPattern") detailsPattern: String,
+    ): List<TestResultEntity>
 
     // 최근 실행 결과 조회
-    override fun findTop10ByOrderByExecutedAtDesc(): List<TestResultEntity>
+    override fun findTop10ByOrderByCreatedAtDesc(): List<TestResultEntity>
 
     // 특정 Run의 실패한 테스트 결과들
     override fun findByRunRunIdAndStatusIn(
@@ -135,9 +145,9 @@ interface TestResultRepositoryJpaImpl :
         AND (:hasError IS NULL OR
              (:hasError = true AND tr.errorMessage IS NOT NULL) OR
              (:hasError = false AND tr.errorMessage IS NULL))
-        AND (:minDuration IS NULL OR tr.durationSeconds >= :minDuration)
-        AND (:maxDuration IS NULL OR tr.durationSeconds <= :maxDuration)
-        ORDER BY tr.executedAt DESC
+        AND (:minDuration IS NULL OR tr.executionTimeSeconds >= :minDuration)
+        AND (:maxDuration IS NULL OR tr.executionTimeSeconds <= :maxDuration)
+        ORDER BY tr.createdAt DESC
         """,
     )
     fun findByComplexFilters(
@@ -159,8 +169,8 @@ interface TestResultRepositoryJpaImpl :
         AND (:hasError IS NULL OR
              (:hasError = true AND tr.errorMessage IS NOT NULL) OR
              (:hasError = false AND tr.errorMessage IS NULL))
-        AND (:minDuration IS NULL OR tr.durationSeconds >= :minDuration)
-        AND (:maxDuration IS NULL OR tr.durationSeconds <= :maxDuration)
+        AND (:minDuration IS NULL OR tr.executionTimeSeconds >= :minDuration)
+        AND (:maxDuration IS NULL OR tr.executionTimeSeconds <= :maxDuration)
         """,
     )
     fun countByComplexFilters(
@@ -178,9 +188,9 @@ interface TestResultRepositoryJpaImpl :
         SELECT
             tr.status as status,
             COUNT(*) as count,
-            AVG(tr.durationSeconds) as avgDuration,
-            MIN(tr.durationSeconds) as minDuration,
-            MAX(tr.durationSeconds) as maxDuration
+            AVG(tr.executionTimeSeconds) as avgDuration,
+            MIN(tr.executionTimeSeconds) as minDuration,
+            MAX(tr.executionTimeSeconds) as maxDuration
         FROM TestResultEntity tr
         WHERE tr.run.runId = :runId
         GROUP BY tr.status

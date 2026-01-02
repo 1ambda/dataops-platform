@@ -77,4 +77,41 @@ interface QualitySpecRepositoryJpa {
     fun findByTeam(team: String): List<QualitySpecEntity>
 
     fun findByTeamIsNull(): List<QualitySpecEntity>
+
+    // 커스텀 업데이트 쿼리
+    fun updateLastAccessedByName(
+        name: String,
+        updatedAt: java.time.LocalDateTime,
+    ): Int
+
+    // 복잡한 검색 쿼리
+    fun findByComplexFilters(
+        resourceType: ResourceType?,
+        resourceName: String?,
+        owner: String?,
+        team: String?,
+        tag: String?,
+        enabled: Boolean?,
+        search: String?,
+        pageable: Pageable,
+    ): Page<QualitySpecEntity>
+
+    fun countByComplexFilters(
+        resourceType: ResourceType?,
+        resourceName: String?,
+        owner: String?,
+        team: String?,
+        tag: String?,
+        enabled: Boolean?,
+        search: String?,
+    ): Long
+
+    // 최근 수정된 스펙 조회
+    fun findRecentlyUpdated(
+        since: java.time.LocalDateTime,
+        pageable: Pageable,
+    ): Page<QualitySpecEntity>
+
+    // 활성 스케줄 스펙 조회
+    fun findActiveScheduledQualitySpecs(cronPattern: String?): List<QualitySpecEntity>
 }

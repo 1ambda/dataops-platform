@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
 import com.github.lambda.domain.model.quality.QualitySpecEntity
-import com.github.lambda.domain.model.common.ResourceType
+import com.github.lambda.domain.model.quality.ResourceType
 import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -22,52 +22,74 @@ import java.time.LocalDateTime
 interface QualitySpecRepositoryJpaImpl :
     QualitySpecRepositoryJpa,
     JpaRepository<QualitySpecEntity, String> {
-
     // 기본 조회 메서드들 (Spring Data JPA auto-implements)
     override fun findByName(name: String): QualitySpecEntity?
+
     override fun existsByName(name: String): Boolean
+
     override fun deleteByName(name: String): Long
 
     // 리소스 기반 조회
     override fun findByResourceName(resourceName: String): List<QualitySpecEntity>
+
     override fun findByResourceType(resourceType: ResourceType): List<QualitySpecEntity>
-    override fun findByResourceNameAndResourceType(resourceName: String, resourceType: ResourceType): List<QualitySpecEntity>
+
+    override fun findByResourceNameAndResourceType(
+        resourceName: String,
+        resourceType: ResourceType,
+    ): List<QualitySpecEntity>
 
     // 소유자 기반 조회
     override fun findByOwner(owner: String): List<QualitySpecEntity>
-    override fun findByOwnerOrderByUpdatedAtDesc(owner: String, pageable: Pageable): Page<QualitySpecEntity>
+
+    override fun findByOwnerOrderByUpdatedAtDesc(
+        owner: String,
+        pageable: Pageable,
+    ): Page<QualitySpecEntity>
 
     // 태그 기반 조회
     override fun findByTagsContaining(tag: String): List<QualitySpecEntity>
 
     // 활성화 상태 기반 조회
     override fun findByEnabled(enabled: Boolean): List<QualitySpecEntity>
-    override fun findByEnabledOrderByUpdatedAtDesc(enabled: Boolean, pageable: Pageable): Page<QualitySpecEntity>
+
+    override fun findByEnabledOrderByUpdatedAtDesc(
+        enabled: Boolean,
+        pageable: Pageable,
+    ): Page<QualitySpecEntity>
 
     // 전체 목록 조회
     override fun findAllByOrderByUpdatedAtDesc(pageable: Pageable): Page<QualitySpecEntity>
 
     // 통계 및 집계
     override fun countByOwner(owner: String): Long
+
     override fun countByResourceType(resourceType: ResourceType): Long
+
     override fun countByEnabled(enabled: Boolean): Long
 
     // 이름 패턴 검색
     override fun findByNameContainingIgnoreCase(namePattern: String): List<QualitySpecEntity>
+
     override fun findByDescriptionContainingIgnoreCase(descriptionPattern: String): List<QualitySpecEntity>
 
     // 스케줄 관련 조회
     override fun findByScheduleCronIsNotNull(): List<QualitySpecEntity>
+
     override fun findByScheduleCronIsNull(): List<QualitySpecEntity>
 
     // 팀별 조회
     override fun findByTeam(team: String): List<QualitySpecEntity>
+
     override fun findByTeamIsNull(): List<QualitySpecEntity>
 
     // 커스텀 업데이트 쿼리
     @Modifying
     @Query("UPDATE QualitySpecEntity qs SET qs.updatedAt = :updatedAt WHERE qs.name = :name")
-    override fun updateLastAccessedByName(@Param("name") name: String, @Param("updatedAt") updatedAt: LocalDateTime): Int
+    override fun updateLastAccessedByName(
+        @Param("name") name: String,
+        @Param("updatedAt") updatedAt: LocalDateTime,
+    ): Int
 
     // 복잡한 검색 쿼리
     @Query(
@@ -127,7 +149,10 @@ interface QualitySpecRepositoryJpaImpl :
         ORDER BY qs.updatedAt DESC
         """,
     )
-    override fun findRecentlyUpdated(@Param("since") since: LocalDateTime, pageable: Pageable): Page<QualitySpecEntity>
+    override fun findRecentlyUpdated(
+        @Param("since") since: LocalDateTime,
+        pageable: Pageable,
+    ): Page<QualitySpecEntity>
 
     @Query(
         """
@@ -138,5 +163,7 @@ interface QualitySpecRepositoryJpaImpl :
         ORDER BY qs.updatedAt DESC
         """,
     )
-    override fun findActiveScheduledQualitySpecs(@Param("cronPattern") cronPattern: String?): List<QualitySpecEntity>
+    override fun findActiveScheduledQualitySpecs(
+        @Param("cronPattern") cronPattern: String?,
+    ): List<QualitySpecEntity>
 }

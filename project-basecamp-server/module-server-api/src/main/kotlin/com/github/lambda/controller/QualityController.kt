@@ -8,15 +8,14 @@ import com.github.lambda.dto.quality.QualitySpecDetailDto
 import com.github.lambda.dto.quality.QualitySpecSummaryDto
 import com.github.lambda.mapper.QualityMapper
 import com.github.lambda.util.SecurityContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import mu.KotlinLogging
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.validation.annotation.Validated
@@ -28,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
 /**
  * Quality Management REST API Controller
@@ -130,17 +130,20 @@ class QualityController(
         @NotBlank resourceName: String,
         @Valid @RequestBody request: ExecuteQualityTestRequest,
     ): ResponseEntity<QualityRunResultDto> {
-        logger.info { "POST /api/v1/quality/test/$resourceName - spec: ${request.qualitySpecName}, tests: ${request.testNames}" }
+        logger.info {
+            "POST /api/v1/quality/test/$resourceName - spec: ${request.qualitySpecName}, tests: ${request.testNames}"
+        }
 
         val executedBy = request.executedBy ?: SecurityContext.getCurrentUsername()
 
-        val run = qualityService.executeQualityTests(
-            resourceName = resourceName,
-            qualitySpecName = request.qualitySpecName,
-            testNames = request.testNames.takeIf { it.isNotEmpty() },
-            timeout = request.timeout,
-            executedBy = executedBy,
-        )
+        val run =
+            qualityService.executeQualityTests(
+                resourceName = resourceName,
+                qualitySpecName = request.qualitySpecName,
+                testNames = request.testNames.takeIf { it.isNotEmpty() },
+                timeout = request.timeout,
+                executedBy = executedBy,
+            )
 
         val response = qualityMapper.toRunResultDto(run)
 

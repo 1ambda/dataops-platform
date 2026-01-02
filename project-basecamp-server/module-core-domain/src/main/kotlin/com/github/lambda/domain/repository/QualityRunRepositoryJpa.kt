@@ -114,4 +114,37 @@ interface QualityRunRepositoryJpa {
         minDuration: Double,
         maxDuration: Double,
     ): List<QualityRunEntity>
+
+    // 커스텀 업데이트 쿼리
+    fun updateStatusByRunId(
+        runId: String,
+        status: RunStatus,
+        completedAt: Instant,
+    ): Int
+
+    // 복잡한 검색 쿼리
+    fun findByComplexFilters(
+        resourceName: String?,
+        status: RunStatus?,
+        overallStatus: TestStatus?,
+        executedBy: String?,
+        startTime: Instant?,
+        endTime: Instant?,
+        pageable: Pageable,
+    ): Page<QualityRunEntity>
+
+    fun countByComplexFilters(
+        resourceName: String?,
+        status: RunStatus?,
+        overallStatus: TestStatus?,
+        executedBy: String?,
+        startTime: Instant?,
+        endTime: Instant?,
+    ): Long
+
+    // 장시간 실행 중인 작업 조회
+    fun findLongRunningTasks(threshold: Instant): List<QualityRunEntity>
+
+    // 실행 통계 조회
+    fun getRunStatistics(since: Instant): List<Map<String, Any>>
 }
