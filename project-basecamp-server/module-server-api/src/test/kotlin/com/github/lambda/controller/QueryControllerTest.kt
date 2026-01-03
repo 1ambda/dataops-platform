@@ -10,7 +10,6 @@ import com.github.lambda.domain.model.query.QueryScope
 import com.github.lambda.domain.model.query.QueryStatus
 import com.github.lambda.domain.query.query.ListQueriesQuery
 import com.github.lambda.domain.service.AccessDeniedException
-import com.github.lambda.domain.service.CatalogService
 import com.github.lambda.domain.service.QueryMetadataService
 import com.github.lambda.domain.service.QueryNotCancellableException
 import com.github.lambda.domain.service.QueryNotFoundException
@@ -19,7 +18,6 @@ import com.github.lambda.dto.query.CancelQueryResponseDto
 import com.github.lambda.dto.query.QueryDetailDto
 import com.github.lambda.dto.query.QueryListItemDto
 import com.github.lambda.exception.GlobalExceptionHandler
-import com.github.lambda.mapper.CatalogMapper
 import com.github.lambda.mapper.QueryMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
@@ -47,25 +45,25 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * CatalogController Query API Tests
+ * QueryController API Tests
  *
- * Tests Query Metadata API endpoints in CatalogController:
- * - GET /api/v1/catalog/queries
- * - GET /api/v1/catalog/queries/{query_id}
- * - POST /api/v1/catalog/queries/{query_id}/cancel
+ * Tests Query Metadata API endpoints in QueryController:
+ * - GET /api/v1/queries
+ * - GET /api/v1/queries/{query_id}
+ * - POST /api/v1/queries/{query_id}/cancel
  *
  * Uses @WebMvcTest for fast web layer testing with MockK beans.
  */
-@WebMvcTest(CatalogController::class)
+@WebMvcTest(QueryController::class)
 @Import(
     SecurityConfig::class,
     GlobalExceptionHandler::class,
-    CatalogControllerQueryApiTest.ValidationConfig::class,
+    QueryControllerTest.ValidationConfig::class,
 )
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
-@DisplayName("CatalogController Query API Tests")
-class CatalogControllerQueryApiTest {
+@DisplayName("QueryController API Tests")
+class QueryControllerTest {
     /**
      * Test configuration to enable method-level validation and JSON processing
      */
@@ -85,32 +83,11 @@ class CatalogControllerQueryApiTest {
     private lateinit var objectMapper: ObjectMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var catalogService: CatalogService
-
-    @MockkBean(relaxed = true)
-    private lateinit var catalogMapper: CatalogMapper
-
-    @MockkBean(relaxed = true)
     private lateinit var queryMetadataService: QueryMetadataService
 
     @MockkBean(relaxed = true)
     private lateinit var queryMapper: QueryMapper
 
-    // Lineage-related mock beans to fix test context loading
-    @MockkBean(relaxed = true)
-    private lateinit var lineageService: com.github.lambda.domain.service.LineageService
-
-    @MockkBean(relaxed = true)
-    private lateinit var lineageNodeRepositoryJpa: com.github.lambda.domain.repository.LineageNodeRepositoryJpa
-
-    @MockkBean(relaxed = true)
-    private lateinit var lineageEdgeRepositoryDsl: com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
-
-    @MockkBean(relaxed = true)
-    private lateinit var lineageMapper: com.github.lambda.mapper.LineageMapper
-
-    @MockkBean(relaxed = true)
-    private lateinit var basecampParserClient: com.github.lambda.domain.external.BasecampParserClient
 
     // Test data
     private lateinit var testQueryEntity: QueryExecutionEntity
@@ -214,7 +191,7 @@ class CatalogControllerQueryApiTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/catalog/queries")
+    @DisplayName("GET /api/v1/queries")
     inner class ListQueries {
         @Test
         @DisplayName("should list queries with default parameters successfully")
@@ -232,7 +209,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries"))
+                .perform(get("/api/v1/queries"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
@@ -270,7 +247,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("scope", "system")
                         .param("status", "completed")
                         .param("start_date", "2026-01-01")
@@ -299,7 +276,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries"))
+                .perform(get("/api/v1/queries"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
@@ -323,7 +300,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("scope", "invalid_scope"),
                 ).andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -349,7 +326,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("status", "invalid_status"),
                 ).andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -374,7 +351,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("start_date", "2026-13-01"), // Invalid month
                 ).andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -387,14 +364,14 @@ class CatalogControllerQueryApiTest {
             // When & Then - Test limit too large
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("limit", "501"), // Max is 500
                 ).andExpect(status().isBadRequest())
 
             // When & Then - Test limit too small
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("limit", "0"), // Min is 1
                 ).andExpect(status().isBadRequest())
         }
@@ -405,14 +382,14 @@ class CatalogControllerQueryApiTest {
             // When & Then - Test negative offset
             mockMvc
                 .perform(
-                    get("/api/v1/catalog/queries")
+                    get("/api/v1/queries")
                         .param("offset", "-1"), // Min is 0
                 ).andExpect(status().isBadRequest())
         }
     }
 
     @Nested
-    @DisplayName("GET /api/v1/catalog/queries/{query_id}")
+    @DisplayName("GET /api/v1/queries/{query_id}")
     inner class GetQueryDetails {
         @Test
         @DisplayName("should return query details successfully")
@@ -425,7 +402,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries/$queryId"))
+                .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.query_id").value(queryId))
@@ -452,7 +429,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries/$queryId"))
+                .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isNotFound())
 
             verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
@@ -479,7 +456,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries/$queryId"))
+                .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value(errorMessage))
@@ -499,7 +476,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/catalog/queries/$queryId"))
+                .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isNotFound())
 
             verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
@@ -507,7 +484,7 @@ class CatalogControllerQueryApiTest {
     }
 
     @Nested
-    @DisplayName("POST /api/v1/catalog/queries/{query_id}/cancel")
+    @DisplayName("POST /api/v1/queries/{query_id}/cancel")
     inner class CancelQuery {
         @Test
         @DisplayName("should cancel query successfully")
@@ -524,7 +501,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/catalog/queries/$queryId/cancel")
+                    post("/api/v1/queries/$queryId/cancel")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cancelRequest)),
                 ).andExpect(status().isOk())
@@ -555,7 +532,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(post("/api/v1/catalog/queries/$queryId/cancel"))
+                .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.query_id").value(queryId))
@@ -580,7 +557,7 @@ class CatalogControllerQueryApiTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/catalog/queries/$queryId/cancel")
+                    post("/api/v1/queries/$queryId/cancel")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"),
                 ).andExpect(status().isOk())
@@ -602,7 +579,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(post("/api/v1/catalog/queries/$queryId/cancel"))
+                .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isNotFound())
 
             verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
@@ -627,7 +604,7 @@ class CatalogControllerQueryApiTest {
                 AccessDeniedException(errorMessage)
             // When & Then
             mockMvc
-                .perform(post("/api/v1/catalog/queries/$queryId/cancel"))
+                .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value(errorMessage))
@@ -656,7 +633,7 @@ class CatalogControllerQueryApiTest {
 
             // When & Then
             mockMvc
-                .perform(post("/api/v1/catalog/queries/$queryId/cancel"))
+                .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error.code").value("QUERY_NOT_CANCELLABLE"))
@@ -673,7 +650,7 @@ class CatalogControllerQueryApiTest {
             // When & Then - Test with malformed JSON
             mockMvc
                 .perform(
-                    post("/api/v1/catalog/queries/$queryId/cancel")
+                    post("/api/v1/queries/$queryId/cancel")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("invalid json"),
                 ).andExpect(status().isBadRequest())
@@ -699,7 +676,7 @@ class CatalogControllerQueryApiTest {
             scopes.forEach { scope ->
                 mockMvc
                     .perform(
-                        get("/api/v1/catalog/queries")
+                        get("/api/v1/queries")
                             .param("scope", scope),
                     ).andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -723,7 +700,7 @@ class CatalogControllerQueryApiTest {
             statuses.forEach { status ->
                 mockMvc
                     .perform(
-                        get("/api/v1/catalog/queries")
+                        get("/api/v1/queries")
                             .param("status", status),
                     ).andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -741,7 +718,7 @@ class CatalogControllerQueryApiTest {
             // When & Then - Multiple concurrent requests should all succeed
             repeat(5) {
                 mockMvc
-                    .perform(get("/api/v1/catalog/queries/$queryId"))
+                    .perform(get("/api/v1/queries/$queryId"))
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.query_id").value(queryId))

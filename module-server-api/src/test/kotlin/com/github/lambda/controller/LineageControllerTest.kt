@@ -342,9 +342,9 @@ class LineageControllerTest {
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.data.nodes").isArray())
                 .andExpect(jsonPath("$.data.nodes.length()").value(0))
-                .andExpected(jsonPath("$.data.edges.length()").value(0))
-                .andExpected(jsonPath("$.data.total_upstream").value(0))
-                .andExpected(jsonPath("$.data.total_downstream").value(0))
+                .andExpect(jsonPath("$.data.edges.length()").value(0))
+                .andExpect(jsonPath("$.data.total_upstream").value(0))
+                .andExpect(jsonPath("$.data.total_downstream").value(0))
         }
 
         @Test
@@ -380,7 +380,7 @@ class LineageControllerTest {
                 .andExpect(status().isBadRequest)
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("LINEAGE_INVALID_PARAMETER"))
-                .andExpected(jsonPath("$.error.details.direction").value(invalidDirection))
+                .andExpect(jsonPath("$.error.details.direction").value(invalidDirection))
         }
 
         @Test
@@ -396,7 +396,7 @@ class LineageControllerTest {
                     get("/api/v1/lineage/$resourceName")
                         .param("depth", invalidDepth.toString())
                 )
-                .andExpected(status().isBadRequest)
+                .andExpect(status().isBadRequest)
         }
 
         @Test
@@ -412,7 +412,7 @@ class LineageControllerTest {
                     get("/api/v1/lineage/$resourceName")
                         .param("depth", invalidDepth.toString())
                 )
-                .andExpected(status().isBadRequest)
+                .andExpect(status().isBadRequest)
         }
 
         @Test
@@ -450,7 +450,7 @@ class LineageControllerTest {
                 .perform(get("/api/v1/lineage/$resourceName"))
                 .andExpect(status().isInternalServerError)
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpected(jsonPath("$.error.code").value("LINEAGE_INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.error.code").value("LINEAGE_INTERNAL_ERROR"))
         }
     }
 
@@ -477,7 +477,7 @@ class LineageControllerTest {
                         get("/api/v1/lineage/$resourceName")
                             .param("depth", depth.toString())
                     )
-                    .andExpected(status().isOk)
+                    .andExpect(status().isOk)
             }
         }
 
@@ -504,7 +504,7 @@ class LineageControllerTest {
                         get("/api/v1/lineage/$resourceName")
                             .param("direction", directionParam)
                     )
-                    .andExpected(status().isOk)
+                    .andExpect(status().isOk)
 
                 verify { lineageService.getLineageGraph(resourceName, expectedDirection, -1) }
             }
@@ -526,7 +526,7 @@ class LineageControllerTest {
                     get("/api/v1/lineage/$resourceName")
                         .param("depth", "0")
                 )
-                .andExpected(status().isOk)
+                .andExpect(status().isOk)
 
             verify(exactly = 1) { lineageService.getLineageGraph(resourceName, LineageDirection.BOTH, 0) }
         }
@@ -544,8 +544,8 @@ class LineageControllerTest {
             // When & Then
             mockMvc
                 .perform(get("/api/v1/lineage/$resourceNameWithSpecialChars"))
-                .andExpected(status().isOk)
-                .andExpected(jsonPath("$.data.root.name").value(testRootNode.name))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.root.name").value(testRootNode.name))
         }
     }
 
@@ -566,18 +566,18 @@ class LineageControllerTest {
             // When & Then
             mockMvc
                 .perform(get("/api/v1/lineage/$resourceName"))
-                .andExpected(status().isOk)
-                .andExpected(jsonPath("$.success").value(true))
-                .andExpected(jsonPath("$.message").value("Lineage graph retrieved successfully"))
-                .andExpected(jsonPath("$.data").exists())
-                .andExpected(jsonPath("$.data.root").exists())
-                .andExpected(jsonPath("$.data.nodes").isArray())
-                .andExpected(jsonPath("$.data.edges").isArray())
-                .andExpected(jsonPath("$.data.total_upstream").isNumber())
-                .andExpected(jsonPath("$.data.total_downstream").isNumber())
-                .andExpected(jsonPath("$.data.total_nodes").isNumber())
-                .andExpected(jsonPath("$.data.total_edges").isNumber())
-                .andExpected(jsonPath("$.data.total_related").isNumber())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Lineage graph retrieved successfully"))
+                .andExpect(jsonPath("$.data").exists())
+                .andExpect(jsonPath("$.data.root").exists())
+                .andExpect(jsonPath("$.data.nodes").isArray())
+                .andExpect(jsonPath("$.data.edges").isArray())
+                .andExpect(jsonPath("$.data.total_upstream").isNumber())
+                .andExpect(jsonPath("$.data.total_downstream").isNumber())
+                .andExpect(jsonPath("$.data.total_nodes").isNumber())
+                .andExpect(jsonPath("$.data.total_edges").isNumber())
+                .andExpect(jsonPath("$.data.total_related").isNumber())
         }
 
         @Test
@@ -593,13 +593,13 @@ class LineageControllerTest {
             // When & Then
             mockMvc
                 .perform(get("/api/v1/lineage/$resourceName"))
-                .andExpected(status().isOk)
-                .andExpected(jsonPath("$.data.root.name").value(testRootNode.name))
-                .andExpected(jsonPath("$.data.root.type").value("table"))
-                .andExpected(jsonPath("$.data.root.owner").value(testRootNode.owner))
-                .andExpected(jsonPath("$.data.root.team").value(testRootNode.team))
-                .andExpected(jsonPath("$.data.root.description").value(testRootNode.description))
-                .andExpected(jsonPath("$.data.root.tags").isArray())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.root.name").value(testRootNode.name))
+                .andExpect(jsonPath("$.data.root.type").value("table"))
+                .andExpect(jsonPath("$.data.root.owner").value(testRootNode.owner))
+                .andExpect(jsonPath("$.data.root.team").value(testRootNode.team))
+                .andExpect(jsonPath("$.data.root.description").value(testRootNode.description))
+                .andExpect(jsonPath("$.data.root.tags").isArray())
         }
 
         @Test
@@ -615,10 +615,10 @@ class LineageControllerTest {
             // When & Then
             mockMvc
                 .perform(get("/api/v1/lineage/$resourceName"))
-                .andExpected(status().isOk)
-                .andExpected(jsonPath("$.data.edges[0].source").exists())
-                .andExpected(jsonPath("$.data.edges[0].target").exists())
-                .andExpected(jsonPath("$.data.edges[0].type").exists())
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.edges[0].source").exists())
+                .andExpect(jsonPath("$.data.edges[0].target").exists())
+                .andExpect(jsonPath("$.data.edges[0].type").exists())
         }
     }
 }

@@ -260,9 +260,9 @@
 > **📖 See:** [`RUN_RELEASE.md`](./RUN_RELEASE.md) for full implementation details
 
 **Query API (3/3):** ✅ **Complete**
-- ✅ `GET /api/v1/catalog/queries` - Query history
-- ✅ `GET /api/v1/catalog/queries/{query_id}` - Query details
-- ✅ `POST /api/v1/catalog/queries/{query_id}/cancel` - Cancel query
+- ✅ `GET /api/v1/queries` - Query history
+- ✅ `GET /api/v1/queries/{query_id}` - Query details
+- ✅ `POST /api/v1/queries/{query_id}/cancel` - Cancel query
 
 > **📖 See:** [`QUERY_RELEASE.md`](./QUERY_RELEASE.md) for full implementation details
 

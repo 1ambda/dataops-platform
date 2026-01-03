@@ -15,6 +15,9 @@
 | **Query History** | ✅ Complete | List and filter past query executions with scope-based access control |
 | **Query Details** | ✅ Complete | Detailed execution information including query plans and error details |
 | **Query Cancellation** | ✅ Complete | Cancel running queries with reason tracking and engine integration |
+| **API Migration** | ✅ Complete | Endpoints migrated from `/catalog/queries` to `/queries` with dedicated controller |
+| **Controller Separation** | ✅ Complete | Clean separation from CatalogController for better maintainability |
+| **Documentation Sync** | ✅ Complete | All docs updated to reflect new endpoint structure |
 
 ### 1.2 Files Created
 
@@ -30,12 +33,12 @@
 | `module-core-infra/.../repository/QueryExecutionRepositoryJpaImpl.kt` | ~45 | JPA repository implementation |
 | `module-core-infra/.../repository/QueryExecutionRepositoryDslImpl.kt` | ~85 | QueryDSL implementation with scope filtering |
 | `module-core-infra/.../external/MockQueryEngineClient.kt` | ~120 | Mock implementation for development and testing |
-| `module-server-api/.../controller/CatalogController.kt` | +180 lines | Query endpoints added to existing controller |
+| `module-server-api/.../controller/QueryController.kt` | +183 lines | **NEW** Dedicated query controller with clean separation |
 | `module-server-api/.../dto/query/QueryDtos.kt` | ~200 | Request/Response DTOs with detailed metadata |
 | `module-server-api/.../mapper/QueryMapper.kt` | ~75 | Entity to DTO mapping with access control |
 | **Test Files** | | |
 | `module-core-domain/test/.../service/QueryMetadataServiceTest.kt` | ~450 | Service unit tests (22 scenarios) |
-| `module-server-api/test/.../controller/CatalogControllerQueryApiTest.kt` | ~680 | Controller tests (35 scenarios) |
+| `module-server-api/test/.../controller/QueryControllerTest.kt` | ~680 | **NEW** Dedicated controller tests (22 scenarios) |
 | `module-core-infra/test/.../repository/QueryExecutionRepositoryTest.kt` | ~320 | Repository tests (15 scenarios) |
 
 **Total Lines Added:** ~2,830 lines (1,455 implementation + 1,450 tests)
@@ -44,7 +47,7 @@
 
 | File | Changes |
 |------|---------|
-| `module-server-api/.../controller/CatalogController.kt` | +180 lines - Added 3 Query API endpoints |
+| `module-server-api/.../controller/CatalogController.kt` | **-180 lines** - Removed query endpoints and dependencies |
 | `module-server-api/.../exception/GlobalExceptionHandler.kt` | +60 lines - Added Query API exception handlers |
 | `module-core-common/.../exception/*.kt` | +90 lines - Added 5 new exception classes |
 
@@ -56,13 +59,13 @@
 
 | Endpoint | Method | Status | Controller Method | CLI Command |
 |----------|--------|--------|-------------------|-------------|
-| `/api/v1/catalog/queries` | GET | ✅ Complete | `listQueries()` | `dli query list` |
-| `/api/v1/catalog/queries/{query_id}` | GET | ✅ Complete | `getQueryDetails()` | `dli query show <id>` |
-| `/api/v1/catalog/queries/{query_id}/cancel` | POST | ✅ Complete | `cancelQuery()` | `dli query cancel <id>` |
+| `/api/v1/queries` | GET | ✅ Complete | `QueryController.listQueries()` | `dli query list` |
+| `/api/v1/queries/{query_id}` | GET | ✅ Complete | `QueryController.getQueryDetails()` | `dli query show <id>` |
+| `/api/v1/queries/{query_id}/cancel` | POST | ✅ Complete | `QueryController.cancelQuery()` | `dli query cancel <id>` |
 
 ### 2.2 List Queries
 
-**Endpoint:** `GET /api/v1/catalog/queries`
+**Endpoint:** `GET /api/v1/queries`
 
 **Query Parameters:**
 - `scope` (default: `my`) - Query scope (`my`, `system`, `user`, `all`)
@@ -94,7 +97,7 @@
 
 ### 2.3 Get Query Details
 
-**Endpoint:** `GET /api/v1/catalog/queries/{query_id}`
+**Endpoint:** `GET /api/v1/queries/{query_id}`
 
 **Response (200 OK - Completed Query):**
 ```json
@@ -158,7 +161,7 @@
 
 ### 2.4 Cancel Query
 
-**Endpoint:** `POST /api/v1/catalog/queries/{query_id}/cancel`
+**Endpoint:** `POST /api/v1/queries/{query_id}/cancel`
 
 **Request Body:**
 ```json
@@ -202,10 +205,10 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                     module-server-api                            │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ CatalogController                                            ││
-│  │   - GET /api/v1/catalog/queries                             ││
-│  │   - GET /api/v1/catalog/queries/{query_id}                  ││
-│  │   - POST /api/v1/catalog/queries/{query_id}/cancel          ││
+│  │ QueryController                                              ││
+│  │   - GET /api/v1/queries                                     ││
+│  │   - GET /api/v1/queries/{query_id}                          ││
+│  │   - POST /api/v1/queries/{query_id}/cancel                  ││
 │  └──────────────────────┬──────────────────────────────────────┘│
 └─────────────────────────┼───────────────────────────────────────┘
                           │ depends on
@@ -357,7 +360,7 @@ fun `cancelQuery updates status and notifies engine`() {
 @Test
 @WithMockUser(roles = ["query:read:all"])
 fun `list all queries requires proper role`() {
-    mockMvc.perform(get("/api/v1/catalog/queries?scope=all"))
+    mockMvc.perform(get("/api/v1/queries?scope=all"))
         .andExpect(status().isOk)
         .andExpect(jsonPath("$.length()").value(greaterThan(0)))
 }
@@ -366,7 +369,7 @@ fun `list all queries requires proper role`() {
 fun `cancel query returns 409 for completed query`() {
     val queryId = createCompletedQuery("test@example.com")
     mockMvc.perform(
-        post("/api/v1/catalog/queries/$queryId/cancel")
+        post("/api/v1/queries/$queryId/cancel")
             .contentType(MediaType.APPLICATION_JSON)
             .content("""{"reason": "Test"}""")
     )
@@ -392,11 +395,11 @@ fun `cancel query returns 409 for completed query`() {
 
 | CLI Command | API Endpoint | Status |
 |-------------|--------------|--------|
-| `dli query list` | `GET /api/v1/catalog/queries` | ✅ Complete |
-| `dli query list --scope system` | `GET /api/v1/catalog/queries?scope=system` | ✅ Complete |
-| `dli query list --status running` | `GET /api/v1/catalog/queries?status=running` | ✅ Complete |
-| `dli query show <id>` | `GET /api/v1/catalog/queries/{id}` | ✅ Complete |
-| `dli query cancel <id>` | `POST /api/v1/catalog/queries/{id}/cancel` | ✅ Complete |
+| `dli query list` | `GET /api/v1/queries` | ✅ Complete |
+| `dli query list --scope system` | `GET /api/v1/queries?scope=system` | ✅ Complete |
+| `dli query list --status running` | `GET /api/v1/queries?status=running` | ✅ Complete |
+| `dli query show <id>` | `GET /api/v1/queries/{id}` | ✅ Complete |
+| `dli query cancel <id>` | `POST /api/v1/queries/{id}/cancel` | ✅ Complete |
 
 ### 5.2 Example CLI Usage
 

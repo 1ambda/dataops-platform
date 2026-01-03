@@ -41,6 +41,27 @@ dli query show query_20260101_100000_abc123
 dli query cancel query_20260101_100000_abc123 --reason "Resource optimization"
 ```
 
+### 1.4 Architecture Overview
+
+**Controller Separation (Migration 2026-01-03)**
+
+The Query API has been migrated from mixed catalog endpoints to a dedicated controller for better separation of concerns:
+
+```
+Before Migration                   After Migration
+CatalogController                 CatalogController  +  QueryController
+├── /api/v1/catalog/tables       ├── /api/v1/catalog/tables    ├── /api/v1/queries
+├── /api/v1/catalog/search       ├── /api/v1/catalog/search    ├── /api/v1/queries/{id}
+├── /api/v1/catalog/queries ←    └── /api/v1/catalog/...       └── /api/v1/queries/{id}/cancel
+└── ...
+```
+
+**Benefits:**
+- ✅ **Clean Resource Boundaries:** `/queries` as first-class API resource
+- ✅ **Single Responsibility:** Each controller handles one domain
+- ✅ **Improved Maintainability:** Independent development and testing
+- ✅ **Better API Discoverability:** Intuitive URL structure
+
 ---
 
 ## 2. CLI Command Mapping
@@ -49,9 +70,9 @@ dli query cancel query_20260101_100000_abc123 --reason "Resource optimization"
 
 | CLI Command | HTTP Method | API Endpoint | Description |
 |-------------|-------------|--------------|-------------|
-| `dli query list` | GET | `/api/v1/catalog/queries` | List query execution history |
-| `dli query show <id>` | GET | `/api/v1/catalog/queries/{query_id}` | Get query execution details |
-| `dli query cancel <id>` | POST | `/api/v1/catalog/queries/{query_id}/cancel` | Cancel a running query |
+| `dli query list` | GET | `/api/v1/queries` | List query execution history |
+| `dli query show <id>` | GET | `/api/v1/queries/{query_id}` | Get query execution details |
+| `dli query cancel <id>` | POST | `/api/v1/queries/{query_id}/cancel` | Cancel a running query |
 
 ### 2.2 CLI Options to Query Parameters
 
@@ -70,13 +91,13 @@ dli query cancel query_20260101_100000_abc123 --reason "Resource optimization"
 
 ### 3.1 List Queries ✅ Implemented
 
-#### `GET /api/v1/catalog/queries`
+#### `GET /api/v1/queries`
 
 **Purpose**: List query execution history for `dli query list`
 
 **Request:**
 ```http
-GET /api/v1/catalog/queries?scope=my&status=running&start_date=2026-01-01&limit=50
+GET /api/v1/queries?scope=my&status=running&start_date=2026-01-01&limit=50
 Accept: application/json
 Authorization: Bearer <oauth2-token>
 ```
@@ -124,13 +145,13 @@ Authorization: Bearer <oauth2-token>
 
 ### 3.2 Get Query Details ✅ Implemented
 
-#### `GET /api/v1/catalog/queries/{query_id}`
+#### `GET /api/v1/queries/{query_id}`
 
 **Purpose**: Get query execution details for `dli query show`
 
 **Request:**
 ```http
-GET /api/v1/catalog/queries/query_20260101_100000_abc123
+GET /api/v1/queries/query_20260101_100000_abc123
 Accept: application/json
 Authorization: Bearer <oauth2-token>
 ```
@@ -213,13 +234,13 @@ Authorization: Bearer <oauth2-token>
 
 ### 3.3 Cancel Query ✅ Implemented
 
-#### `POST /api/v1/catalog/queries/{query_id}/cancel`
+#### `POST /api/v1/queries/{query_id}/cancel`
 
 **Purpose**: Cancel a running query for `dli query cancel`
 
 **Request:**
 ```http
-POST /api/v1/catalog/queries/query_20260101_100000_abc123/cancel
+POST /api/v1/queries/query_20260101_100000_abc123/cancel
 Content-Type: application/json
 Authorization: Bearer <oauth2-token>
 
@@ -745,7 +766,7 @@ class QueryApiIntegrationTest {
 
         // When & Then
         mockMvc.perform(
-            post("/api/v1/catalog/queries/$queryId/cancel")
+            post("/api/v1/queries/$queryId/cancel")
                 .header("Authorization", "Bearer ${tokenFor(userEmail)}")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"reason": "No longer needed"}""")
@@ -763,7 +784,7 @@ class QueryApiIntegrationTest {
 
         // When & Then
         mockMvc.perform(
-            post("/api/v1/catalog/queries/$queryId/cancel")
+            post("/api/v1/queries/$queryId/cancel")
                 .header("Authorization", "Bearer ${tokenFor(userEmail)}")
                 .contentType(MediaType.APPLICATION_JSON)
         )

@@ -73,9 +73,9 @@
 | `dli quality list` | GET | `/api/v1/quality` | ✅ P3 Week 10 |
 | `dli quality get <name>` | GET | `/api/v1/quality/{name}` | ✅ P3 Week 10 |
 | `dli quality run <name>` | POST | `/api/v1/quality/test/{resource_name}` | ✅ P3 Week 10 |
-| `dli query list` | GET | `/api/v1/catalog/queries` | ✅ P3 Week 10 |
-| `dli query show <id>` | GET | `/api/v1/catalog/queries/{query_id}` | ✅ P3 Week 10 |
-| `dli query cancel <id>` | POST | `/api/v1/catalog/queries/{query_id}/cancel` | ✅ P3 Week 10 |
+| `dli query list` | GET | `/api/v1/queries` | ✅ **Migrated** |
+| `dli query show <id>` | GET | `/api/v1/queries/{query_id}` | ✅ **Migrated** |
+| `dli query cancel <id>` | POST | `/api/v1/queries/{query_id}/cancel` | ✅ **Migrated** |
 | `dli transpile rules` | GET | `/api/v1/transpile/rules` | ✅ P3 Week 11-12 |
 | `dli transpile metric <name>` | GET | `/api/v1/transpile/metrics/{metric_name}` | ✅ P3 Week 11-12 |
 | `dli run <file>` | POST | `/api/v1/run/execute` | ✅ P3 Week 11-12 |
