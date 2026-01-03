@@ -31,6 +31,8 @@ import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
 import com.github.lambda.domain.service.AccessDeniedException
+import com.github.lambda.domain.service.QueryNotCancellableException
+import com.github.lambda.domain.service.QueryNotFoundException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import jakarta.validation.ConstraintViolationException
@@ -968,5 +970,52 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.FORBIDDEN)
             .body(ApiResponse.error(ex.message ?: "Access denied", errorDetails))
+    }
+
+    /**
+     * Query not found exception (404 Not Found)
+     */
+    @ExceptionHandler(QueryNotFoundException::class)
+    fun handleQueryNotFoundException(
+        ex: QueryNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Query not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = "QUERY_NOT_FOUND",
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Query not found", errorDetails))
+    }
+
+    /**
+     * Query not cancellable exception (409 Conflict)
+     */
+    @ExceptionHandler(QueryNotCancellableException::class)
+    fun handleQueryNotCancellableException(
+        ex: QueryNotCancellableException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Query not cancellable: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = "QUERY_NOT_CANCELLABLE",
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "query_id" to ex.queryId,
+                        "current_status" to ex.currentStatus,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Query not cancellable", errorDetails))
     }
 }

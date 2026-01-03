@@ -19,7 +19,6 @@ import java.time.Instant
  */
 @DisplayName("QueryMapper Unit Tests")
 class QueryMapperTest {
-
     private lateinit var mapper: QueryMapper
     private lateinit var testQueryEntity: QueryExecutionEntity
     private lateinit var testCompletedEntity: QueryExecutionEntity
@@ -32,91 +31,96 @@ class QueryMapperTest {
 
         val now = Instant.now()
 
-        testQueryEntity = QueryExecutionEntity(
-            queryId = "query_test_001",
-            sql = "SELECT user_id, COUNT(*) FROM users GROUP BY 1",
-            status = QueryStatus.RUNNING,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(300),
-            startedAt = now.minusSeconds(250),
-            engine = QueryEngine.BIGQUERY,
-            isSystemQuery = false,
-        )
+        testQueryEntity =
+            QueryExecutionEntity(
+                queryId = "query_test_001",
+                sql = "SELECT user_id, COUNT(*) FROM users GROUP BY 1",
+                status = QueryStatus.RUNNING,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(300),
+                startedAt = now.minusSeconds(250),
+                engine = QueryEngine.BIGQUERY,
+                isSystemQuery = false,
+            )
 
-        testCompletedEntity = QueryExecutionEntity(
-            queryId = "query_completed_001",
-            sql = "SELECT * FROM orders WHERE date >= '2026-01-01'",
-            status = QueryStatus.COMPLETED,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(600),
-            startedAt = now.minusSeconds(550),
-            completedAt = now.minusSeconds(500),
-            durationSeconds = 50.0,
-            rowsReturned = 1500000L,
-            bytesScanned = "1.2 GB",
-            engine = QueryEngine.BIGQUERY,
-            costUsd = 0.006,
-            executionDetails = """
-                {
-                    "job_id": "bqjob_r1234567890_000001_project",
-                    "query_plan": [
-                        {
-                            "stage": "Stage 1",
-                            "operation": "Scan",
-                            "input_rows": 2000000,
-                            "output_rows": 1500000
-                        }
-                    ],
-                    "tables_accessed": [
-                        "my-project.analytics.orders"
-                    ]
-                }
-            """.trimIndent(),
-            isSystemQuery = false,
-        )
-
-        testCancelledEntity = QueryExecutionEntity(
-            queryId = "query_cancelled_001",
-            sql = "SELECT * FROM large_table",
-            status = QueryStatus.CANCELLED,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(400),
-            startedAt = now.minusSeconds(350),
-            completedAt = now.minusSeconds(300),
-            engine = QueryEngine.TRINO,
-            cancelledBy = "analyst@example.com",
-            cancelledAt = now.minusSeconds(300),
-            cancellationReason = "User requested cancellation",
-            isSystemQuery = false,
-        )
-
-        testFailedEntity = QueryExecutionEntity(
-            queryId = "query_failed_001",
-            sql = "SELECT * FROM non_existent_table",
-            status = QueryStatus.FAILED,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(200),
-            startedAt = now.minusSeconds(150),
-            completedAt = now.minusSeconds(140),
-            engine = QueryEngine.BIGQUERY,
-            errorDetails = """
-                {
-                    "code": "TABLE_NOT_FOUND",
-                    "message": "Table 'my-project.analytics.non_existent_table' was not found",
-                    "details": {
-                        "table": "my-project.analytics.non_existent_table",
-                        "project": "my-project"
+        testCompletedEntity =
+            QueryExecutionEntity(
+                queryId = "query_completed_001",
+                sql = "SELECT * FROM orders WHERE date >= '2026-01-01'",
+                status = QueryStatus.COMPLETED,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(600),
+                startedAt = now.minusSeconds(550),
+                completedAt = now.minusSeconds(500),
+                durationSeconds = 50.0,
+                rowsReturned = 1500000L,
+                bytesScanned = "1.2 GB",
+                engine = QueryEngine.BIGQUERY,
+                costUsd = 0.006,
+                executionDetails =
+                    """
+                    {
+                        "job_id": "bqjob_r1234567890_000001_project",
+                        "query_plan": [
+                            {
+                                "stage": "Stage 1",
+                                "operation": "Scan",
+                                "input_rows": 2000000,
+                                "output_rows": 1500000
+                            }
+                        ],
+                        "tables_accessed": [
+                            "my-project.analytics.orders"
+                        ]
                     }
-                }
-            """.trimIndent(),
-            isSystemQuery = false,
-        )
+                    """.trimIndent(),
+                isSystemQuery = false,
+            )
+
+        testCancelledEntity =
+            QueryExecutionEntity(
+                queryId = "query_cancelled_001",
+                sql = "SELECT * FROM large_table",
+                status = QueryStatus.CANCELLED,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(400),
+                startedAt = now.minusSeconds(350),
+                completedAt = now.minusSeconds(300),
+                engine = QueryEngine.TRINO,
+                cancelledBy = "analyst@example.com",
+                cancelledAt = now.minusSeconds(300),
+                cancellationReason = "User requested cancellation",
+                isSystemQuery = false,
+            )
+
+        testFailedEntity =
+            QueryExecutionEntity(
+                queryId = "query_failed_001",
+                sql = "SELECT * FROM non_existent_table",
+                status = QueryStatus.FAILED,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(200),
+                startedAt = now.minusSeconds(150),
+                completedAt = now.minusSeconds(140),
+                engine = QueryEngine.BIGQUERY,
+                errorDetails =
+                    """
+                    {
+                        "code": "TABLE_NOT_FOUND",
+                        "message": "Table 'my-project.analytics.non_existent_table' was not found",
+                        "details": {
+                            "table": "my-project.analytics.non_existent_table",
+                            "project": "my-project"
+                        }
+                    }
+                    """.trimIndent(),
+                isSystemQuery = false,
+            )
     }
 
     @Nested
     @DisplayName("toListItemDto method")
     inner class ToListItemDto {
-
         @Test
         @DisplayName("should convert running query entity to list item DTO")
         fun `should convert running query entity to list item DTO`() {
@@ -163,7 +167,6 @@ class QueryMapperTest {
     @Nested
     @DisplayName("toDetailDto method")
     inner class ToDetailDto {
-
         @Test
         @DisplayName("should convert completed entity to detail DTO with execution details")
         fun `should convert completed entity to detail DTO with execution details`() {
@@ -188,8 +191,18 @@ class QueryMapperTest {
             assertThat(result.executionDetails).isNotNull()
             assertThat(result.executionDetails?.jobId).isEqualTo("bqjob_r1234567890_000001_project")
             assertThat(result.executionDetails?.queryPlan).hasSize(1)
-            assertThat(result.executionDetails?.queryPlan?.get(0)?.stage).isEqualTo("Stage 1")
-            assertThat(result.executionDetails?.queryPlan?.get(0)?.operation).isEqualTo("Scan")
+            assertThat(
+                result.executionDetails
+                    ?.queryPlan
+                    ?.get(0)
+                    ?.stage,
+            ).isEqualTo("Stage 1")
+            assertThat(
+                result.executionDetails
+                    ?.queryPlan
+                    ?.get(0)
+                    ?.operation,
+            ).isEqualTo("Scan")
             assertThat(result.executionDetails?.tablesAccessed).containsExactly("my-project.analytics.orders")
 
             assertThat(result.error).isNull()
@@ -231,7 +244,6 @@ class QueryMapperTest {
     @Nested
     @DisplayName("toCancelQueryResponseDto method")
     inner class ToCancelQueryResponseDto {
-
         @Test
         @DisplayName("should convert cancelled entity to cancel response DTO")
         fun `should convert cancelled entity to cancel response DTO`() {
@@ -250,25 +262,27 @@ class QueryMapperTest {
         @DisplayName("should throw IllegalStateException when cancelledBy is null")
         fun `should throw IllegalStateException when cancelledBy is null`() {
             // Given
-            val entityWithNullCancelledBy = QueryExecutionEntity(
-                queryId = testCancelledEntity.queryId,
-                sql = testCancelledEntity.sql,
-                status = testCancelledEntity.status,
-                submittedBy = testCancelledEntity.submittedBy,
-                submittedAt = testCancelledEntity.submittedAt,
-                startedAt = testCancelledEntity.startedAt,
-                completedAt = testCancelledEntity.completedAt,
-                engine = testCancelledEntity.engine,
-                cancelledBy = null, // Null cancelledBy
-                cancelledAt = testCancelledEntity.cancelledAt,
-                cancellationReason = testCancelledEntity.cancellationReason,
-                isSystemQuery = testCancelledEntity.isSystemQuery,
-            )
+            val entityWithNullCancelledBy =
+                QueryExecutionEntity(
+                    queryId = testCancelledEntity.queryId,
+                    sql = testCancelledEntity.sql,
+                    status = testCancelledEntity.status,
+                    submittedBy = testCancelledEntity.submittedBy,
+                    submittedAt = testCancelledEntity.submittedAt,
+                    startedAt = testCancelledEntity.startedAt,
+                    completedAt = testCancelledEntity.completedAt,
+                    engine = testCancelledEntity.engine,
+                    cancelledBy = null, // Null cancelledBy
+                    cancelledAt = testCancelledEntity.cancelledAt,
+                    cancellationReason = testCancelledEntity.cancellationReason,
+                    isSystemQuery = testCancelledEntity.isSystemQuery,
+                )
 
             // When & Then
-            val exception = org.junit.jupiter.api.assertThrows<IllegalStateException> {
-                mapper.toCancelQueryResponseDto(entityWithNullCancelledBy)
-            }
+            val exception =
+                org.junit.jupiter.api.assertThrows<IllegalStateException> {
+                    mapper.toCancelQueryResponseDto(entityWithNullCancelledBy)
+                }
 
             assertThat(exception.message).contains("Cancelled query must have cancelledBy field")
         }
@@ -277,7 +291,6 @@ class QueryMapperTest {
     @Nested
     @DisplayName("toListItemDtoList method")
     inner class ToListItemDtoList {
-
         @Test
         @DisplayName("should convert list of entities to list of DTOs")
         fun `should convert list of entities to list of DTOs`() {
@@ -311,7 +324,6 @@ class QueryMapperTest {
     @Nested
     @DisplayName("Error Response Helper Methods")
     inner class ErrorResponseHelperMethods {
-
         @Test
         @DisplayName("should create query not found error response")
         fun `should create query not found error response`() {

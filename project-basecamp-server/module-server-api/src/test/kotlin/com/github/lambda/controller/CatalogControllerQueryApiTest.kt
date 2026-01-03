@@ -1,6 +1,7 @@
 package com.github.lambda.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.command.query.CancelQueryCommand
 import com.github.lambda.domain.model.query.QueryEngine
@@ -11,6 +12,8 @@ import com.github.lambda.domain.query.query.ListQueriesQuery
 import com.github.lambda.domain.service.AccessDeniedException
 import com.github.lambda.domain.service.CatalogService
 import com.github.lambda.domain.service.QueryMetadataService
+import com.github.lambda.domain.service.QueryNotCancellableException
+import com.github.lambda.domain.service.QueryNotFoundException
 import com.github.lambda.dto.query.CancelQueryRequestDto
 import com.github.lambda.dto.query.CancelQueryResponseDto
 import com.github.lambda.dto.query.QueryDetailDto
@@ -492,7 +495,7 @@ class CatalogControllerQueryApiTest {
             val queryId = "query_test_001"
 
             every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } throws
-                RuntimeException("Database error")
+                ResourceNotFoundException("Query", queryId)
 
             // When & Then
             mockMvc
@@ -595,7 +598,7 @@ class CatalogControllerQueryApiTest {
             val errorMessage = "Query not found"
 
             every { queryMetadataService.cancelQuery(any(), "analyst@example.com") } throws
-                AccessDeniedException(errorMessage)
+                QueryNotFoundException(queryId)
 
             // When & Then
             mockMvc
@@ -649,8 +652,7 @@ class CatalogControllerQueryApiTest {
                 )
 
             every { queryMetadataService.cancelQuery(any(), "analyst@example.com") } throws
-                AccessDeniedException(errorMessage)
-            every { queryMapper.toQueryNotCancellableError(queryId, "COMPLETED") } returns errorResponse
+                QueryNotCancellableException(queryId, QueryStatus.COMPLETED)
 
             // When & Then
             mockMvc
@@ -659,7 +661,7 @@ class CatalogControllerQueryApiTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error.code").value("QUERY_NOT_CANCELLABLE"))
 
-            verify(exactly = 1) { queryMapper.toQueryNotCancellableError(queryId, "COMPLETED") }
+            verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
         }
 
         @Test

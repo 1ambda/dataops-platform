@@ -298,24 +298,13 @@ class CatalogController(
     ): ResponseEntity<*> {
         logger.info { "GET /api/v1/catalog/queries/$queryId" }
 
-        return try {
-            val currentUser = getCurrentUser()
-            val query = queryMetadataService.getQueryDetails(queryId, currentUser)
+        val currentUser = getCurrentUser()
+        val query = queryMetadataService.getQueryDetails(queryId, currentUser)
 
-            if (query != null) {
-                ResponseEntity.ok(queryMapper.toDetailDto(query))
-            } else {
-                ResponseEntity.notFound().build<Any>()
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to get query details for $queryId" }
-            when (e.message?.contains("access denied", ignoreCase = true)) {
-                true ->
-                    ResponseEntity.status(403).body(
-                        queryMapper.toAccessDeniedError(e.message ?: "Access denied"),
-                    )
-                else -> ResponseEntity.notFound().build<Any>()
-            }
+        return if (query != null) {
+            ResponseEntity.ok(queryMapper.toDetailDto(query))
+        } else {
+            ResponseEntity.notFound().build<Any>()
         }
     }
 
@@ -341,36 +330,16 @@ class CatalogController(
     ): ResponseEntity<*> {
         logger.info { "POST /api/v1/catalog/queries/$queryId/cancel - reason: ${request?.reason}" }
 
-        return try {
-            val currentUser = getCurrentUser()
-            val command =
-                CancelQueryCommand(
-                    queryId = queryId,
-                    reason = request?.reason,
-                )
+        val currentUser = getCurrentUser()
+        val command =
+            CancelQueryCommand(
+                queryId = queryId,
+                reason = request?.reason,
+            )
 
-            val cancelledQuery = queryMetadataService.cancelQuery(command, currentUser)
+        val cancelledQuery = queryMetadataService.cancelQuery(command, currentUser)
 
-            ResponseEntity.ok(queryMapper.toCancelQueryResponseDto(cancelledQuery))
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to cancel query $queryId" }
-            when {
-                e.message?.contains("not found", ignoreCase = true) == true ->
-                    ResponseEntity.notFound().build<Any>()
-                e.message?.contains("access denied", ignoreCase = true) == true ->
-                    ResponseEntity.status(403).body(
-                        queryMapper.toAccessDeniedError(e.message ?: "Access denied"),
-                    )
-                e.message?.contains("not cancellable", ignoreCase = true) == true ->
-                    ResponseEntity.status(409).body(
-                        queryMapper.toQueryNotCancellableError(queryId, "COMPLETED"),
-                    )
-                else ->
-                    ResponseEntity.badRequest().body(
-                        queryMapper.toAccessDeniedError(e.message ?: "Unknown error"),
-                    )
-            }
-        }
+        return ResponseEntity.ok(queryMapper.toCancelQueryResponseDto(cancelledQuery))
     }
 
     /**

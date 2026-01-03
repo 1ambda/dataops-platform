@@ -43,73 +43,78 @@ class QueryMetadataServiceTest {
         // Create fresh mocks for each test to avoid parallel test interference
         queryExecutionRepositoryJpa = mockk()
         queryExecutionRepositoryDsl = mockk()
-        queryMetadataService = QueryMetadataService(
-            queryExecutionRepositoryJpa = queryExecutionRepositoryJpa,
-            queryExecutionRepositoryDsl = queryExecutionRepositoryDsl,
-        )
+        queryMetadataService =
+            QueryMetadataService(
+                queryExecutionRepositoryJpa = queryExecutionRepositoryJpa,
+                queryExecutionRepositoryDsl = queryExecutionRepositoryDsl,
+            )
 
         val now = Instant.now()
 
-        testQuery = QueryExecutionEntity(
-            queryId = "query_test_001",
-            sql = "SELECT * FROM users",
-            status = QueryStatus.RUNNING,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(300),
-            startedAt = now.minusSeconds(250),
-            engine = QueryEngine.BIGQUERY,
-            isSystemQuery = false,
-        )
+        testQuery =
+            QueryExecutionEntity(
+                queryId = "query_test_001",
+                sql = "SELECT * FROM users",
+                status = QueryStatus.RUNNING,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(300),
+                startedAt = now.minusSeconds(250),
+                engine = QueryEngine.BIGQUERY,
+                isSystemQuery = false,
+            )
 
-        testSystemQuery = QueryExecutionEntity(
-            queryId = "query_system_001",
-            sql = "SHOW TABLES",
-            status = QueryStatus.RUNNING,
-            submittedBy = "system@example.com",
-            submittedAt = now.minusSeconds(100),
-            startedAt = now.minusSeconds(90),
-            engine = QueryEngine.BIGQUERY,
-            isSystemQuery = true,
-        )
+        testSystemQuery =
+            QueryExecutionEntity(
+                queryId = "query_system_001",
+                sql = "SHOW TABLES",
+                status = QueryStatus.RUNNING,
+                submittedBy = "system@example.com",
+                submittedAt = now.minusSeconds(100),
+                startedAt = now.minusSeconds(90),
+                engine = QueryEngine.BIGQUERY,
+                isSystemQuery = true,
+            )
 
-        testCompletedQuery = QueryExecutionEntity(
-            queryId = "query_completed_001",
-            sql = "SELECT COUNT(*) FROM orders",
-            status = QueryStatus.COMPLETED,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(600),
-            startedAt = now.minusSeconds(550),
-            completedAt = now.minusSeconds(500),
-            engine = QueryEngine.BIGQUERY,
-            isSystemQuery = false,
-            rowsReturned = 1,
-            durationSeconds = 50.0,
-        )
+        testCompletedQuery =
+            QueryExecutionEntity(
+                queryId = "query_completed_001",
+                sql = "SELECT COUNT(*) FROM orders",
+                status = QueryStatus.COMPLETED,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(600),
+                startedAt = now.minusSeconds(550),
+                completedAt = now.minusSeconds(500),
+                engine = QueryEngine.BIGQUERY,
+                isSystemQuery = false,
+                rowsReturned = 1,
+                durationSeconds = 50.0,
+            )
 
-        testRunningQuery = QueryExecutionEntity(
-            queryId = "query_running_001",
-            sql = "SELECT * FROM large_table",
-            status = QueryStatus.RUNNING,
-            submittedBy = "analyst@example.com",
-            submittedAt = now.minusSeconds(180),
-            startedAt = now.minusSeconds(120),
-            engine = QueryEngine.BIGQUERY,
-            isSystemQuery = false,
-        )
+        testRunningQuery =
+            QueryExecutionEntity(
+                queryId = "query_running_001",
+                sql = "SELECT * FROM large_table",
+                status = QueryStatus.RUNNING,
+                submittedBy = "analyst@example.com",
+                submittedAt = now.minusSeconds(180),
+                startedAt = now.minusSeconds(120),
+                engine = QueryEngine.BIGQUERY,
+                isSystemQuery = false,
+            )
     }
 
     @Nested
     @DisplayName("cancelQuery method")
     inner class CancelQuery {
-
         @Test
         @DisplayName("should cancel a running query successfully")
         fun `should cancel a running query successfully`() {
             // Given
-            val command = CancelQueryCommand(
-                queryId = "query_test_001",
-                reason = "User requested cancellation"
-            )
+            val command =
+                CancelQueryCommand(
+                    queryId = "query_test_001",
+                    reason = "User requested cancellation",
+                )
             val currentUser = "analyst@example.com"
             val now = Instant.now()
 
@@ -140,9 +145,10 @@ class QueryMetadataServiceTest {
             every { queryExecutionRepositoryJpa.findById("non_existent_query") } returns Optional.empty()
 
             // When & Then
-            val exception = assertThrows<QueryNotFoundException> {
-                queryMetadataService.cancelQuery(command, currentUser)
-            }
+            val exception =
+                assertThrows<QueryNotFoundException> {
+                    queryMetadataService.cancelQuery(command, currentUser)
+                }
 
             assertThat(exception.message).contains("non_existent_query")
             verify(exactly = 1) { queryExecutionRepositoryJpa.findById("non_existent_query") }
@@ -156,12 +162,14 @@ class QueryMetadataServiceTest {
             val command = CancelQueryCommand(queryId = "query_completed_001")
             val currentUser = "analyst@example.com"
 
-            every { queryExecutionRepositoryJpa.findById("query_completed_001") } returns Optional.of(testCompletedQuery)
+            every { queryExecutionRepositoryJpa.findById("query_completed_001") } returns
+                Optional.of(testCompletedQuery)
 
             // When & Then
-            val exception = assertThrows<QueryNotCancellableException> {
-                queryMetadataService.cancelQuery(command, currentUser)
-            }
+            val exception =
+                assertThrows<QueryNotCancellableException> {
+                    queryMetadataService.cancelQuery(command, currentUser)
+                }
 
             assertThat(exception.message).contains("query_completed_001")
             assertThat(exception.message).contains("COMPLETED")
@@ -174,14 +182,15 @@ class QueryMetadataServiceTest {
         fun `should throw AccessDeniedException when user tries to cancel other user's query`() {
             // Given
             val command = CancelQueryCommand(queryId = "query_test_001")
-            val currentUser = "other@example.com"  // Different user
+            val currentUser = "other@example.com" // Different user
 
             every { queryExecutionRepositoryJpa.findById("query_test_001") } returns Optional.of(testQuery)
 
             // When & Then
-            val exception = assertThrows<AccessDeniedException> {
-                queryMetadataService.cancelQuery(command, currentUser)
-            }
+            val exception =
+                assertThrows<AccessDeniedException> {
+                    queryMetadataService.cancelQuery(command, currentUser)
+                }
 
             assertThat(exception.message).contains("Cannot cancel other users' queries")
             verify(exactly = 1) { queryExecutionRepositoryJpa.findById("query_test_001") }
@@ -198,9 +207,10 @@ class QueryMetadataServiceTest {
             every { queryExecutionRepositoryJpa.findById("query_system_001") } returns Optional.of(testSystemQuery)
 
             // When & Then
-            val exception = assertThrows<AccessDeniedException> {
-                queryMetadataService.cancelQuery(command, currentUser)
-            }
+            val exception =
+                assertThrows<AccessDeniedException> {
+                    queryMetadataService.cancelQuery(command, currentUser)
+                }
 
             assertThat(exception.message).contains("Cannot cancel system queries")
             verify(exactly = 1) { queryExecutionRepositoryJpa.findById("query_system_001") }
@@ -211,7 +221,6 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("listQueries method")
     inner class ListQueries {
-
         @Test
         @DisplayName("should list queries with MY scope successfully")
         fun `should list queries with MY scope successfully`() {
@@ -220,10 +229,11 @@ class QueryMetadataServiceTest {
             val currentUser = "analyst@example.com"
             val expectedQueries = listOf(testQuery, testCompletedQuery)
 
-            val expectedFilter = QueryScopeFilter(
-                submittedBy = currentUser,
-                isSystemQuery = false
-            )
+            val expectedFilter =
+                QueryScopeFilter(
+                    submittedBy = currentUser,
+                    isSystemQuery = false,
+                )
 
             every {
                 queryExecutionRepositoryDsl.findByScope(
@@ -232,7 +242,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 10,
-                    offset = 0
+                    offset = 0,
                 )
             } returns expectedQueries
 
@@ -248,7 +258,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 10,
-                    offset = 0
+                    offset = 0,
                 )
             }
         }
@@ -270,7 +280,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 20,
-                    offset = 0
+                    offset = 0,
                 )
             } returns expectedQueries
 
@@ -286,7 +296,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 20,
-                    offset = 0
+                    offset = 0,
                 )
             }
         }
@@ -297,21 +307,23 @@ class QueryMetadataServiceTest {
             // Given
             val startDate = LocalDate.of(2026, 1, 1)
             val endDate = LocalDate.of(2026, 1, 2)
-            val query = ListQueriesQuery(
-                scope = QueryScope.MY,
-                status = QueryStatus.COMPLETED,
-                startDate = startDate,
-                endDate = endDate,
-                limit = 5,
-                offset = 10
-            )
+            val query =
+                ListQueriesQuery(
+                    scope = QueryScope.MY,
+                    status = QueryStatus.COMPLETED,
+                    startDate = startDate,
+                    endDate = endDate,
+                    limit = 5,
+                    offset = 10,
+                )
             val currentUser = "analyst@example.com"
             val expectedQueries = listOf(testCompletedQuery)
 
-            val expectedFilter = QueryScopeFilter(
-                submittedBy = currentUser,
-                isSystemQuery = false
-            )
+            val expectedFilter =
+                QueryScopeFilter(
+                    submittedBy = currentUser,
+                    isSystemQuery = false,
+                )
 
             every {
                 queryExecutionRepositoryDsl.findByScope(
@@ -320,7 +332,7 @@ class QueryMetadataServiceTest {
                     startDate = startDate,
                     endDate = endDate,
                     limit = 5,
-                    offset = 10
+                    offset = 10,
                 )
             } returns expectedQueries
 
@@ -336,7 +348,7 @@ class QueryMetadataServiceTest {
                     startDate = startDate,
                     endDate = endDate,
                     limit = 5,
-                    offset = 10
+                    offset = 10,
                 )
             }
         }
@@ -358,7 +370,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             } returns expectedQueries
 
@@ -374,7 +386,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             }
         }
@@ -383,7 +395,6 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("getQueryDetails method")
     inner class GetQueryDetails {
-
         @Test
         @DisplayName("should return query details for owner")
         fun `should return query details for owner`() {
@@ -440,14 +451,15 @@ class QueryMetadataServiceTest {
         fun `should throw AccessDeniedException when user tries to view other user's query`() {
             // Given
             val queryId = "query_test_001"
-            val currentUser = "other@example.com"  // Different user
+            val currentUser = "other@example.com" // Different user
 
             every { queryExecutionRepositoryJpa.findById(queryId) } returns Optional.of(testQuery)
 
             // When & Then
-            val exception = assertThrows<AccessDeniedException> {
-                queryMetadataService.getQueryDetails(queryId, currentUser)
-            }
+            val exception =
+                assertThrows<AccessDeniedException> {
+                    queryMetadataService.getQueryDetails(queryId, currentUser)
+                }
 
             assertThat(exception.message).contains("Cannot view other users' queries")
             verify(exactly = 1) { queryExecutionRepositoryJpa.findById(queryId) }
@@ -457,7 +469,6 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("getQueryDetailsOrThrow method")
     inner class GetQueryDetailsOrThrow {
-
         @Test
         @DisplayName("should return query when found")
         fun `should return query when found`() {
@@ -485,9 +496,10 @@ class QueryMetadataServiceTest {
             every { queryExecutionRepositoryJpa.findById(queryId) } returns Optional.empty()
 
             // When & Then
-            val exception = assertThrows<QueryNotFoundException> {
-                queryMetadataService.getQueryDetailsOrThrow(queryId, currentUser)
-            }
+            val exception =
+                assertThrows<QueryNotFoundException> {
+                    queryMetadataService.getQueryDetailsOrThrow(queryId, currentUser)
+                }
 
             assertThat(exception.message).contains("non_existent_query")
             verify(exactly = 1) { queryExecutionRepositoryJpa.findById(queryId) }
@@ -497,17 +509,17 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("countQueries method")
     inner class CountQueries {
-
         @Test
         @DisplayName("should count queries with filters correctly")
         fun `should count queries with filters correctly`() {
             // Given
-            val query = ListQueriesQuery(
-                scope = QueryScope.MY,
-                status = QueryStatus.RUNNING,
-                limit = 10,
-                offset = 0
-            )
+            val query =
+                ListQueriesQuery(
+                    scope = QueryScope.MY,
+                    status = QueryStatus.RUNNING,
+                    limit = 10,
+                    offset = 0,
+                )
             val currentUser = "analyst@example.com"
             val expectedCount = 5L
 
@@ -517,7 +529,7 @@ class QueryMetadataServiceTest {
                     isSystemQuery = false,
                     status = QueryStatus.RUNNING,
                     startDate = null,
-                    endDate = null
+                    endDate = null,
                 )
             } returns expectedCount
 
@@ -532,7 +544,7 @@ class QueryMetadataServiceTest {
                     isSystemQuery = false,
                     status = QueryStatus.RUNNING,
                     startDate = null,
-                    endDate = null
+                    endDate = null,
                 )
             }
         }
@@ -551,7 +563,7 @@ class QueryMetadataServiceTest {
                     isSystemQuery = true,
                     status = null,
                     startDate = null,
-                    endDate = null
+                    endDate = null,
                 )
             } returns expectedCount
 
@@ -566,7 +578,7 @@ class QueryMetadataServiceTest {
                     isSystemQuery = true,
                     status = null,
                     startDate = null,
-                    endDate = null
+                    endDate = null,
                 )
             }
         }
@@ -575,7 +587,6 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("getRunningQueries method")
     inner class GetRunningQueries {
-
         @Test
         @DisplayName("should return running queries for specific user")
         fun `should return running queries for specific user`() {
@@ -614,7 +625,6 @@ class QueryMetadataServiceTest {
     @Nested
     @DisplayName("Edge Cases and Validation")
     inner class EdgeCasesAndValidation {
-
         @Test
         @DisplayName("should handle empty query list")
         fun `should handle empty query list`() {
@@ -622,10 +632,11 @@ class QueryMetadataServiceTest {
             val query = ListQueriesQuery(scope = QueryScope.MY)
             val currentUser = "analyst@example.com"
 
-            val expectedFilter = QueryScopeFilter(
-                submittedBy = currentUser,
-                isSystemQuery = false
-            )
+            val expectedFilter =
+                QueryScopeFilter(
+                    submittedBy = currentUser,
+                    isSystemQuery = false,
+                )
 
             every {
                 queryExecutionRepositoryDsl.findByScope(
@@ -634,7 +645,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             } returns emptyList()
 
@@ -650,7 +661,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             }
         }
@@ -663,10 +674,11 @@ class QueryMetadataServiceTest {
             val currentUser = "analyst@example.com"
             val expectedQueries = listOf(testQuery)
 
-            val expectedFilter = QueryScopeFilter(
-                submittedBy = currentUser,
-                isSystemQuery = null  // USER scope doesn't set isSystemQuery, so it's null
-            )
+            val expectedFilter =
+                QueryScopeFilter(
+                    submittedBy = currentUser,
+                    isSystemQuery = null, // USER scope doesn't set isSystemQuery, so it's null
+                )
 
             every {
                 queryExecutionRepositoryDsl.findByScope(
@@ -675,7 +687,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             } returns expectedQueries
 
@@ -691,7 +703,7 @@ class QueryMetadataServiceTest {
                     startDate = null,
                     endDate = null,
                     limit = 50,
-                    offset = 0
+                    offset = 0,
                 )
             }
         }
