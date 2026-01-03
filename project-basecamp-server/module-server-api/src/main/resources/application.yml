@@ -133,6 +133,15 @@ basecamp:
     queries-per-day: 200
     result-expiration-hours: 8
 
+  # SQL Lineage Parser Configuration
+  parser:
+    enabled: ${LINEAGE_PARSER_ENABLED:true}
+    mock-mode: ${LINEAGE_PARSER_MOCK_MODE:true}
+    timeout-seconds: ${LINEAGE_PARSER_TIMEOUT:60}
+    max-sql-length: ${LINEAGE_PARSER_MAX_SQL_LENGTH:100000}
+    # External parser service URL (when not in mock mode)
+    service-url: ${LINEAGE_PARSER_URL:http://localhost:5000}
+
 logging:
   level:
     com.github.lambda: INFO

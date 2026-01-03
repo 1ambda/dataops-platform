@@ -82,6 +82,29 @@ class CatalogControllerTest {
     @MockkBean(relaxed = true)
     private lateinit var catalogMapper: CatalogMapper
 
+    // Query-related mock beans needed by CatalogController
+    @MockkBean(relaxed = true)
+    private lateinit var queryMetadataService: com.github.lambda.domain.service.QueryMetadataService
+
+    @MockkBean(relaxed = true)
+    private lateinit var queryMapper: com.github.lambda.mapper.QueryMapper
+
+    // Lineage-related mock beans to fix test context loading
+    @MockkBean(relaxed = true)
+    private lateinit var lineageService: com.github.lambda.domain.service.LineageService
+
+    @MockkBean(relaxed = true)
+    private lateinit var lineageNodeRepositoryJpa: com.github.lambda.domain.repository.LineageNodeRepositoryJpa
+
+    @MockkBean(relaxed = true)
+    private lateinit var lineageEdgeRepositoryDsl: com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
+
+    @MockkBean(relaxed = true)
+    private lateinit var lineageMapper: com.github.lambda.mapper.LineageMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var basecampParserClient: com.github.lambda.domain.external.BasecampParserClient
+
     private lateinit var testTableInfo: TableInfo
     private lateinit var testTableDetail: TableDetail
     private lateinit var testSampleQueries: List<SampleQuery>

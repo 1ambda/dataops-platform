@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-01-03
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 92% (33/36 endpoints completed)
+> **Current Progress:** 94% (34/36 endpoints completed)
 
 ---
 
@@ -11,14 +11,14 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 33 endpoints | Health + Metrics + Datasets + Catalog + Quality + Workflow + Run + Query APIs |
+| **Completed** | 34 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + Workflow + Run + Query APIs |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 3 endpoints | Lineage + Transpile APIs |
-| **Overall Progress** | **92%** | 🟢 Phase 1-3 complete, Phase 4 nearly complete |
+| **Not Started** | 2 endpoints | Transpile APIs |
+| **Overall Progress** | **94%** | 🟢 Phase 1-3 complete, Phase 4 nearly complete |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, P3 Quality API, P3 Run API, and P3 Query API completed with full hexagonal architecture, 580+ tests total. Query API provides metadata tracking and cancellation with mock engine integration. Only Lineage and Transpile APIs remaining for 100% completion.
+**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog and Lineage APIs, P2 Workflow API, P3 Quality API, P3 Run API, and P3 Query API completed with full hexagonal architecture, 615+ tests total. Lineage API provides BFS graph traversal with configurable depth and direction. Only Transpile APIs remaining for 100% completion.
 
 ---
 
@@ -32,26 +32,26 @@
 | **P0 Critical** | Metrics | 5 | 4 | ✅ **80%** | `dli metric` |
 | **P0 Critical** | Datasets | 4 | 4 | ✅ **100%** | `dli dataset` |
 | **P1 High** | Catalog | 4 | 4 | ✅ **100%** | `dli catalog` |
-| **P1 High** | Lineage | 1 | 0 | ❌ **0%** | `dli lineage` |
+| **P1 High** | Lineage | 1 | 1 | ✅ **100%** | `dli lineage` |
 | **P2 Medium** | Workflow | 9 | 9 | ✅ **100%** | `dli workflow` |
 | **P3 Low** | Quality | 3 | 3 | ✅ **100%** | `dli quality` |
 | **P3 Low** | Query | 3 | 3 | ✅ **100%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
 | **P3 Low** | Run | 3 | 3 | ✅ **100%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **33** | 🟢 **92%** | All CLI commands |
+| **TOTAL** | **10 features** | **36** | **34** | 🟢 **94%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
 | Phase | Priority | APIs | Timeline | Status |
 |-------|----------|------|----------|--------|
 | **Phase 1** | P0 Critical | 12 endpoints | Week 1-2.5 | 🟢 Nearly Complete (11/12) |
-| **Phase 2** | P1 High | 5 endpoints | Week 3-5 | 🟢 In Progress (4/5) |
+| **Phase 2** | P1 High | 5 endpoints | Week 3-5 | 🟢 **Complete** (5/5) |
 | **Phase 3** | P2 Medium | 9 endpoints | Week 6-9 | 🟢 **Complete** |
 | **Phase 4** | P3 Low | 10 endpoints | Week 10-12.5 | ⏳ Pending |
 
 ---
 
-## ✅ Completed Implementation (33/36)
+## ✅ Completed Implementation (34/36)
 
 ### Health & System API - 100% Complete (4/4 endpoints)
 
@@ -110,6 +110,16 @@
 | `GET /api/v1/catalog/tables/{table_ref}/queries` | ✅ Complete |
 
 **Summary:** 70+ tests, self-managed JPA entities (CatalogTableEntity, CatalogColumnEntity, SampleQueryEntity), PII masking, search with match context, hexagonal architecture, comprehensive cross-review completed
+
+### Lineage API - 100% Complete (1/1 endpoint)
+
+> **📖 Detailed Documentation:** [`LINEAGE_RELEASE.md`](./LINEAGE_RELEASE.md)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/lineage/{resource_name}` | ✅ Complete |
+
+**Summary:** 35+ tests, BFS graph traversal with configurable depth (0-10) and direction (upstream/downstream/both), RDB-based storage (LineageNodeEntity, LineageEdgeEntity), Mock BasecampParserClient for SQL parsing, database migration with sample data, hexagonal architecture
 
 ### Quality API - 100% Complete (3/3 endpoints)
 
