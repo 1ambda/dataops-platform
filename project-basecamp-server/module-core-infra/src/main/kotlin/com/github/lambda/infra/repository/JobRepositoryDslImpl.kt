@@ -17,7 +17,7 @@ class JobRepositoryDslImpl : JobRepositoryDsl {
     override fun findLatestJobByPipelineId(pipelineId: Long): JobEntity? {
         val query =
             entityManager.createQuery(
-                "SELECT j FROM JobEntity j WHERE j.pipeline.id = :pipelineId ORDER BY j.createdAt DESC",
+                "SELECT j FROM JobEntity j WHERE j.pipelineId = :pipelineId ORDER BY j.createdAt DESC",
                 JobEntity::class.java,
             )
         query.setParameter("pipelineId", pipelineId)

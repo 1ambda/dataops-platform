@@ -33,14 +33,40 @@ interface QualityTestRepositoryJpaImpl :
 
     override fun deleteById(id: Long)
 
-    // Spec별 테스트 조회
-    override fun findBySpecName(specName: String): List<QualityTestEntity>
+    // Spec별 테스트 조회 (SpecId 기반으로 변경 - 별도 조인 쿼리 필요)
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qs.deletedAt IS NULL
+        """,
+    )
+    override fun findBySpecName(
+        @Param("specName") specName: String,
+    ): List<QualityTestEntity>
 
-    override fun findBySpecNameOrderByName(specName: String): List<QualityTestEntity>
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qs.deletedAt IS NULL
+        ORDER BY qt.name
+        """,
+    )
+    override fun findBySpecNameOrderByName(
+        @Param("specName") specName: String,
+    ): List<QualityTestEntity>
 
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qt.enabled = :enabled AND qs.deletedAt IS NULL
+        """,
+    )
     override fun findBySpecNameAndEnabled(
-        specName: String,
-        enabled: Boolean,
+        @Param("specName") specName: String,
+        @Param("enabled") enabled: Boolean,
     ): List<QualityTestEntity>
 
     // 이름 기반 조회
@@ -93,20 +119,43 @@ interface QualityTestRepositoryJpaImpl :
 
     override fun countByEnabled(enabled: Boolean): Long
 
-    override fun countBySpecName(specName: String): Long
+    @Query(
+        """
+        SELECT COUNT(qt) FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qs.deletedAt IS NULL
+        """,
+    )
+    override fun countBySpecName(
+        @Param("specName") specName: String,
+    ): Long
 
     // 설명 패턴 검색
     override fun findByDescriptionContainingIgnoreCase(descriptionPattern: String): List<QualityTestEntity>
 
     // 복합 조건 조회
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qt.testType = :testType AND qs.deletedAt IS NULL
+        """,
+    )
     override fun findBySpecNameAndTestType(
-        specName: String,
-        testType: TestType,
+        @Param("specName") specName: String,
+        @Param("testType") testType: TestType,
     ): List<QualityTestEntity>
 
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qt.severity = :severity AND qs.deletedAt IS NULL
+        """,
+    )
     override fun findBySpecNameAndSeverity(
-        specName: String,
-        severity: Severity,
+        @Param("specName") specName: String,
+        @Param("severity") severity: Severity,
     ): List<QualityTestEntity>
 
     override fun findByTestTypeAndEnabled(
@@ -120,7 +169,14 @@ interface QualityTestRepositoryJpaImpl :
     ): List<QualityTestEntity>
 
     // 특정 Spec의 활성화된 테스트만 조회
-    @Query("SELECT qt FROM QualityTestEntity qt WHERE qt.spec.name = :specName AND qt.enabled = true ORDER BY qt.name")
+    @Query(
+        """
+        SELECT qt FROM QualityTestEntity qt
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName AND qt.enabled = true AND qs.deletedAt IS NULL
+        ORDER BY qt.name
+        """,
+    )
     override fun findBySpecNameAndEnabledOrderByName(
         @Param("specName") specName: String,
     ): List<QualityTestEntity>
@@ -133,7 +189,12 @@ interface QualityTestRepositoryJpaImpl :
 
     // 커스텀 업데이트 쿼리
     @Modifying
-    @Query("UPDATE QualityTestEntity qt SET qt.enabled = :enabled WHERE qt.spec.name = :specName")
+    @Query(
+        """
+        UPDATE QualityTestEntity qt SET qt.enabled = :enabled
+        WHERE qt.specId IN (SELECT qs.id FROM QualitySpecEntity qs WHERE qs.name = :specName)
+        """,
+    )
     fun updateEnabledBySpecName(
         @Param("specName") specName: String,
         @Param("enabled") enabled: Boolean,
@@ -150,7 +211,8 @@ interface QualityTestRepositoryJpaImpl :
     @Query(
         """
         SELECT qt FROM QualityTestEntity qt
-        WHERE (:specName IS NULL OR qt.spec.name = :specName)
+        LEFT JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE (:specName IS NULL OR qs.name = :specName)
         AND (:testType IS NULL OR qt.testType = :testType)
         AND (:severity IS NULL OR qt.severity = :severity)
         AND (:enabled IS NULL OR qt.enabled = :enabled)
@@ -174,7 +236,8 @@ interface QualityTestRepositoryJpaImpl :
     @Query(
         """
         SELECT COUNT(qt) FROM QualityTestEntity qt
-        WHERE (:specName IS NULL OR qt.spec.name = :specName)
+        LEFT JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE (:specName IS NULL OR qs.name = :specName)
         AND (:testType IS NULL OR qt.testType = :testType)
         AND (:severity IS NULL OR qt.severity = :severity)
         AND (:enabled IS NULL OR qt.enabled = :enabled)
@@ -202,7 +265,8 @@ interface QualityTestRepositoryJpaImpl :
             COUNT(*) as count,
             SUM(CASE WHEN qt.enabled = true THEN 1 ELSE 0 END) as enabledCount
         FROM QualityTestEntity qt
-        WHERE qt.spec.name = :specName
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName
         GROUP BY qt.testType, qt.severity
         """,
     )
@@ -218,7 +282,8 @@ interface QualityTestRepositoryJpaImpl :
             COUNT(*) as testCount
         FROM QualityTestEntity qt
         JOIN qt.targetColumns col
-        WHERE qt.spec.name = :specName
+        JOIN QualitySpecEntity qs ON qt.specId = qs.id
+        WHERE qs.name = :specName
         GROUP BY col
         ORDER BY testCount DESC
         """,
@@ -226,4 +291,18 @@ interface QualityTestRepositoryJpaImpl :
     fun getTestCountByColumn(
         @Param("specName") specName: String,
     ): List<Map<String, Any>>
+
+    // SpecId 기반 조회
+    override fun findBySpecId(specId: Long): List<QualityTestEntity>
+
+    override fun findBySpecIdAndEnabled(
+        specId: Long,
+        enabled: Boolean,
+    ): List<QualityTestEntity>
+
+    @Modifying
+    @Query("DELETE FROM QualityTestEntity qt WHERE qt.specId = :specId")
+    override fun deleteBySpecId(
+        @Param("specId") specId: Long,
+    )
 }

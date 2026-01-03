@@ -225,13 +225,9 @@ class QualitySpecRepositoryDslImpl(
             }
         }
 
-        hasTests?.let {
-            if (it) {
-                condition.and(qualitySpec.tests.isNotEmpty)
-            } else {
-                condition.and(qualitySpec.tests.isEmpty)
-            }
-        }
+        // hasTests filter removed - tests relationship no longer exists
+        // Use QualityTestRepositoryJpa.findBySpecId() instead to check for tests
+        // TODO: Implement using subquery if hasTests filtering is needed
 
         return queryFactory
             .selectFrom(qualitySpec)

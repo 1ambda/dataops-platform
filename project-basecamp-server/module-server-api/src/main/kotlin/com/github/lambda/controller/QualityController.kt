@@ -103,9 +103,10 @@ class QualityController(
         logger.info { "GET /api/v1/quality/$name" }
 
         val spec = qualityService.getQualitySpecOrThrow(name)
+        val tests = qualityService.getQualityTests(name)
         val recentRuns = qualityService.getQualityRuns(name, limit = 5, offset = 0)
 
-        val response = qualityMapper.toDetailDto(spec, recentRuns)
+        val response = qualityMapper.toDetailDto(spec, tests, recentRuns)
 
         return ResponseEntity.ok(response)
     }

@@ -22,7 +22,14 @@ data class PipelineDto(
     val updatedAt: LocalDateTime?,
 ) {
     companion object {
-        fun from(pipeline: PipelineEntity): PipelineDto =
+        /**
+         * Create PipelineDto from entity.
+         * Note: jobCount must be provided separately since jobs relationship was removed.
+         */
+        fun from(
+            pipeline: PipelineEntity,
+            jobCount: Int = 0,
+        ): PipelineDto =
             PipelineDto(
                 id = pipeline.id,
                 name = pipeline.name,
@@ -31,7 +38,7 @@ data class PipelineDto(
                 owner = pipeline.owner,
                 scheduleExpression = pipeline.scheduleExpression,
                 isActive = pipeline.isActive,
-                jobCount = pipeline.jobs.size,
+                jobCount = jobCount,
                 createdAt = pipeline.createdAt,
                 updatedAt = pipeline.updatedAt,
             )

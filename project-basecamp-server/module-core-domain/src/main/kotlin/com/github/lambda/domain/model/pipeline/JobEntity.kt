@@ -1,7 +1,12 @@
 package com.github.lambda.domain.model.pipeline
 
 import com.github.lambda.domain.model.BaseEntity
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Index
+import jakarta.persistence.Table
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -44,14 +49,12 @@ class JobEntity(
     var finishedAt: LocalDateTime? = null,
     @Column(name = "error_message", columnDefinition = "TEXT")
     var errorMessage: String? = null,
-) : BaseEntity() {
     /**
-     * 소속 파이프라인 (지연 로딩)
+     * 소속 파이프라인 ID (FK)
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pipeline_id", nullable = false)
-    var pipeline: PipelineEntity? = null
-
+    @Column(name = "pipeline_id", nullable = false)
+    var pipelineId: Long = 0L,
+) : BaseEntity() {
     /**
      * Job 시작
      */

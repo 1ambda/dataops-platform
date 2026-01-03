@@ -31,21 +31,32 @@ interface TestResultRepositoryJpaImpl :
 
     override fun deleteById(id: Long)
 
-    // Run별 결과 조회
-    override fun findByRunRunId(runId: String): List<TestResultEntity>
+    // Run별 결과 조회 (explicit JOIN with QualityRunEntity)
+    @Query("SELECT tr FROM TestResultEntity tr JOIN QualityRunEntity r ON tr.runId = r.id WHERE r.runId = :runId")
+    override fun findByRunRunId(
+        @Param("runId") runId: String,
+    ): List<TestResultEntity>
 
+    @Query(
+        """
+        SELECT tr FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId
+        ORDER BY tr.createdAt DESC
+        """,
+    )
     override fun findByRunRunIdOrderByCreatedAtDesc(
-        runId: String,
+        @Param("runId") runId: String,
         pageable: Pageable,
     ): Page<TestResultEntity>
 
-    // Test별 결과 조회
-    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName")
+    // Test별 결과 조회 (use testName field directly)
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.testName = :testName")
     override fun findByTestName(
         @Param("testName") testName: String,
     ): List<TestResultEntity>
 
-    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.test.name = :testName ORDER BY tr.createdAt DESC")
+    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.testName = :testName ORDER BY tr.createdAt DESC")
     override fun findByTestNameOrderByCreatedAtDesc(
         @Param("testName") testName: String,
         pageable: Pageable,
@@ -59,16 +70,29 @@ interface TestResultRepositoryJpaImpl :
         pageable: Pageable,
     ): Page<TestResultEntity>
 
-    // Run과 Test의 복합 조회
-    @Query("SELECT tr FROM TestResultEntity tr WHERE tr.run.runId = :runId AND tr.test.name = :testName")
+    // Run과 Test의 복합 조회 (explicit JOIN with QualityRunEntity, use testName field)
+    @Query(
+        """
+        SELECT tr FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId AND tr.testName = :testName
+        """,
+    )
     override fun findByRunRunIdAndTestName(
         @Param("runId") runId: String,
         @Param("testName") testName: String,
     ): List<TestResultEntity>
 
+    @Query(
+        """
+        SELECT tr FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId AND tr.status = :status
+        """,
+    )
     override fun findByRunRunIdAndStatus(
-        runId: String,
-        status: TestStatus,
+        @Param("runId") runId: String,
+        @Param("status") status: TestStatus,
     ): List<TestResultEntity>
 
     // 전체 목록 조회 (페이지네이션)
@@ -77,9 +101,18 @@ interface TestResultRepositoryJpaImpl :
     // 통계 및 집계
     override fun countByStatus(status: TestStatus): Long
 
-    override fun countByRunRunId(runId: String): Long
+    @Query(
+        """
+        SELECT COUNT(tr) FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId
+        """,
+    )
+    override fun countByRunRunId(
+        @Param("runId") runId: String,
+    ): Long
 
-    @Query("SELECT COUNT(tr) FROM TestResultEntity tr WHERE tr.test.name = :testName")
+    @Query("SELECT COUNT(tr) FROM TestResultEntity tr WHERE tr.testName = :testName")
     override fun countByTestName(
         @Param("testName") testName: String,
     ): Long
@@ -115,32 +148,52 @@ interface TestResultRepositoryJpaImpl :
     // 최근 실행 결과 조회
     override fun findTop10ByOrderByCreatedAtDesc(): List<TestResultEntity>
 
-    // 특정 Run의 실패한 테스트 결과들
+    // 특정 Run의 실패한 테스트 결과들 (explicit JOIN with QualityRunEntity)
+    @Query(
+        """
+        SELECT tr FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId AND tr.status IN :statuses
+        """,
+    )
     override fun findByRunRunIdAndStatusIn(
-        runId: String,
-        statuses: List<TestStatus>,
+        @Param("runId") runId: String,
+        @Param("statuses") statuses: List<TestStatus>,
     ): List<TestResultEntity>
 
-    // 특정 Run의 성공/실패 개수 조회
+    // 특정 Run의 성공/실패 개수 조회 (explicit JOIN with QualityRunEntity)
+    @Query(
+        """
+        SELECT COUNT(tr) FROM TestResultEntity tr
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId AND tr.status = :status
+        """,
+    )
     override fun countByRunRunIdAndStatus(
-        runId: String,
-        status: TestStatus,
+        @Param("runId") runId: String,
+        @Param("status") status: TestStatus,
     ): Long
 
-    // 커스텀 업데이트 쿼리
+    // 커스텀 업데이트 쿼리 (subquery for runId lookup)
     @Modifying
-    @Query("UPDATE TestResultEntity tr SET tr.status = :status WHERE tr.run.runId = :runId")
+    @Query(
+        """
+        UPDATE TestResultEntity tr SET tr.status = :status
+        WHERE tr.runId IN (SELECT r.id FROM QualityRunEntity r WHERE r.runId = :runId)
+        """,
+    )
     fun updateStatusByRunId(
         @Param("runId") runId: String,
         @Param("status") status: TestStatus,
     ): Int
 
-    // 복잡한 검색 쿼리
+    // 복잡한 검색 쿼리 (explicit JOIN with QualityRunEntity)
     @Query(
         """
         SELECT tr FROM TestResultEntity tr
-        WHERE (:runId IS NULL OR tr.run.runId = :runId)
-        AND (:testName IS NULL OR tr.test.name = :testName)
+        LEFT JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE (:runId IS NULL OR r.runId = :runId)
+        AND (:testName IS NULL OR tr.testName = :testName)
         AND (:status IS NULL OR tr.status = :status)
         AND (:hasError IS NULL OR
              (:hasError = true AND tr.errorMessage IS NOT NULL) OR
@@ -163,8 +216,9 @@ interface TestResultRepositoryJpaImpl :
     @Query(
         """
         SELECT COUNT(tr) FROM TestResultEntity tr
-        WHERE (:runId IS NULL OR tr.run.runId = :runId)
-        AND (:testName IS NULL OR tr.test.name = :testName)
+        LEFT JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE (:runId IS NULL OR r.runId = :runId)
+        AND (:testName IS NULL OR tr.testName = :testName)
         AND (:status IS NULL OR tr.status = :status)
         AND (:hasError IS NULL OR
              (:hasError = true AND tr.errorMessage IS NOT NULL) OR
@@ -182,7 +236,7 @@ interface TestResultRepositoryJpaImpl :
         @Param("maxDuration") maxDuration: Double?,
     ): Long
 
-    // 테스트 결과 통계 조회
+    // 테스트 결과 통계 조회 (explicit JOIN with QualityRunEntity)
     @Query(
         """
         SELECT
@@ -192,7 +246,8 @@ interface TestResultRepositoryJpaImpl :
             MIN(tr.executionTimeSeconds) as minDuration,
             MAX(tr.executionTimeSeconds) as maxDuration
         FROM TestResultEntity tr
-        WHERE tr.run.runId = :runId
+        JOIN QualityRunEntity r ON tr.runId = r.id
+        WHERE r.runId = :runId
         GROUP BY tr.status
         ORDER BY tr.status
         """,
@@ -201,16 +256,16 @@ interface TestResultRepositoryJpaImpl :
         @Param("runId") runId: String,
     ): List<Map<String, Any>>
 
-    // 테스트별 성공률 조회
+    // 테스트별 성공률 조회 (use testName field directly)
     @Query(
         """
         SELECT
-            tr.test.name as testName,
+            tr.testName as testName,
             COUNT(*) as totalRuns,
             SUM(CASE WHEN tr.status = 'PASSED' THEN 1 ELSE 0 END) as passedRuns,
             ROUND(SUM(CASE WHEN tr.status = 'PASSED' THEN 1.0 ELSE 0 END) / COUNT(*) * 100, 2) as successRate
         FROM TestResultEntity tr
-        GROUP BY tr.test.name
+        GROUP BY tr.testName
         HAVING COUNT(*) >= :minRuns
         ORDER BY successRate DESC, totalRuns DESC
         """,

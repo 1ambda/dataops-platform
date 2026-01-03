@@ -159,41 +159,48 @@ class CatalogMapper {
 
     /**
      * Convert CreateCatalogTableRequest to CatalogTableEntity
+     *
+     * Note: Columns are returned separately since addColumn method was removed.
+     * The caller should persist the table first, then save columns with the table ID.
      */
     fun toEntity(request: CreateCatalogTableRequest): CatalogTableEntity {
         val parts = request.name.split(".")
         require(parts.size == 3) { "Table name must be in format: project.dataset.table" }
 
-        val entity =
-            CatalogTableEntity(
-                name = request.name,
-                project = parts[0],
-                datasetName = parts[1],
-                tableName = parts[2],
-                engine = request.engine,
-                owner = request.owner,
-                team = request.team,
-                description = request.description,
-                tags = request.tags.toSet(),
-                rowCount = request.rowCount,
-                lastUpdated = request.lastUpdated,
-                basecampUrl = request.basecampUrl,
-                stewards = request.stewards?.joinToString(","),
-                consumers = request.consumers?.joinToString(","),
-                avgUpdateLagHours = request.avgUpdateLagHours,
-                updateFrequency = request.updateFrequency,
-                staleThresholdHours = request.staleThresholdHours ?: 24,
-                qualityScore = request.qualityScore,
-            )
-
-        // Add columns if provided
-        request.columns?.forEachIndexed { index, columnRequest ->
-            val column = toColumnEntity(columnRequest, index)
-            entity.addColumn(column)
-        }
-
-        return entity
+        return CatalogTableEntity(
+            name = request.name,
+            project = parts[0],
+            datasetName = parts[1],
+            tableName = parts[2],
+            engine = request.engine,
+            owner = request.owner,
+            team = request.team,
+            description = request.description,
+            tags = request.tags.toSet(),
+            rowCount = request.rowCount,
+            lastUpdated = request.lastUpdated,
+            basecampUrl = request.basecampUrl,
+            stewards = request.stewards?.joinToString(","),
+            consumers = request.consumers?.joinToString(","),
+            avgUpdateLagHours = request.avgUpdateLagHours,
+            updateFrequency = request.updateFrequency,
+            staleThresholdHours = request.staleThresholdHours ?: 24,
+            qualityScore = request.qualityScore,
+        )
     }
+
+    /**
+     * Convert CreateCatalogTableRequest columns to CatalogColumnEntity list
+     *
+     * Note: catalogTableId must be set after table is persisted
+     */
+    fun toColumnEntities(
+        request: CreateCatalogTableRequest,
+        catalogTableId: Long,
+    ): List<CatalogColumnEntity> =
+        request.columns?.mapIndexed { index, columnRequest ->
+            toColumnEntity(columnRequest, index, catalogTableId)
+        } ?: emptyList()
 
     /**
      * Convert CreateColumnRequest to CatalogColumnEntity
@@ -201,8 +208,10 @@ class CatalogMapper {
     fun toColumnEntity(
         request: CreateColumnRequest,
         ordinalPosition: Int,
+        catalogTableId: Long = 0L,
     ): CatalogColumnEntity =
         CatalogColumnEntity(
+            catalogTableId = catalogTableId,
             name = request.name,
             dataType = request.dataType,
             description = request.description,
@@ -254,8 +263,13 @@ class CatalogMapper {
 
     /**
      * Convert CatalogTableEntity to TableDetail
+     *
+     * Note: columns must be provided separately since columns relationship was removed
      */
-    fun toTableDetail(entity: CatalogTableEntity): TableDetail =
+    fun toTableDetail(
+        entity: CatalogTableEntity,
+        columns: List<CatalogColumnEntity> = emptyList(),
+    ): TableDetail =
         TableDetail(
             name = entity.name,
             engine = entity.engine,
@@ -266,7 +280,7 @@ class CatalogMapper {
             rowCount = entity.rowCount,
             lastUpdated = entity.lastUpdated,
             basecampUrl = entity.basecampUrl,
-            columns = entity.columns.map { toColumnInfo(it) },
+            columns = columns.map { toColumnInfo(it) },
             ownership = toTableOwnership(entity),
             freshness = entity.lastUpdated?.let { toTableFreshness(entity) },
             quality = entity.qualityScore?.let { toTableQualityFromEntity(entity) },

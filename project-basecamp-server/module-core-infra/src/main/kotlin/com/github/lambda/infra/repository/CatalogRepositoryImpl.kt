@@ -9,6 +9,7 @@ import com.github.lambda.domain.model.catalog.TableFreshness
 import com.github.lambda.domain.model.catalog.TableInfo
 import com.github.lambda.domain.model.catalog.TableOwnership
 import com.github.lambda.domain.model.catalog.TableQuality
+import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
 import com.github.lambda.domain.repository.CatalogRepository
 import com.github.lambda.domain.repository.CatalogTableRepositoryDsl
 import com.github.lambda.domain.repository.CatalogTableRepositoryJpa
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Repository
 class CatalogRepositoryImpl(
     private val catalogTableRepositoryJpa: CatalogTableRepositoryJpa,
     private val catalogTableRepositoryDsl: CatalogTableRepositoryDsl,
+    private val catalogColumnRepositoryJpa: CatalogColumnRepositoryJpa,
 ) : CatalogRepository {
     override fun listTables(filters: CatalogFilters): List<TableInfo> {
         val pageable = PageRequest.of(filters.offset / filters.limit, filters.limit)
@@ -55,7 +57,8 @@ class CatalogRepositoryImpl(
 
     override fun getTableColumns(tableRef: String): List<ColumnInfo> {
         val entity = catalogTableRepositoryJpa.findByName(tableRef) ?: return emptyList()
-        return entity.columns.map { toColumnInfo(it) }
+        val columns = catalogColumnRepositoryJpa.findByCatalogTableIdOrderByOrdinalPositionAsc(entity.id!!)
+        return columns.map { toColumnInfo(it) }
     }
 
     override fun getSampleData(
@@ -85,8 +88,9 @@ class CatalogRepositoryImpl(
             matchContext = matchContext,
         )
 
-    private fun toTableDetail(entity: CatalogTableEntity): TableDetail =
-        TableDetail(
+    private fun toTableDetail(entity: CatalogTableEntity): TableDetail {
+        val columns = catalogColumnRepositoryJpa.findByCatalogTableIdOrderByOrdinalPositionAsc(entity.id!!)
+        return TableDetail(
             name = entity.name,
             engine = entity.engine,
             owner = entity.owner,
@@ -96,12 +100,13 @@ class CatalogRepositoryImpl(
             rowCount = entity.rowCount,
             lastUpdated = entity.lastUpdated,
             basecampUrl = entity.basecampUrl,
-            columns = entity.columns.map { toColumnInfo(it) },
+            columns = columns.map { toColumnInfo(it) },
             ownership = toTableOwnership(entity),
             freshness = entity.lastUpdated?.let { toTableFreshness(entity) },
             quality = entity.qualityScore?.let { toTableQuality(entity) },
             sampleData = emptyList(), // Sample data not stored in entity
         )
+    }
 
     private fun toColumnInfo(entity: CatalogColumnEntity): ColumnInfo =
         ColumnInfo(
@@ -145,6 +150,7 @@ class CatalogRepositoryImpl(
         keyword: String,
     ): String {
         val lowerKeyword = keyword.lowercase()
+        val columns = catalogColumnRepositoryJpa.findByCatalogTableId(entity.id!!)
 
         return when {
             entity.name.lowercase().contains(lowerKeyword) ->
@@ -153,8 +159,8 @@ class CatalogRepositoryImpl(
             entity.description?.lowercase()?.contains(lowerKeyword) == true ->
                 "Matched in description: ${extractMatchSnippet(entity.description, keyword)}"
 
-            entity.columns.any { it.name.lowercase().contains(lowerKeyword) } -> {
-                val matchingColumn = entity.columns.first { it.name.lowercase().contains(lowerKeyword) }
+            columns.any { it.name.lowercase().contains(lowerKeyword) } -> {
+                val matchingColumn = columns.first { it.name.lowercase().contains(lowerKeyword) }
                 "Matched in column: ${matchingColumn.name}"
             }
 

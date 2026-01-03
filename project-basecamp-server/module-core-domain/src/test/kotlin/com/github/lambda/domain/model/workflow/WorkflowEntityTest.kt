@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 
 /**
  * WorkflowEntity Unit Tests
@@ -195,82 +194,6 @@ class WorkflowEntityTest {
     }
 
     @Nested
-    @DisplayName("Runs management")
-    inner class RunsManagement {
-        @Test
-        @DisplayName("should add run to workflow runs list")
-        fun `should add run to workflow runs list`() {
-            // Given
-            val workflowRun =
-                WorkflowRunEntity(
-                    runId = "test_run_123",
-                    datasetName = testWorkflow.datasetName,
-                    triggeredBy = "test@example.com",
-                    runType = WorkflowRunType.MANUAL,
-                )
-
-            // When
-            testWorkflow.addRun(workflowRun)
-
-            // Then
-            assertThat(testWorkflow.runs).hasSize(1)
-            assertThat(testWorkflow.runs[0]).isEqualTo(workflowRun)
-            assertThat(workflowRun.workflow).isEqualTo(testWorkflow)
-        }
-
-        @Test
-        @DisplayName("should get last run correctly")
-        fun `should get last run correctly`() {
-            // Given
-            val run1 =
-                WorkflowRunEntity(
-                    runId = "run_1",
-                    datasetName = testWorkflow.datasetName,
-                    triggeredBy = "test@example.com",
-                    runType = WorkflowRunType.MANUAL,
-                ).apply {
-                    startedAt = LocalDate.of(2025, 1, 1).atStartOfDay()
-                }
-
-            val run2 =
-                WorkflowRunEntity(
-                    runId = "run_2",
-                    datasetName = testWorkflow.datasetName,
-                    triggeredBy = "test@example.com",
-                    runType = WorkflowRunType.MANUAL,
-                ).apply {
-                    startedAt = LocalDate.of(2025, 1, 2).atStartOfDay()
-                }
-
-            val run3 =
-                WorkflowRunEntity(
-                    runId = "run_3",
-                    datasetName = testWorkflow.datasetName,
-                    triggeredBy = "test@example.com",
-                    runType = WorkflowRunType.MANUAL,
-                ).apply {
-                    startedAt = LocalDate.of(2025, 1, 3).atStartOfDay()
-                }
-
-            // When
-            testWorkflow.addRun(run1)
-            testWorkflow.addRun(run3)
-            testWorkflow.addRun(run2)
-
-            // Then
-            val lastRun = testWorkflow.getLastRun()
-            assertThat(lastRun).isEqualTo(run3)
-        }
-
-        @Test
-        @DisplayName("should return null for getLastRun when no runs")
-        fun `should return null for getLastRun when no runs`() {
-            // When & Then
-            assertThat(testWorkflow.getLastRun()).isNull()
-        }
-    }
-
-    @Nested
     @DisplayName("Dataset name parsing")
     inner class DatasetNameParsing {
         @Test
@@ -358,7 +281,6 @@ class WorkflowEntityTest {
             assertThat(workflow.s3Path).isEqualTo("s3://bucket/path")
             assertThat(workflow.airflowDagId).isEqualTo("test_dag_id")
             assertThat(workflow.schedule).isNotNull()
-            assertThat(workflow.runs).isEmpty()
         }
 
         @Test

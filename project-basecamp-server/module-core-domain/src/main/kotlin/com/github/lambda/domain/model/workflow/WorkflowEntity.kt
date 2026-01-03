@@ -1,16 +1,13 @@
 package com.github.lambda.domain.model.workflow
 
 import com.github.lambda.domain.model.BaseAuditableEntity
-import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
-import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
@@ -73,14 +70,6 @@ class WorkflowEntity(
     @Embedded
     var schedule: ScheduleInfo = ScheduleInfo(),
 ) : BaseAuditableEntity() {
-    @OneToMany(
-        mappedBy = "workflow",
-        cascade = [CascadeType.ALL],
-        orphanRemoval = true,
-        fetch = FetchType.LAZY,
-    )
-    var runs: MutableList<WorkflowRunEntity> = mutableListOf()
-
     /**
      * 워크플로우가 활성 상태인지 확인
      */
@@ -137,19 +126,6 @@ class WorkflowEntity(
     fun disable() {
         status = WorkflowStatus.DISABLED
     }
-
-    /**
-     * 실행 이력 추가
-     */
-    fun addRun(run: WorkflowRunEntity) {
-        runs.add(run)
-        run.workflow = this
-    }
-
-    /**
-     * 가장 최근 실행 이력 조회
-     */
-    fun getLastRun(): WorkflowRunEntity? = runs.maxByOrNull { it.startedAt ?: java.time.LocalDateTime.MIN }
 
     /**
      * catalog 추출

@@ -82,7 +82,7 @@ class QualityRunRepositoryJpaImplTest {
                 passedTests = 5,
                 failedTests = 0,
                 executedBy = "user1@example.com",
-            ).also { it.spec = spec }
+            ).also { it.specId = spec.id!! }
 
         run2 =
             QualityRunEntity(
@@ -96,7 +96,7 @@ class QualityRunRepositoryJpaImplTest {
                 passedTests = 3,
                 failedTests = 2,
                 executedBy = "user2@example.com",
-            ).also { it.spec = spec }
+            ).also { it.specId = spec.id!! }
 
         run3 =
             QualityRunEntity(
@@ -110,7 +110,7 @@ class QualityRunRepositoryJpaImplTest {
                 passedTests = 0,
                 failedTests = 0,
                 executedBy = "user1@example.com",
-            ).also { it.spec = spec }
+            ).also { it.specId = spec.id!! }
 
         testEntityManager.persistAndFlush(run1)
         testEntityManager.persistAndFlush(run2)
@@ -132,7 +132,7 @@ class QualityRunRepositoryJpaImplTest {
                     status = RunStatus.RUNNING,
                     startedAt = Instant.now(),
                     executedBy = "new@example.com",
-                ).also { it.spec = spec }
+                ).also { it.specId = spec.id!! }
 
             // When
             val saved = repository.save(newRun)

@@ -6,10 +6,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
 import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.PositiveOrZero
@@ -62,15 +59,17 @@ class TestResultEntity(
     var sampleFailures: JsonNode? = null,
     @Column(name = "generated_sql", columnDefinition = "TEXT")
     var generatedSql: String? = null,
+    /**
+     * Quality Run ID (FK)
+     */
+    @Column(name = "run_id", nullable = false)
+    var runId: Long = 0L,
+    /**
+     * Quality Test ID (FK, nullable)
+     */
+    @Column(name = "test_id", nullable = true)
+    var testId: Long? = null,
 ) : BaseEntity() {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "run_id", nullable = false)
-    var run: QualityRunEntity? = null
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "test_id", nullable = true)
-    var test: QualityTestEntity? = null
-
     /**
      * 테스트가 통과했는지 확인
      */

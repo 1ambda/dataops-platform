@@ -120,7 +120,7 @@ class CatalogTableRepositoryDslImpl : CatalogTableRepositoryDsl {
             StringBuilder(
                 """
             SELECT DISTINCT c FROM CatalogTableEntity c
-            LEFT JOIN c.columns col
+            LEFT JOIN CatalogColumnEntity col ON col.catalogTableId = c.id
             WHERE (LOWER(c.name) LIKE LOWER(:keyword)
                    OR LOWER(c.description) LIKE LOWER(:keyword)
                    OR LOWER(col.name) LIKE LOWER(:keyword))

@@ -183,8 +183,12 @@ class PipelineMapper(
 
     /**
      * 도메인 Entity를 응답 DTO로 변환 (헥사고날 아키텍처 준수)
+     * Note: jobCount must be provided separately since jobs relationship was removed.
      */
-    fun toResponse(entity: com.github.lambda.domain.model.pipeline.PipelineEntity): PipelineResponse =
+    fun toResponse(
+        entity: com.github.lambda.domain.model.pipeline.PipelineEntity,
+        jobCount: Int = 0,
+    ): PipelineResponse =
         PipelineResponse(
             id = entity.id,
             name = entity.name,
@@ -193,7 +197,7 @@ class PipelineMapper(
             owner = entity.owner,
             scheduleExpression = entity.scheduleExpression,
             isActive = entity.isActive,
-            jobCount = entity.jobs.size,
+            jobCount = jobCount,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
         )
@@ -235,10 +239,12 @@ class PipelineMapper(
      * 보안 수준에 따른 응답 DTO 변환 (Entity 기반)
      * 금융 프로젝트와 같이 보안이 중요한 환경에서 사용
      * FieldAccessControl을 활용하여 동적 필드 노출 제어
+     * Note: jobCount must be provided separately since jobs relationship was removed.
      */
     fun toSecureResponse(
         entity: com.github.lambda.domain.model.pipeline.PipelineEntity,
         securityLevel: SecurityLevel? = null,
+        jobCount: Int = 0,
     ): PipelineResponse {
         val actualSecurityLevel = securityLevel ?: fieldAccessControl.getCurrentUserSecurityLevel()
 
@@ -255,7 +261,7 @@ class PipelineMapper(
                     null
                 },
             isActive = entity.isActive,
-            jobCount = entity.jobs.size,
+            jobCount = jobCount,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
         )

@@ -296,8 +296,8 @@ class WorkflowService(
                     runType = WorkflowRunType.MANUAL,
                     startedAt = LocalDateTime.now(),
                     params = if (params.isNotEmpty()) serializeParams(params) else null,
+                    workflowId = workflow.datasetName,
                 )
-            workflowRun.workflow = workflow
 
             val savedRun = workflowRunRepositoryJpa.save(workflowRun)
             log.info("Successfully triggered workflow run: {}", runId)
@@ -378,8 +378,8 @@ class WorkflowService(
                         runType = WorkflowRunType.BACKFILL,
                         startedAt = LocalDateTime.now(),
                         params = serializeParams(dateParams),
+                        workflowId = workflow.datasetName,
                     )
-                workflowRun.workflow = workflow
 
                 runs.add(workflowRunRepositoryJpa.save(workflowRun))
             }

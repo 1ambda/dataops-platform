@@ -469,7 +469,7 @@ class WorkflowRunEntityTest {
             assertThat(workflowRun.stopReason).isNull()
             assertThat(workflowRun.stoppedBy).isNull()
             assertThat(workflowRun.stoppedAt).isNull()
-            assertThat(workflowRun.workflow).isNull()
+            assertThat(workflowRun.workflowId).isEmpty()
         }
 
         @Test
@@ -496,7 +496,7 @@ class WorkflowRunEntityTest {
             assertThat(workflowRun.stopReason).isNull()
             assertThat(workflowRun.stoppedBy).isNull()
             assertThat(workflowRun.stoppedAt).isNull()
-            assertThat(workflowRun.workflow).isNull()
+            assertThat(workflowRun.workflowId).isEmpty()
         }
     }
 }

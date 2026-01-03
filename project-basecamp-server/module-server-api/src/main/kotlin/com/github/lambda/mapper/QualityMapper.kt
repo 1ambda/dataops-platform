@@ -24,8 +24,12 @@ class QualityMapper {
      * Convert QualitySpecEntity to QualitySpecSummaryDto (list view)
      *
      * Used for GET /api/v1/quality
+     * Note: testCount must be provided separately since tests relationship was removed
      */
-    fun toSummaryDto(entity: QualitySpecEntity): QualitySpecSummaryDto =
+    fun toSummaryDto(
+        entity: QualitySpecEntity,
+        testCount: Int = 0,
+    ): QualitySpecSummaryDto =
         QualitySpecSummaryDto(
             name = entity.name,
             resourceName = entity.resourceName,
@@ -37,7 +41,7 @@ class QualityMapper {
             scheduleCron = entity.scheduleCron,
             scheduleTimezone = entity.scheduleTimezone,
             enabled = entity.enabled,
-            testCount = entity.tests.size,
+            testCount = testCount,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
         )
@@ -46,9 +50,11 @@ class QualityMapper {
      * Convert QualitySpecEntity to QualitySpecDetailDto (full details)
      *
      * Used for GET /api/v1/quality/{name}
+     * Note: tests must be provided separately since tests relationship was removed
      */
     fun toDetailDto(
         entity: QualitySpecEntity,
+        tests: List<QualityTestEntity> = emptyList(),
         recentRuns: List<QualityRunEntity> = emptyList(),
     ): QualitySpecDetailDto =
         QualitySpecDetailDto(
@@ -62,7 +68,7 @@ class QualityMapper {
             scheduleCron = entity.scheduleCron,
             scheduleTimezone = entity.scheduleTimezone,
             enabled = entity.enabled,
-            tests = entity.tests.map { toTestDto(it) },
+            tests = tests.map { toTestDto(it) },
             recentRuns = recentRuns.take(5).map { toRunSummaryDto(it) },
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -101,12 +107,18 @@ class QualityMapper {
 
     /**
      * Convert QualityRunEntity to QualityRunResultDto (for test execution)
+     *
+     * Note: specName and testResults must be provided separately since relationships were removed
      */
-    fun toRunResultDto(entity: QualityRunEntity): QualityRunResultDto =
+    fun toRunResultDto(
+        entity: QualityRunEntity,
+        specName: String = "",
+        testResults: List<TestResultSummaryDto> = emptyList(),
+    ): QualityRunResultDto =
         QualityRunResultDto(
             runId = entity.runId,
             resourceName = entity.resourceName,
-            qualitySpecName = entity.spec?.name ?: "",
+            qualitySpecName = specName,
             status = entity.status.name,
             overallStatus = entity.overallStatus?.name,
             passedTests = entity.passedTests,
@@ -116,24 +128,7 @@ class QualityMapper {
             startedAt = entity.startedAt,
             completedAt = entity.completedAt,
             executedBy = entity.executedBy,
-            testResults = entity.results.map { toTestResultSummaryDto(it) },
-        )
-
-    /**
-     * Convert TestResultEntity to TestResultSummaryDto
-     *
-     * Note: This is a mock implementation since TestResultEntity doesn't exist yet
-     * In real implementation, would use proper TestResultEntity
-     */
-    private fun toTestResultSummaryDto(entity: Any): TestResultSummaryDto =
-        TestResultSummaryDto(
-            testName = "mock_test",
-            testType = "NOT_NULL",
-            status = "PASSED",
-            failedRows = 0L,
-            totalRows = 1000L,
-            executionTimeSeconds = 2.5,
-            errorMessage = null,
+            testResults = testResults,
         )
 
     /**

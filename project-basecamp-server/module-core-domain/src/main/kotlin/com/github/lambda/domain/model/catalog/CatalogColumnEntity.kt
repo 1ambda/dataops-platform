@@ -2,13 +2,10 @@ package com.github.lambda.domain.model.catalog
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -36,11 +33,10 @@ class CatalogColumnEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
     /**
-     * Parent table reference
+     * Parent table ID (FK)
      */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "catalog_table_id", nullable = false)
-    var catalogTable: CatalogTableEntity? = null,
+    @Column(name = "catalog_table_id", nullable = false)
+    val catalogTableId: Long,
     /**
      * Column name
      */
@@ -121,11 +117,11 @@ class CatalogColumnEntity(
         if (this === other) return true
         if (other !is CatalogColumnEntity) return false
         if (id != null && other.id != null) return id == other.id
-        return catalogTable?.name == other.catalogTable?.name && name == other.name
+        return catalogTableId == other.catalogTableId && name == other.name
     }
 
     override fun hashCode(): Int {
-        var result = catalogTable?.name?.hashCode() ?: 0
+        var result = catalogTableId.hashCode()
         result = 31 * result + name.hashCode()
         return result
     }

@@ -1,7 +1,6 @@
 package com.github.lambda.domain.model.quality
 
 import com.github.lambda.domain.model.BaseEntity
-import jakarta.persistence.CascadeType
 import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
 import jakarta.persistence.ElementCollection
@@ -11,7 +10,6 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
@@ -82,22 +80,6 @@ class QualitySpecEntity(
     @Column(name = "enabled", nullable = false)
     var enabled: Boolean = true,
 ) : BaseEntity() {
-    @OneToMany(
-        mappedBy = "spec",
-        cascade = [CascadeType.ALL],
-        orphanRemoval = true,
-        fetch = FetchType.LAZY,
-    )
-    var tests: MutableList<QualityTestEntity> = mutableListOf()
-
-    @OneToMany(
-        mappedBy = "spec",
-        cascade = [CascadeType.ALL],
-        orphanRemoval = true,
-        fetch = FetchType.LAZY,
-    )
-    var runs: MutableList<QualityRunEntity> = mutableListOf()
-
     /**
      * 태그 업데이트
      */
@@ -105,33 +87,4 @@ class QualitySpecEntity(
         tags.clear()
         tags.addAll(newTags)
     }
-
-    /**
-     * 테스트 추가
-     */
-    fun addTest(test: QualityTestEntity) {
-        tests.add(test)
-        test.spec = this
-    }
-
-    /**
-     * 테스트 제거
-     */
-    fun removeTest(test: QualityTestEntity) {
-        tests.remove(test)
-        test.spec = null
-    }
-
-    /**
-     * 실행 이력 추가
-     */
-    fun addRun(run: QualityRunEntity) {
-        runs.add(run)
-        run.spec = this
-    }
-
-    /**
-     * 활성화된 테스트만 반환
-     */
-    fun getEnabledTests(): List<QualityTestEntity> = tests.filter { it.enabled }
 }

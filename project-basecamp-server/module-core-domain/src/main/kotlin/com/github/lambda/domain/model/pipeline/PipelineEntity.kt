@@ -1,7 +1,12 @@
 package com.github.lambda.domain.model.pipeline
 
 import com.github.lambda.domain.model.BaseEntity
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Index
+import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
@@ -40,30 +45,6 @@ class PipelineEntity(
     @Column(name = "config", columnDefinition = "JSON")
     var config: String? = null,
 ) : BaseEntity() {
-    /**
-     * 연관된 Job들 (지연 로딩, 읽기 전용)
-     *
-     * 성능상 이유로 직접 접근보다는 별도 쿼리를 통해 조회하는 것을 권장합니다.
-     */
-    @OneToMany(mappedBy = "pipeline", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
-    val jobs: List<JobEntity> = mutableListOf()
-
-    /**
-     * 파이프라인에 Job 추가
-     */
-    fun addJob(job: JobEntity) {
-        (jobs as MutableList).add(job)
-        job.pipeline = this
-    }
-
-    /**
-     * 파이프라인에서 Job 제거
-     */
-    fun removeJob(job: JobEntity) {
-        (jobs as MutableList).remove(job)
-        job.pipeline = null
-    }
-
     /**
      * 파이프라인이 실행 가능한 상태인지 확인
      */

@@ -84,6 +84,14 @@ class QualityService(
         getQualitySpec(name) ?: throw QualitySpecNotFoundException(name)
 
     /**
+     * Get quality tests for a spec by name
+     *
+     * @param specName Quality spec name
+     * @return List of quality test entities
+     */
+    fun getQualityTests(specName: String): List<QualityTestEntity> = qualityTestRepositoryJpa.findBySpecName(specName)
+
+    /**
      * Create a new quality spec
      *
      * @param spec Quality spec entity to create
@@ -98,12 +106,6 @@ class QualityService(
         }
 
         val savedSpec = qualitySpecRepositoryJpa.save(spec)
-
-        // Save associated tests
-        spec.tests.forEach { test ->
-            test.spec = savedSpec
-            qualityTestRepositoryJpa.save(test)
-        }
 
         return savedSpec
     }
@@ -131,13 +133,13 @@ class QualityService(
         enabled?.let { entity.enabled = it }
 
         tests?.let { newTests ->
-            // Remove existing tests
-            entity.tests.clear()
+            // Delete existing tests for this spec
+            qualityTestRepositoryJpa.deleteBySpecId(entity.id!!)
 
-            // Add new tests
+            // Save new tests with specId set
             newTests.forEach { test ->
-                test.spec = entity
-                entity.addTest(test)
+                test.specId = entity.id!!
+                qualityTestRepositoryJpa.save(test)
             }
         }
 
@@ -211,8 +213,8 @@ class QualityService(
                 passedTests = 0,
                 failedTests = 0,
                 executedBy = executedBy,
+                specId = spec.id!!,
             )
-        qualityRun.spec = spec
 
         val savedRun = qualityRunRepositoryJpa.save(qualityRun)
 

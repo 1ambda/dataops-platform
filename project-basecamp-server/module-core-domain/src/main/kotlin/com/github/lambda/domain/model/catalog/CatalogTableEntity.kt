@@ -1,6 +1,5 @@
 package com.github.lambda.domain.model.catalog
 
-import jakarta.persistence.CascadeType
 import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
 import jakarta.persistence.ElementCollection
@@ -11,8 +10,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.OneToMany
-import jakarta.persistence.OrderBy
 import jakarta.persistence.Table
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
@@ -149,12 +146,6 @@ class CatalogTableEntity(
     @Column(name = "quality_score")
     val qualityScore: Int? = null,
     /**
-     * Column metadata (one-to-many relationship)
-     */
-    @OneToMany(mappedBy = "catalogTable", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("ordinalPosition ASC")
-    val columns: MutableList<CatalogColumnEntity> = mutableListOf(),
-    /**
      * Record creation timestamp
      */
     @CreationTimestamp
@@ -195,22 +186,6 @@ class CatalogTableEntity(
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
             ?: emptyList()
-
-    /**
-     * Add a column to this table
-     */
-    fun addColumn(column: CatalogColumnEntity) {
-        columns.add(column)
-        column.catalogTable = this
-    }
-
-    /**
-     * Remove a column from this table
-     */
-    fun removeColumn(column: CatalogColumnEntity) {
-        columns.remove(column)
-        column.catalogTable = null
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

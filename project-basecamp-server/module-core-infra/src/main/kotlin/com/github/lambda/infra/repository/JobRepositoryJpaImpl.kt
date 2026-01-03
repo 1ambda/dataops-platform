@@ -25,13 +25,13 @@ interface JobRepositoryJpaImpl :
     JobRepositoryJpa,
     JpaRepository<JobEntity, Long> {
     // Spring Data JPA 커스텀 쿼리 메서드들 (기존 SpringData에서 이동)
-    // 파이프라인별 작업 조회
-    @Query("SELECT j FROM JobEntity j WHERE j.pipeline.id = :pipelineId ORDER BY j.createdAt DESC")
+    // 파이프라인별 작업 조회 (FK field 사용)
+    @Query("SELECT j FROM JobEntity j WHERE j.pipelineId = :pipelineId ORDER BY j.createdAt DESC")
     fun findByPipelineIdOrderByCreatedAtDesc(
         @Param("pipelineId") pipelineId: Long,
     ): List<JobEntity>
 
-    @Query("SELECT j FROM JobEntity j WHERE j.pipeline.id = :pipelineId ORDER BY j.createdAt DESC")
+    @Query("SELECT j FROM JobEntity j WHERE j.pipelineId = :pipelineId ORDER BY j.createdAt DESC")
     fun findByPipelineIdOrderByCreatedAtDesc(
         @Param("pipelineId") pipelineId: Long,
         pageable: Pageable,
@@ -45,23 +45,23 @@ interface JobRepositoryJpaImpl :
         pageable: Pageable,
     ): Page<JobEntity>
 
-    // 복합 조건 조회
+    // 복합 조건 조회 (FK field 사용)
     @Query(
-        "SELECT j FROM JobEntity j WHERE j.pipeline.id = :pipelineId AND j.status = :status ORDER BY j.createdAt DESC",
+        "SELECT j FROM JobEntity j WHERE j.pipelineId = :pipelineId AND j.status = :status ORDER BY j.createdAt DESC",
     )
     override fun findByPipelineIdAndStatus(
         @Param("pipelineId") pipelineId: Long,
         @Param("status") status: JobStatus,
     ): List<JobEntity>
 
-    // 최신 작업 조회
-    @Query("SELECT j FROM JobEntity j WHERE j.pipeline.id = :pipelineId ORDER BY j.createdAt DESC LIMIT 1")
+    // 최신 작업 조회 (FK field 사용)
+    @Query("SELECT j FROM JobEntity j WHERE j.pipelineId = :pipelineId ORDER BY j.createdAt DESC LIMIT 1")
     fun findTopByPipelineIdOrderByCreatedAtDesc(
         @Param("pipelineId") pipelineId: Long,
     ): JobEntity?
 
-    // 통계 및 집계
-    @Query("SELECT COUNT(j) FROM JobEntity j WHERE j.pipeline.id = :pipelineId")
+    // 통계 및 집계 (FK field 사용)
+    @Query("SELECT COUNT(j) FROM JobEntity j WHERE j.pipelineId = :pipelineId")
     override fun countByPipelineId(
         @Param("pipelineId") pipelineId: Long,
     ): Long

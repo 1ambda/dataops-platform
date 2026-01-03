@@ -1,16 +1,11 @@
 package com.github.lambda.domain.model.quality
 
 import com.github.lambda.domain.model.BaseEntity
-import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
 import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.PositiveOrZero
@@ -67,19 +62,12 @@ class QualityRunEntity(
     @Size(max = 100, message = "Executed by must not exceed 100 characters")
     @Column(name = "executed_by", nullable = false, length = 100)
     var executedBy: String = "",
+    /**
+     * Quality Spec ID (FK)
+     */
+    @Column(name = "spec_id", nullable = false)
+    var specId: Long = 0L,
 ) : BaseEntity() {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "spec_id", nullable = false)
-    var spec: QualitySpecEntity? = null
-
-    @OneToMany(
-        mappedBy = "run",
-        cascade = [CascadeType.ALL],
-        orphanRemoval = true,
-        fetch = FetchType.LAZY,
-    )
-    var results: MutableList<TestResultEntity> = mutableListOf()
-
     /**
      * 실행 완료 처리
      */
@@ -114,14 +102,6 @@ class QualityRunEntity(
         this.status = RunStatus.TIMEOUT
         this.overallStatus = TestStatus.ERROR
         this.durationSeconds = getDuration()
-    }
-
-    /**
-     * 테스트 결과 추가
-     */
-    fun addResult(result: TestResultEntity) {
-        results.add(result)
-        result.run = this
     }
 
     /**

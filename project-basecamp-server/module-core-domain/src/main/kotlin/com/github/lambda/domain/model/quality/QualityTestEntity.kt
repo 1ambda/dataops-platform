@@ -11,7 +11,6 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
@@ -65,11 +64,12 @@ class QualityTestEntity(
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
     @Column(name = "description", length = 1000)
     var description: String? = null,
+    /**
+     * Quality Spec ID (FK)
+     */
+    @Column(name = "spec_id", nullable = false)
+    var specId: Long = 0L,
 ) : BaseEntity() {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "spec_id", nullable = false)
-    var spec: QualitySpecEntity? = null
-
     /**
      * 컬럼 목록 업데이트
      */

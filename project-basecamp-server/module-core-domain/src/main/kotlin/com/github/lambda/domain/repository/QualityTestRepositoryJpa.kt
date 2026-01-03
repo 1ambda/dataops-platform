@@ -110,4 +110,14 @@ interface QualityTestRepositoryJpa {
 
     // 특정 컬럼에 대한 모든 테스트 조회
     fun findByColumnOrColumnsContaining(column: String): List<QualityTestEntity>
+
+    // SpecId 기반 조회
+    fun findBySpecId(specId: Long): List<QualityTestEntity>
+
+    fun findBySpecIdAndEnabled(
+        specId: Long,
+        enabled: Boolean,
+    ): List<QualityTestEntity>
+
+    fun deleteBySpecId(specId: Long)
 }

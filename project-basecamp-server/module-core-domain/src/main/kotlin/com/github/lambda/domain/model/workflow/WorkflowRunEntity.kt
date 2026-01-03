@@ -5,10 +5,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.FetchType
 import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
@@ -68,11 +65,13 @@ class WorkflowRunEntity(
     var stoppedBy: String? = null,
     @Column(name = "stopped_at")
     var stoppedAt: LocalDateTime? = null,
+    /**
+     * Workflow ID (FK - references WorkflowEntity.datasetName)
+     * Note: datasetName field also stores this value for denormalization
+     */
+    @Column(name = "workflow_id", nullable = false, length = 255)
+    var workflowId: String = "",
 ) : BaseEntity() {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workflow_id", referencedColumnName = "dataset_name")
-    var workflow: WorkflowEntity? = null
-
     /**
      * 실행 시작
      */

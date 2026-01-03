@@ -288,32 +288,9 @@ class WorkflowRepositoryDslImpl(
     }
 
     override fun findWorkflowsWithRuns(hasRecentRuns: Boolean?): List<WorkflowEntity> {
-        val sevenDaysAgo = LocalDateTime.now().minusDays(7)
-
+        // runs relationship removed - use WorkflowRunRepositoryJpa to check for runs
+        // TODO: Implement using subquery on WorkflowRunEntity.workflowId if hasRecentRuns filtering is needed
         val condition = BooleanBuilder()
-
-        hasRecentRuns?.let {
-            if (it) {
-                // 최근 7일 내 실행 이력이 있는 워크플로우
-                condition.and(
-                    workflow.runs
-                        .any()
-                        .startedAt
-                        .goe(sevenDaysAgo),
-                )
-            } else {
-                // 최근 7일 내 실행 이력이 없는 워크플로우
-                condition.and(
-                    workflow.runs.isEmpty
-                        .or(
-                            workflow.runs
-                                .any()
-                                .startedAt
-                                .lt(sevenDaysAgo),
-                        ),
-                )
-            }
-        }
 
         return queryFactory
             .selectFrom(workflow)

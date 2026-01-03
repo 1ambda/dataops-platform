@@ -2,6 +2,7 @@ package com.github.lambda.controller
 
 import com.github.lambda.domain.model.catalog.CatalogColumnEntity
 import com.github.lambda.domain.model.catalog.CatalogTableEntity
+import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
 import com.github.lambda.domain.repository.CatalogTableRepositoryJpa
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -57,6 +58,9 @@ class CatalogControllerIntegrationTest {
     @Autowired
     private lateinit var catalogTableRepositoryJpa: CatalogTableRepositoryJpa
 
+    @Autowired
+    private lateinit var catalogColumnRepositoryJpa: CatalogColumnRepositoryJpa
+
     private lateinit var testTable: CatalogTableEntity
 
     @BeforeEach
@@ -85,32 +89,36 @@ class CatalogControllerIntegrationTest {
                 tags = setOf("tier::critical", "domain::analytics"),
             )
 
-        // Add columns using the entity's addColumn method for proper bidirectional relationship
-        testTable.addColumn(
-            CatalogColumnEntity(
-                name = "user_id",
-                dataType = "STRING",
-                description = "Unique user identifier",
-                isPii = false,
-                fillRate = 1.0,
-                distinctCount = 1000000,
-                ordinalPosition = 0,
-            ),
-        )
-        testTable.addColumn(
-            CatalogColumnEntity(
-                name = "email",
-                dataType = "STRING",
-                description = "User email address",
-                isPii = true,
-                fillRate = 0.98,
-                distinctCount = 980000,
-                ordinalPosition = 1,
-            ),
-        )
+        // Save table first to get its ID (will be rolled back after test)
+        testTable = catalogTableRepositoryJpa.save(testTable)
 
-        // Save to actual database (will be rolled back after test)
-        catalogTableRepositoryJpa.save(testTable)
+        // Create columns with FK reference to the saved table
+        val columns =
+            listOf(
+                CatalogColumnEntity(
+                    name = "user_id",
+                    dataType = "STRING",
+                    description = "Unique user identifier",
+                    isPii = false,
+                    fillRate = 1.0,
+                    distinctCount = 1000000,
+                    ordinalPosition = 0,
+                    catalogTableId = testTable.id!!,
+                ),
+                CatalogColumnEntity(
+                    name = "email",
+                    dataType = "STRING",
+                    description = "User email address",
+                    isPii = true,
+                    fillRate = 0.98,
+                    distinctCount = 980000,
+                    ordinalPosition = 1,
+                    catalogTableId = testTable.id!!,
+                ),
+            )
+
+        // Save columns to database
+        columns.forEach { catalogColumnRepositoryJpa.save(it) }
     }
 
     @Nested

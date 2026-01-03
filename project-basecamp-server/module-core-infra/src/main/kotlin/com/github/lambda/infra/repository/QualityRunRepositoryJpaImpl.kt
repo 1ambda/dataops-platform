@@ -32,12 +32,25 @@ interface QualityRunRepositoryJpaImpl :
     override fun deleteByRunId(runId: String): Long
 
     // Spec별 실행 이력 조회
-    @Query("SELECT qr FROM QualityRunEntity qr WHERE qr.spec.name = :specName")
+    @Query(
+        """
+        SELECT qr FROM QualityRunEntity qr
+        JOIN QualitySpecEntity qs ON qr.specId = qs.id
+        WHERE qs.name = :specName
+        """,
+    )
     override fun findBySpecName(
         @Param("specName") specName: String,
     ): List<QualityRunEntity>
 
-    @Query("SELECT qr FROM QualityRunEntity qr WHERE qr.spec.name = :specName ORDER BY qr.startedAt DESC")
+    @Query(
+        """
+        SELECT qr FROM QualityRunEntity qr
+        JOIN QualitySpecEntity qs ON qr.specId = qs.id
+        WHERE qs.name = :specName
+        ORDER BY qr.startedAt DESC
+        """,
+    )
     override fun findBySpecNameOrderByStartedAtDesc(
         @Param("specName") specName: String,
         pageable: Pageable,
@@ -100,7 +113,13 @@ interface QualityRunRepositoryJpaImpl :
 
     override fun countByExecutedBy(executedBy: String): Long
 
-    @Query("SELECT COUNT(qr) FROM QualityRunEntity qr WHERE qr.spec.name = :specName")
+    @Query(
+        """
+        SELECT COUNT(qr) FROM QualityRunEntity qr
+        JOIN QualitySpecEntity qs ON qr.specId = qs.id
+        WHERE qs.name = :specName
+        """,
+    )
     override fun countBySpecName(
         @Param("specName") specName: String,
     ): Long

@@ -403,8 +403,9 @@ class QualityControllerTest {
             // Given
             val specName = "dataset_users_quality"
             every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
+            every { qualityService.getQualityTests(specName) } returns listOf(testQualityTest)
             every { qualityService.getQualityRuns(specName, limit = 5, offset = 0) } returns listOf(testQualityRun)
-            every { qualityMapper.toDetailDto(testQualitySpec, any()) } returns testQualitySpecDetail
+            every { qualityMapper.toDetailDto(testQualitySpec, any(), any()) } returns testQualitySpecDetail
 
             // When & Then
             mockMvc
@@ -443,8 +444,9 @@ class QualityControllerTest {
             // Given
             val specName = "dataset_users_quality"
             every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
+            every { qualityService.getQualityTests(specName) } returns listOf(testQualityTest)
             every { qualityService.getQualityRuns(specName, limit = 5, offset = 0) } returns listOf(testQualityRun)
-            every { qualityMapper.toDetailDto(testQualitySpec, any()) } returns testQualitySpecDetail
+            every { qualityMapper.toDetailDto(testQualitySpec, any(), any()) } returns testQualitySpecDetail
 
             // When & Then
             mockMvc
@@ -462,8 +464,9 @@ class QualityControllerTest {
             // Given
             val specName = "dataset_users_quality"
             every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
+            every { qualityService.getQualityTests(specName) } returns listOf(testQualityTest)
             every { qualityService.getQualityRuns(specName, limit = 5, offset = 0) } returns listOf(testQualityRun)
-            every { qualityMapper.toDetailDto(testQualitySpec, any()) } returns testQualitySpecDetail
+            every { qualityMapper.toDetailDto(testQualitySpec, any(), any()) } returns testQualitySpecDetail
 
             // When & Then
             mockMvc
