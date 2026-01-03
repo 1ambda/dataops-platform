@@ -1,7 +1,7 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.exception.QualityRuleEngineException
 import com.github.lambda.domain.external.QualityRuleEngineClient
-import com.github.lambda.domain.external.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.GenerateSqlRequest
 import com.github.lambda.domain.model.quality.GenerateSqlResponse
 import com.github.lambda.domain.model.quality.TestType

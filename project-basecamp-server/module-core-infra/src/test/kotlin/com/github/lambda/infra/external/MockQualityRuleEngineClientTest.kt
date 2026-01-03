@@ -1,6 +1,6 @@
 package com.github.lambda.infra.external
 
-import com.github.lambda.domain.external.QualityRuleEngineException
+import com.github.lambda.common.exception.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.GenerateSqlRequest
 import com.github.lambda.domain.model.quality.TestType
 import org.assertj.core.api.Assertions.assertThat

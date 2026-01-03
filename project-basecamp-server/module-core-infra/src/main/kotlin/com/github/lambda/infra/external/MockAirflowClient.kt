@@ -1,7 +1,7 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.exception.AirflowConnectionException
 import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowConnectionException
 import com.github.lambda.domain.external.AirflowDAGRunState
 import com.github.lambda.domain.external.AirflowDAGRunStatus
 import com.github.lambda.domain.external.AirflowDagStatus
@@ -17,9 +17,14 @@ import kotlin.random.Random
  *
  * Provides mock Airflow responses for development and testing while the actual
  * Airflow integration is not yet implemented.
+ *
+ * @param deterministicMode When true, disables random failures for deterministic testing.
+ *                          Default is false for realistic simulation in development.
  */
 @Repository("airflowClient")
-class MockAirflowClient : AirflowClient {
+class MockAirflowClient(
+    private val deterministicMode: Boolean = false,
+) : AirflowClient {
     private val log = LoggerFactory.getLogger(MockAirflowClient::class.java)
 
     // Mock storage for DAG states and run statuses
@@ -33,8 +38,8 @@ class MockAirflowClient : AirflowClient {
     ): String {
         log.info("Mock Airflow: Triggering DAG run - dagId: {}, runId: {}, conf: {}", dagId, runId, conf)
 
-        // Simulate potential random failure (5% chance)
-        if (Random.nextInt(100) < 5) {
+        // Simulate potential random failure (5% chance) - disabled in deterministic mode
+        if (!deterministicMode && Random.nextInt(100) < 5) {
             throw AirflowConnectionException("triggerDAGRun", RuntimeException("Mock network error"))
         }
 
@@ -119,8 +124,8 @@ class MockAirflowClient : AirflowClient {
     ): Boolean {
         log.info("Mock Airflow: Setting DAG pause state - dagId: {}, isPaused: {}", dagId, isPaused)
 
-        // Simulate potential error (2% chance)
-        if (Random.nextInt(100) < 2) {
+        // Simulate potential error (2% chance) - disabled in deterministic mode
+        if (!deterministicMode && Random.nextInt(100) < 2) {
             throw AirflowConnectionException("pauseDAG", RuntimeException("Mock DAG not found"))
         }
 
@@ -148,8 +153,8 @@ class MockAirflowClient : AirflowClient {
         val dagId = "dag_${datasetName.lowercase().replace("[^a-z0-9]".toRegex(), "_")}"
         log.info("Mock Airflow: Creating DAG - dagId: {}, datasetName: {}, s3Path: {}", dagId, datasetName, s3Path)
 
-        // Simulate potential validation error (3% chance)
-        if (Random.nextInt(100) < 3) {
+        // Simulate potential validation error (3% chance) - disabled in deterministic mode
+        if (!deterministicMode && Random.nextInt(100) < 3) {
             throw AirflowConnectionException("createDAG", RuntimeException("Invalid DAG configuration"))
         }
 
@@ -197,8 +202,8 @@ class MockAirflowClient : AirflowClient {
     override fun isAvailable(): Boolean {
         log.debug("Mock Airflow: Checking availability")
 
-        // Simulate occasional unavailability (1% chance)
-        return Random.nextInt(100) >= 1
+        // Simulate occasional unavailability (1% chance) - disabled in deterministic mode
+        return deterministicMode || Random.nextInt(100) >= 1
     }
 
     // === Helper Methods ===

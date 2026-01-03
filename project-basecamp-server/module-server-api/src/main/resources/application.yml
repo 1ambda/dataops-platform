@@ -131,6 +131,12 @@ spring:
     activate:
       on-profile: local
 
+  # Disable OAuth2 auto-configuration for local development (no Keycloak required)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.security.oauth2.resource.server.autoconfigure.OAuth2ResourceServerAutoConfiguration
+
   datasource:
     url: jdbc:mysql://localhost:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
 
@@ -149,6 +155,12 @@ spring:
   config:
     activate:
       on-profile: test
+
+  # Disable OAuth2 auto-configuration for tests (no Keycloak required)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.security.oauth2.resource.server.autoconfigure.OAuth2ResourceServerAutoConfiguration
 
   datasource:
     driver-class-name: org.h2.Driver

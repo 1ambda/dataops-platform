@@ -132,10 +132,10 @@ data class QualityRunSummaryDto(
     @JsonProperty("duration_seconds")
     val durationSeconds: Double?,
     @JsonProperty("started_at")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     val startedAt: Instant,
     @JsonProperty("completed_at")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     val completedAt: Instant?,
     @JsonProperty("executed_by")
     val executedBy: String,
@@ -166,10 +166,10 @@ data class QualityRunResultDto(
     @JsonProperty("duration_seconds")
     val durationSeconds: Double?,
     @JsonProperty("started_at")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     val startedAt: Instant,
     @JsonProperty("completed_at")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     val completedAt: Instant?,
     @JsonProperty("executed_by")
     val executedBy: String,

@@ -6,7 +6,6 @@ import com.github.lambda.domain.model.quality.ResourceType
 import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.core.types.Projections
-import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQuery
 import com.querydsl.jpa.impl.JPAQueryFactory
 import org.springframework.data.domain.Page
@@ -282,7 +281,7 @@ class QualitySpecRepositoryDslImpl(
         team: String?,
         enabled: Boolean?,
         search: String?,
-    ): BooleanExpression? {
+    ): BooleanBuilder {
         val condition = BooleanBuilder()
 
         resourceType?.let { condition.and(qualitySpec.resourceType.eq(it)) }
@@ -299,6 +298,6 @@ class QualitySpecRepositoryDslImpl(
             )
         }
 
-        return if (condition.hasValue()) condition.value as? BooleanExpression else null
+        return condition
     }
 }

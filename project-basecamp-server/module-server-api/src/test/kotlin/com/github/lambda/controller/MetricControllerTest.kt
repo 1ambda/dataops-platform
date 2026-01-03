@@ -2,6 +2,7 @@ package com.github.lambda.controller
 
 import com.github.lambda.common.exception.MetricAlreadyExistsException
 import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.model.metric.MetricEntity
 import com.github.lambda.domain.service.MetricExecutionResult
 import com.github.lambda.domain.service.MetricExecutionService
@@ -10,12 +11,12 @@ import com.github.lambda.dto.metric.CreateMetricRequest
 import com.github.lambda.dto.metric.MetricExecutionResultDto
 import com.github.lambda.dto.metric.MetricResponse
 import com.github.lambda.dto.metric.RunMetricRequest
+import com.github.lambda.exception.GlobalExceptionHandler
 import com.github.lambda.mapper.CreateMetricParams
 import com.github.lambda.mapper.MetricMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -23,8 +24,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.context.ActiveProfiles
@@ -34,6 +37,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
@@ -41,19 +45,33 @@ import java.time.LocalDateTime
  * MetricController REST API Tests
  *
  * Spring Boot 4.x patterns:
- * - @SpringBootTest + @AutoConfigureMockMvc: Integration test (multi-module project compatible)
+ * - @WebMvcTest: Slice test for web layer only (faster than full integration test)
  * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 compatible)
+ * - @Import: Include SecurityConfig and GlobalExceptionHandler for proper security and exception handling
  */
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(MetricController::class)
+@Import(
+    SecurityConfig::class,
+    GlobalExceptionHandler::class,
+    MetricControllerTest.ValidationConfig::class,
+)
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
 class MetricControllerTest {
+    /**
+     * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
+     * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
+     */
+    @TestConfiguration
+    class ValidationConfig {
+        @Bean
+        fun methodValidationPostProcessor(): MethodValidationPostProcessor = MethodValidationPostProcessor()
+    }
+
     @Autowired
     private lateinit var mockMvc: MockMvc
 
-    @Autowired
-    private lateinit var jsonMapper: JsonMapper
+    private val jsonMapper: JsonMapper = JsonMapper.builder().build()
 
     @MockkBean(relaxed = true)
     private lateinit var metricService: MetricService
@@ -231,6 +249,28 @@ class MetricControllerTest {
 
             verify(exactly = 1) { metricService.listMetrics(null, null, null, limit, offset) }
         }
+
+        @Test
+        @DisplayName("should reject request when limit exceeds maximum")
+        fun `should reject request when limit exceeds maximum`() {
+            // When limit exceeds 500, validation should reject the request
+            mockMvc
+                .perform(
+                    get("/api/v1/metrics")
+                        .param("limit", "501"),
+                ).andExpect(status().is4xxClientError)
+        }
+
+        @Test
+        @DisplayName("should reject request when offset is negative")
+        fun `should reject request when offset is negative`() {
+            // When offset is negative, validation should reject the request
+            mockMvc
+                .perform(
+                    get("/api/v1/metrics")
+                        .param("offset", "-1"),
+                ).andExpect(status().is4xxClientError)
+        }
     }
 
     @Nested
@@ -258,21 +298,17 @@ class MetricControllerTest {
         }
 
         @Test
-        @DisplayName("should throw MetricNotFoundException when metric not found")
-        fun `should throw MetricNotFoundException when metric not found`() {
+        @DisplayName("should return 404 when metric not found")
+        fun `should return 404 when metric not found`() {
             // Given
             val name = "nonexistent_catalog.schema.metric"
             every { metricService.getMetricOrThrow(name) } throws MetricNotFoundException(name)
 
             // When & Then
-            // Controller throws MetricNotFoundException, caught by GlobalExceptionHandler in production
-            // In MockMvc tests, we verify the exception is thrown
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc.perform(get("/api/v1/metrics/$name")).andReturn()
-                }
+            mockMvc
+                .perform(get("/api/v1/metrics/$name"))
+                .andExpect(status().isNotFound)
 
-            assertThat(exception.cause).isInstanceOf(MetricNotFoundException::class.java)
             verify(exactly = 1) { metricService.getMetricOrThrow(name) }
         }
     }
@@ -469,8 +505,8 @@ class MetricControllerTest {
         }
 
         @Test
-        @DisplayName("should throw MetricAlreadyExistsException when metric already exists")
-        fun `should throw MetricAlreadyExistsException when metric already exists`() {
+        @DisplayName("should return 409 when metric already exists")
+        fun `should return 409 when metric already exists`() {
             // Given
             val request =
                 CreateMetricRequest(
@@ -504,20 +540,13 @@ class MetricControllerTest {
             } throws MetricAlreadyExistsException(request.name)
 
             // When & Then
-            // Controller throws MetricAlreadyExistsException, caught by GlobalExceptionHandler in production
-            // In MockMvc tests, we verify the exception is thrown
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc
-                        .perform(
-                            post("/api/v1/metrics")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(jsonMapper.writeValueAsString(request)),
-                        ).andReturn()
-                }
-
-            assertThat(exception.cause).isInstanceOf(MetricAlreadyExistsException::class.java)
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isConflict)
         }
     }
 
@@ -570,8 +599,8 @@ class MetricControllerTest {
         }
 
         @Test
-        @DisplayName("should throw MetricNotFoundException when running non-existent metric")
-        fun `should throw MetricNotFoundException when running non-existent metric`() {
+        @DisplayName("should return 404 when running non-existent metric")
+        fun `should return 404 when running non-existent metric`() {
             // Given
             val name = "nonexistent_catalog.schema.metric"
             val request = RunMetricRequest()
@@ -586,20 +615,13 @@ class MetricControllerTest {
             } throws MetricNotFoundException(name)
 
             // When & Then
-            // Controller throws MetricNotFoundException, caught by GlobalExceptionHandler in production
-            // In MockMvc tests, we verify the exception is thrown
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc
-                        .perform(
-                            post("/api/v1/metrics/$name/run")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(jsonMapper.writeValueAsString(request)),
-                        ).andReturn()
-                }
-
-            assertThat(exception.cause).isInstanceOf(MetricNotFoundException::class.java)
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics/$name/run")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isNotFound)
         }
 
         @Test

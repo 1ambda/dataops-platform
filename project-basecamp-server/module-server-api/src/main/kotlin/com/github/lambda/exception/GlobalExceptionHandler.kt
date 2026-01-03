@@ -21,6 +21,9 @@ import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.common.exception.TooManyTagsException
+import com.github.lambda.common.exception.WorkflowAlreadyExistsException
+import com.github.lambda.common.exception.WorkflowNotFoundException
+import com.github.lambda.common.exception.WorkflowRunNotFoundException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import jakarta.validation.ConstraintViolationException
@@ -168,6 +171,83 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.NOT_FOUND)
             .body(ApiResponse.error(ex.message ?: "Quality run not found", errorDetails))
+    }
+
+    // === Workflow-specific exception handlers ===
+
+    /**
+     * Workflow not found exception (404)
+     */
+    @ExceptionHandler(WorkflowNotFoundException::class)
+    fun handleWorkflowNotFoundException(
+        ex: WorkflowNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Workflow not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Workflow not found", errorDetails))
+    }
+
+    /**
+     * Workflow run not found exception (404)
+     */
+    @ExceptionHandler(WorkflowRunNotFoundException::class)
+    fun handleWorkflowRunNotFoundException(
+        ex: WorkflowRunNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Workflow run not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "run_id" to ex.runId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Workflow run not found", errorDetails))
+    }
+
+    /**
+     * Workflow already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(WorkflowAlreadyExistsException::class)
+    fun handleWorkflowAlreadyExistsException(
+        ex: WorkflowAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Workflow already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "dataset_name" to ex.datasetName,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Workflow already exists", errorDetails))
     }
 
     // === Dataset-specific exception handlers ===
@@ -580,6 +660,57 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ApiResponse.error("Validation failed", errors.firstOrNull()))
+    }
+
+    /**
+     * Missing request parameter exception handling
+     */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException::class)
+    fun handleMissingServletRequestParameterException(
+        ex: org.springframework.web.bind.MissingServletRequestParameterException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Missing request parameter: ${ex.parameterName}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = "MISSING_PARAMETER",
+                field = ex.parameterName,
+                details = mapOf("message" to "Required parameter '${ex.parameterName}' is missing"),
+            )
+
+        return ResponseEntity
+            .badRequest()
+            .body(ApiResponse.error("Missing required parameter", errorDetails))
+    }
+
+    /**
+     * HTTP message not readable exception handling (JSON parsing errors)
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException::class)
+    fun handleHttpMessageNotReadableException(
+        ex: org.springframework.http.converter.HttpMessageNotReadableException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "HTTP message not readable: ${ex.message}" }
+
+        val errorMessage =
+            ex.mostSpecificCause.message
+                ?: "Request body is malformed or missing required fields"
+
+        val errorDetails =
+            ErrorDetails(
+                code = "MALFORMED_REQUEST",
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "message" to errorMessage,
+                    ),
+            )
+
+        return ResponseEntity
+            .badRequest()
+            .body(ApiResponse.error("Malformed request body", errorDetails))
     }
 
     /**

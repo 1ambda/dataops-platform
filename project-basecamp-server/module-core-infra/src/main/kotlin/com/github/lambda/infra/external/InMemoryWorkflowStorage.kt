@@ -1,7 +1,7 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.exception.WorkflowStorageException
 import com.github.lambda.domain.external.WorkflowStorage
-import com.github.lambda.domain.external.WorkflowStorageException
 import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Repository

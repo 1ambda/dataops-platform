@@ -15,16 +15,14 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.junit.jupiter.MockitoExtension
 
 /**
  * UserService 비즈니스 로직 단위 테스트
  *
  * MockK를 사용하여 의존성을 격리하고 순수한 비즈니스 로직을 테스트합니다.
+ * Note: No Spring context needed - pure unit test with MockK
  */
 @DisplayName("UserService 비즈니스 로직 테스트")
-@ExtendWith(MockitoExtension::class)
 class UserServiceTest {
     private val userRepositoryJpa: UserRepositoryJpa = mockk()
     private val userRepositoryDsl: UserRepositoryDsl = mockk()

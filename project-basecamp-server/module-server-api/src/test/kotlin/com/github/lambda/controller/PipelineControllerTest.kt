@@ -1,5 +1,6 @@
 package com.github.lambda.controller
 
+import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.command.pipeline.CreatePipelineCommand
 import com.github.lambda.domain.command.pipeline.DeletePipelineCommand
 import com.github.lambda.domain.command.pipeline.ExecutePipelineCommand
@@ -11,12 +12,11 @@ import com.github.lambda.domain.query.pipeline.GetPipelineQuery
 import com.github.lambda.domain.query.pipeline.GetPipelinesQuery
 import com.github.lambda.domain.service.PipelineService
 import com.github.lambda.dto.CreatePipelineRequest
-import com.github.lambda.dto.PipelineDto
 import com.github.lambda.dto.PipelineExecutionResponse
 import com.github.lambda.dto.PipelineResponse
 import com.github.lambda.dto.UpdatePipelineRequest
+import com.github.lambda.exception.GlobalExceptionHandler
 import com.github.lambda.mapper.PipelineMapper
-import com.github.lambda.security.FieldAccessControl
 import com.github.lambda.security.SecurityLevel
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
@@ -29,8 +29,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
@@ -45,21 +47,37 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
 /**
- * PipelineController REST API 테스트
+ * PipelineController REST API Tests
  *
- * Spring Boot 4.x 패턴:
- * - @SpringBootTest + @AutoConfigureMockMvc: 통합 테스트 (multi-module 프로젝트 호환)
- * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 호환)
+ * Spring Boot 4.x patterns:
+ * - @WebMvcTest: Slice test for web layer only (faster than full integration test)
+ * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 compatible)
+ * - @Import: Include SecurityConfig and GlobalExceptionHandler for proper security and exception handling
  */
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(PipelineController::class)
+@Import(
+    SecurityConfig::class,
+    GlobalExceptionHandler::class,
+    PipelineControllerTest.ValidationConfig::class,
+)
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
 class PipelineControllerTest {
+    /**
+     * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
+     * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
+     */
+    @TestConfiguration
+    class ValidationConfig {
+        @Bean
+        fun methodValidationPostProcessor(): MethodValidationPostProcessor = MethodValidationPostProcessor()
+    }
+
     @Autowired
     private lateinit var mockMvc: MockMvc
 
@@ -72,29 +90,11 @@ class PipelineControllerTest {
     @MockkBean(relaxed = true)
     private lateinit var pipelineMapper: PipelineMapper
 
-    @MockkBean(relaxed = true)
-    private lateinit var fieldAccessControl: FieldAccessControl
-
-    private lateinit var testPipelineDto: PipelineDto
     private lateinit var testPipelineEntity: PipelineEntity
     private lateinit var testPipelineResponse: PipelineResponse
 
     @BeforeEach
     fun setUp() {
-        testPipelineDto =
-            PipelineDto(
-                id = 1L,
-                name = "test-pipeline",
-                description = "Test pipeline description",
-                status = PipelineStatus.ACTIVE,
-                owner = "test-owner",
-                scheduleExpression = "0 0 * * *",
-                isActive = true,
-                jobCount = 0,
-                createdAt = LocalDateTime.now(),
-                updatedAt = LocalDateTime.now(),
-            )
-
         testPipelineEntity =
             PipelineEntity(
                 name = "test-pipeline",
@@ -417,7 +417,6 @@ class PipelineControllerTest {
         @DisplayName("관리자는 모든 정보에 접근할 수 있다")
         fun `admin should access all information`() {
             // Given
-            every { fieldAccessControl.getCurrentUserSecurityLevel() } returns SecurityLevel.ADMIN
             every { pipelineMapper.toQuery(1L, false) } returns GetPipelineQuery(id = 1L)
             every { pipelineService.getPipeline(any()) } returns testPipelineEntity
             every { pipelineMapper.toSecureResponse(testPipelineEntity, SecurityLevel.PUBLIC) } returns
@@ -444,7 +443,6 @@ class PipelineControllerTest {
                     scheduleExpression = "0 0 * * *",
                 )
 
-            every { fieldAccessControl.getCurrentUserSecurityLevel() } returns SecurityLevel.INTERNAL
             every { pipelineMapper.toQuery(1L, false) } returns GetPipelineQuery(id = 1L)
             every { pipelineService.getPipeline(any()) } returns testPipelineEntity
             every { pipelineMapper.toSecureResponse(testPipelineEntity, SecurityLevel.PUBLIC) } returns maskedResponse

@@ -1,7 +1,7 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.exception.QualityRuleEngineException
 import com.github.lambda.domain.external.QualityRuleEngineClient
-import com.github.lambda.domain.external.QualityRuleEngineException
 import com.github.lambda.domain.model.quality.AcceptedValuesConfig
 import com.github.lambda.domain.model.quality.ExpressionConfig
 import com.github.lambda.domain.model.quality.GenerateSqlRequest

@@ -13,7 +13,6 @@ import com.github.lambda.security.SecurityLevel
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageRequest
@@ -160,12 +159,13 @@ class PipelineMapperTest {
     }
 
     @Test
-    @Disabled("MockK setup incomplete - needs proper mock configuration for toSecureResponse")
     @DisplayName("ADMIN 보안 레벨에서는 모든 정보가 노출된다")
     fun `should expose all information for ADMIN security level`() {
         // Given
         every { fieldAccessControl.getCurrentUserSecurityLevel() } returns SecurityLevel.ADMIN
         every { fieldAccessControl.canAccessField("scheduleExpression") } returns true
+        every { fieldAccessControl.canAccessField("description", null) } returns true
+        every { fieldAccessControl.canAccessField("owner", "test-owner") } returns true
         every { fieldAccessControl.getMaskingLevel("description") } returns MaskingLevel.NONE
         every { fieldAccessControl.getMaskingLevel("owner") } returns MaskingLevel.NONE
         every { fieldAccessControl.maskData("Test description", MaskingLevel.NONE) } returns "Test description"
@@ -181,12 +181,11 @@ class PipelineMapperTest {
     }
 
     @Test
-    @Disabled("MockK setup incomplete - needs proper mock configuration for toSecureResponse")
     @DisplayName("INTERNAL 보안 레벨에서는 일부 정보가 마스킹된다")
     fun `should mask some information for INTERNAL security level`() {
         // Given
-        every { fieldAccessControl.getCurrentUserSecurityLevel() } returns SecurityLevel.INTERNAL
         every { fieldAccessControl.canAccessField("scheduleExpression") } returns true
+        every { fieldAccessControl.canAccessField("description", null) } returns true
         every { fieldAccessControl.canAccessField("owner", "test-owner") } returns true
         every { fieldAccessControl.getMaskingLevel("description") } returns MaskingLevel.NONE
         every { fieldAccessControl.getMaskingLevel("owner") } returns MaskingLevel.PARTIAL
@@ -203,11 +202,11 @@ class PipelineMapperTest {
     }
 
     @Test
-    @Disabled("MockK setup incomplete - needs proper mock configuration for toSecureResponse")
     @DisplayName("PUBLIC 보안 레벨에서는 민감한 정보가 제거된다")
     fun `should remove sensitive information for PUBLIC security level`() {
         // Given
         every { fieldAccessControl.canAccessField("scheduleExpression") } returns false
+        every { fieldAccessControl.canAccessField("description", null) } returns true
         every { fieldAccessControl.canAccessField("owner", "test-owner") } returns false
         every { fieldAccessControl.getMaskingLevel("description") } returns MaskingLevel.PARTIAL
         every { fieldAccessControl.maskData("Test description", MaskingLevel.PARTIAL) } returns "Tes***********"

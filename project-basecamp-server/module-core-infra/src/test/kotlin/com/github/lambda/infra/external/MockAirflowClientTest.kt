@@ -1,6 +1,6 @@
 package com.github.lambda.infra.external
 
-import com.github.lambda.domain.external.AirflowConnectionException
+import com.github.lambda.common.exception.AirflowConnectionException
 import com.github.lambda.domain.external.AirflowDAGRunState
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import org.assertj.core.api.Assertions.assertThat
@@ -8,22 +8,27 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+/**
+ * MockAirflowClient Unit Tests
+ *
+ * Uses deterministicMode = true to ensure consistent test results
+ * without random failures.
+ */
 class MockAirflowClientTest {
     private lateinit var client: MockAirflowClient
 
     @BeforeEach
     fun setUp() {
-        client = MockAirflowClient()
+        // Use deterministic mode to disable random failures in tests
+        client = MockAirflowClient(deterministicMode = true)
     }
 
     @Test
-    fun `isAvailable should return true most of the time`() {
+    fun `isAvailable should return true in deterministic mode`() {
         // when
         val result = client.isAvailable()
 
-        // then
-        // Mock has 99% availability rate, so it should usually return true
-        // Note: This test might rarely fail due to the 1% random failure
+        // then - In deterministic mode, always returns true
         assertThat(result).isTrue()
     }
 

@@ -72,7 +72,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params")
 
     // Spring Boot Test Slices - includes @DataJpaTest, @AutoConfigureTestDatabase, TestEntityManager
+    // NOTE: Spring Boot 4 moved @DataJpaTest to spring-boot-data-jpa-test module
     testImplementation("org.springframework.boot:spring-boot-test-autoconfigure")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 
     // Spring Test Context
     testImplementation("org.springframework:spring-test")
@@ -82,7 +84,9 @@ dependencies {
     testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Redis Testing
-    testImplementation("it.ozimov:embedded-redis")
+    testImplementation("it.ozimov:embedded-redis") {
+        exclude(group = "org.slf4j", module = "slf4j-simple")
+    }
 
     // WireMock for HTTP service mocking
     testImplementation("com.github.tomakehurst:wiremock-jre8")
@@ -97,10 +101,19 @@ kotlin.sourceSets.main {
 kapt {
     keepJavacAnnotationProcessors = true
     includeCompileClasspath = false
+    correctErrorTypes = true // Allow KAPT to proceed with error types
     arguments {
         arg("querydsl.entityAccessors", "true")
         arg("querydsl.useFields", "false")
     }
+}
+
+// Disable KAPT for test sources - only needed for QueryDSL Q-classes in main sources
+tasks.matching { it.name == "kaptTestKotlin" }.configureEach {
+    enabled = false
+}
+tasks.matching { it.name == "kaptGenerateStubsTestKotlin" }.configureEach {
+    enabled = false
 }
 
 // KTLint가 KAPT 후에 실행되도록 태스크 의존성 설정

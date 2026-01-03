@@ -1,12 +1,30 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.exception.TableNotFoundException
-import com.github.lambda.domain.model.catalog.*
+import com.github.lambda.config.SecurityConfig
+import com.github.lambda.domain.model.catalog.ColumnInfo
+import com.github.lambda.domain.model.catalog.QualityTestResult
+import com.github.lambda.domain.model.catalog.SampleQuery
+import com.github.lambda.domain.model.catalog.TableDetail
+import com.github.lambda.domain.model.catalog.TableFreshness
+import com.github.lambda.domain.model.catalog.TableInfo
+import com.github.lambda.domain.model.catalog.TableOwnership
+import com.github.lambda.domain.model.catalog.TableQuality
+import com.github.lambda.domain.model.catalog.TestStatus
 import com.github.lambda.domain.service.CatalogService
+import com.github.lambda.dto.catalog.ColumnInfoResponse
+import com.github.lambda.dto.catalog.QualityTestResultResponse
+import com.github.lambda.dto.catalog.SampleQueryResponse
+import com.github.lambda.dto.catalog.TableDetailResponse
+import com.github.lambda.dto.catalog.TableFreshnessResponse
+import com.github.lambda.dto.catalog.TableInfoResponse
+import com.github.lambda.dto.catalog.TableOwnershipResponse
+import com.github.lambda.dto.catalog.TableQualityResponse
+import com.github.lambda.exception.GlobalExceptionHandler
+import com.github.lambda.mapper.CatalogMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -14,38 +32,64 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor
 import java.time.Instant
 
 /**
  * CatalogController REST API Tests
  *
  * Spring Boot 4.x patterns:
- * - @SpringBootTest + @AutoConfigureMockMvc: Integration test (multi-module project compatible)
+ * - @WebMvcTest: Slice test for web layer only (faster than full integration test)
  * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 compatible)
- *
- * Note: Tests for Cache Service and PII Masking Service are excluded from this scope.
+ * - @Import: Include SecurityConfig and GlobalExceptionHandler for proper security and exception handling
  */
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(CatalogController::class)
+@Import(
+    SecurityConfig::class,
+    GlobalExceptionHandler::class,
+    CatalogControllerTest.ValidationConfig::class,
+)
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
 class CatalogControllerTest {
+    /**
+     * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
+     * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
+     */
+    @TestConfiguration
+    class ValidationConfig {
+        @Bean
+        fun methodValidationPostProcessor(): MethodValidationPostProcessor = MethodValidationPostProcessor()
+    }
+
     @Autowired
     private lateinit var mockMvc: MockMvc
 
     @MockkBean(relaxed = true)
     private lateinit var catalogService: CatalogService
 
+    @MockkBean(relaxed = true)
+    private lateinit var catalogMapper: CatalogMapper
+
     private lateinit var testTableInfo: TableInfo
     private lateinit var testTableDetail: TableDetail
     private lateinit var testSampleQueries: List<SampleQuery>
+
+    // Response DTOs
+    private lateinit var testTableInfoResponse: TableInfoResponse
+    private lateinit var testTableDetailResponse: TableDetailResponse
+    private lateinit var testSampleQueryResponses: List<SampleQueryResponse>
 
     @BeforeEach
     fun setUp() {
@@ -155,6 +199,112 @@ class CatalogControllerTest {
                     lastRun = Instant.parse("2026-01-01T08:00:00Z"),
                 ),
             )
+
+        // Setup response DTOs
+        testTableInfoResponse =
+            TableInfoResponse(
+                name = "my-project.analytics.users",
+                engine = "bigquery",
+                owner = "data-team@example.com",
+                team = "@data-eng",
+                tags = listOf("domain::analytics", "tier::critical"),
+                rowCount = 1500000L,
+                lastUpdated = Instant.parse("2026-01-01T08:00:00Z"),
+                matchContext = null,
+            )
+
+        testTableDetailResponse =
+            TableDetailResponse(
+                name = "my-project.analytics.users",
+                engine = "bigquery",
+                owner = "data-team@example.com",
+                team = "@data-eng",
+                description = "User dimension table with profile information",
+                tags = listOf("domain::analytics", "tier::critical"),
+                rowCount = 1500000L,
+                lastUpdated = Instant.parse("2026-01-01T08:00:00Z"),
+                basecampUrl = "https://basecamp.example.com/catalog/my-project.analytics.users",
+                columns =
+                    listOf(
+                        ColumnInfoResponse(
+                            name = "user_id",
+                            dataType = "STRING",
+                            description = "Unique user identifier",
+                            isPii = false,
+                            fillRate = 1.0,
+                            distinctCount = 1500000,
+                        ),
+                        ColumnInfoResponse(
+                            name = "email",
+                            dataType = "STRING",
+                            description = "User email address",
+                            isPii = true,
+                            fillRate = 0.98,
+                            distinctCount = 1470000,
+                        ),
+                        ColumnInfoResponse(
+                            name = "created_at",
+                            dataType = "TIMESTAMP",
+                            description = "Account creation timestamp",
+                            isPii = false,
+                            fillRate = 1.0,
+                            distinctCount = 1000000,
+                        ),
+                    ),
+                ownership =
+                    TableOwnershipResponse(
+                        owner = "data-team@example.com",
+                        team = "@data-eng",
+                        stewards = listOf("alice@example.com", "bob@example.com"),
+                        consumers = listOf("@analytics", "@marketing"),
+                    ),
+                freshness =
+                    TableFreshnessResponse(
+                        lastUpdated = Instant.parse("2026-01-01T08:00:00Z"),
+                        avgUpdateLagHours = 1.5,
+                        updateFrequency = "hourly",
+                        isStale = false,
+                        staleThresholdHours = 6,
+                    ),
+                quality =
+                    TableQualityResponse(
+                        score = 92,
+                        totalTests = 15,
+                        passedTests = 14,
+                        failedTests = 1,
+                        warnings = 0,
+                        recentTests =
+                            listOf(
+                                QualityTestResultResponse(
+                                    testName = "user_id_not_null",
+                                    testType = "not_null",
+                                    status = "pass",
+                                    failedRows = 0,
+                                ),
+                            ),
+                    ),
+                sampleData = null,
+            )
+
+        testSampleQueryResponses =
+            listOf(
+                SampleQueryResponse(
+                    title = "Active users last 7 days",
+                    sql =
+                        "SELECT COUNT(*) FROM my-project.analytics.users " +
+                            "WHERE created_at > DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)",
+                    author = "alice@example.com",
+                    runCount = 150,
+                    lastRun = Instant.parse("2026-01-01T09:00:00Z"),
+                ),
+                SampleQueryResponse(
+                    title = "User count by country",
+                    sql = "SELECT country, COUNT(*) as cnt FROM my-project.analytics.users GROUP BY 1 ORDER BY 2 DESC",
+                    author = "bob@example.com",
+                    runCount = 89,
+                    lastRun = Instant.parse("2026-01-01T08:00:00Z"),
+                ),
+            )
     }
 
     @Nested
@@ -165,6 +315,7 @@ class CatalogControllerTest {
         fun `should return empty list when no tables exist`() {
             // Given
             every { catalogService.listTables(any()) } returns emptyList()
+            every { catalogMapper.toTableInfoResponseList(emptyList()) } returns emptyList()
 
             // When & Then
             mockMvc
@@ -183,6 +334,7 @@ class CatalogControllerTest {
             // Given
             val tables = listOf(testTableInfo)
             every { catalogService.listTables(any()) } returns tables
+            every { catalogMapper.toTableInfoResponseList(tables) } returns listOf(testTableInfoResponse)
 
             // When & Then
             mockMvc
@@ -214,6 +366,7 @@ class CatalogControllerTest {
                     offset = any(),
                 )
             } returns tables
+            every { catalogMapper.toTableInfoResponseList(tables) } returns listOf(testTableInfoResponse)
 
             // When & Then
             mockMvc
@@ -253,6 +406,7 @@ class CatalogControllerTest {
                     offset = any(),
                 )
             } returns tables
+            every { catalogMapper.toTableInfoResponseList(tables) } returns listOf(testTableInfoResponse)
 
             // When & Then
             mockMvc
@@ -292,6 +446,7 @@ class CatalogControllerTest {
                     offset = any(),
                 )
             } returns tables
+            every { catalogMapper.toTableInfoResponseList(tables) } returns listOf(testTableInfoResponse)
 
             // When & Then
             mockMvc
@@ -330,6 +485,7 @@ class CatalogControllerTest {
                     offset = any(),
                 )
             } returns tables
+            every { catalogMapper.toTableInfoResponseList(tables) } returns listOf(testTableInfoResponse)
 
             // When & Then
             mockMvc
@@ -369,6 +525,7 @@ class CatalogControllerTest {
                     offset = offset,
                 )
             } returns emptyList()
+            every { catalogMapper.toTableInfoResponseList(emptyList()) } returns emptyList()
 
             // When & Then
             mockMvc
@@ -426,7 +583,9 @@ class CatalogControllerTest {
             // Given
             val keyword = "user"
             val results = listOf(testTableInfo.copy(matchContext = "Table name match: users"))
+            val responseWithMatch = testTableInfoResponse.copy(matchContext = "Table name match: users")
             every { catalogService.searchTables(keyword, null, 20) } returns results
+            every { catalogMapper.toTableInfoResponseList(results) } returns listOf(responseWithMatch)
 
             // When & Then
             mockMvc
@@ -448,7 +607,9 @@ class CatalogControllerTest {
             val keyword = "user"
             val project = "my-project"
             val results = listOf(testTableInfo.copy(matchContext = "Column: user_id"))
+            val responseWithMatch = testTableInfoResponse.copy(matchContext = "Column: user_id")
             every { catalogService.searchTables(keyword, project, 20) } returns results
+            every { catalogMapper.toTableInfoResponseList(results) } returns listOf(responseWithMatch)
 
             // When & Then
             mockMvc
@@ -469,6 +630,7 @@ class CatalogControllerTest {
             val keyword = "user"
             val limit = 5
             every { catalogService.searchTables(keyword, null, limit) } returns emptyList()
+            every { catalogMapper.toTableInfoResponseList(emptyList()) } returns emptyList()
 
             // When & Then
             mockMvc
@@ -508,6 +670,7 @@ class CatalogControllerTest {
             // Given
             val keyword = "nonexistent"
             every { catalogService.searchTables(keyword, null, 20) } returns emptyList()
+            every { catalogMapper.toTableInfoResponseList(emptyList()) } returns emptyList()
 
             // When & Then
             mockMvc
@@ -529,6 +692,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogMapper.toTableDetailResponse(testTableDetail) } returns testTableDetailResponse
 
             // When & Then
             mockMvc
@@ -548,22 +712,18 @@ class CatalogControllerTest {
         }
 
         @Test
-        @DisplayName("should throw TableNotFoundException when table not found")
-        fun `should throw TableNotFoundException when table not found`() {
+        @DisplayName("should return 404 when table not found")
+        fun `should return 404 when table not found`() {
             // Given
             val tableRef = "project.dataset.nonexistent"
-            every { catalogService.getTableDetail(tableRef) } throws TableNotFoundException(tableRef)
+            every { catalogService.getTableDetail(tableRef, any()) } throws TableNotFoundException(tableRef)
 
             // When & Then
-            // Controller throws TableNotFoundException, caught by GlobalExceptionHandler in production
-            // In MockMvc tests, we verify the exception is thrown
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc.perform(get("/api/v1/catalog/tables/$tableRef")).andReturn()
-                }
+            mockMvc
+                .perform(get("/api/v1/catalog/tables/$tableRef"))
+                .andExpect(status().isNotFound)
 
-            assertThat(exception.cause).isInstanceOf(TableNotFoundException::class.java)
-            verify(exactly = 1) { catalogService.getTableDetail(tableRef) }
+            verify(exactly = 1) { catalogService.getTableDetail(tableRef, any()) }
         }
 
         @Test
@@ -572,6 +732,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogMapper.toTableDetailResponse(testTableDetail) } returns testTableDetailResponse
 
             // When & Then
             mockMvc
@@ -590,6 +751,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogMapper.toTableDetailResponse(testTableDetail) } returns testTableDetailResponse
 
             // When & Then
             mockMvc
@@ -607,6 +769,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogMapper.toTableDetailResponse(testTableDetail) } returns testTableDetailResponse
 
             // When & Then
             mockMvc
@@ -625,6 +788,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogMapper.toTableDetailResponse(testTableDetail) } returns testTableDetailResponse
 
             // When & Then
             mockMvc
@@ -649,6 +813,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getSampleQueries(tableRef, 5) } returns testSampleQueries
+            every { catalogMapper.toSampleQueryResponseList(testSampleQueries) } returns testSampleQueryResponses
 
             // When & Then
             mockMvc
@@ -670,6 +835,7 @@ class CatalogControllerTest {
             // Given
             val tableRef = "my-project.analytics.users"
             every { catalogService.getSampleQueries(tableRef, 5) } returns emptyList()
+            every { catalogMapper.toSampleQueryResponseList(emptyList()) } returns emptyList()
 
             // When & Then
             mockMvc
@@ -680,21 +846,17 @@ class CatalogControllerTest {
         }
 
         @Test
-        @DisplayName("should throw TableNotFoundException when table not found")
-        fun `should throw TableNotFoundException when table not found`() {
+        @DisplayName("should return 404 when table not found")
+        fun `should return 404 when table not found`() {
             // Given
             val tableRef = "project.dataset.nonexistent"
             every { catalogService.getSampleQueries(tableRef, 5) } throws TableNotFoundException(tableRef)
 
             // When & Then
-            // Controller throws TableNotFoundException, caught by GlobalExceptionHandler in production
-            // In MockMvc tests, we verify the exception is thrown
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc.perform(get("/api/v1/catalog/tables/$tableRef/queries")).andReturn()
-                }
+            mockMvc
+                .perform(get("/api/v1/catalog/tables/$tableRef/queries"))
+                .andExpect(status().isNotFound)
 
-            assertThat(exception.cause).isInstanceOf(TableNotFoundException::class.java)
             verify(exactly = 1) { catalogService.getSampleQueries(tableRef, 5) }
         }
 
@@ -705,6 +867,7 @@ class CatalogControllerTest {
             val tableRef = "my-project.analytics.users"
             val limit = 10
             every { catalogService.getSampleQueries(tableRef, limit) } returns testSampleQueries
+            every { catalogMapper.toSampleQueryResponseList(testSampleQueries) } returns testSampleQueryResponses
 
             // When & Then
             mockMvc

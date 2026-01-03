@@ -497,3 +497,29 @@ class WorkflowUnregistrationException(
         errorCode = "WORKFLOW_UNREGISTRATION_FAILED",
         cause = cause,
     )
+
+/**
+ * Exception thrown when workflow storage operation fails (YAML file save/load)
+ */
+class WorkflowStorageException(
+    val operation: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow storage error during operation: $operation",
+        errorCode = "WORKFLOW_STORAGE_ERROR",
+        cause = cause,
+    )
+
+// ============= External System Exceptions =============
+
+/**
+ * Exception thrown when Quality Rule Engine communication fails
+ */
+class QualityRuleEngineException(
+    message: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = message,
+        errorCode = "QUALITY_RULE_ENGINE_ERROR",
+        cause = cause,
+    )

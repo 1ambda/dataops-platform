@@ -1,14 +1,14 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.exception.DatasetAlreadyExistsException
-import com.github.lambda.common.exception.DatasetNotFoundException
+import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.model.dataset.DatasetEntity
 import com.github.lambda.domain.service.DatasetService
 import com.github.lambda.dto.dataset.*
+import com.github.lambda.exception.GlobalExceptionHandler
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -16,8 +16,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Import
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -30,20 +32,36 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor
 import tools.jackson.databind.json.JsonMapper
 
 /**
  * DatasetController REST API Tests
  *
  * Spring Boot 4.x patterns:
- * - @SpringBootTest + @AutoConfigureMockMvc: Integration test (multi-module project compatible)
+ * - @WebMvcTest: Slice test for web layer only (faster than full integration test)
  * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 compatible)
+ * - @Import: Include SecurityConfig and GlobalExceptionHandler for proper security and exception handling
  */
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(DatasetController::class)
+@Import(
+    SecurityConfig::class,
+    GlobalExceptionHandler::class,
+    DatasetControllerTest.ValidationConfig::class,
+)
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
 class DatasetControllerTest {
+    /**
+     * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
+     * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
+     */
+    @TestConfiguration
+    class ValidationConfig {
+        @Bean
+        fun methodValidationPostProcessor(): MethodValidationPostProcessor = MethodValidationPostProcessor()
+    }
+
     @Autowired
     private lateinit var mockMvc: MockMvc
 
@@ -312,19 +330,17 @@ class DatasetControllerTest {
         }
 
         @Test
-        @DisplayName("should throw DatasetNotFoundException when dataset not found")
-        fun `should throw DatasetNotFoundException when dataset not found`() {
+        @DisplayName("should return 404 when dataset not found")
+        fun `should return 404 when dataset not found`() {
             // Given
             val name = "nonexistent_catalog.schema.dataset"
             every { datasetService.getDataset(name) } returns null
 
             // When & Then
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc.perform(get("/api/v1/datasets/$name")).andReturn()
-                }
+            mockMvc
+                .perform(get("/api/v1/datasets/$name"))
+                .andExpect(status().isNotFound)
 
-            assertThat(exception.cause).isInstanceOf(DatasetNotFoundException::class.java)
             verify(exactly = 1) { datasetService.getDataset(name) }
         }
     }
@@ -495,8 +511,8 @@ class DatasetControllerTest {
         }
 
         @Test
-        @DisplayName("should throw DatasetAlreadyExistsException when dataset already exists")
-        fun `should throw DatasetAlreadyExistsException when dataset already exists`() {
+        @DisplayName("should return 409 when dataset already exists")
+        fun `should return 409 when dataset already exists`() {
             // Given
             val request =
                 CreateDatasetRequest(
@@ -508,18 +524,15 @@ class DatasetControllerTest {
             every { datasetService.registerDataset(any()) } throws DatasetAlreadyExistsException(request.name)
 
             // When & Then
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc
-                        .perform(
-                            post("/api/v1/datasets")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(jsonMapper.writeValueAsString(request)),
-                        ).andReturn()
-                }
+            mockMvc
+                .perform(
+                    post("/api/v1/datasets")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isConflict)
 
-            assertThat(exception.cause).isInstanceOf(DatasetAlreadyExistsException::class.java)
+            verify(exactly = 1) { datasetService.registerDataset(any()) }
         }
     }
 
@@ -557,8 +570,8 @@ class DatasetControllerTest {
         }
 
         @Test
-        @DisplayName("should throw DatasetNotFoundException when executing non-existent dataset")
-        fun `should throw DatasetNotFoundException when executing non-existent dataset`() {
+        @DisplayName("should return 404 when executing non-existent dataset")
+        fun `should return 404 when executing non-existent dataset`() {
             // Given
             val name = "nonexistent_catalog.schema.dataset"
             val request = ExecuteDatasetRequest()
@@ -566,18 +579,15 @@ class DatasetControllerTest {
             every { datasetService.getDataset(name) } returns null
 
             // When & Then
-            val exception =
-                org.junit.jupiter.api.assertThrows<Exception> {
-                    mockMvc
-                        .perform(
-                            post("/api/v1/datasets/$name/run")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(jsonMapper.writeValueAsString(request)),
-                        ).andReturn()
-                }
+            mockMvc
+                .perform(
+                    post("/api/v1/datasets/$name/run")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isNotFound)
 
-            assertThat(exception.cause).isInstanceOf(DatasetNotFoundException::class.java)
+            verify(exactly = 1) { datasetService.getDataset(name) }
         }
 
         @Test

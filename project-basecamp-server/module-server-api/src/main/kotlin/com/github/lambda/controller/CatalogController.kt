@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Size
 import mu.KotlinLogging
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -31,6 +32,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 @RestController
 @RequestMapping("${CommonConstants.Api.V1_PATH}/catalog")
 @CrossOrigin
+@Validated
 @Tag(name = "Catalog", description = "Data catalog browsing and search API")
 class CatalogController(
     private val catalogService: CatalogService,
