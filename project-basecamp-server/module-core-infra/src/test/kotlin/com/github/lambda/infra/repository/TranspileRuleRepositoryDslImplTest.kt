@@ -1,0 +1,606 @@
+package com.github.lambda.infra.repository
+
+import com.github.lambda.domain.model.transpile.SqlDialect
+import com.github.lambda.domain.model.transpile.TranspileRuleEntity
+import com.github.lambda.infra.config.JpaTestConfig
+import com.github.lambda.infra.config.QueryDslConfig
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
+
+/**
+ * TranspileRuleRepositoryDslImpl QueryDSL Tests
+ *
+ * Tests complex filter queries, dialect pair filtering, priority filtering,
+ * name searching, enabled status filtering, and aggregation statistics.
+ */
+@DataJpaTest
+@ActiveProfiles("test")
+@Import(QueryDslConfig::class, JpaTestConfig::class, TranspileRuleRepositoryDslImpl::class)
+@DisplayName("TranspileRuleRepositoryDslImpl QueryDSL Tests")
+@Execution(ExecutionMode.SAME_THREAD)
+class TranspileRuleRepositoryDslImplTest {
+    @Autowired
+    private lateinit var testEntityManager: TestEntityManager
+
+    @Autowired
+    private lateinit var repository: TranspileRuleRepositoryDslImpl
+
+    private lateinit var rule1: TranspileRuleEntity
+    private lateinit var rule2: TranspileRuleEntity
+    private lateinit var rule3: TranspileRuleEntity
+    private lateinit var rule4: TranspileRuleEntity
+    private lateinit var rule5: TranspileRuleEntity
+    private lateinit var disabledRule: TranspileRuleEntity
+
+    @BeforeEach
+    fun setUp() {
+        // Clean up any existing data from parallel test runs
+        testEntityManager.entityManager.createNativeQuery("DELETE FROM transpile_rules").executeUpdate()
+        testEntityManager.flush()
+        testEntityManager.clear()
+
+        // Create test entities with diverse dialects, priorities, and states
+        rule1 =
+            TranspileRuleEntity(
+                name = "bigquery_to_trino_datetime",
+                fromDialect = SqlDialect.BIGQUERY,
+                toDialect = SqlDialect.TRINO,
+                pattern = "DATETIME\\((.+?)\\)",
+                replacement = "CAST(\\$1 AS TIMESTAMP)",
+                priority = 100,
+                enabled = true,
+                description = "Convert BigQuery DATETIME to Trino TIMESTAMP",
+            )
+
+        rule2 =
+            TranspileRuleEntity(
+                name = "mysql_to_postgresql_limit",
+                fromDialect = SqlDialect.MYSQL,
+                toDialect = SqlDialect.POSTGRESQL,
+                pattern = "LIMIT (\\d+)",
+                replacement = "LIMIT \\$1",
+                priority = 200,
+                enabled = true,
+                description = "MySQL to PostgreSQL LIMIT conversion",
+            )
+
+        rule3 =
+            TranspileRuleEntity(
+                name = "any_to_any_count_optimization",
+                fromDialect = SqlDialect.ANY,
+                toDialect = SqlDialect.ANY,
+                pattern = "COUNT\\(\\*\\)",
+                replacement = "COUNT(1)",
+                priority = 50,
+                enabled = true,
+                description = "Universal count optimization",
+            )
+
+        rule4 =
+            TranspileRuleEntity(
+                name = "bigquery_to_trino_extract",
+                fromDialect = SqlDialect.BIGQUERY,
+                toDialect = SqlDialect.TRINO,
+                pattern = "EXTRACT\\((\\w+)\\s+FROM\\s+(\\w+)\\)",
+                replacement = "DATE_PART('\\$1', \\$2)",
+                priority = 150,
+                enabled = true,
+                description = "Convert BigQuery EXTRACT to Trino DATE_PART",
+            )
+
+        rule5 =
+            TranspileRuleEntity(
+                name = "high_priority_rule",
+                fromDialect = SqlDialect.POSTGRESQL,
+                toDialect = SqlDialect.MYSQL,
+                pattern = "UPPER\\((.+?)\\)",
+                replacement = "UCASE(\\$1)",
+                priority = 300,
+                enabled = true,
+                description = "High priority transformation",
+            )
+
+        disabledRule =
+            TranspileRuleEntity(
+                name = "disabled_transformation",
+                fromDialect = SqlDialect.BIGQUERY,
+                toDialect = SqlDialect.TRINO,
+                pattern = "OLD_FUNCTION\\((.+?)\\)",
+                replacement = "NEW_FUNCTION(\\$1)",
+                priority = 120,
+                enabled = false,
+                description = "Disabled transformation rule",
+            )
+
+        // Persist entities
+        rule1 = testEntityManager.persistAndFlush(rule1)
+        rule2 = testEntityManager.persistAndFlush(rule2)
+        rule3 = testEntityManager.persistAndFlush(rule3)
+        rule4 = testEntityManager.persistAndFlush(rule4)
+        rule5 = testEntityManager.persistAndFlush(rule5)
+        disabledRule = testEntityManager.persistAndFlush(disabledRule)
+        testEntityManager.clear()
+    }
+
+    @Nested
+    @DisplayName("findByDialectsAndEnabled")
+    inner class FindByDialectsAndEnabled {
+        @Test
+        @DisplayName("should find enabled rules by exact dialect match")
+        fun shouldFindEnabledRulesByExactDialectMatch() {
+            // When
+            val rules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    enabledOnly = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(3) // rule1, rule3 (ANY), rule4
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "bigquery_to_trino_datetime",
+                "any_to_any_count_optimization",
+                "bigquery_to_trino_extract",
+            )
+            assertThat(rules).allMatch { it.enabled }
+        }
+
+        @Test
+        @DisplayName("should include disabled rules when enabledOnly is false")
+        fun shouldIncludeDisabledRulesWhenEnabledOnlyIsFalse() {
+            // When
+            val rules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    enabledOnly = false,
+                )
+
+            // Then
+            assertThat(rules).hasSize(4) // rule1, rule3 (ANY), rule4, disabledRule
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "bigquery_to_trino_datetime",
+                "any_to_any_count_optimization",
+                "bigquery_to_trino_extract",
+                "disabled_transformation",
+            )
+        }
+
+        @Test
+        @DisplayName("should match rules with ANY dialect")
+        fun shouldMatchRulesWithAnyDialect() {
+            // When
+            val rules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.MYSQL,
+                    toDialect = SqlDialect.POSTGRESQL,
+                    enabledOnly = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(2) // rule2 (exact match) + rule3 (ANY)
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "mysql_to_postgresql_limit",
+                "any_to_any_count_optimization",
+            )
+        }
+
+        @Test
+        @DisplayName("should return empty list for non-matching dialects")
+        fun shouldReturnEmptyListForNonMatchingDialects() {
+            // When
+            val rules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.GENERIC,
+                    toDialect = SqlDialect.GENERIC,
+                    enabledOnly = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(1) // Only the ANY->ANY rule
+            assertThat(rules.first().name).isEqualTo("any_to_any_count_optimization")
+        }
+    }
+
+    @Nested
+    @DisplayName("findApplicableRules")
+    inner class FindApplicableRules {
+        @Test
+        @DisplayName("should find applicable rules ordered by priority when specified")
+        fun shouldFindApplicableRulesOrderedByPriorityWhenSpecified() {
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    orderByPriority = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(3)
+            // Should be ordered by priority descending, then name ascending
+            assertThat(rules.map { it.priority }).containsExactly(150, 100, 50)
+            assertThat(rules.map { it.name }).containsExactly(
+                "bigquery_to_trino_extract", // priority 150
+                "bigquery_to_trino_datetime", // priority 100
+                "any_to_any_count_optimization", // priority 50
+            )
+        }
+
+        @Test
+        @DisplayName("should find applicable rules ordered by name when priority ordering is false")
+        fun shouldFindApplicableRulesOrderedByNameWhenPriorityOrderingIsFalse() {
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    orderByPriority = false,
+                )
+
+            // Then
+            assertThat(rules).hasSize(3)
+            // Should be ordered by name ascending
+            assertThat(rules.map { it.name }).containsExactly(
+                "any_to_any_count_optimization",
+                "bigquery_to_trino_datetime",
+                "bigquery_to_trino_extract",
+            )
+        }
+
+        @Test
+        @DisplayName("should only return enabled rules")
+        fun shouldOnlyReturnEnabledRules() {
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    orderByPriority = true,
+                )
+
+            // Then
+            assertThat(rules).allMatch { it.enabled }
+            assertThat(rules.map { it.name }).doesNotContain("disabled_transformation")
+        }
+
+        @Test
+        @DisplayName("should handle ANY dialect matching")
+        fun shouldHandleAnyDialectMatching() {
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.MYSQL,
+                    toDialect = SqlDialect.POSTGRESQL,
+                    orderByPriority = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(2)
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "mysql_to_postgresql_limit", // Exact match
+                "any_to_any_count_optimization", // ANY->ANY match
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("findByNameContaining")
+    inner class FindByNameContaining {
+        @Test
+        @DisplayName("should find rules by partial name match")
+        fun shouldFindRulesByPartialNameMatch() {
+            // When
+            val rules = repository.findByNameContaining("bigquery_to_trino")
+
+            // Then
+            assertThat(rules).hasSize(3) // rule1, rule4, disabledRule
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "bigquery_to_trino_datetime",
+                "bigquery_to_trino_extract",
+                "disabled_transformation", // Contains bigquery_to_trino in pattern
+            )
+        }
+
+        @Test
+        @DisplayName("should be case sensitive")
+        fun shouldBeCaseSensitive() {
+            // When
+            val rulesLower = repository.findByNameContaining("mysql")
+            val rulesUpper = repository.findByNameContaining("MYSQL")
+
+            // Then
+            assertThat(rulesLower).hasSize(1)
+            assertThat(rulesLower.first().name).isEqualTo("mysql_to_postgresql_limit")
+            assertThat(rulesUpper).isEmpty()
+        }
+
+        @Test
+        @DisplayName("should return empty list for non-matching patterns")
+        fun shouldReturnEmptyListForNonMatchingPatterns() {
+            // When
+            val rules = repository.findByNameContaining("nonexistent")
+
+            // Then
+            assertThat(rules).isEmpty()
+        }
+
+        @Test
+        @DisplayName("should handle special characters in search")
+        fun shouldHandleSpecialCharactersInSearch() {
+            // When
+            val rules = repository.findByNameContaining("_to_")
+
+            // Then
+            // Should match all rules that have "_to_" in their name
+            assertThat(rules).hasSizeGreaterThan(0)
+            assertThat(rules).allMatch { it.name.contains("_to_") }
+        }
+    }
+
+    @Nested
+    @DisplayName("findByPriorityBetween")
+    inner class FindByPriorityBetween {
+        @Test
+        @DisplayName("should find rules within priority range inclusive")
+        fun shouldFindRulesWithinPriorityRangeInclusive() {
+            // When
+            val rules = repository.findByPriorityBetween(100, 200)
+
+            // Then
+            assertThat(rules).hasSize(4) // rule1 (100), rule2 (200), rule4 (150), disabledRule (120)
+            assertThat(rules.map { it.priority }).containsExactlyInAnyOrder(100, 150, 120, 200)
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "bigquery_to_trino_datetime",
+                "bigquery_to_trino_extract",
+                "disabled_transformation",
+                "mysql_to_postgresql_limit",
+            )
+        }
+
+        @Test
+        @DisplayName("should include boundary values")
+        fun shouldIncludeBoundaryValues() {
+            // When
+            val rules = repository.findByPriorityBetween(100, 100)
+
+            // Then
+            assertThat(rules).hasSize(1)
+            assertThat(rules.first().priority).isEqualTo(100)
+            assertThat(rules.first().name).isEqualTo("bigquery_to_trino_datetime")
+        }
+
+        @Test
+        @DisplayName("should return empty list when no rules in range")
+        fun shouldReturnEmptyListWhenNoRulesInRange() {
+            // When
+            val rules = repository.findByPriorityBetween(400, 500)
+
+            // Then
+            assertThat(rules).isEmpty()
+        }
+
+        @Test
+        @DisplayName("should handle reversed range")
+        fun shouldHandleReversedRange() {
+            // When - Testing with min > max
+            val rules = repository.findByPriorityBetween(200, 100)
+
+            // Then - Should return empty (QueryDSL handles this as no matches)
+            assertThat(rules).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("getRuleCountByDialectPair")
+    inner class GetRuleCountByDialectPair {
+        @Test
+        @DisplayName("should return rule count grouped by dialect pairs")
+        fun shouldReturnRuleCountGroupedByDialectPairs() {
+            // When
+            val counts = repository.getRuleCountByDialectPair()
+
+            // Then
+            assertThat(counts).isNotEmpty()
+            assertThat(counts["BIGQUERY->TRINO"]).isEqualTo(2L) // rule1, rule4 (enabled only)
+            assertThat(counts["MYSQL->POSTGRESQL"]).isEqualTo(1L) // rule2
+            assertThat(counts["ANY->ANY"]).isEqualTo(1L) // rule3
+            assertThat(counts["POSTGRESQL->MYSQL"]).isEqualTo(1L) // rule5
+
+            // Disabled rule should not be counted
+            assertThat(counts.values().sum()).isEqualTo(5L) // Total enabled rules
+        }
+
+        @Test
+        @DisplayName("should only count enabled rules")
+        fun shouldOnlyCountEnabledRules() {
+            // Given - Disable all BigQuery->Trino rules
+            val bgTrinoRules = listOf(rule1, rule4)
+            bgTrinoRules.forEach { it.enabled = false }
+            bgTrinoRules.forEach { testEntityManager.merge(it) }
+            testEntityManager.flush()
+
+            // When
+            val counts = repository.getRuleCountByDialectPair()
+
+            // Then
+            assertThat(counts["BIGQUERY->TRINO"]).isNull() // No enabled rules for this pair
+            assertThat(counts["MYSQL->POSTGRESQL"]).isEqualTo(1L)
+            assertThat(counts["ANY->ANY"]).isEqualTo(1L)
+        }
+
+        @Test
+        @DisplayName("should handle empty result when no enabled rules")
+        fun shouldHandleEmptyResultWhenNoEnabledRules() {
+            // Given - Disable all rules
+            val allRules = listOf(rule1, rule2, rule3, rule4, rule5, disabledRule)
+            allRules.forEach { it.enabled = false }
+            allRules.forEach { testEntityManager.merge(it) }
+            testEntityManager.flush()
+
+            // When
+            val counts = repository.getRuleCountByDialectPair()
+
+            // Then
+            assertThat(counts).isEmpty()
+        }
+
+        @Test
+        @DisplayName("should format dialect pairs consistently")
+        fun shouldFormatDialectPairsConsistently() {
+            // When
+            val counts = repository.getRuleCountByDialectPair()
+
+            // Then
+            counts.keys.forEach { key ->
+                assertThat(key).matches("[A-Z]+(->[A-Z]+)?")
+                assertThat(key).contains("->")
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Complex Query Scenarios")
+    inner class ComplexQueryScenarios {
+        @Test
+        @DisplayName("should handle multiple ANY dialect rules correctly")
+        fun shouldHandleMultipleAnyDialectRulesCorrectly() {
+            // Given - Create additional ANY dialect rules
+            val anyRule1 =
+                TranspileRuleEntity(
+                    name = "any_to_bigquery_optimization",
+                    fromDialect = SqlDialect.ANY,
+                    toDialect = SqlDialect.BIGQUERY,
+                    pattern = "SELECT\\s+\\*",
+                    replacement = "SELECT col1, col2, col3",
+                    priority = 75,
+                    enabled = true,
+                )
+
+            val anyRule2 =
+                TranspileRuleEntity(
+                    name = "mysql_to_any_conversion",
+                    fromDialect = SqlDialect.MYSQL,
+                    toDialect = SqlDialect.ANY,
+                    pattern = "AUTO_INCREMENT",
+                    replacement = "SERIAL",
+                    priority = 80,
+                    enabled = true,
+                )
+
+            testEntityManager.persistAndFlush(anyRule1)
+            testEntityManager.persistAndFlush(anyRule2)
+
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.MYSQL,
+                    toDialect = SqlDialect.BIGQUERY,
+                    orderByPriority = true,
+                )
+
+            // Then
+            assertThat(rules).hasSize(3) // matches: any_to_any, any_to_bigquery, mysql_to_any
+            assertThat(rules.map { it.name }).containsExactlyInAnyOrder(
+                "mysql_to_any_conversion", // MYSQL->ANY matches MYSQL->BIGQUERY
+                "any_to_bigquery_optimization", // ANY->BIGQUERY matches MYSQL->BIGQUERY
+                "any_to_any_count_optimization", // ANY->ANY matches MYSQL->BIGQUERY
+            )
+        }
+
+        @Test
+        @DisplayName("should maintain consistent ordering with same priorities")
+        fun shouldMaintainConsistentOrderingWithSamePriorities() {
+            // Given - Create rules with same priority
+            val samePriorityRule1 =
+                TranspileRuleEntity(
+                    name = "aaaaa_rule",
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    pattern = "AAA",
+                    replacement = "BBB",
+                    priority = 100, // Same as rule1
+                    enabled = true,
+                )
+
+            val samePriorityRule2 =
+                TranspileRuleEntity(
+                    name = "zzzzz_rule",
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    pattern = "ZZZ",
+                    replacement = "YYY",
+                    priority = 100, // Same as rule1
+                    enabled = true,
+                )
+
+            testEntityManager.persistAndFlush(samePriorityRule1)
+            testEntityManager.persistAndFlush(samePriorityRule2)
+
+            // When
+            val rules =
+                repository.findApplicableRules(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    orderByPriority = true,
+                )
+
+            // Then - Within same priority, should be ordered by name
+            val priority100Rules = rules.filter { it.priority == 100 }
+            assertThat(priority100Rules.map { it.name }).containsExactly(
+                "aaaaa_rule",
+                "bigquery_to_trino_datetime",
+                "zzzzz_rule",
+            )
+        }
+
+        @Test
+        @DisplayName("should handle dialect filtering with mixed enabled states")
+        fun shouldHandleDialectFilteringWithMixedEnabledStates() {
+            // Given - Create additional rules and disable some
+            val additionalRule =
+                TranspileRuleEntity(
+                    name = "another_bigquery_trino_rule",
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    pattern = "TEST",
+                    replacement = "RESULT",
+                    priority = 90,
+                    enabled = false, // Disabled
+                )
+
+            testEntityManager.persistAndFlush(additionalRule)
+
+            // When
+            val enabledRules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    enabledOnly = true,
+                )
+
+            val allRules =
+                repository.findByDialectsAndEnabled(
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
+                    enabledOnly = false,
+                )
+
+            // Then
+            assertThat(enabledRules).hasSize(3) // Original enabled rules
+            assertThat(allRules).hasSize(5) // All rules including disabled ones
+            assertThat(enabledRules).allMatch { it.enabled }
+        }
+    }
+}

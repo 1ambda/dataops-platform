@@ -1,7 +1,10 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.domain.external.AppliedTransformation
 import com.github.lambda.domain.external.BasecampParserClient
-import com.github.lambda.domain.external.SQLLineageResult
+import com.github.lambda.domain.external.LineageResult
+import com.github.lambda.domain.external.TranspileResult
+import com.github.lambda.domain.external.TranspileRule
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
@@ -68,12 +71,12 @@ class MockBasecampParserClient : BasecampParserClient {
     override fun parseSQL(
         sql: String,
         dialect: String,
-    ): SQLLineageResult {
+    ): LineageResult {
         logger.debug("Parsing SQL lineage for dialect: {}, SQL length: {}", dialect, sql.length)
 
         return try {
             if (!isDialectSupported(dialect)) {
-                return SQLLineageResult.error("Unsupported SQL dialect: $dialect")
+                return LineageResult.error("Unsupported SQL dialect: $dialect")
             }
 
             val sourceTables = extractSourceTables(sql)
@@ -89,14 +92,14 @@ class MockBasecampParserClient : BasecampParserClient {
                 enhancedSources,
             )
 
-            SQLLineageResult.success(
+            LineageResult.success(
                 sourceTables = enhancedSources,
                 targetTables = targetTables,
                 columnLineage = extractMockColumnLineage(sql, enhancedSources, targetTables),
             )
         } catch (e: Exception) {
             logger.error("Failed to parse SQL lineage", e)
-            SQLLineageResult.error("Failed to parse SQL: ${e.message}")
+            LineageResult.error("Failed to parse SQL: ${e.message}")
         }
     }
 
@@ -260,4 +263,164 @@ class MockBasecampParserClient : BasecampParserClient {
      * Normalize table name (remove quotes, lowercase)
      */
     private fun normalizeTableName(tableName: String): String = tableName.trim('`', '"', ' ').lowercase()
+
+    override fun transpileSQL(
+        sql: String,
+        sourceDialect: String,
+        targetDialect: String,
+        rules: List<TranspileRule>,
+    ): TranspileResult {
+        logger.debug(
+            "Transpiling SQL from {} to {}, rules: {}, SQL length: {}",
+            sourceDialect,
+            targetDialect,
+            rules.size,
+            sql.length,
+        )
+
+        return try {
+            if (!isDialectSupported(sourceDialect) || !isDialectSupported(targetDialect)) {
+                return TranspileResult.error("Unsupported dialect: $sourceDialect -> $targetDialect")
+            }
+
+            if (sourceDialect.equals(targetDialect, ignoreCase = true)) {
+                // No transpilation needed
+                return TranspileResult.success(sql)
+            }
+
+            val startTime = System.currentTimeMillis()
+            var transpiledSql = sql
+            val appliedTransformations = mutableListOf<AppliedTransformation>()
+
+            // Apply custom rules first
+            rules.forEach { rule ->
+                val before = transpiledSql
+                transpiledSql = transpiledSql.replace(Regex(rule.pattern), rule.replacement)
+                if (before != transpiledSql) {
+                    appliedTransformations.add(
+                        AppliedTransformation(
+                            type = "custom_rule",
+                            name = rule.name,
+                            from = null,
+                            to = null,
+                        ),
+                    )
+                }
+            }
+
+            // Apply built-in dialect transformations
+            transpiledSql =
+                applyDialectTransformations(
+                    sql = transpiledSql,
+                    sourceDialect = sourceDialect.lowercase(),
+                    targetDialect = targetDialect.lowercase(),
+                    appliedTransformations = appliedTransformations,
+                )
+
+            val endTime = System.currentTimeMillis()
+
+            logger.debug("Transpilation completed in {} ms", endTime - startTime)
+
+            TranspileResult.success(
+                transpiledSql = transpiledSql,
+                appliedTransformations = appliedTransformations,
+                warnings = emptyList(), // Mock warnings could be added here
+                parseTimeMs = 5,
+                transpileTimeMs = endTime - startTime,
+            )
+        } catch (e: Exception) {
+            logger.error("Failed to transpile SQL", e)
+            TranspileResult.error("Failed to transpile SQL: ${e.message}")
+        }
+    }
+
+    /**
+     * Apply built-in dialect transformations
+     */
+    private fun applyDialectTransformations(
+        sql: String,
+        sourceDialect: String,
+        targetDialect: String,
+        appliedTransformations: MutableList<AppliedTransformation>,
+    ): String {
+        var result = sql
+
+        // BigQuery to Trino transformations
+        if (sourceDialect == "bigquery" && targetDialect == "trino") {
+            // Replace backticks with double quotes
+            val backticksPattern = "`([^`]+)`"
+            if (Regex(backticksPattern).containsMatchIn(result)) {
+                result = result.replace(Regex(backticksPattern), "\"$1\"")
+                appliedTransformations.add(
+                    AppliedTransformation(
+                        type = "dialect_conversion",
+                        name = "backticks_to_quotes",
+                        from = "bigquery",
+                        to = "trino",
+                    ),
+                )
+            }
+
+            // DATE_SUB to date_add conversion
+            val dateSubPattern = """DATE_SUB\((.+?), INTERVAL (.+?) DAY\)"""
+            if (Regex(dateSubPattern).containsMatchIn(result)) {
+                result = result.replace(Regex(dateSubPattern), "date_add('day', -$2, $1)")
+                appliedTransformations.add(
+                    AppliedTransformation(
+                        type = "dialect_conversion",
+                        name = "date_sub_to_date_add",
+                        from = "bigquery",
+                        to = "trino",
+                    ),
+                )
+            }
+
+            // ARRAY_AGG IGNORE NULLS to FILTER
+            val arrayAggPattern = """ARRAY_AGG\((.+?) IGNORE NULLS\)"""
+            if (Regex(arrayAggPattern).containsMatchIn(result)) {
+                result = result.replace(Regex(arrayAggPattern), "array_agg($1) FILTER (WHERE $1 IS NOT NULL)")
+                appliedTransformations.add(
+                    AppliedTransformation(
+                        type = "dialect_conversion",
+                        name = "array_agg_ignore_nulls",
+                        from = "bigquery",
+                        to = "trino",
+                    ),
+                )
+            }
+        }
+
+        // Trino to BigQuery transformations
+        if (sourceDialect == "trino" && targetDialect == "bigquery") {
+            // Replace double quotes with backticks
+            val quotesPattern = "\"([^\"]+)\""
+            if (Regex(quotesPattern).containsMatchIn(result)) {
+                result = result.replace(Regex(quotesPattern), "`$1`")
+                appliedTransformations.add(
+                    AppliedTransformation(
+                        type = "dialect_conversion",
+                        name = "quotes_to_backticks",
+                        from = "trino",
+                        to = "bigquery",
+                    ),
+                )
+            }
+
+            // date_add to DATE_SUB conversion (reverse)
+            val dateAddPattern = """date_add\('day', -(\d+), (.+?)\)"""
+            if (Regex(dateAddPattern).containsMatchIn(result)) {
+                result = result.replace(Regex(dateAddPattern), "DATE_SUB($2, INTERVAL $1 DAY)")
+                appliedTransformations.add(
+                    AppliedTransformation(
+                        type = "dialect_conversion",
+                        name = "date_add_to_date_sub",
+                        from = "trino",
+                        to = "bigquery",
+                    ),
+                )
+            }
+        }
+
+        return result
+    }
 }

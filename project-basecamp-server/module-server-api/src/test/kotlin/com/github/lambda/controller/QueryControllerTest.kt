@@ -88,7 +88,6 @@ class QueryControllerTest {
     @MockkBean(relaxed = true)
     private lateinit var queryMapper: QueryMapper
 
-
     // Test data
     private lateinit var testQueryEntity: QueryExecutionEntity
     private lateinit var testCompletedEntity: QueryExecutionEntity
