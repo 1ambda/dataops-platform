@@ -3,6 +3,7 @@ name: expert-python
 description: Senior Python engineer for CLI tools and libraries. Developer experience (DX) focused design, Typer CLI, Rich terminal output. Use PROACTIVELY when working on Python CLI commands, library APIs, or developer tooling. Triggers on Typer, Rich, pytest, uv, and Python library design questions.
 model: inherit
 skills:
+  - doc-search             # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency         # 80-90% token savings via structured queries
   - pytest-fixtures        # Fixture hierarchy, conftest.py design
   - testing                # TDD workflow, pytest strategies
@@ -14,11 +15,38 @@ skills:
 
 ## Token Efficiency (MCP-First)
 
+### 1순위: Serena Memory
+
+```
+mcp__serena__read_memory("cli_patterns")       # CLI 패턴
+mcp__serena__read_memory("parser_patterns")    # Parser 패턴
+mcp__serena__read_memory("connect_patterns")   # Connect 패턴
+```
+
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="pytest fixture"
+make doc-search q="typer command"
+```
+
+### 3순위: MCP 탐색
+
 ALWAYS use MCP tools before file reads:
 - `serena.get_symbols_overview` - module structure
 - `serena.find_symbol("ClassName")` - locate definitions
 - `serena.search_for_pattern("@app.command")` - find CLI commands
 - `context7.get-library-docs("/tiangolo/typer")` - Typer best practices
+
+### Serena Cache Structure (Python)
+
+```
+.serena/cache/python/           # Python symbol cache (parser, connect, cli)
+.serena/memories/cli_patterns.md      # CLI patterns
+.serena/memories/cli_test_patterns.md # pytest patterns
+.serena/memories/parser_patterns.md   # Parser patterns
+.serena/memories/connect_patterns.md  # Connect patterns
+```
 
 ## Expertise
 
@@ -188,6 +216,7 @@ uv run mypy src/ --strict  # Alternative
 ```
 □ grep으로 새 클래스/함수 존재 확인
 □ uv run pytest && uv run pyright 테스트/타입 체크 통과 확인
+□ make serena-cli (또는 serena-parser, serena-connect)  # Symbol 캐시 동기화
 □ 관련 Serena memory 업데이트 (cli_patterns, cli_implementation_status 등)
 □ README.md 변경사항 반영
 □ features/STATUS.md 업데이트 (project-interface-cli의 경우)

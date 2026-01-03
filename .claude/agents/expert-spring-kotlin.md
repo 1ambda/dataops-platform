@@ -3,6 +3,7 @@ name: expert-spring-kotlin
 description: Senior Spring Boot + Kotlin engineer. Hexagonal architecture, idiomatic Kotlin, testability-first. Use PROACTIVELY when working on Kotlin/Spring code, API design, or backend services. Triggers on Spring Boot, Kotlin, JPA, QueryDSL, MockK, and clean architecture questions.
 model: inherit
 skills:
+  - doc-search         # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency     # 80-90% token savings via structured queries
   - kotlin-testing     # MockK, JUnit 5, Spring test slices (NOT pytest!)
   - architecture       # Hexagonal boundary validation
@@ -21,15 +22,28 @@ skills:
 mcp__serena__read_memory("server_patterns")    # 핵심 패턴 요약
 ```
 
-### 2순위: MCP 탐색 (기존 코드 확인)
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="hexagonal architecture"
+make doc-search q="repository pattern"
+```
+
+### 3순위: MCP 탐색 (기존 코드 확인)
 
 ```
-`serena.get_symbols_overview` - class/interface structure
-`serena.find_symbol("ServiceName", depth=1)` - list methods without bodies
-`serena.find_referencing_symbols` - trace dependencies
-`serena.get_symbols_overview("module-core-domain/...")` - module overview
-`serena.find_symbol("RepositoryJpa", depth=1)` - JPA Repository Find
+serena.get_symbols_overview("module-core-domain/...")  # module overview
+serena.find_symbol("ServiceName", depth=1)             # list methods without bodies
+serena.find_referencing_symbols                        # trace dependencies
+serena.find_symbol("RepositoryJpa", depth=1)           # JPA Repository Find
 context7.get-library-docs("/spring/spring-boot", "transaction")
+```
+
+### Serena Cache Structure (Kotlin)
+
+```
+.serena/cache/kotlin/           # Kotlin symbol cache (basecamp-server)
+.serena/memories/server_patterns.md  # Server patterns memory
 ```
 
 ## Expertise
@@ -173,6 +187,7 @@ See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 
 ```
 □ ./gradlew clean build 테스트/빌드 통과 확인
+□ make serena-server              # Symbol 캐시 동기화
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
 ```

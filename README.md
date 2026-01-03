@@ -62,6 +62,28 @@ make clean && make rebuild    # Clean rebuild
 make help                     # View all available commands
 ```
 
+## Serena Symbol Update System
+
+**Token-efficient Symbol management** for Claude Code and Serena MCP:
+
+```bash
+# Quick Commands
+make serena-update          # Update symbols (dry-run first)
+make serena-fix             # Update changed files only
+make serena-status          # Check system status
+
+# Project-specific updates (Symbols, Docs & Memories)
+make serena-server          # Basecamp Server symbols, docs & memories
+make serena-ui              # Basecamp UI symbols, docs & memories
+make serena-parser          # Parser service symbols, docs & memories
+make serena-connect         # Connect service symbols, docs & memories
+make serena-cli             # Interface CLI symbols, docs & memories
+```
+
+**Auto-Updates**: Git hooks automatically update symbols, documents & memories after commits/merges. Each project command updates code symbols, project-specific documentation, and memory patterns for maximum efficiency.
+
+**Manual Control**: Use `make serena-help` for complete options or `scripts/serena/update-symbols.py --help` for advanced usage.
+
 ---
 
 ## Project Structure

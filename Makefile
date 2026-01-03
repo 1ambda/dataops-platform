@@ -514,6 +514,139 @@ compose: dev-logs ## Legacy: Start with logs (matches old Makefile behavior)
 compose.clean: clean prune ## Legacy: Clean containers and volumes (matches old Makefile behavior)
 
 # ==============================================================================
+# Serena Symbol Update System
+# ==============================================================================
+
+.PHONY: serena-help
+serena-help: ## Show Serena symbol update system help
+	@echo ""
+	@echo "$(BOLD)$(CYAN)Serena Symbol Auto-Update System$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Quick Commands:$(RESET)"
+	@echo "  $(CYAN)make serena-update$(RESET)        - Update all symbols (dry-run first)"
+	@echo "  $(CYAN)make serena-update-all$(RESET)    - Force update all symbols and memories"
+	@echo "  $(CYAN)make serena-test$(RESET)          - Test symbol update system"
+	@echo "  $(CYAN)make serena-fix$(RESET)           - Fix changed files only (Git-based)"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Project Updates:$(RESET)"
+	@echo "  $(CYAN)make serena-server$(RESET)        - Update basecamp-server symbols, docs & memories"
+	@echo "  $(CYAN)make serena-ui$(RESET)            - Update basecamp-ui symbols, docs & memories"
+	@echo "  $(CYAN)make serena-parser$(RESET)        - Update basecamp-parser symbols, docs & memories"
+	@echo "  $(CYAN)make serena-connect$(RESET)       - Update basecamp-connect symbols, docs & memories"
+	@echo "  $(CYAN)make serena-cli$(RESET)           - Update interface-cli symbols, docs & memories"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Document Search (94% Token Savings):$(RESET)"
+	@echo "  $(CYAN)make doc-search q=\"query\"$(RESET) - Search documentation index"
+	@echo "  $(CYAN)make doc-index$(RESET)            - Rebuild document index"
+	@echo "  $(CYAN)make doc-index-status$(RESET)     - Check document index status"
+	@echo ""
+
+.PHONY: serena-update
+serena-update: ## Update Serena symbol cache (with dry-run check)
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Running dry-run first..."
+	@python3 scripts/serena/update-symbols.py --all --with-memories --dry-run
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Dry-run completed. Run 'make serena-update-all' to execute actual update.$(RESET)"
+
+.PHONY: serena-update-all
+serena-update-all: ## Force update all Serena symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating all symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --all --with-deps --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Update completed!"
+
+.PHONY: serena-fix
+serena-fix: ## Update only changed files (Git-based)
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating changed files only..."
+	@python3 scripts/serena/update-symbols.py --changed-only --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Changed files updated!"
+
+.PHONY: serena-test
+serena-test: ## Test Serena symbol update system
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Running system tests..."
+	@bash scripts/serena/test-update.sh
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Tests completed!"
+
+.PHONY: serena-status
+serena-status: ## Check Serena system status
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) System Status Check"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Cache Status:$(RESET)"
+	@ls -la .serena/cache/*/document_symbols.pkl 2>/dev/null | awk '{print "  " $$9 " (" $$5 " bytes, " $$6 " " $$7 ")"}' || echo "  No cache files found"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Memory Status:$(RESET)"
+	@ls -1 .serena/memories/ 2>/dev/null | wc -l | awk '{print "  " $$1 " memory files"}' || echo "  No memory files found"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)Git Hooks Status:$(RESET)"
+	@test -x .git/hooks/post-commit && echo "  ✅ post-commit hook active" || echo "  ❌ post-commit hook missing/inactive"
+	@test -x .git/hooks/post-merge && echo "  ✅ post-merge hook active" || echo "  ❌ post-merge hook missing/inactive"
+	@echo ""
+
+.PHONY: serena-server
+serena-server: ## Update basecamp-server symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating basecamp-server symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --project project-basecamp-server --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Basecamp-server updated!"
+
+.PHONY: serena-ui
+serena-ui: ## Update basecamp-ui symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating basecamp-ui symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --project project-basecamp-ui --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Basecamp-ui updated!"
+
+.PHONY: serena-parser
+serena-parser: ## Update basecamp-parser symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating basecamp-parser symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --project project-basecamp-parser --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Basecamp-parser updated!"
+
+.PHONY: serena-connect
+serena-connect: ## Update basecamp-connect symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating basecamp-connect symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --project project-basecamp-connect --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Basecamp-connect updated!"
+
+.PHONY: serena-cli
+serena-cli: ## Update interface-cli symbols, docs & memories
+	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating interface-cli symbols, docs & memories..."
+	@python3 scripts/serena/update-symbols.py --project project-interface-cli --with-docs --with-memories
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Interface-cli updated!"
+
+# ------------------------------------------------------------------------------
+# Document Index System (Token-efficient documentation search)
+# ------------------------------------------------------------------------------
+
+.PHONY: doc-search
+doc-search: ## Search documentation index (usage: make doc-search q="your query")
+	@if [ -z "$(q)" ]; then \
+		echo "$(BOLD)$(YELLOW)Usage:$(RESET) make doc-search q=\"your search query\""; \
+		echo ""; \
+		echo "$(BOLD)$(CYAN)Examples:$(RESET)"; \
+		echo "  make doc-search q=\"hexagonal architecture\""; \
+		echo "  make doc-search q=\"repository pattern\""; \
+		echo "  make doc-search q=\"testing\""; \
+	else \
+		echo "$(BOLD)$(BLUE)[DOC-SEARCH]$(RESET) Searching for: $(q)"; \
+		python3 scripts/serena/document_indexer.py --search "$(q)" --max-results 10; \
+	fi
+
+.PHONY: doc-index
+doc-index: ## Rebuild document search index
+	@echo "$(BOLD)$(BLUE)[DOC-INDEX]$(RESET) Rebuilding document search index..."
+	@python3 scripts/serena/document_indexer.py --project-root . --rebuild
+	@echo "$(BOLD)$(GREEN)[DOC-INDEX]$(RESET) Document index rebuilt!"
+
+.PHONY: doc-index-status
+doc-index-status: ## Check document index status
+	@echo "$(BOLD)$(BLUE)[DOC-INDEX]$(RESET) Document Index Status"
+	@echo ""
+	@if [ -f .serena/cache/documents/document_index.json ]; then \
+		echo "  $(GREEN)Index file exists$(RESET)"; \
+		python3 -c "import json; d=json.load(open('.serena/cache/documents/document_index.json')); m=d['metadata']; print(f\"  Documents: {m['total_documents']}\"); print(f\"  Sections: {m['total_sections']}\"); print(f\"  Tags: {m['total_tags']}\"); print(f\"  Keywords: {m['total_keywords']}\"); print(f\"  Created: {m['created_at']}\")"; \
+	else \
+		echo "  $(YELLOW)Index not found. Run 'make doc-index' to create.$(RESET)"; \
+	fi
+
+# ==============================================================================
 # Notes
 # ==============================================================================
 # BuildKit Cache Performance:

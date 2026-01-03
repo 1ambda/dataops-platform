@@ -7,6 +7,61 @@ description: Token-efficient codebase exploration using MCP servers (Serena, Con
 
 Master MCP tools to reduce token usage while improving code understanding.
 
+## Serena Infrastructure (Project-Specific)
+
+### Cache Structure
+
+```
+.serena/
+├── cache/
+│   ├── documents/              # Document index for token-efficient search
+│   │   └── document_index.json # Indexed docs with tag/title/content search
+│   ├── kotlin/                 # Kotlin symbol cache (basecamp-server)
+│   ├── python/                 # Python symbol cache (parser, connect, cli)
+│   │   ├── document_symbols.pkl
+│   │   └── raw_document_symbols.pkl
+│   └── typescript/             # TypeScript symbol cache (basecamp-ui)
+├── memories/                   # Project patterns and knowledge
+│   ├── server_patterns.md      # Spring Boot/Kotlin patterns
+│   ├── ui_patterns.md          # React/TypeScript patterns
+│   ├── cli_patterns.md         # Python CLI patterns
+│   ├── cli_test_patterns.md    # pytest/fixture patterns
+│   ├── parser_patterns.md      # Flask/SQLglot patterns
+│   └── connect_patterns.md     # Integration patterns
+└── project.yml                 # Project configuration
+```
+
+### Make Commands (Cache Sync)
+
+| Command | Purpose |
+|---------|---------|
+| `make serena-server` | Update basecamp-server symbols, docs & memories |
+| `make serena-ui` | Update basecamp-ui symbols, docs & memories |
+| `make serena-parser` | Update basecamp-parser symbols, docs & memories |
+| `make serena-connect` | Update basecamp-connect symbols, docs & memories |
+| `make serena-cli` | Update interface-cli symbols, docs & memories |
+| `make serena-update-all` | Force update all projects |
+| `make serena-status` | Check cache status |
+| `make doc-search q="query"` | Search documentation index (94% savings) |
+
+### Post-Implementation Cache Sync
+
+After making significant changes, sync the Serena cache:
+
+```bash
+# After server changes
+make serena-server
+
+# After UI changes
+make serena-ui
+
+# After CLI changes
+make serena-cli
+
+# Check cache status
+make serena-status
+```
+
 ## Why This Matters
 
 | Approach | Tokens | Use Case |
@@ -17,6 +72,52 @@ Master MCP tools to reduce token usage while improving code understanding.
 | Context7 docs | 500-1000 | Framework patterns |
 
 **Rule**: Never read a file until MCP tools fail to answer the question.
+
+## Document Search (NEW - Priority 0)
+
+**BEFORE using Serena symbol queries**, search project documentation for patterns/context:
+
+### Quick Search (CLI)
+
+```bash
+# Search indexed documentation
+python3 scripts/serena/document_indexer.py --search "hexagonal architecture" --max-results 5
+```
+
+### Token Comparison
+
+| Documentation Need | Old Way | New Way | Savings |
+|-------------------|---------|---------|---------|
+| Find architecture pattern | Read PATTERNS.md (5000 tokens) | Doc search (300 tokens) | 94% |
+| Check entity rules | Read README.md (3000 tokens) | Doc search (400 tokens) | 87% |
+| API reference | Read multiple docs (8000 tokens) | Doc search (500 tokens) | 94% |
+
+### Document Search Workflow
+
+```python
+# Step 1: Search document index FIRST
+# CLI: python3 scripts/serena/document_indexer.py --search "repository pattern"
+
+# Step 2: Read only relevant section (from search results)
+# If result shows: line_start=45, line_end=80
+Read(file_path="project-basecamp-server/docs/PATTERNS.md", offset=45, limit=35)
+
+# Step 3: Then use Serena for code exploration
+serena.get_symbols_overview("module-core-domain/repository/")
+```
+
+### When to Use Document Search
+
+| Need | Use Document Search First? |
+|------|---------------------------|
+| Architecture patterns | YES - search `tag:architecture` |
+| Implementation guide | YES - search `tag:implementation` |
+| API endpoint info | YES - search `tag:api` |
+| Test patterns | YES - search `tag:testing` |
+| Specific code implementation | NO - use Serena directly |
+| Framework best practices | NO - use Context7 |
+
+> See `doc-search` skill for comprehensive guide.
 
 ## MCP Server Reference
 
@@ -447,6 +548,16 @@ claude-mem.get_recent_context(
 ## Decision Tree
 
 ```
+Need documentation/patterns? (FIRST!)
+├── What's the project architecture?
+│   └── doc-search "architecture" → read section
+├── What implementation patterns exist?
+│   └── doc-search "pattern" + project name → read section
+├── How should I implement feature X?
+│   └── doc-search "implementation guide" → read section
+└── What are the testing conventions?
+    └── doc-search "testing" → read section
+
 Need to understand code?
 ├── What's in this file/directory?
 │   └── serena.get_symbols_overview

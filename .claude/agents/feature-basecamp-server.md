@@ -3,6 +3,7 @@ name: feature-basecamp-server
 description: Feature development agent for project-basecamp-server. Spring Boot 4+ with Kotlin 2.2+, Pure Hexagonal Architecture. Use PROACTIVELY when building features in basecamp-server, implementing APIs, or working with domain services. Triggers on server-side feature requests, API endpoints, and database operations.
 model: inherit
 skills:
+  - doc-search         # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency     # Read Serena memory before file reads
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
@@ -20,15 +21,29 @@ skills:
 mcp__serena__read_memory("server_patterns")    # 핵심 패턴 요약
 ```
 
-### 2순위: MCP 탐색 (기존 코드 확인)
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="hexagonal architecture"
+make doc-search q="repository pattern"
+make doc-search q="entity relationship"
+```
+
+### 3순위: MCP 탐색 (기존 코드 확인)
 
 ```
-`serena.get_symbols_overview` - class/interface structure
-`serena.find_symbol("ServiceName", depth=1)` - list methods without bodies
-`serena.find_referencing_symbols` - trace dependencies
-`serena.get_symbols_overview("module-core-domain/...")` - module overview
-`serena.find_symbol("RepositoryJpa", depth=1)` - JPA Repository Find
+serena.get_symbols_overview("module-core-domain/...")  # module overview
+serena.find_symbol("ServiceName", depth=1)             # list methods without bodies
+serena.find_referencing_symbols                        # trace dependencies
+serena.find_symbol("RepositoryJpa", depth=1)           # JPA Repository Find
 context7.get-library-docs("/spring/spring-boot", "transaction")
+```
+
+### Serena Cache Structure (Kotlin)
+
+```
+.serena/cache/kotlin/           # Kotlin symbol cache
+.serena/memories/server_patterns.md  # Server patterns memory
 ```
 
 ---
@@ -251,6 +266,7 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 ```
 □ ./gradlew clean build 테스트/빌드 통과 확인
+□ make serena-server              # Symbol 캐시 동기화
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
 ```

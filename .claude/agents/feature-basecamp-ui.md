@@ -3,17 +3,18 @@ name: feature-basecamp-ui
 description: Feature development agent for project-basecamp-ui. React 19+ with TypeScript, Vite, TanStack Router/Query, Zustand, ShadcnUI. Use PROACTIVELY when building UI features, React components, or frontend state management. Triggers on UI feature requests, component development, and frontend architecture work.
 model: inherit
 skills:
-  - mcp-efficiency     # Read Serena memory before file reads
-  - react-testing      # Vitest, RTL, user-centric component tests
-  - performance        # Re-render analysis, code splitting
-  - architecture       # TanStack Query vs Zustand state decisions
-  - completion-gate             # 완료 선언 Gate + 코드 존재 검증
-  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
-  - gap-analysis                # FEATURE vs RELEASE 체계적 비교
-  - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
-  - dependency-coordination     # 크로스 Agent 의존성 추적
-  - docs-synchronize            # 문서 동기화 검증
-  - integration-finder          # 기존 모듈 연동점 탐색
+  - doc-search               # Document index search BEFORE reading docs (94% token savings)
+  - mcp-efficiency           # Read Serena memory before file reads
+  - react-testing            # Vitest, RTL, user-centric component tests
+  - performance              # Re-render analysis, code splitting
+  - architecture             # TanStack Query vs Zustand state decisions
+  - completion-gate          # 완료 선언 Gate + 코드 존재 검증
+  - implementation-checklist # FEATURE → 체크리스트 자동 생성
+  - gap-analysis             # FEATURE vs RELEASE 체계적 비교
+  - phase-tracking           # 다단계 기능 관리 (Phase 1/2)
+  - dependency-coordination  # 크로스 Agent 의존성 추적
+  - docs-synchronize         # 문서 동기화 검증
+  - integration-finder       # 기존 모듈 연동점 탐색
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -26,12 +27,27 @@ skills:
 mcp__serena__read_memory("ui_patterns")    # 핵심 패턴 요약
 ```
 
-### 2순위: MCP 탐색 (기존 코드 확인)
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="tanstack query"
+make doc-search q="zustand store"
+make doc-search q="react component"
+```
+
+### 3순위: MCP 탐색 (기존 코드 확인)
 
 ```
 serena.get_symbols_overview("project-basecamp-ui/src/components/...")
 serena.find_symbol("useQuery")
 context7.get-library-docs("/tanstack/query", "useQuery")
+```
+
+### Serena Cache Structure (TypeScript)
+
+```
+.serena/cache/typescript/       # TypeScript symbol cache
+.serena/memories/ui_patterns.md # UI patterns memory
 ```
 
 ---
@@ -248,6 +264,8 @@ server: { proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true
 ### Post-Implementation
 
 ```
+□ pnpm run build && pnpm run type-check 통과 확인
+□ make serena-ui                  # Symbol 캐시 동기화
 □ Serena memory 업데이트 (ui_patterns)
 □ README.md 변경사항 반영
 ```

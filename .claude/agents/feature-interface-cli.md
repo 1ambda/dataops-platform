@@ -3,17 +3,18 @@ name: feature-interface-cli
 description: Feature development agent for project-interface-cli (dli). Python 3.12+ with Typer, Rich, httpx for async HTTP. Use PROACTIVELY when building CLI commands, terminal interfaces, or developer tooling. Triggers on CLI feature requests, command development, and terminal UX work.
 model: inherit
 skills:
-  - mcp-efficiency         # Read cli_patterns memory before file reads
-  - pytest-fixtures        # Fixture design, conftest.py for CLI tests
-  - testing                # TDD workflow, Typer CLI testing patterns
-  - test-structure-analysis # Coverage gaps, helper consolidation
-  - completion-gate             # 완료 선언 Gate + 코드 존재 검증
-  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
-  - gap-analysis                # FEATURE vs RELEASE 체계적 비교
-  - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
-  - dependency-coordination     # 크로스 Agent 의존성 추적
-  - docs-synchronize            # 문서 동기화 검증
-  - integration-finder          # 기존 모듈 연동점 탐색
+  - doc-search               # Document index search BEFORE reading docs (94% token savings)
+  - mcp-efficiency           # Read cli_patterns memory before file reads
+  - pytest-fixtures          # Fixture design, conftest.py for CLI tests
+  - testing                  # TDD workflow, Typer CLI testing patterns
+  - test-structure-analysis  # Coverage gaps, helper consolidation
+  - completion-gate          # 완료 선언 Gate + 코드 존재 검증
+  - implementation-checklist # FEATURE → 체크리스트 자동 생성
+  - gap-analysis             # FEATURE vs RELEASE 체계적 비교
+  - phase-tracking           # 다단계 기능 관리 (Phase 1/2)
+  - dependency-coordination  # 크로스 Agent 의존성 추적
+  - docs-synchronize         # 문서 동기화 검증
+  - integration-finder       # 기존 모듈 연동점 탐색
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -28,10 +29,27 @@ mcp__serena__read_memory("cli_test_patterns")         # 테스트 패턴 요약
 mcp__serena__read_memory("cli_implementation_status") # 현재 구현 상태
 ```
 
-### 2순위: PATTERNS.md (상세 필요시)
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="typer command"
+make doc-search q="pytest fixture"
+make doc-search q="cli pattern"
+```
+
+### 3순위: PATTERNS.md (상세 필요시)
 
 ```
 Read: project-interface-cli/docs/PATTERNS.md
+```
+
+### Serena Cache Structure (Python)
+
+```
+.serena/cache/python/           # Python symbol cache
+.serena/memories/cli_patterns.md              # CLI patterns
+.serena/memories/cli_test_patterns.md         # Test patterns
+.serena/memories/cli_implementation_status.md # Implementation status
 ```
 
 ### 참조 불필요 (위 문서에 통합됨)
@@ -179,6 +197,8 @@ uv run dli {feature} --help
 ### Post-Implementation
 
 ```
+□ uv run pytest && uv run pyright 테스트/타입 체크 통과 확인
+□ make serena-cli                 # Symbol 캐시 동기화
 □ features/STATUS.md 업데이트
 □ mcp__serena__edit_memory("cli_implementation_status", ...) 호출
 □ *_RELEASE.md 업데이트

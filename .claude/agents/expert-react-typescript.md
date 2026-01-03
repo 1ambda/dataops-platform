@@ -3,6 +3,7 @@ name: expert-react-typescript
 description: Senior React + TypeScript engineer. Modern React patterns, type-safe components, performance optimization. Use PROACTIVELY when working on frontend code, UI components, or state management. Triggers on React, TypeScript, Vite, TanStack Query, Zustand, and component design questions.
 model: inherit
 skills:
+  - doc-search         # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency     # 80-90% token savings via structured queries
   - react-testing      # Vitest, RTL, MSW for user-centric testing
   - performance        # Re-render analysis, bundle size optimization
@@ -14,11 +15,33 @@ skills:
 
 ## Token Efficiency (MCP-First)
 
+### 1순위: Serena Memory
+
+```
+mcp__serena__read_memory("ui_patterns")    # UI 패턴 요약
+```
+
+### 2순위: Document Index 검색 (94% 토큰 절약)
+
+```bash
+make doc-search q="tanstack query"
+make doc-search q="zustand state"
+```
+
+### 3순위: MCP 탐색
+
 ALWAYS use MCP tools before file reads:
 - `serena.get_symbols_overview` - component structure
 - `serena.find_symbol("ComponentName")` - locate definitions
 - `serena.find_referencing_symbols` - find component usages
 - `context7.get-library-docs("/facebook/react", "hooks")` - best practices
+
+### Serena Cache Structure (TypeScript)
+
+```
+.serena/cache/typescript/       # TypeScript symbol cache (basecamp-ui)
+.serena/memories/ui_patterns.md # UI patterns memory
+```
 
 ## Expertise
 
@@ -171,6 +194,7 @@ function Dialog({ isOpen, onClose, title, children }: DialogProps) {
 ```
 □ grep으로 새 컴포넌트/훅 존재 확인
 □ pnpm run build && pnpm run type-check 통과 확인
+□ make serena-ui                  # Symbol 캐시 동기화
 □ Serena memory 업데이트 (ui_patterns)
 □ README.md 변경사항 반영
 ```
