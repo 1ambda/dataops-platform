@@ -17,14 +17,15 @@
 1. [Custom Rules](#custom-rules-critical)
 2. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
 3. [Module Placement Guidelines](#module-placement-guidelines)
-4. [Entity Relationship Rules](#entity-relationship-rules-critical)
-5. [Projection Pattern](#projection-pattern)
-6. [Service Implementation Patterns](#service-implementation-patterns)
-7. [Repository Layer Patterns](#repository-layer-patterns)
-8. [Controller Patterns](#controller-patterns)
-9. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
-10. [Entity Patterns](#entity-patterns)
-11. [Implementation Order](#implementation-order)
+4. [External System Integration Patterns](#external-system-integration-patterns)
+5. [Entity Relationship Rules](#entity-relationship-rules-critical)
+6. [Projection Pattern](#projection-pattern)
+7. [Service Implementation Patterns](#service-implementation-patterns)
+8. [Repository Layer Patterns](#repository-layer-patterns)
+9. [Controller Patterns](#controller-patterns)
+10. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
+11. [Entity Patterns](#entity-patterns)
+12. [Implementation Order](#implementation-order)
 
 ---
 
@@ -173,6 +174,70 @@ class InfrastructureConfig {
     }
 }
 ```
+
+---
+
+## External System Integration Patterns
+
+> **Purpose**: Step-by-step guide for implementing external system integrations using Port-Adapter pattern
+
+### Step 1: Create Domain Layer (Ports)
+
+1. **Create Interface File**: `module-core-domain/external/{System}Client.kt`
+   ```kotlin
+   interface QueryEngineClient {
+       fun execute(...): QueryExecutionResult
+       fun getSupportedEngines(): List<String>
+   }
+   ```
+
+2. **Create Response Models File**: `module-core-domain/external/{System}Response.kt`
+   ```kotlin
+   data class QueryExecutionResult(...)
+   data class QueryValidationResult(...)
+   ```
+
+### Step 2: Create Infrastructure Implementation
+
+**Mock Implementation**: `module-core-infra/external/Mock{System}Client.kt`
+```kotlin
+@Repository("queryEngineClient")
+@ConditionalOnProperty(name = "app.external.query-engine.enabled", havingValue = "false")
+class MockQueryEngineClient : QueryEngineClient {
+    override fun execute(...): QueryExecutionResult {
+        // Mock implementation with realistic data
+    }
+}
+```
+
+### Step 3: Service Integration
+
+**Inject Interface in Services**:
+```kotlin
+@Service
+class QueryService(
+    private val queryEngineClient: QueryEngineClient,  // Interface, not implementation
+) {
+    fun executeQuery(...) = queryEngineClient.execute(...)
+}
+```
+
+### Implementation Checklist
+
+- [ ] Create `{System}Client.kt` interface with business methods
+- [ ] Create `{System}Response.kt` with data models (if 2+ models)
+- [ ] Implement `Mock{System}Client.kt` with Spring annotations
+- [ ] Add configuration properties for enable/disable
+- [ ] Inject interface (not implementation) in services
+- [ ] Write unit tests for mock implementation
+
+### Common Patterns
+
+| Pattern | When to Use |
+|---------|-------------|
+| **Companion Object Factories** | Success/Error patterns (`LineageResult.success()`) |
+| **Default Parameters** | Optional configuration (`dialect: String = "bigquery"`) |
+| **@ConditionalOnProperty** | Enable/disable external systems via config |
 
 ---
 

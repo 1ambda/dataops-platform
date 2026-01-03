@@ -20,9 +20,10 @@
 4. [JPA vs QueryDSL Decision](#jpa-vs-querydsl-decision)
 5. [Projection Pattern](#projection-pattern)
 6. [Data Ownership Patterns](#data-ownership-patterns)
-7. [Code Templates](#code-templates)
-8. [Dependency Versions](#dependency-versions)
-9. [New Feature Checklist](#new-feature-checklist)
+7. [External System Integration](#external-system-integration)
+8. [Code Templates](#code-templates)
+9. [Dependency Versions](#dependency-versions)
+10. [New Feature Checklist](#new-feature-checklist)
 
 ---
 
@@ -235,6 +236,47 @@ data class TableInfo(
     val engine: String,  // "bigquery" or "trino"
 )
 ```
+
+---
+
+## External System Integration
+
+> **Pattern**: Interface와 Response 모델을 별도 파일로 분리하여 관심사 분리
+
+### File Structure Pattern
+
+| Layer | File Type | Example | Purpose |
+|-------|-----------|---------|---------|
+| **module-core-domain/external** | `{System}Client.kt` | `QueryEngineClient.kt` | Interface (Port) |
+| **module-core-domain/external** | `{System}Response.kt` | `QueryEngineResponse.kt` | Response models |
+| **module-core-infra/external** | `Mock{System}Client.kt` | `MockQueryEngineClient.kt` | Mock implementation |
+
+### Naming Convention
+
+```kotlin
+// ✅ CORRECT - Separated
+interface QueryEngineClient {
+    fun execute(...): QueryExecutionResult  // from Response file
+}
+
+// ❌ WRONG - Mixed in single file
+interface QueryEngineClient { ... }
+data class QueryExecutionResult(...) // Should be in separate file
+```
+
+### Decision Matrix: When to Separate
+
+| System | Response Models Count | Decision |
+|--------|----------------------|----------|
+| QueryEngine | 2+ models | ✅ Separate |
+| BasecampParser | 5+ models | ✅ Separate |
+| QualityRuleEngine | 0 models | ❌ Keep together |
+
+### Import Rules
+
+- ✅ Infrastructure imports from Response file: `import com.github.lambda.domain.external.LineageResult`
+- ✅ Same package files don't need imports (automatic)
+- ❌ Don't import same package unnecessarily
 
 ---
 
