@@ -80,7 +80,47 @@ class PipelineService(
 - ❌ Missing `@Repository("beanName")`
 - ❌ Separate SpringData interface (`*RepositoryJpaSpringData` 금지)
 
-## 6. Essential Commands
+## 6. MCP Query Optimization (CRITICAL)
+
+### Token-Efficient Patterns
+
+| Task | GOOD | BAD |
+|------|------|-----|
+| List controllers | `list_dir(controller/)` | `search_for_pattern("@RestController")` |
+| Find API paths | `find_symbol("Controller", depth=1)` | `search_for_pattern("@RequestMapping")` |
+| Get method signature | `find_symbol("Service/method", include_body=False)` | `search_for_pattern("fun methodName")` |
+| Get implementation | `find_symbol("Class/method", include_body=True)` | Read full file |
+
+### Context Settings (ALWAYS minimize)
+
+```python
+# ALWAYS use minimal context
+search_for_pattern(
+    ...,
+    context_lines_before=0,  # Default: 0
+    context_lines_after=0,   # Default: 0
+    max_answer_chars=5000,   # Limit output
+)
+
+# Only add context when SPECIFICALLY needed
+search_for_pattern(
+    ...,
+    context_lines_before=1,  # Just the annotation
+    context_lines_after=2,   # Just the class signature
+)
+```
+
+### Progressive Disclosure (MANDATORY)
+
+```
+Level 1: list_dir() → file names only (~200 tokens)
+Level 2: get_symbols_overview(file) → structure only (~300 tokens)
+Level 3: find_symbol(depth=1, include_body=False) → signatures (~400 tokens)
+Level 4: find_symbol(include_body=True) → specific body (~500 tokens)
+Level 5: Read(file) → LAST RESORT (~5000+ tokens)
+```
+
+## 7. Essential Commands
 
 ```bash
 ./gradlew clean build       # Build and test

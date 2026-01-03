@@ -278,9 +278,60 @@ Types → API → Hooks → Components → Routes → Tests
 
 ---
 
-## MCP 활용
+## MCP 활용 (Token Efficiency CRITICAL)
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 15k+ tokens (entire component bodies)
+search_for_pattern("export.*function.*Component", context_lines_after=50)
+
+# BAD: Broad search without scope
+search_for_pattern("useQuery", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("src/features/dashboard/DashboardPage.tsx")  # 5000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("src/features/dashboard", recursive=False)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/features/dashboard/DashboardPage.tsx")
+
+# GOOD: Signatures only (~400 tokens)
+find_symbol("DashboardPage", depth=1, include_body=False)
+
+# GOOD: Specific component body only when needed (~500 tokens)
+find_symbol("DashboardPage/render", include_body=True)
+
+# GOOD: Minimal context for pattern search
+search_for_pattern(
+    "createFileRoute",
+    context_lines_before=0,
+    context_lines_after=2,
+    relative_path="project-basecamp-ui/src/routes/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need component structure? → get_symbols_overview()
+Need exports list?    → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC component
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```
+
+### Quick Reference
 
 | 도구 | 용도 |
 |------|------|

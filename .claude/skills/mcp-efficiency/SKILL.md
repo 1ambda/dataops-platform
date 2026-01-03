@@ -85,17 +85,33 @@ serena.find_referencing_symbols(
 # Result: All callers with file:line references
 ```
 
-### Step 4: Pattern Search
+### Step 4: Pattern Search (TOKEN CRITICAL)
+
+**WARNING**: `search_for_pattern` can easily return 20k+ tokens with wrong settings!
 
 ```python
-# Find patterns across codebase
+# BAD: Returns 20k+ tokens (all controller bodies)
+serena.search_for_pattern(
+    substring_pattern=r"@RequestMapping.*",
+    context_lines_after=10  # NEVER use high context!
+)
+
+# GOOD: Minimal output (~500 tokens)
 serena.search_for_pattern(
     substring_pattern=r"@Transactional",
     restrict_search_to_code_files=True,
-    context_lines_before=1,
-    context_lines_after=3
+    context_lines_before=0,   # Default: 0
+    context_lines_after=1,    # Just the class/method signature
+    relative_path="module-core-domain/",  # ALWAYS scope!
+    max_answer_chars=3000     # Limit output size
 )
 ```
+
+**Pattern Search Rules:**
+1. **ALWAYS** set `context_lines_before=0` and `context_lines_after<=2`
+2. **ALWAYS** specify `relative_path` to scope the search
+3. **ALWAYS** use `max_answer_chars` to limit output
+4. **PREFER** `find_symbol` over `search_for_pattern` when looking for code structure
 
 ### Step 5: Memory Management
 
@@ -496,6 +512,19 @@ Read(file_path="src/services/UserService.kt")
 | Multiple full file reads | Extreme | Use serena.find_referencing_symbols |
 | Google for framework docs | Time waste | Use context7.query-docs |
 | Ask user about past decision | Slow | Use claude-mem.search |
+
+## search_for_pattern Token Cost Examples
+
+| Query | Context | Scope | Est. Tokens |
+|-------|---------|-------|-------------|
+| `@RequestMapping` | 0/0 | controller/ | ~800 |
+| `@RequestMapping` | 0/1 | controller/ | ~1,500 |
+| `@RequestMapping` | 2/10 | controller/ | **~21,000** |
+| `@RequestMapping` | 2/10 | (none) | **~50,000+** |
+| `@Service` | 0/0 | service/ | ~400 |
+| `@Service` | 0/0 | (none) | ~2,000 |
+
+**Rule of Thumb:** Every +1 to `context_lines_after` = ~2x token cost
 
 ## MCP-First Checklist
 

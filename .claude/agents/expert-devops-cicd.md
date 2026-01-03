@@ -166,7 +166,56 @@ jobs:
 
 ---
 
-## MCP 활용 가이드 (상세)
+## MCP 활용 (Token Efficiency CRITICAL)
+
+> **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 20k+ tokens (entire workflow files)
+search_for_pattern("uses:.*actions.*", context_lines_after=30)
+
+# BAD: Broad search without scope
+search_for_pattern("docker build", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read(".github/workflows/ci.yaml")  # 2000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir(".github/workflows", recursive=False)
+
+# GOOD: Get structure without full content (~300 tokens)
+get_symbols_overview("docker-compose.yaml")
+
+# GOOD: Find specific workflow patterns (~400 tokens)
+search_for_pattern(
+    "name:.*deploy",
+    context_lines_before=0,
+    context_lines_after=2,
+    relative_path=".github/workflows/",
+    max_answer_chars=3000
+)
+
+# GOOD: Use JetBrains for targeted search
+mcp__jetbrains__find_files_by_glob(globPattern="**/*.yaml")
+```
+
+### Decision Tree
+
+```
+Need workflow list?   → list_dir(".github/workflows")
+Need service config?  → get_symbols_overview("docker-compose.yaml")
+Need action patterns? → search_for_pattern with context=0
+Need Makefile targets? → get_symbols_overview("Makefile")
+LAST RESORT          → Read() full file
+```
+
+---
 
 ### Serena MCP - 인프라 패턴 분석
 

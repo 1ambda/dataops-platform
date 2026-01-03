@@ -295,9 +295,60 @@ Config → DB Models → Service → Endpoint → Tests
 
 ---
 
-## MCP 활용
+## MCP 활용 (Token Efficiency CRITICAL)
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 10k+ tokens (entire file bodies)
+search_for_pattern("@app.route.*", context_lines_after=10)
+
+# BAD: Broad search without scope
+search_for_pattern("class.*Service", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("src/connect/database.py")  # 3000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("src/connect", recursive=False)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/connect/database.py")
+
+# GOOD: Signatures only (~400 tokens)
+find_symbol("IntegrationLog", depth=1, include_body=False)
+
+# GOOD: Specific method body only when needed (~500 tokens)
+find_symbol("IntegrationLog/save", include_body=True)
+
+# GOOD: Minimal context for pattern search
+search_for_pattern(
+    "@app.route",
+    context_lines_before=0,
+    context_lines_after=1,
+    relative_path="project-basecamp-connect/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need class structure? → get_symbols_overview()
+Need method list?     → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```
+
+### Quick Reference
 
 | 도구 | 용도 |
 |------|------|

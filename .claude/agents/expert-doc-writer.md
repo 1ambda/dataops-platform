@@ -346,9 +346,56 @@ mcp__jetbrains__replace_text_in_file(
 
 ---
 
-## MCP 활용
+## MCP 활용 (Token Efficiency CRITICAL)
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 10k+ tokens (entire file contents)
+search_for_pattern("##.*", context_lines_after=20)
+
+# BAD: Broad search without scope
+search_for_pattern("API", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("docs/architecture.md")  # 5000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("docs", recursive=True)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/dli/api/dataset.py")
+
+# GOOD: Signatures only for API documentation (~400 tokens)
+find_symbol("DatasetAPI", depth=1, include_body=False)
+
+# GOOD: Minimal context for section search
+search_for_pattern(
+    "## Architecture",
+    context_lines_before=0,
+    context_lines_after=5,
+    relative_path="docs/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need doc structure?   → list_dir("docs", recursive=True)
+Need code structure?  → get_symbols_overview()
+Need API signatures?  → find_symbol(depth=1, include_body=False)
+Need specific section? → search_for_pattern with context=0-5
+LAST RESORT          → Read() full file
+```
+
+### Quick Reference
 
 | 도구 | 용도 |
 |------|------|

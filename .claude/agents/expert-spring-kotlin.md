@@ -179,6 +179,47 @@ See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 
 ---
 
-## MCP 활용
+## MCP 활용 (Token Efficiency CRITICAL)
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 20k+ tokens
+search_for_pattern("@RequestMapping.*", context_lines_after=10)
+search_for_pattern("@Service", restrict_search_to_code_files=True)
+
+# BAD: Reading files before structure check
+Read("SomeService.kt")  # 5000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: Progressive disclosure
+list_dir("module-core-domain/src/.../service", recursive=False)  # ~200 tokens
+get_symbols_overview("path/to/SomeService.kt")                    # ~300 tokens
+find_symbol("SomeService", depth=1, include_body=False)           # ~400 tokens
+find_symbol("SomeService/createMethod", include_body=True)        # ~500 tokens
+
+# GOOD: Pattern search with minimal context
+search_for_pattern(
+    "@Transactional",
+    context_lines_before=0,
+    context_lines_after=2,
+    relative_path="module-core-domain/",  # ALWAYS scope!
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need class structure? → get_symbols_overview()
+Need method list?     → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```

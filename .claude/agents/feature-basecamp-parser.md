@@ -266,9 +266,60 @@ Config → Exception → Parser → Endpoint → Tests
 
 ---
 
-## MCP 활용
+## MCP 활용 (Token Efficiency CRITICAL)
 
 > **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 10k+ tokens (entire parser bodies)
+search_for_pattern("def parse.*", context_lines_after=20)
+
+# BAD: Broad search without scope
+search_for_pattern("import sqlglot", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("src/parser/sql_parser.py")  # 4000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("src/parser", recursive=False)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/parser/sql_parser.py")
+
+# GOOD: Signatures only (~400 tokens)
+find_symbol("SqlParserService", depth=1, include_body=False)
+
+# GOOD: Specific method body only when needed (~500 tokens)
+find_symbol("SqlParserService/parse_sql_statement", include_body=True)
+
+# GOOD: Minimal context for pattern search
+search_for_pattern(
+    "@app.route",
+    context_lines_before=0,
+    context_lines_after=1,
+    relative_path="project-basecamp-parser/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need class structure? → get_symbols_overview()
+Need method list?     → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```
+
+### Quick Reference
 
 | 도구 | 용도 |
 |------|------|

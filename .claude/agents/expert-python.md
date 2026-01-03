@@ -195,7 +195,60 @@ uv run mypy src/ --strict  # Alternative
 
 ---
 
-## MCP 활용 가이드
+## MCP 활용 (Token Efficiency CRITICAL)
+
+> **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 15k+ tokens (entire module bodies)
+search_for_pattern("def.*", context_lines_after=20)
+
+# BAD: Broad search without scope
+search_for_pattern("@dataclass", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("src/dli/api/dataset.py")  # 5000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("src/dli/api", recursive=False)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/dli/api/dataset.py", depth=1)
+
+# GOOD: Signatures only (~400 tokens)
+find_symbol("DatasetAPI", depth=1, include_body=False)
+
+# GOOD: Specific method body only when needed (~500 tokens)
+find_symbol("DatasetAPI/run", include_body=True)
+
+# GOOD: Minimal context for pattern search
+search_for_pattern(
+    "@app.command",
+    context_lines_before=0,
+    context_lines_after=2,
+    relative_path="project-interface-cli/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need class structure? → get_symbols_overview()
+Need method list?     → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```
+
+---
 
 ### Serena MCP (코드 탐색/편집)
 
