@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-01-03
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 64% (27/36 endpoints completed)
+> **Current Progress:** 72% (30/36 endpoints completed)
 
 ---
 
@@ -11,14 +11,14 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 27 endpoints | Health (Extended) + Metrics + Datasets + Catalog + Quality + Workflow API |
+| **Completed** | 30 endpoints | Health + Metrics + Datasets + Catalog + Quality + Workflow + Run API |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 9 endpoints | P1-P3 priorities |
-| **Overall Progress** | **64%** | 🟢 Phase 1-3 complete, Phase 4 ready |
+| **Not Started** | 6 endpoints | Lineage + Query + Transpile APIs |
+| **Overall Progress** | **72%** | 🟢 Phase 1-3 complete, Phase 4 in progress |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
-| **Estimated Timeline** | 7 weeks | ~1.8 months with 1.5 FTE (revised) |
+| **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, and P3 Quality API completed with full hexagonal architecture, 428+ tests total. Health API refactored with Hexagonal Architecture (58 new tests). Workflow API implements comprehensive Airflow integration with mock-based development. All major API patterns established for rapid Phase 4 development.
+**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, P3 Quality API, and P3 Run API completed with full hexagonal architecture, 472+ tests total. Run API implements ad-hoc SQL execution with rate limiting, Clock injection for testability, and in-memory result storage. All major API patterns established for rapid remaining development.
 
 ---
 
@@ -37,8 +37,8 @@
 | **P3 Low** | Quality | 3 | 3 | ✅ **100%** | `dli quality` |
 | **P3 Low** | Query | 3 | 0 | ❌ **0%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
-| **P3 Low** | Run | 2 | 0 | ❌ **0%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **27** | 🟢 **64%** | All CLI commands |
+| **P3 Low** | Run | 3 | 3 | ✅ **100%** | `dli run` |
+| **TOTAL** | **10 features** | **36** | **30** | 🟢 **72%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -142,6 +142,18 @@
 
 **Summary:** 93 unit tests + 30+ integration tests, comprehensive domain model (WorkflowEntity, WorkflowRunEntity), Airflow integration with mock-based development (MockAirflowClient, InMemoryWorkflowStorage), hexagonal architecture, comprehensive cross-review completed
 
+### Run API - 100% Complete (3/3 endpoints)
+
+> **📖 Detailed Documentation:** [`RUN_RELEASE.md`](./RUN_RELEASE.md)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/run/policy` | ✅ Complete |
+| `POST /api/v1/run/execute` | ✅ Complete |
+| `GET /api/v1/run/results/{queryId}/download` | ✅ Complete |
+
+**Summary:** 44 tests (18 unit + 14 policy + 12 integration), ad-hoc SQL execution with parameter substitution, rate limiting (50/hr, 200/day per user), Clock injection for testability, MockQueryEngineClient for BigQuery/Trino simulation, in-memory result storage with CSV download, hexagonal architecture
+
 ---
 
 ## 🚧 Phase 1: P0 Critical APIs (10/11 - Nearly Complete)
@@ -221,12 +233,21 @@
 
 > **📖 See:** [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md) for full implementation details
 
-### Phase 4: P3 Low Priority (Week 10-12.5) - 0/11 APIs
+### Phase 4: P3 Low Priority (Week 10-12.5) - 6/11 APIs
 
-**Quality API (0/3):**
-- `GET /api/v1/quality` - List quality specs
-- `GET /api/v1/quality/{name}` - Get quality spec
-- `POST /api/v1/quality/test/{resource_name}` - Execute test
+**Quality API (3/3):** ✅ **Complete**
+- ✅ `GET /api/v1/quality` - List quality specs
+- ✅ `GET /api/v1/quality/{name}` - Get quality spec
+- ✅ `POST /api/v1/quality/test/{resource_name}` - Execute test
+
+> **📖 See:** [`QUALITY_RELEASE.md`](./QUALITY_RELEASE.md) for full implementation details
+
+**Run API (3/3):** ✅ **Complete**
+- ✅ `GET /api/v1/run/policy` - Execution policy
+- ✅ `POST /api/v1/run/execute` - Execute ad-hoc SQL
+- ✅ `GET /api/v1/run/results/{queryId}/download` - Download results
+
+> **📖 See:** [`RUN_RELEASE.md`](./RUN_RELEASE.md) for full implementation details
 
 **Query Metadata API (0/3):**
 - `GET /api/v1/catalog/queries` - Query history
@@ -236,10 +257,6 @@
 **Transpile API (0/2):**
 - `GET /api/v1/transpile/rules` - Transpile rules
 - `GET /api/v1/transpile/metrics/{metric_name}` - Get metric SQL
-
-**Run API (0/2):**
-- `GET /api/v1/run/policy` - Execution policy
-- `POST /api/v1/run/execute` - Execute ad-hoc SQL
 
 ---
 
@@ -443,6 +460,7 @@ project-basecamp-server/
 | **Catalog API** | [`CATALOG_RELEASE.md`](./CATALOG_RELEASE.md) | ✅ 100% (4/4 endpoints) |
 | **Quality API** | [`QUALITY_RELEASE.md`](./QUALITY_RELEASE.md) | ✅ 100% (3/3 endpoints) |
 | **Workflow API** | [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md) | ✅ 100% (9/9 endpoints) |
+| **Run API** | [`RUN_RELEASE.md`](./RUN_RELEASE.md) | ✅ 100% (3/3 endpoints) |
 
 ### Implementation Guides
 

@@ -1,11 +1,13 @@
 # Run API Feature Specification
 
-> **Version:** 0.1.0 | **Status:** Draft | **Priority:** P3 Low
+> **Version:** 1.0.0 | **Status:** ✅ Implemented | **Priority:** P3 Low
 > **CLI Commands:** `dli run` (ad-hoc SQL execution) | **Target:** Spring Boot 4 + Kotlin 2
-> **Implementation Week:** Week 11-12 | **Estimated Effort:** 3-4 days
+> **Implementation Date:** 2026-01-03 | **Actual Effort:** 3 days
 >
 > **📦 Data Source:** External API (Query Engine 실행)
-> **External:** BigQuery/Trino Query Engine | **Entities:** None (stateless execution)
+> **External:** BigQuery/Trino Query Engine | **Entities:** AdHocExecutionEntity, UserExecutionQuotaEntity
+>
+> **📖 Implementation Details:** See [`RUN_RELEASE.md`](./RUN_RELEASE.md)
 
 ---
 
@@ -19,17 +21,26 @@ The Run API provides ad-hoc SQL execution capabilities with execution policies, 
 
 | Feature | CLI Command | API Endpoint | Status |
 |---------|-------------|--------------|--------|
-| Get Execution Policy | `dli run` (pre-validation) | `GET /api/v1/run/policy` | To Implement |
-| Execute SQL | `dli run <file.sql>` | `POST /api/v1/run/execute` | To Implement |
-| Download Results | `dli run --download` | Download URLs in response | To Implement |
+| Get Execution Policy | `dli run` (pre-validation) | `GET /api/v1/run/policy` | ✅ Complete |
+| Execute SQL | `dli run <file.sql>` | `POST /api/v1/run/execute` | ✅ Complete |
+| Download Results | `dli run --download` | `GET /api/v1/run/results/{queryId}/download` | ✅ Complete |
 
 ### 1.3 Implementation Notes
 
-> **For feature-basecamp-server agent:**
-> - Create `AdHocExecutionService` following existing service patterns (concrete class, no interface)
-> - Implement `ExecutionPolicyService` for rate limits and size constraints
-> - Create `ResultStorageService` for temporary result storage with expiration
-> - Use `QueryEngineClient` for actual SQL execution (mock implementation initially)
+> **Implementation Completed:** 2026-01-03
+>
+> **Key Implementation Decisions:**
+> - `AdHocExecutionService` - Concrete class with Clock injection for testability
+> - `ExecutionPolicyService` - Rate limiting with sliding window (hourly + daily)
+> - `ResultStorageService` - In-memory storage with CSV support (Parquet deferred to MVP+1)
+> - `MockQueryEngineClient` - Simulates BigQuery/Trino responses for development
+> - `QueryIdGenerator` - Injectable for deterministic test IDs
+>
+> **Deferred to MVP+1:**
+> - Parquet download format
+> - Real BigQuery/Trino client integration
+> - S3/GCS result storage
+> - Async execution with polling
 
 ### 1.4 Key Design Decisions
 

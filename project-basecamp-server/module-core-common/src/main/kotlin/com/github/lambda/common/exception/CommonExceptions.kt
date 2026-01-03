@@ -523,3 +523,109 @@ class QualityRuleEngineException(
         errorCode = "QUALITY_RULE_ENGINE_ERROR",
         cause = cause,
     )
+
+// ============= Ad-Hoc Execution Exceptions =============
+
+/**
+ * Exception thrown when rate limit is exceeded
+ */
+class RateLimitExceededException(
+    val limitType: String,
+    val limit: Int,
+    val currentUsage: Int,
+    val resetAt: java.time.LocalDateTime? = null,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Rate limit exceeded: $limit $limitType (current: $currentUsage)",
+        errorCode = "RATE_LIMIT_EXCEEDED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when query engine is not supported
+ */
+class QueryEngineNotSupportedException(
+    val engine: String,
+    val allowedEngines: List<String>,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Query engine '$engine' is not supported. Allowed engines: ${allowedEngines.joinToString(", ")}",
+        errorCode = "UNSUPPORTED_ENGINE",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when SQL query is too large
+ */
+class QueryTooLargeException(
+    val actualSizeBytes: Long,
+    val maxSizeBytes: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL query size ${actualSizeBytes}B exceeds limit ${maxSizeBytes}B",
+        errorCode = "QUERY_TOO_LARGE",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when query execution times out
+ */
+class QueryExecutionTimeoutException(
+    val queryId: String,
+    val timeoutSeconds: Int,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Query execution timed out after $timeoutSeconds seconds",
+        errorCode = "QUERY_EXECUTION_TIMEOUT",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when result size exceeds the limit
+ */
+class ResultSizeLimitExceededException(
+    val resultSizeMb: Int,
+    val limitMb: Int,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Result size ${resultSizeMb}MB exceeds limit ${limitMb}MB",
+        errorCode = "RESULT_SIZE_LIMIT_EXCEEDED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when result is not found for download
+ */
+class ResultNotFoundException(
+    val queryId: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Result not found for query: $queryId",
+        errorCode = "RESULT_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when ad-hoc execution fails
+ */
+class AdHocExecutionException(
+    val queryId: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Ad-hoc execution failed for query '$queryId': $reason",
+        errorCode = "ADHOC_EXECUTION_FAILED",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when download token is invalid or expired
+ */
+class InvalidDownloadTokenException(
+    val queryId: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Invalid or expired download token for query: $queryId",
+        errorCode = "INVALID_DOWNLOAD_TOKEN",
+        cause = cause,
+    )

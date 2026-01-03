@@ -9,6 +9,7 @@ import com.github.lambda.common.exception.DatasetExecutionTimeoutException
 import com.github.lambda.common.exception.DatasetNotFoundException
 import com.github.lambda.common.exception.InvalidCronException
 import com.github.lambda.common.exception.InvalidDatasetNameException
+import com.github.lambda.common.exception.InvalidDownloadTokenException
 import com.github.lambda.common.exception.InvalidOwnerEmailException
 import com.github.lambda.common.exception.InvalidSqlException
 import com.github.lambda.common.exception.InvalidTableReferenceException
@@ -18,7 +19,12 @@ import com.github.lambda.common.exception.MetricNotFoundException
 import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
+import com.github.lambda.common.exception.QueryExecutionTimeoutException
+import com.github.lambda.common.exception.QueryTooLargeException
+import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.common.exception.ResourceNotFoundException
+import com.github.lambda.common.exception.ResultNotFoundException
+import com.github.lambda.common.exception.ResultSizeLimitExceededException
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.common.exception.TooManyTagsException
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
@@ -583,6 +589,164 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.GATEWAY_TIMEOUT)
             .body(ApiResponse.error(ex.message ?: "Catalog timeout", errorDetails))
+    }
+
+    // === Ad-Hoc Execution (Run API) exception handlers ===
+
+    /**
+     * Rate limit exceeded exception (429 Too Many Requests)
+     */
+    @ExceptionHandler(RateLimitExceededException::class)
+    fun handleRateLimitExceededException(
+        ex: RateLimitExceededException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Rate limit exceeded: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    buildMap {
+                        put("path", request.getDescription(false))
+                        put("limit_type", ex.limitType)
+                        put("limit", ex.limit)
+                        put("current_usage", ex.currentUsage)
+                        ex.resetAt?.let { put("reset_at", it.toString()) }
+                    },
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(ApiResponse.error(ex.message ?: "Rate limit exceeded", errorDetails))
+    }
+
+    /**
+     * Result not found exception (404 Not Found)
+     */
+    @ExceptionHandler(ResultNotFoundException::class)
+    fun handleResultNotFoundException(
+        ex: ResultNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Result not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "query_id" to ex.queryId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Result not found", errorDetails))
+    }
+
+    /**
+     * Query too large exception (413 Payload Too Large)
+     */
+    @ExceptionHandler(QueryTooLargeException::class)
+    fun handleQueryTooLargeException(
+        ex: QueryTooLargeException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Query too large: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "actual_size_bytes" to ex.actualSizeBytes,
+                        "max_size_bytes" to ex.maxSizeBytes,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(ApiResponse.error(ex.message ?: "Query too large", errorDetails))
+    }
+
+    /**
+     * Result size limit exceeded exception (413 Payload Too Large)
+     */
+    @ExceptionHandler(ResultSizeLimitExceededException::class)
+    fun handleResultSizeLimitExceededException(
+        ex: ResultSizeLimitExceededException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Result size limit exceeded: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "result_size_mb" to ex.resultSizeMb,
+                        "limit_mb" to ex.limitMb,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(ApiResponse.error(ex.message ?: "Result size limit exceeded", errorDetails))
+    }
+
+    /**
+     * Query execution timeout exception (408 Request Timeout)
+     */
+    @ExceptionHandler(QueryExecutionTimeoutException::class)
+    fun handleQueryExecutionTimeoutException(
+        ex: QueryExecutionTimeoutException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Query execution timeout: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "query_id" to ex.queryId,
+                        "timeout_seconds" to ex.timeoutSeconds,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.REQUEST_TIMEOUT)
+            .body(ApiResponse.error(ex.message ?: "Query execution timeout", errorDetails))
+    }
+
+    /**
+     * Invalid download token exception (400 Bad Request)
+     */
+    @ExceptionHandler(InvalidDownloadTokenException::class)
+    fun handleInvalidDownloadTokenException(
+        ex: InvalidDownloadTokenException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Invalid download token: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "query_id" to ex.queryId,
+                    ),
+            )
+
+        return ResponseEntity
+            .badRequest()
+            .body(ApiResponse.error(ex.message ?: "Invalid download token", errorDetails))
     }
 
     // === General exception handlers ===

@@ -116,6 +116,23 @@ app:
     max-size: 10000
     enable-statistics: true
 
+# Run API Configuration (Ad-Hoc SQL Execution)
+basecamp:
+  run:
+    max-query-duration-seconds: 1800
+    max-result-rows: 10000
+    max-result-size-mb: 100
+    allowed-engines:
+      - bigquery
+      - trino
+    allowed-file-types:
+      - .sql
+      - .yaml
+    max-file-size-mb: 10
+    queries-per-hour: 50
+    queries-per-day: 200
+    result-expiration-hours: 8
+
 logging:
   level:
     com.github.lambda: INFO
