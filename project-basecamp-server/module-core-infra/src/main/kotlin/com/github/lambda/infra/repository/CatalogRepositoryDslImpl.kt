@@ -1,6 +1,5 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.catalog.CatalogColumnEntity
 import com.github.lambda.domain.model.catalog.CatalogFilters
 import com.github.lambda.domain.model.catalog.CatalogTableEntity
 import com.github.lambda.domain.model.catalog.TableInfo
@@ -23,7 +22,6 @@ class CatalogRepositoryDslImpl(
     private val catalogTableRepositoryDsl: CatalogTableRepositoryDsl,
     private val catalogColumnRepositoryJpa: CatalogColumnRepositoryJpa,
 ) : CatalogRepositoryDsl {
-
     override fun listTables(filters: CatalogFilters): List<TableInfo> {
         val pageable = PageRequest.of(filters.offset / filters.limit, filters.limit)
         val page = catalogTableRepositoryDsl.findByFilters(filters, pageable)

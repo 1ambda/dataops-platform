@@ -129,13 +129,14 @@ class MockBasecampParserClientTest {
             val sql = "SELECT DATETIME('2023-01-01') FROM users"
             val sourceDialect = "bigquery"
             val targetDialect = "trino"
-            val rules = listOf(
-                TranspileRule(
-                    name = "datetime_to_cast",
-                    pattern = "DATETIME\\\\((.+?)\\\\)",
-                    replacement = "CAST(\\\\$1 AS TIMESTAMP)",
-                ),
-            )
+            val rules =
+                listOf(
+                    TranspileRule(
+                        name = "datetime_to_cast",
+                        pattern = "DATETIME\\\\((.+?)\\\\)",
+                        replacement = "CAST(\\\\$1 AS TIMESTAMP)",
+                    ),
+                )
 
             // When
             val result = client.transpileSQL(sql, sourceDialect, targetDialect, rules)

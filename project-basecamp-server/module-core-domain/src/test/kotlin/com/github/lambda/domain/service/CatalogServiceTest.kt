@@ -193,7 +193,11 @@ class CatalogServiceTest {
         fun `should return filtered tables by tag`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepositoryDsl.listTables(match { it.tags.contains("tier::critical") }) } returns expectedTables
+            every {
+                catalogRepositoryDsl.listTables(
+                    match { it.tags.contains("tier::critical") },
+                )
+            } returns expectedTables
 
             // When
             val result = catalogService.listTables(tags = setOf("tier::critical"), limit = 50)
@@ -201,7 +205,11 @@ class CatalogServiceTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].tags).contains("tier::critical")
-            verify(exactly = 1) { catalogRepositoryDsl.listTables(match { it.tags.contains("tier::critical") }) }
+            verify(exactly = 1) {
+                catalogRepositoryDsl.listTables(
+                    match { it.tags.contains("tier::critical") },
+                )
+            }
         }
 
         @Test
@@ -222,7 +230,11 @@ class CatalogServiceTest {
         fun `should filter by owner`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepositoryDsl.listTables(match { it.owner == "data-team@example.com" }) } returns expectedTables
+            every {
+                catalogRepositoryDsl.listTables(
+                    match { it.owner == "data-team@example.com" },
+                )
+            } returns expectedTables
 
             // When
             val result = catalogService.listTables(owner = "data-team@example.com", limit = 50)

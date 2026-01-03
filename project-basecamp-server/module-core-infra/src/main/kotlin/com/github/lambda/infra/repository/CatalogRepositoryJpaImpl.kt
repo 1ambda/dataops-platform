@@ -25,7 +25,6 @@ class CatalogRepositoryJpaImpl(
     private val catalogTableRepositoryJpa: CatalogTableRepositoryJpa,
     private val catalogColumnRepositoryJpa: CatalogColumnRepositoryJpa,
 ) : CatalogRepositoryJpa {
-
     override fun getTableDetail(tableRef: String): TableDetail? {
         val entity = catalogTableRepositoryJpa.findByName(tableRef) ?: return null
         return toTableDetail(entity)
