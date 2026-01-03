@@ -17,12 +17,13 @@
 2. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
 3. [Module Placement Guidelines](#module-placement-guidelines)
 4. [Entity Relationship Rules](#entity-relationship-rules-critical)
-5. [Service Implementation Patterns](#service-implementation-patterns)
-6. [Repository Layer Patterns](#repository-layer-patterns)
-7. [Controller Patterns](#controller-patterns)
-8. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
-9. [Entity Patterns](#entity-patterns)
-10. [Implementation Order](#implementation-order)
+5. [Projection Pattern](#projection-pattern)
+6. [Service Implementation Patterns](#service-implementation-patterns)
+7. [Repository Layer Patterns](#repository-layer-patterns)
+8. [Controller Patterns](#controller-patterns)
+9. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
+10. [Entity Patterns](#entity-patterns)
+11. [Implementation Order](#implementation-order)
 
 ---
 
@@ -316,6 +317,155 @@ data class OrderAggregation(
     val order: OrderEntity,
     val items: List<OrderItemEntity>,
 )
+```
+
+---
+
+## Projection Pattern
+
+When Entity or `Page<Entity>` cannot express the response structure, use Projections.
+
+### Location
+
+```
+module-core-domain/
+├── model/                 # JPA Entities
+├── projection/            # Projection classes
+│   ├── {Entity}List.kt    # List with pagination metadata
+│   └── {Entity}Detail.kt  # Detail with optional relationships
+└── repository/            # Repository interfaces
+```
+
+### When to Use Projections
+
+| Scenario | Use |
+|----------|-----|
+| Simple CRUD, single entity | Entity |
+| List with only entity fields | `Page<Entity>` |
+| List with joined fields (owner name, counts) | `Page<{Entity}List>` |
+| Detail with optional child entities | `{Entity}Detail` |
+| Aggregations (count, sum, avg) | Projection |
+
+### Projection Examples
+
+```kotlin
+// module-core-domain/projection/QualitySpecList.kt
+data class QualitySpecList(
+    val id: Long,
+    val name: String,
+    val resourceName: String,
+    val resourceType: ResourceType,
+    val ownerName: String,        // Joined from owner entity
+    val testCount: Int,           // Count aggregation
+    val lastRunStatus: TestStatus?,  // From latest run
+)
+
+// module-core-domain/projection/QualitySpecDetail.kt
+data class QualitySpecDetail(
+    val id: Long,
+    val name: String,
+    val resourceName: String,
+    val resourceType: ResourceType,
+    val description: String?,
+    val tests: List<TestInfo>,    // Child entities
+    val owner: OwnerInfo?,        // Joined owner data
+    val lastRun: RunInfo?,        // Optional related entity
+)
+
+data class TestInfo(
+    val id: Long,
+    val name: String,
+    val type: String,
+    val enabled: Boolean,
+)
+
+data class OwnerInfo(
+    val id: Long,
+    val name: String,
+    val email: String,
+)
+
+data class RunInfo(
+    val runId: String,
+    val status: RunStatus,
+    val completedAt: Instant?,
+)
+```
+
+### Repository for Projections
+
+```kotlin
+// module-core-domain/repository/QualitySpecRepositoryDsl.kt
+interface QualitySpecRepositoryDsl {
+    fun findListByConditions(query: QualitySpecListQuery): Page<QualitySpecList>
+    fun findDetailById(id: Long): QualitySpecDetail?
+}
+
+// module-core-infra/repository/QualitySpecRepositoryDslImpl.kt
+@Repository("qualitySpecRepositoryDsl")
+class QualitySpecRepositoryDslImpl(
+    private val entityManager: EntityManager,
+) : QualitySpecRepositoryDsl {
+
+    private val queryFactory = JPAQueryFactory(entityManager)
+    private val spec = QQualitySpecEntity.qualitySpecEntity
+    private val test = QQualityTestEntity.qualityTestEntity
+
+    override fun findDetailById(id: Long): QualitySpecDetail? {
+        // 1. Fetch main entity
+        val specEntity = queryFactory
+            .selectFrom(spec)
+            .where(spec.id.eq(id))
+            .fetchOne() ?: return null
+
+        // 2. Fetch related tests via separate query (NO lazy loading)
+        val tests = queryFactory
+            .selectFrom(test)
+            .where(test.specId.eq(id))
+            .fetch()
+            .map { TestInfo(it.id, it.name, it.type, it.enabled) }
+
+        // 3. Build projection
+        return QualitySpecDetail(
+            id = specEntity.id,
+            name = specEntity.name,
+            resourceName = specEntity.resourceName,
+            resourceType = specEntity.resourceType,
+            description = specEntity.description,
+            tests = tests,
+            owner = null,  // Fetch if needed
+            lastRun = null,  // Fetch if needed
+        )
+    }
+}
+```
+
+### Service Pattern with Projections
+
+```kotlin
+@Service
+@Transactional(readOnly = true)
+class QualitySpecService(
+    private val repositoryJpa: QualitySpecRepositoryJpa,
+    private val repositoryDsl: QualitySpecRepositoryDsl,
+) {
+    fun listSpecs(query: QualitySpecListQuery): Page<QualitySpecList> {
+        // Use projection for list with aggregations
+        return repositoryDsl.findListByConditions(query)
+    }
+
+    fun getSpecDetail(id: Long): QualitySpecDetail? {
+        // Use projection for detail with relationships
+        return repositoryDsl.findDetailById(id)
+    }
+
+    @Transactional
+    fun createSpec(command: CreateQualitySpecCommand): QualitySpecEntity {
+        // Use entity for mutations
+        val entity = QualitySpecEntity(...)
+        return repositoryJpa.save(entity)
+    }
+}
 ```
 
 ---

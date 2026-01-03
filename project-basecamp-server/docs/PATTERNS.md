@@ -17,10 +17,11 @@
 2. [Repository Naming Convention](#repository-naming-convention)
 3. [Entity Relationship Rules](#entity-relationship-rules)
 4. [JPA vs QueryDSL Decision](#jpa-vs-querydsl-decision)
-5. [Data Ownership Patterns](#data-ownership-patterns)
-6. [Code Templates](#code-templates)
-7. [Dependency Versions](#dependency-versions)
-8. [New Feature Checklist](#new-feature-checklist)
+5. [Projection Pattern](#projection-pattern)
+6. [Data Ownership Patterns](#data-ownership-patterns)
+7. [Code Templates](#code-templates)
+8. [Dependency Versions](#dependency-versions)
+9. [New Feature Checklist](#new-feature-checklist)
 
 ---
 
@@ -188,6 +189,31 @@ fun findByStatusAndType(status: Status, type: Type): List<Entity>
 // ❌ TOO COMPLEX for JPA - Use QueryDSL
 fun findByNameAndStatusAndTypeAndCreatedAtAfter(...)  // 4+ conditions
 ```
+
+---
+
+## Projection Pattern
+
+**Location**: `module-core-domain/projection/`
+
+Use Projections when Entity or `Page<Entity>` cannot express the response structure.
+
+| Pattern | Purpose |
+|---------|---------|
+| `{Entity}List` | List API with joined fields (owner name, counts) |
+| `{Entity}Detail` | Detail API with optional child entities |
+
+### When to Use
+
+| Scenario | Use |
+|----------|-----|
+| Simple CRUD, single entity | Entity |
+| List with only entity fields | `Page<Entity>` |
+| List with joined fields | `Page<{Entity}List>` |
+| Detail with optional relationships | `{Entity}Detail` |
+| Aggregations (count, sum, avg) | Projection |
+
+> **📖 Detailed examples**: See [IMPLEMENTATION_GUIDE.md - Projection Pattern](./IMPLEMENTATION_GUIDE.md#projection-pattern)
 
 ---
 

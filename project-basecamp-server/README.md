@@ -180,30 +180,8 @@ module-core-infra/src/main/kotlin/com/github/lambda/infra/
 ```
 
 **Repository Implementation Pattern:**
-```kotlin
-// Domain Interface (Port)
-interface UserRepositoryJpa {
-    fun save(user: UserEntity): UserEntity
-    fun findById(id: Long): UserEntity?
-}
 
-// Infrastructure Implementation (Adapter)
-@Repository("userRepositoryJpa")
-class UserRepositoryJpaImpl(
-    private val springDataRepository: UserRepositoryJpaSpringData,
-) : UserRepositoryJpa {
-    override fun save(user: UserEntity): UserEntity =
-        springDataRepository.save(user)
-    override fun findById(id: Long): UserEntity? =
-        springDataRepository.findById(id).orElse(null)
-}
-
-// Spring Data JPA Interface (Internal)
-@Repository
-interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
-    fun findByEmail(email: String): UserEntity?
-}
-```
+> **📖 Code examples**: See [IMPLEMENTATION_GUIDE.md - Repository Layer Patterns](./docs/IMPLEMENTATION_GUIDE.md#repository-layer-patterns)
 
 ---
 
@@ -354,58 +332,11 @@ make dev-all
 
 ## Testing (Spring Boot 4.x)
 
-### Quick Reference
-
-| Task | Reference | Key Pattern |
-|------|-----------|-------------|
-| Controller test | [docs/PATTERNS.md](./docs/PATTERNS.md#1-controller-test-pattern) | @SpringBootTest + @AutoConfigureMockMvc |
-| Service test | [docs/PATTERNS.md](./docs/PATTERNS.md#2-service-test-pattern) | @MockkBean + Kotest |
-| Troubleshooting | [docs/TESTING.md](./docs/TESTING.md#troubleshooting) | Common errors & solutions |
-
-### Controller Test Template
-
-```kotlin
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Execution(ExecutionMode.SAME_THREAD)
-@WithMockUser(username = "testuser", roles = ["USER"])
-class MyControllerTest {
-    @Autowired
-    private lateinit var mockMvc: MockMvc
-
-    @Autowired
-    private lateinit var jsonMapper: JsonMapper  // Jackson 3, NOT ObjectMapper
-
-    @MockkBean(relaxed = true)
-    private lateinit var myService: MyService
-}
-```
-
-### Critical Imports (Spring Boot 4.x)
-
-```kotlin
-// Jackson 3 (NOT Jackson 2)
-import tools.jackson.databind.json.JsonMapper
-
-// Web MVC Test (NEW package)
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
-
-// MockK (requires springmockk 5.0.1+)
-import com.ninjasquad.springmockk.MockkBean
-
-// Parallel execution control
-import org.junit.jupiter.api.parallel.Execution
-import org.junit.jupiter.api.parallel.ExecutionMode
-```
-
-### Required Dependency Versions
-
-```kotlin
-// build.gradle.kts - REQUIRED for Spring Boot 4.x
-set("springMockkVersion", "5.0.1")  // NOT 4.x
-set("springdocVersion", "3.0.0")     // NOT 2.x
-```
+| Task | Reference |
+|------|-----------|
+| Quick Reference | [docs/TESTING.md](./docs/TESTING.md#quick-reference) |
+| Test Patterns by Layer | [docs/TESTING.md](./docs/TESTING.md#test-patterns-by-layer) |
+| Troubleshooting | [docs/TESTING.md](./docs/TESTING.md#troubleshooting) |
 
 ### Test Commands
 
