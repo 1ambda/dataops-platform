@@ -30,6 +30,7 @@ import com.github.lambda.common.exception.TooManyTagsException
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
+import com.github.lambda.domain.service.AccessDeniedException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import jakarta.validation.ConstraintViolationException
@@ -946,5 +947,26 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ApiResponse.error(ex.message ?: "Invalid argument", errorDetails))
+    }
+
+    /**
+     * Access denied exception (403 Forbidden)
+     */
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDeniedException(
+        ex: AccessDeniedException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Access denied: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = "ACCESS_DENIED",
+                details = mapOf("path" to request.getDescription(false)),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error(ex.message ?: "Access denied", errorDetails))
     }
 }

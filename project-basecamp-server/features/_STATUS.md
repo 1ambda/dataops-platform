@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-01-03
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 72% (30/36 endpoints completed)
+> **Current Progress:** 92% (33/36 endpoints completed)
 
 ---
 
@@ -11,14 +11,14 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 30 endpoints | Health + Metrics + Datasets + Catalog + Quality + Workflow + Run API |
+| **Completed** | 33 endpoints | Health + Metrics + Datasets + Catalog + Quality + Workflow + Run + Query APIs |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 6 endpoints | Lineage + Query + Transpile APIs |
-| **Overall Progress** | **72%** | 🟢 Phase 1-3 complete, Phase 4 in progress |
+| **Not Started** | 3 endpoints | Lineage + Transpile APIs |
+| **Overall Progress** | **92%** | 🟢 Phase 1-3 complete, Phase 4 nearly complete |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, P3 Quality API, and P3 Run API completed with full hexagonal architecture, 472+ tests total. Run API implements ad-hoc SQL execution with rate limiting, Clock injection for testability, and in-memory result storage. All major API patterns established for rapid remaining development.
+**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, P3 Quality API, P3 Run API, and P3 Query API completed with full hexagonal architecture, 580+ tests total. Query API provides metadata tracking and cancellation with mock engine integration. Only Lineage and Transpile APIs remaining for 100% completion.
 
 ---
 
@@ -35,10 +35,10 @@
 | **P1 High** | Lineage | 1 | 0 | ❌ **0%** | `dli lineage` |
 | **P2 Medium** | Workflow | 9 | 9 | ✅ **100%** | `dli workflow` |
 | **P3 Low** | Quality | 3 | 3 | ✅ **100%** | `dli quality` |
-| **P3 Low** | Query | 3 | 0 | ❌ **0%** | `dli query` |
+| **P3 Low** | Query | 3 | 3 | ✅ **100%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
 | **P3 Low** | Run | 3 | 3 | ✅ **100%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **30** | 🟢 **72%** | All CLI commands |
+| **TOTAL** | **10 features** | **36** | **33** | 🟢 **92%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -51,7 +51,7 @@
 
 ---
 
-## ✅ Completed Implementation (27/36)
+## ✅ Completed Implementation (33/36)
 
 ### Health & System API - 100% Complete (4/4 endpoints)
 
@@ -233,7 +233,7 @@
 
 > **📖 See:** [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md) for full implementation details
 
-### Phase 4: P3 Low Priority (Week 10-12.5) - 6/11 APIs
+### Phase 4: P3 Low Priority (Week 10-12.5) - 9/11 APIs
 
 **Quality API (3/3):** ✅ **Complete**
 - ✅ `GET /api/v1/quality` - List quality specs
@@ -249,10 +249,12 @@
 
 > **📖 See:** [`RUN_RELEASE.md`](./RUN_RELEASE.md) for full implementation details
 
-**Query Metadata API (0/3):**
-- `GET /api/v1/catalog/queries` - Query history
-- `GET /api/v1/catalog/queries/{query_id}` - Query details
-- `POST /api/v1/catalog/queries/{query_id}/cancel` - Cancel query
+**Query API (3/3):** ✅ **Complete**
+- ✅ `GET /api/v1/catalog/queries` - Query history
+- ✅ `GET /api/v1/catalog/queries/{query_id}` - Query details
+- ✅ `POST /api/v1/catalog/queries/{query_id}/cancel` - Cancel query
+
+> **📖 See:** [`QUERY_RELEASE.md`](./QUERY_RELEASE.md) for full implementation details
 
 **Transpile API (0/2):**
 - `GET /api/v1/transpile/rules` - Transpile rules
@@ -461,6 +463,7 @@ project-basecamp-server/
 | **Quality API** | [`QUALITY_RELEASE.md`](./QUALITY_RELEASE.md) | ✅ 100% (3/3 endpoints) |
 | **Workflow API** | [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md) | ✅ 100% (9/9 endpoints) |
 | **Run API** | [`RUN_RELEASE.md`](./RUN_RELEASE.md) | ✅ 100% (3/3 endpoints) |
+| **Query API** | [`QUERY_RELEASE.md`](./QUERY_RELEASE.md) | ✅ 100% (3/3 endpoints) |
 
 ### Implementation Guides
 

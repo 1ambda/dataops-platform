@@ -1,11 +1,13 @@
 # Query API Feature Specification
 
-> **Version:** 0.1.0 | **Status:** Draft | **Priority:** P3 Low
+> **Version:** 1.0.0 | **Status:** ✅ Implemented | **Priority:** P3 Low
 > **CLI Commands:** `dli query list/show/cancel` | **Target:** Spring Boot 4 + Kotlin 2
-> **Implementation Timeline:** Week 10 | **Endpoints:** 3
+> **Implementation Timeline:** Week 10 | **Endpoints:** 3/3 Complete
 >
 > **📦 Data Source:** Self-managed JPA (쿼리 메타데이터 저장)
 > **Entities:** `QueryExecutionEntity`
+>
+> **📖 Implementation Details:** [`QUERY_RELEASE.md`](./QUERY_RELEASE.md)
 
 ---
 
@@ -66,7 +68,7 @@ dli query cancel query_20260101_100000_abc123 --reason "Resource optimization"
 
 ## 3. API Specifications
 
-### 3.1 List Queries
+### 3.1 List Queries ✅ Implemented
 
 #### `GET /api/v1/catalog/queries`
 
@@ -120,7 +122,7 @@ Authorization: Bearer <oauth2-token>
 
 ---
 
-### 3.2 Get Query Details
+### 3.2 Get Query Details ✅ Implemented
 
 #### `GET /api/v1/catalog/queries/{query_id}`
 
@@ -209,7 +211,7 @@ Authorization: Bearer <oauth2-token>
 
 ---
 
-### 3.3 Cancel Query
+### 3.3 Cancel Query ✅ Implemented
 
 #### `POST /api/v1/catalog/queries/{query_id}/cancel`
 
