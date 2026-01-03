@@ -6,6 +6,7 @@
 
 **See Also:**
 - [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) - Step-by-step implementation guidance with detailed explanations
+- [ENTITY_RELATION.md](./ENTITY_RELATION.md) - Entity relationships diagram and QueryDSL join patterns
 - [TESTING.md](./TESTING.md) - Comprehensive testing strategies and examples
 - [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Error codes, exception hierarchy, response format
 
@@ -15,7 +16,7 @@
 
 1. [Module Placement Rules](#module-placement-rules)
 2. [Repository Naming Convention](#repository-naming-convention)
-3. [Entity Relationship Rules](#entity-relationship-rules)
+3. [Entity Relation Rules](#entity-relation-rules)
 4. [JPA vs QueryDSL Decision](#jpa-vs-querydsl-decision)
 5. [Projection Pattern](#projection-pattern)
 6. [Data Ownership Patterns](#data-ownership-patterns)
@@ -119,47 +120,42 @@ class SampleQueryRepositoryDslImpl : SampleQueryRepositoryDsl { ... }
 
 ---
 
-## Entity Relationship Rules
+## Entity Relation Rules
 
-### Forbidden Annotations
+> JPA Relation 사용 금지, ID 참조 + QueryDSL Join 사용
+> **📖 상세**: [ENTITY_RELATION.md](./ENTITY_RELATION.md) | [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md#entity-relation-rules)
+
+### Quick Reference
+
+| 항목 | 규칙 | 대안 |
+|------|------|------|
+| `@ManyToOne` | ❌ 금지 | ID 필드 (e.g., `ownerId: Long`) |
+| `@OneToMany` | ❌ 금지 | QueryDSL Join |
+| `@OneToOne` | ❌ 금지 | ID 필드 + QueryDSL Join |
+| `@ManyToMany` | ❌ 금지 | 중간 Entity |
+| `FetchType.EAGER` | ❌ 금지 | QueryDSL 명시적 Join |
+
+### Entity Pattern
 
 ```kotlin
-// ❌ ABSOLUTELY FORBIDDEN - Never use these in entities
-@OneToMany
-@ManyToOne
-@OneToOne
-@ManyToMany
-```
-
-### Correct vs Wrong
-
-```kotlin
-// ❌ WRONG: Entity with JPA relationships
+// ✅ 권장: ID로만 참조
 @Entity
-class OrderEntity(
-    @Id val id: Long,
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    val user: UserEntity,  // ❌ FORBIDDEN
-)
+class DatasetEntity(
+    @Column(name = "owner_id", nullable = false)
+    val ownerId: Long,  // ✅ ID 참조
 
-// ✅ CORRECT: Entity with FK as simple field
-@Entity
-class OrderEntity(
-    @Id val id: Long,
-    @Column(name = "user_id", nullable = false)
-    val userId: Long,  // ✅ Store FK as simple field
+    // ❌ 금지: Entity 참조
+    // val owner: UserEntity
 )
 ```
 
-### Why No JPA Relationships?
+### 이유
 
-| Reason | Benefit |
-|--------|---------|
-| N+1 Query Prevention | No unpredictable lazy loading queries |
-| Explicit Data Access | QueryDSL makes fetching visible and controllable |
-| Simpler Testing | No cascade/orphan removal complexity |
-| Clear Boundaries | Services control aggregation, not entities |
+| 문제 | 해결 |
+|------|------|
+| N+1 쿼리 | QueryDSL 명시적 Join |
+| LazyInitializationException | ID 참조로 원천 차단 |
+| 순환 참조 | 단방향 ID 참조 |
 
 ---
 

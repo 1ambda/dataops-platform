@@ -74,7 +74,13 @@ context7.get-library-docs("/spring/spring-boot", "transaction")
 | `docs/IMPLEMENTATION_GUIDE.md` | Step-by-step implementation workflow | Implementing new features |
 | `docs/TESTING.md` | Test strategies by layer | Writing tests |
 
+### Entity Relationship Documentation (CRITICAL)
+- **ALWAYS** reference `project-basecamp-server/docs/ENTITY_RELATION.md` for entity relationships
+- **UPDATE** ENTITY_RELATION.md when adding new entities or changing FK relationships
+- Use FK fields (e.g., `specId: Long`) instead of JPA relationship annotations
+
 ### Key References:
+- **Entity Relations:** `docs/ENTITY_RELATION.md` - All entity FK relationships
 - **Module Placement:** `PATTERNS.md#module-placement-rules`
 - **Entity Rules:** `PATTERNS.md#entity-relationship-rules`
 - **Repository Naming:** `PATTERNS.md#repository-naming-convention`

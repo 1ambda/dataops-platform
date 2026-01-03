@@ -6,6 +6,7 @@
 
 **See Also:**
 - [PATTERNS.md](./PATTERNS.md) - Quick reference patterns, decision tables, naming conventions
+- [ENTITY_RELATION.md](./ENTITY_RELATION.md) - Entity relationships diagram and QueryDSL join patterns
 - [TESTING.md](./TESTING.md) - Comprehensive testing strategies and examples
 - [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Error codes, exception hierarchy, response format
 
@@ -177,84 +178,161 @@ class InfrastructureConfig {
 
 ## Entity Relationship Rules (CRITICAL)
 
-> **Core Rule**: Entities must NOT use JPA relationship annotations.
+> **Core Rule**: JPA Relation 사용 금지, ID 참조 + QueryDSL Join 사용
+>
+> **See [ENTITY_RELATION.md](./ENTITY_RELATION.md)** for complete entity relationship diagram, FK reference table, and QueryDSL join patterns.
 
 This is a fundamental design decision for maintainability and performance.
 
-### Why No JPA Relationships?
+---
 
-| Problem | JPA Relationships | Our Approach |
-|---------|-------------------|--------------|
-| **N+1 Queries** | Lazy loading causes unpredictable query counts | Explicit QueryDSL fetches |
-| **Complexity** | Cascade, orphan removal, bidirectional sync | Simple FK fields |
-| **Testing** | Mock setup for relationships is complex | Test entities in isolation |
-| **Boundaries** | Entity controls related data | Service controls aggregation |
+### 1. Relation 규칙
 
-### Entity Design Principles
+| 항목 | 규칙 | 대안 |
+|------|------|------|
+| `@ManyToOne` | **FORBIDDEN** | ID 참조 |
+| `@OneToMany` | **FORBIDDEN** | QueryDSL Join |
+| `@OneToOne` | **FORBIDDEN** | ID 참조 + QueryDSL Join |
+| `@ManyToMany` | **FORBIDDEN** | 중간 Entity |
+| `FetchType.EAGER` | **FORBIDDEN** | QueryDSL 명시적 Join |
 
-1. **Store Foreign Keys as Simple Fields**: Use `Long` or `String` IDs instead of entity references
-2. **No Cascading Operations**: Handle related entity persistence explicitly in services
-3. **QueryDSL for Aggregations**: Fetch related data through QueryDSL, not lazy loading
+---
 
-### Correct Entity Pattern
+### 2. Entity 예시
+
+#### FORBIDDEN Pattern
 
 ```kotlin
 @Entity
-@Table(name = "orders")
-class OrderEntity(
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+class Dataset(
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    val owner: User,  // FORBIDDEN: Entity 참조 금지
+
+    @OneToMany(mappedBy = "dataset")
+    val columns: List<DatasetColumn> = emptyList()  // FORBIDDEN
+)
+```
+
+#### Correct Pattern
+
+```kotlin
+@Entity
+@Table(name = "datasets")
+class DatasetEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
-    // CORRECT: Foreign key as simple field
-    @Column(name = "user_id", nullable = false)
-    val userId: Long,
+    @Column(nullable = false)
+    var name: String,
 
-    @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
-    val status: OrderStatus,
+    var status: DatasetStatus = DatasetStatus.DRAFT,
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-) {
-    // NO relationship fields like:
-    // val user: UserEntity          <- FORBIDDEN
-    // val items: List<OrderItemEntity>  <- FORBIDDEN
-}
+    // CORRECT: 외부 Entity는 ID로만 참조
+    @Column(name = "owner_id", nullable = false)
+    val ownerId: Long,
+
+    @Column(name = "project_id", nullable = false)
+    val projectId: Long,
+
+    val createdAt: Instant = Instant.now()
+)
 ```
 
-### Anti-Pattern Examples
+---
+
+### 3. 1:1 관계 처리
+
+#### Correct: ID 참조 + QueryDSL Join
 
 ```kotlin
-// WRONG: Entity with relationships
+// Entity
 @Entity
-class UserEntity(
-    @Id val id: Long,
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    val orders: List<OrderEntity> = emptyList(),  // FORBIDDEN
+class DatasetEntity(
+    @Column(name = "metadata_id")
+    val metadataId: Long?
 )
 
-// WRONG: Bidirectional relationship
-@Entity
-class OrderItemEntity(
-    @Id val id: Long,
+// QueryDSL
+.leftJoin(metadata).on(metadata.id.eq(dataset.metadataId))
+```
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    val order: OrderEntity,  // FORBIDDEN
+---
+
+### 4. N:M 관계 처리
+
+#### Correct: 중간 Entity 생성
+
+```kotlin
+// FORBIDDEN
+@ManyToMany
+val tags: List<Tag>
+
+// CORRECT: 중간 Entity
+@Entity
+@Table(name = "dataset_tags")
+class DatasetTagEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(name = "dataset_id", nullable = false)
+    val datasetId: Long,
+
+    @Column(name = "tag_id", nullable = false)
+    val tagId: Long
+)
+```
+
+---
+
+### 5. 연관 데이터 조회
+
+#### QueryDSL Join 사용
+
+```kotlin
+// Projection
+data class DatasetDetail(
+    val id: Long,
+    val name: String,
+    val owner: OwnerInfo,
+    val project: ProjectInfo
 )
 
-// WRONG: JPA method with too many conditions
-interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
-    fun findByNameContainingAndStatusAndRoleAndCreatedAtAfter(
-        name: String, status: Status, role: Role, date: LocalDateTime
-    ): List<UserEntity>  // Too complex - use QueryDSL
+// QueryDSL
+fun findDetail(id: Long): DatasetDetail? {
+    return queryFactory
+        .select(Projections.constructor(
+            DatasetDetail::class.java,
+            dataset.id,
+            dataset.name,
+            Projections.constructor(OwnerInfo::class.java, user.id, user.name),
+            Projections.constructor(ProjectInfo::class.java, project.id, project.name)
+        ))
+        .from(dataset)
+        .leftJoin(user).on(user.id.eq(dataset.ownerId))
+        .leftJoin(project).on(project.id.eq(dataset.projectId))
+        .where(dataset.id.eq(id))
+        .fetchOne()
 }
 ```
 
-### QueryDSL Aggregation Pattern
+---
+
+### 6. Why No JPA Relationships?
+
+| Problem | Issue with JPA Relations | Our Solution |
+|---------|--------------------------|--------------|
+| **N+1 Queries** | Lazy loading causes unpredictable query counts | QueryDSL 명시적 Join |
+| **LazyInitializationException** | Session closed before access | ID 참조로 원천 차단 |
+| **Circular Reference** | Bidirectional mappings cause serialization issues | 단방향 ID 참조 |
+| **Unpredictable Queries** | Eager/lazy loading hides actual queries | 모든 Join 명시적 제어 |
+| **Testing Complexity** | Mock setup for relationships is complex | Test entities in isolation |
+| **Cascade Issues** | Cascade, orphan removal cause unexpected side effects | Handle persistence explicitly |
+
+---
+
+### 7. QueryDSL Aggregation Pattern
 
 When you need to fetch an entity with its related entities:
 
@@ -317,6 +395,38 @@ data class OrderAggregation(
     val order: OrderEntity,
     val items: List<OrderItemEntity>,
 )
+```
+
+---
+
+### 8. Anti-Pattern Examples
+
+```kotlin
+// WRONG: Entity with relationships
+@Entity
+class UserEntity(
+    @Id val id: Long,
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    val orders: List<OrderEntity> = emptyList(),  // FORBIDDEN
+)
+
+// WRONG: Bidirectional relationship
+@Entity
+class OrderItemEntity(
+    @Id val id: Long,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    val order: OrderEntity,  // FORBIDDEN
+)
+
+// WRONG: JPA method with too many conditions
+interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
+    fun findByNameContainingAndStatusAndRoleAndCreatedAtAfter(
+        name: String, status: Status, role: Role, date: LocalDateTime
+    ): List<UserEntity>  // Too complex - use QueryDSL
+}
 ```
 
 ---
