@@ -1,10 +1,13 @@
-# Testing Guide for Spring Boot 4.x + Kotlin
+# Testing Strategies & Patterns
 
-> **Purpose:** Comprehensive testing guide for project-basecamp-server with Spring Boot 4.x-specific patterns and lessons learned.
+> **Purpose:** Complete testing reference for project-basecamp-server with Spring Boot 4.x patterns
+> **Audience:** Developers writing tests, AI agents implementing test coverage
+> **Use When:** "I need to write tests, show me how"
 
-**Last Updated:** 2025-12-30
-
-**See Also:** [PATTERNS.md](./PATTERNS.md) - Quick reference patterns & templates
+**See Also:**
+- [PATTERNS.md](./PATTERNS.md) - Quick reference patterns and templates
+- [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) - Step-by-step implementation guidance
+- [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Error codes and exception hierarchy
 
 ---
 
@@ -13,12 +16,13 @@
 1. [Quick Reference](#quick-reference)
 2. [Spring Boot 4.x Migration Changes](#spring-boot-4x-migration-changes)
 3. [Dependency Versions](#dependency-versions)
-4. [Test Patterns by Layer](#test-patterns-by-layer) **(NEW)**
-5. [Test Patterns](#test-patterns)
-6. [Multi-Module Project Testing](#multi-module-project-testing)
-7. [Security Testing](#security-testing)
-8. [Troubleshooting](#troubleshooting)
-9. [Test Structure](#test-structure)
+4. [Test Patterns by Layer](#test-patterns-by-layer)
+5. [Multi-Module Project Testing](#multi-module-project-testing)
+6. [Security Testing](#security-testing)
+7. [Troubleshooting](#troubleshooting)
+8. [Test Structure](#test-structure)
+9. [CLI-Server Contract Testing](#cli-server-contract-testing)
+10. [Checklist for New Tests](#checklist-for-new-tests)
 
 ---
 
@@ -65,6 +69,18 @@ import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 ```
 
+### Test Type Decision Summary
+
+| Layer | Test Type | Annotation | When to Use |
+|-------|-----------|------------|-------------|
+| Entity | Unit | None | Domain logic, validation |
+| Service | Unit + Mock | `@Mock` (MockK) | Business logic - **NO Spring context** |
+| External Client | Unit + Mock | `@Mock` (MockK) | Interface behavior - **NO `@MockBean`** |
+| Controller | Slice | `@WebMvcTest` | HTTP status, validation, security |
+| Controller Integration | Integration | `@SpringBootTest` | E2E with DB - **minimize count** |
+| Repository JPA | Slice | `@DataJpaTest` | CRUD, mappings, auditing |
+| Repository DSL | Slice | `@DataJpaTest` + `@Import` | Dynamic queries, projections |
+
 ---
 
 ## Spring Boot 4.x Migration Changes
@@ -88,15 +104,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 @Autowired
 private lateinit var objectMapper: ObjectMapper
 
-val json = objectMapper.writeValueAsString(request)
-
 // NEW (Spring Boot 4.x)
 import tools.jackson.databind.json.JsonMapper
 
 @Autowired
 private lateinit var jsonMapper: JsonMapper
-
-val json = jsonMapper.writeValueAsString(request)
 ```
 
 ### 2. Package Changes
@@ -105,9 +117,8 @@ Several Spring Boot test annotations have moved to new packages:
 
 | Old Package | New Package |
 |-------------|-------------|
-| `org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest` | `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest` |
-| `org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc` | `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc` |
-| `org.springframework.boot.autoconfigure.security.oauth2.*` | `org.springframework.boot.security.oauth2.client.autoconfigure.*` |
+| `o.s.boot.test.autoconfigure.web.servlet.WebMvcTest` | `o.s.boot.webmvc.test.autoconfigure.WebMvcTest` |
+| `o.s.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc` | `o.s.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc` |
 
 ### 3. springmockk Version Compatibility
 
@@ -154,33 +165,17 @@ ext {
 
 ## Test Patterns by Layer
 
-> **Quick Reference:** Use this section to determine the correct test type and annotations for each architectural layer.
-
-### Summary Table
-
-| Layer | Test Type | Annotation | Focus Areas |
-|-------|-----------|------------|-------------|
-| Entity | Unit | None | Domain logic, validation, calculations |
-| Service | Unit + Mock | `@Mock` (MockK) | Business logic, orchestration |
-| External Client | Unit + Mock | `@Mock` (MockK) | Interface behavior, error handling |
-| Controller | Slice | `@WebMvcTest` | HTTP status, validation, security, JSON |
-| Controller Integration | Integration | `@SpringBootTest` | E2E scenarios, DB side-effects |
-| Repository JPA | Slice | `@DataJpaTest` | CRUD, mappings, auditing |
-| Repository DSL | Slice | `@DataJpaTest` + `@Import` | Dynamic queries, projections, joins |
-
----
-
 ### Entity Test (module-core-domain)
 
 **Test Type:** Unit Test only, no Spring context
 
 **What to Test:**
-- **Domain Logic:** State change methods (e.g., `activate()`, `cancel()`, `approve()`)
-- **Validation Logic:** Constructor/factory method validations
-- **Calculation Logic:** Calculation methods (e.g., `calculateTotal()`, `isExpired()`)
+- Domain logic: State change methods (e.g., `activate()`, `cancel()`)
+- Validation logic: Constructor/factory validations
+- Calculation logic: Methods like `calculateTotal()`, `isExpired()`
 
 **What NOT to Test:**
-- Getter/Setter (auto-generated, no logic)
+- Getter/Setter (no logic)
 - JPA mappings (verified in Repository tests)
 
 ```kotlin
@@ -228,18 +223,6 @@ class PipelineEntityTest {
                 .hasMessageContaining("already active")
         }
     }
-
-    @Nested
-    @DisplayName("Validation")
-    inner class Validation {
-
-        @Test
-        fun `should throw exception when name is blank`() {
-            assertThatThrownBy {
-                PipelineEntity(name = "", status = PipelineStatus.INACTIVE)
-            }.isInstanceOf(IllegalArgumentException::class.java)
-        }
-    }
 }
 ```
 
@@ -249,25 +232,16 @@ class PipelineEntityTest {
 
 **Test Type:** Unit Test with Mocks, no Spring context
 
-**Key Patterns:**
-- Inject dependencies via `@Mock` (MockK) - **NO Spring context**
-- Constructor injection pattern
-- Test business logic only
-
-**CRITICAL:** Do NOT use `@MockkBean` for Service tests - it requires Spring context
+**CRITICAL:** Do NOT use `@MockkBean` - it requires Spring context. Use pure `mockk()`.
 
 ```kotlin
 package com.github.lambda.domain.service
 
-import com.github.lambda.domain.model.PipelineEntity
-import com.github.lambda.domain.repository.PipelineRepositoryJpa
-import com.github.lambda.domain.repository.PipelineRepositoryDsl
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -326,18 +300,13 @@ class PipelineServiceTest {
 
 **Test Type:** Unit Test with Mocks, no Spring context
 
-**Pattern:** External dependencies like `AirflowClient` exist as interfaces in `external/`
-
-**CRITICAL:**
-- **NO `@MockBean`** - use `@Mock` + constructor injection for pure unit tests
-- Real external integration tested separately with WireMock
+**CRITICAL:** Use `@Mock` + constructor injection, NOT `@MockBean`.
 
 ```kotlin
 package com.github.lambda.infra.external
 
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -348,7 +317,7 @@ import org.junit.jupiter.api.Test
 @DisplayName("AirflowClientImpl Unit Test")
 class AirflowClientImplTest {
 
-    // Mock the HTTP client or RestTemplate - NOT the AirflowClient interface
+    // Mock the HTTP client - NOT the AirflowClient interface
     private val restTemplate: RestTemplate = mockk()
 
     private lateinit var airflowClient: AirflowClientImpl
@@ -398,20 +367,18 @@ class AirflowClientImplTest {
 ### Controller Test - Slice (module-server-api)
 
 **Test Type:** Slice Test with `@WebMvcTest`
-
 **Class Name Pattern:** `*ControllerTest`
 
 **Focus Areas:**
-- **HTTP Status Codes:** success (200), failure (400, 401, 403, 404, 500)
-- **Input Validation:** `@Valid` handling, Bad Request responses
-- **Security/Auth:** 403 for unauthorized access
-- **JSON Serialization:** Response DTO field names match API spec
+- HTTP status codes (200, 400, 401, 403, 404, 500)
+- Input validation (`@Valid` handling)
+- Security/Auth (403 for unauthorized)
+- JSON serialization (response field names)
 
 ```kotlin
 package com.github.lambda.api.controller
 
 import tools.jackson.databind.json.JsonMapper
-import com.github.lambda.domain.service.PipelineService
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
@@ -430,14 +397,6 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
-/**
- * Controller Slice Test - focuses on HTTP layer only
- *
- * Pattern:
- * - @WebMvcTest: Loads only web layer (controller, filters, converters)
- * - @MockkBean: Mock all service dependencies
- * - Focus: HTTP status, validation, JSON serialization
- */
 @WebMvcTest(PipelineController::class)
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
@@ -502,7 +461,7 @@ class PipelineControllerTest {
         }
 
         @Test
-        @WithMockUser(roles = ["GUEST"])  // Insufficient role
+        @WithMockUser(roles = ["GUEST"])
         fun `should return 403 when user lacks permission`() {
             mockMvc.perform(
                 post("/api/v1/pipelines")
@@ -521,21 +480,13 @@ class PipelineControllerTest {
 ### Controller Integration Test (module-server-api)
 
 **Test Type:** Full Integration Test
-
 **Class Name Pattern:** `*ControllerIntegrationTest`
 
-**Annotations:** `@SpringBootTest`, `@AutoConfigureMockMvc`, TestContainers
-
-**Focus Areas:**
-- **Happy Path:** Full user scenarios with real DB
-- **Database Side-Effects:** Verify DB state after controller calls
-
-**WARNING:** Expensive to run - minimize count, prefer Unit Tests!
+**WARNING:** Expensive to run - minimize count, prefer slice tests!
 
 ```kotlin
 package com.github.lambda.api.controller
 
-import com.github.lambda.config.TestContainersConfig
 import tools.jackson.databind.json.JsonMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
@@ -555,17 +506,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.transaction.annotation.Transactional
 
-/**
- * Controller Integration Test - Full stack with real database
- *
- * Configuration Pattern:
- * - @SpringBootTest: Full application context
- * - @AutoConfigureMockMvc: HTTP testing without actual server
- * - @Transactional: Test isolation (auto-rollback)
- * - @Import(TestContainersConfig::class): Real database via TestContainers
- *
- * WARNING: Expensive! Use sparingly - prefer slice tests for most cases.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -607,14 +547,6 @@ class PipelineControllerIntegrationTest {
         assertThat(savedEntity).isPresent
         assertThat(savedEntity.get().name).isEqualTo("integration-test-pipeline")
     }
-
-    @Test
-    @DisplayName("Full scenario: Create -> Update -> Get")
-    fun `should handle full CRUD lifecycle`() {
-        // 1. Create
-        // 2. Update
-        // 3. Get and verify final state
-    }
 }
 ```
 
@@ -623,21 +555,11 @@ class PipelineControllerIntegrationTest {
 ### Repository Test - JPA (module-core-infra)
 
 **Test Type:** Slice Test with `@DataJpaTest`
-
 **Class Name Pattern:** `*RepositoryJpaImplTest`
-
-**Focus Areas:**
-- Mapping correctness
-- Basic CRUD operations
-- Entity lifecycle
-- Auditing (`@CreatedDate`, `@LastModifiedDate`)
-- Method naming conventions
 
 ```kotlin
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.PipelineEntity
-import com.github.lambda.domain.model.PipelineStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -647,13 +569,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.test.context.ActiveProfiles
 
-/**
- * Repository JPA Test - Verifies CRUD operations and JPA mappings
- *
- * Pattern:
- * - @DataJpaTest: Auto-rollback, embedded DB
- * - TestEntityManager: Direct entity manipulation for test setup
- */
 @DataJpaTest
 @ActiveProfiles("test")
 @DisplayName("PipelineRepositoryJpaImpl Test")
@@ -732,21 +647,12 @@ class PipelineRepositoryJpaImplTest {
 ### Repository Test - QueryDSL (module-core-infra)
 
 **Test Type:** Slice Test with `@DataJpaTest` + `@Import`
-
 **Class Name Pattern:** `*RepositoryDslImplTest`
-
-**Focus Areas:**
-- Dynamic conditions (BooleanExpression)
-- DTO projections
-- Joins and aggregations
-- Complex operations
 
 ```kotlin
 package com.github.lambda.infra.repository
 
 import com.github.lambda.config.QueryDslConfig
-import com.github.lambda.domain.model.PipelineEntity
-import com.github.lambda.domain.model.PipelineStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -758,13 +664,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
 
-/**
- * Repository QueryDSL Test - Verifies complex queries
- *
- * Pattern:
- * - @DataJpaTest: Lightweight slice test
- * - @Import(QueryDslConfig::class): Required for JPAQueryFactory
- */
 @DataJpaTest
 @ActiveProfiles("test")
 @Import(QueryDslConfig::class)  // REQUIRED: Provides JPAQueryFactory
@@ -818,9 +717,6 @@ class PipelineRepositoryDslImplTest {
 
             // Then
             assertThat(result).hasSize(2)
-            assertThat(result.map { it.name }).containsExactlyInAnyOrder(
-                "pipeline-1", "pipeline-2"
-            )
         }
 
         @Test
@@ -834,22 +730,6 @@ class PipelineRepositoryDslImplTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].name).isEqualTo("pipeline-1")
-        }
-    }
-
-    @Nested
-    @DisplayName("findWithRelatedData() - Aggregation Pattern")
-    inner class FindWithRelatedData {
-
-        @Test
-        fun `should fetch pipeline with tasks in single query`() {
-            // When
-            val result = pipelineRepositoryDsl.findPipelineWithTasks(1L)
-
-            // Then
-            assertThat(result).isNotNull
-            assertThat(result!!.tasks).isNotEmpty
-            // Verify no N+1 - single query executed
         }
     }
 }
@@ -867,6 +747,7 @@ What are you testing?
 │
 ├─> Service business logic
 │   └─> Service Test (Unit + MockK)
+│       ⚠️ NO @MockkBean - use mockk()
 │
 ├─> External API client
 │   └─> External Client Test (Unit + MockK)
@@ -877,226 +758,13 @@ What are you testing?
 │   │   └─> Controller Test (@WebMvcTest)
 │   └─> Full scenario with DB
 │       └─> Controller Integration Test (@SpringBootTest)
+│           ⚠️ Expensive - minimize count!
 │
 └─> Repository data access
     ├─> Simple CRUD, mappings
     │   └─> JPA Repository Test (@DataJpaTest)
     └─> Complex queries, projections
         └─> DSL Repository Test (@DataJpaTest + @Import)
-```
-
----
-
-## Test Patterns
-
-### Controller Integration Test (Recommended)
-
-For multi-module projects, use `@SpringBootTest` + `@AutoConfigureMockMvc` instead of `@WebMvcTest`:
-
-```kotlin
-package com.github.lambda.controller
-
-import tools.jackson.databind.json.JsonMapper
-import com.github.lambda.domain.service.MyService
-import com.ninjasquad.springmockk.MockkBean
-import io.mockk.every
-import io.mockk.verify
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.parallel.Execution
-import org.junit.jupiter.api.parallel.ExecutionMode
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
-import org.springframework.http.MediaType
-import org.springframework.security.test.context.support.WithMockUser
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
-import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
-
-/**
- * Controller REST API Test
- *
- * Spring Boot 4.x Pattern:
- * - @SpringBootTest + @AutoConfigureMockMvc: Integration test (multi-module compatible)
- * - @MockkBean: springmockk 5.0.1 (Spring Boot 4 compatible)
- */
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Execution(ExecutionMode.SAME_THREAD)
-@WithMockUser(username = "testuser", roles = ["USER"])
-class MyControllerTest {
-
-    @Autowired
-    private lateinit var mockMvc: MockMvc
-
-    @Autowired
-    private lateinit var jsonMapper: JsonMapper
-
-    @MockkBean(relaxed = true)
-    private lateinit var myService: MyService
-
-    @Nested
-    @DisplayName("GET /api/v1/items")
-    inner class GetItems {
-
-        @Test
-        @DisplayName("should return items list")
-        fun `should return items list`() {
-            // Given
-            every { myService.getItems() } returns listOf(testItem)
-
-            // When & Then
-            mockMvc.perform(get("/api/v1/items"))
-                .andExpect(status().isOk)
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").isArray())
-
-            verify { myService.getItems() }
-        }
-    }
-
-    @Nested
-    @DisplayName("POST /api/v1/items")
-    inner class CreateItem {
-
-        @Test
-        @DisplayName("should create item with valid data")
-        fun `should create item with valid data`() {
-            // Given
-            val request = CreateItemRequest(name = "test")
-            every { myService.createItem(any()) } returns testItem
-
-            // When & Then
-            mockMvc.perform(
-                post("/api/v1/items")
-                    .with(csrf())  // Required for POST/PUT/DELETE
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(jsonMapper.writeValueAsString(request))
-            )
-                .andExpect(status().isCreated)
-                .andExpect(jsonPath("$.success").value(true))
-
-            verify { myService.createItem(any()) }
-        }
-    }
-}
-```
-
-### Service Unit Test
-
-```kotlin
-package com.github.lambda.domain.service
-
-import com.github.lambda.domain.repository.ItemRepositoryJpa
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.verify
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-
-@DisplayName("ItemService Business Logic Test")
-class ItemServiceTest {
-
-    private val itemRepositoryJpa: ItemRepositoryJpa = mockk()
-    private lateinit var itemService: ItemService
-
-    @BeforeEach
-    fun setUp() {
-        itemService = ItemService(itemRepositoryJpa)
-    }
-
-    @Nested
-    @DisplayName("createItem")
-    inner class CreateItem {
-
-        @Test
-        @DisplayName("should save and return item")
-        fun `should save and return item`() {
-            // Given
-            val command = CreateItemCommand(name = "test")
-            val savedEntity = ItemEntity(id = 1L, name = "test")
-            val saveSlot = slot<ItemEntity>()
-
-            every { itemRepositoryJpa.save(capture(saveSlot)) } returns savedEntity
-
-            // When
-            val result = itemService.createItem(command)
-
-            // Then
-            assertThat(result.id).isEqualTo(1L)
-            assertThat(result.name).isEqualTo("test")
-            verify(exactly = 1) { itemRepositoryJpa.save(any()) }
-
-            val capturedEntity = saveSlot.captured
-            assertThat(capturedEntity.name).isEqualTo("test")
-        }
-
-        @Test
-        @DisplayName("should throw exception when name is empty")
-        fun `should throw exception when name is empty`() {
-            // Given
-            val command = CreateItemCommand(name = "")
-
-            // When & Then
-            assertThatThrownBy { itemService.createItem(command) }
-                .isInstanceOf(IllegalArgumentException::class.java)
-                .hasMessageContaining("name")
-        }
-    }
-}
-```
-
-### Repository Integration Test
-
-```kotlin
-package com.github.lambda.infra.repository
-
-import com.github.lambda.domain.model.ItemEntity
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
-import org.springframework.test.context.ActiveProfiles
-
-@DataJpaTest
-@ActiveProfiles("test")
-@DisplayName("ItemRepository Integration Test")
-class ItemRepositoryIntegrationTest {
-
-    @Autowired
-    private lateinit var testEntityManager: TestEntityManager
-
-    @Autowired
-    private lateinit var itemRepository: ItemRepositoryJpaSpringData
-
-    @Test
-    @DisplayName("should find item by name")
-    fun `should find item by name`() {
-        // Given
-        val item = ItemEntity(name = "test-item")
-        testEntityManager.persistAndFlush(item)
-
-        // When
-        val found = itemRepository.findByName("test-item")
-
-        // Then
-        assertThat(found).isNotNull
-        assertThat(found!!.name).isEqualTo("test-item")
-    }
-}
 ```
 
 ---
@@ -1182,15 +850,6 @@ mockMvc.perform(
 Create a test-specific security config if needed:
 
 ```kotlin
-package com.github.lambda.config
-
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
-import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.security.web.SecurityFilterChain
-
 @TestConfiguration
 @EnableWebSecurity
 class TestSecurityConfig {
@@ -1207,29 +866,24 @@ class TestSecurityConfig {
 }
 ```
 
-**Note:** Only import `TestSecurityConfig` if the main `SecurityConfig` blocks test access. If your main config already permits all in dev/test profiles, you may not need this.
-
 ---
 
 ## Troubleshooting
 
-### Error: "Browser not found" or ObjectMapper issues
+### Error: ObjectMapper not found
 
 **Symptom:**
 ```
 No qualifying bean of type 'com.fasterxml.jackson.databind.ObjectMapper'
 ```
 
-**Solution:**
-Use Jackson 3's `JsonMapper` instead:
+**Solution:** Use Jackson 3's `JsonMapper`:
 ```kotlin
 // Wrong
-@Autowired
-private lateinit var objectMapper: ObjectMapper
+@Autowired private lateinit var objectMapper: ObjectMapper
 
 // Correct
-@Autowired
-private lateinit var jsonMapper: JsonMapper
+@Autowired private lateinit var jsonMapper: JsonMapper
 ```
 
 ---
@@ -1241,8 +895,7 @@ private lateinit var jsonMapper: JsonMapper
 NoSuchMethodError or ClassNotFoundException related to MockkBean
 ```
 
-**Solution:**
-Upgrade to springmockk 5.0.1+:
+**Solution:** Upgrade to springmockk 5.0.1+:
 ```kotlin
 // build.gradle.kts
 set("springMockkVersion", "5.0.1")
@@ -1256,31 +909,21 @@ set("springMockkVersion", "5.0.1")
 ```
 Error creating bean with name 'myController': Unsatisfied dependency
 ```
-or
-```
-No qualifying bean of type 'com.github.lambda.api.controller.MyController'
-```
 
-**Solution:**
-Use `@SpringBootTest` + `@AutoConfigureMockMvc` instead:
+**Solution:** Use `@SpringBootTest` + `@AutoConfigureMockMvc`:
 ```kotlin
-// Instead of
-@WebMvcTest(MyController::class)
-
-// Use
 @SpringBootTest
 @AutoConfigureMockMvc
+class MyControllerTest { ... }
 ```
 
 ---
 
 ### Error: Parallel test failures
 
-**Symptom:**
-Tests pass individually but fail when run together with random errors.
+**Symptom:** Tests pass individually but fail together.
 
-**Solution:**
-Add `@Execution(ExecutionMode.SAME_THREAD)` to prevent parallel execution issues with MockK:
+**Solution:** Add `@Execution(ExecutionMode.SAME_THREAD)`:
 ```kotlin
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -1297,13 +940,11 @@ class MyControllerTest { ... }
 Status expected:<201> but was:<403>
 ```
 
-**Solution:**
-Add CSRF token and authentication:
+**Solution:** Add CSRF token and authentication:
 ```kotlin
 mockMvc.perform(
     post("/api/v1/items")
         .with(csrf())  // Add CSRF token
-        .with(user("testuser").roles("USER"))  // Or use @WithMockUser
         .contentType(MediaType.APPLICATION_JSON)
         .content(json)
 )
@@ -1313,13 +954,7 @@ mockMvc.perform(
 
 ### Error: Import cannot be resolved for @AutoConfigureMockMvc
 
-**Symptom:**
-```
-Cannot resolve symbol 'AutoConfigureMockMvc'
-```
-
-**Solution:**
-Use the new Spring Boot 4.x package:
+**Solution:** Use the new Spring Boot 4.x package:
 ```kotlin
 // Old (Spring Boot 3.x)
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -1337,16 +972,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 io.mockk.MockKException: no answer found for...
 ```
 
-**Solution:**
-Use `relaxed = true` for lenient mocking:
+**Solution:** Use `relaxed = true`:
 ```kotlin
 @MockkBean(relaxed = true)
 private lateinit var myService: MyService
-```
-
-Or provide explicit stubs for all called methods:
-```kotlin
-every { myService.anyMethod(any()) } returns expectedValue
 ```
 
 ---
@@ -1369,12 +998,12 @@ project-basecamp-server/
 ├── module-core-infra/
 │   └── src/test/kotlin/
 │       └── com/github/lambda/infra/
-│           └── repository/               # Repository integration tests
+│           └── repository/               # Repository tests
 └── module-server-api/
     └── src/test/kotlin/
         └── com/github/lambda/
             ├── config/
-            │   └── TestSecurityConfig.kt  # Test security configuration
+            │   └── TestSecurityConfig.kt
             ├── controller/                # Controller tests
             └── mapper/                    # Mapper unit tests
 ```
@@ -1397,11 +1026,99 @@ fun `should return user when email exists`() { ... }
 
 @Test
 fun `should throw exception when user not found`() { ... }
-
-@Test
-@DisplayName("should save user with generated id")
-fun saveUserWithGeneratedId() { ... }
 ```
+
+---
+
+## CLI-Server Contract Testing
+
+### Overview
+
+The Basecamp Server API must maintain compatibility with the CLI client (`dli`). Contract testing ensures server responses match CLI expectations.
+
+### API Contract Source of Truth
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| **API Contracts** | `project-interface-cli/src/dli/core/client.py` | Mock implementations define expected shapes |
+| **Response Models** | `BasecampClient.ServerResponse` dataclass | Standard response wrapper |
+| **Enums & Constants** | `WorkflowSource`, `RunStatus` enums | Allowed values |
+
+### Contract Testing Pattern
+
+```kotlin
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
+class MetricApiContractTest {
+
+    @Autowired
+    private lateinit var testRestTemplate: TestRestTemplate
+
+    @Test
+    fun `POST metrics should match CLI BasecampClient contract`() {
+        // Given: Request matching CLI client.py
+        val request = mapOf(
+            "name" to "test.example.metric",
+            "owner" to "test@example.com",
+            "sql" to "SELECT 1",
+            "tags" to listOf("test")
+        )
+
+        // When
+        val response = testRestTemplate.postForEntity(
+            "/api/v1/metrics",
+            request,
+            Map::class.java
+        )
+
+        // Then: Response matches CLI expectations
+        assertThat(response.statusCode).isEqualTo(HttpStatus.CREATED)
+        val body = response.body as Map<*, *>
+        assertThat(body).containsKeys("message", "name")
+    }
+
+    @Test
+    fun `Error responses should match CLI error format`() {
+        // When
+        val response = testRestTemplate.getForEntity(
+            "/api/v1/metrics/nonexistent",
+            Map::class.java
+        )
+
+        // Then
+        assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        val body = response.body as Map<*, *>
+        assertThat(body).containsKey("error")
+        val error = body["error"] as Map<*, *>
+        assertThat(error).containsKeys("code", "message")
+    }
+}
+```
+
+### Contract Validation Checklist
+
+- [ ] Response shape matches `BasecampClient` mock implementation
+- [ ] Error responses follow standard error format
+- [ ] Enum values match CLI client definitions
+- [ ] Required fields are present in all responses
+- [ ] HTTP status codes match CLI expectations
+
+---
+
+## Checklist for New Tests
+
+When writing a new test file:
+
+- [ ] Use correct Spring Boot 4.x imports (`tools.jackson.*`, `o.s.boot.webmvc.*`)
+- [ ] Use `@SpringBootTest` + `@AutoConfigureMockMvc` for controller tests
+- [ ] Add `@Execution(ExecutionMode.SAME_THREAD)` to prevent parallel issues
+- [ ] Use `@WithMockUser` for authenticated endpoints
+- [ ] Add `.with(csrf())` for POST/PUT/DELETE requests
+- [ ] Use `JsonMapper` instead of `ObjectMapper`
+- [ ] Use `@MockkBean(relaxed = true)` for lenient mocking
+- [ ] Use `@ActiveProfiles("test")` for test-specific configuration
+- [ ] Service tests: Use pure `mockk()`, NOT `@MockkBean`
+- [ ] Controller integration tests: Minimize count, prefer slice tests
 
 ---
 
@@ -1437,136 +1154,12 @@ After running tests, reports are available at:
 
 ---
 
-## CLI-Server Contract Testing
-
-### Overview
-
-The Basecamp Server API must maintain compatibility with the CLI client (`dli`). Contract testing ensures that server responses match CLI expectations.
-
-### API Contract Source of Truth
-
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| **API Contracts** | `project-interface-cli/src/dli/core/client.py` | Mock implementations define expected request/response shapes |
-| **Response Models** | `BasecampClient.ServerResponse` dataclass | Standard response wrapper |
-| **Enums & Constants** | `WorkflowSource`, `RunStatus` enums | Allowed values and state definitions |
-
-### Contract Testing Pattern
-
-```kotlin
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-class MetricApiContractTest {
-
-    @Autowired
-    private lateinit var testRestTemplate: TestRestTemplate
-
-    @Test
-    fun `POST metrics should match CLI BasecampClient contract`() {
-        // Given: Request matching CLI client.py CreateMetricRequest
-        val request = mapOf(
-            "name" to "test.example.metric",
-            "owner" to "test@example.com",
-            "sql" to "SELECT 1",
-            "tags" to listOf("test")
-        )
-
-        // When: Call API endpoint
-        val response = testRestTemplate.postForEntity(
-            "/api/v1/metrics",
-            request,
-            Map::class.java
-        )
-
-        // Then: Response matches CLI expectations
-        assertThat(response.statusCode).isEqualTo(HttpStatus.CREATED)
-        assertThat(response.body).isNotNull
-
-        // Verify response shape matches BasecampClient.ServerResponse
-        val body = response.body as Map<*, *>
-        assertThat(body).containsKeys("message", "name")
-        assertThat(body["name"]).isEqualTo("test.example.metric")
-    }
-
-    @Test
-    fun `GET metrics name should return CLI-compatible response`() {
-        // Setup: Create test metric
-        val metricName = "test.metric"
-        // ... create metric ...
-
-        // When: Get metric
-        val response = testRestTemplate.getForEntity(
-            "/api/v1/metrics/$metricName",
-            Map::class.java
-        )
-
-        // Then: Response matches CLI MetricDto expectations
-        assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
-        val body = response.body as Map<*, *>
-
-        // Verify required fields from CLI client.py
-        assertThat(body).containsKeys("name", "type", "owner", "sql", "tags")
-        assertThat(body["type"]).isEqualTo("Metric")
-        assertThat(body["tags"]).isInstanceOf(List::class.java)
-    }
-
-    @Test
-    fun `Error responses should match CLI error format`() {
-        // When: Request non-existent metric
-        val response = testRestTemplate.getForEntity(
-            "/api/v1/metrics/nonexistent",
-            Map::class.java
-        )
-
-        // Then: Error format matches CLI expectations
-        assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
-        val body = response.body as Map<*, *>
-
-        // Verify error structure from ERROR_CODES.md
-        assertThat(body).containsKey("error")
-        val error = body["error"] as Map<*, *>
-        assertThat(error).containsKeys("code", "message")
-        assertThat(error["code"]).isEqualTo("METRIC_NOT_FOUND")
-    }
-}
-```
-
-### Contract Validation Checklist
-
-When implementing or modifying API endpoints:
-
-- [ ] Response shape matches `BasecampClient` mock implementation
-- [ ] Error responses follow standard error format (see [ERROR_HANDLING.md](./ERROR_HANDLING.md))
-- [ ] Enum values match CLI client definitions (`WorkflowSource`, `RunStatus`, etc.)
-- [ ] Required fields are present in all responses
-- [ ] HTTP status codes match CLI expectations
-- [ ] Field names use snake_case (CLI) or camelCase (API) consistently
-
-### Cross-Reference
-
-- **Error Codes**: [docs/ERROR_HANDLING.md](../../../docs/ERROR_HANDLING.md#cli-error-code-mapping)
-- **CLI Client Mock**: `project-interface-cli/src/dli/core/client.py`
-- **API Specifications**: [features/METRIC_FEATURE.md](../features/METRIC_FEATURE.md)
-
----
-
-## Checklist for New Tests
-
-When writing a new test file:
-
-- [ ] Use correct Spring Boot 4.x imports (`tools.jackson.*`, `org.springframework.boot.webmvc.*`)
-- [ ] Use `@SpringBootTest` + `@AutoConfigureMockMvc` for controller tests
-- [ ] Add `@Execution(ExecutionMode.SAME_THREAD)` to prevent parallel issues
-- [ ] Use `@WithMockUser` for authenticated endpoints
-- [ ] Add `.with(csrf())` for POST/PUT/DELETE requests
-- [ ] Use `JsonMapper` instead of `ObjectMapper`
-- [ ] Use `@MockkBean(relaxed = true)` for lenient mocking
-- [ ] Use `@ActiveProfiles("test")` for test-specific configuration
-
----
-
 ## Related Documentation
 
-- [README.md](../README.md) - Project overview and quick start
-- [CLAUDE.md](../../CLAUDE.md) - AI assistant instructions
-- [Spring Boot 4 Migration Guide](https://docs.spring.io/spring-boot/docs/4.0.x/reference/html/) (external)
+- **Quick Reference**: [PATTERNS.md](./PATTERNS.md) - Fast lookup patterns
+- **Implementation Guide**: [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) - Step-by-step guidance
+- **Spring Boot 4 Migration**: [docs.spring.io](https://docs.spring.io/spring-boot/docs/4.0.x/reference/html/)
+
+---
+
+*Last Updated: 2026-01-03*

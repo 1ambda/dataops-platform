@@ -108,9 +108,19 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 ## Implementation Patterns (CRITICAL)
 
-- Read docs/PATTERNS.md (includes **Module Placement Rules** - verify before creating new classes)
-- Read docs/TESTING.md (includes **Test Patterns by Layer** - verify test type per layer)
-- Read docs/IMPLEMENTATION_GUIDE.md (includes **Exception Placement Guidelines**)
+**MUST READ before any implementation:**
+
+| Document | Purpose | Read When |
+|----------|---------|-----------|
+| `docs/PATTERNS.md` | Quick reference patterns, decision tables | Need pattern/naming lookup |
+| `docs/IMPLEMENTATION_GUIDE.md` | Step-by-step implementation workflow | Implementing new features |
+| `docs/TESTING.md` | Test strategies by layer | Writing tests |
+
+### Key References:
+- **Module Placement:** `PATTERNS.md#module-placement-rules`
+- **Entity Rules:** `PATTERNS.md#entity-relationship-rules`
+- **Repository Naming:** `PATTERNS.md#repository-naming-convention`
+- **Test Patterns:** `TESTING.md#test-patterns-by-layer`
 
 ### Test Patterns Quick Reference
 

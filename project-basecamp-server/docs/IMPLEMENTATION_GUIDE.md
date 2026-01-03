@@ -1,39 +1,193 @@
-# Implementation Guide - Spring Boot + Kotlin
+# Step-by-Step Implementation Guide
 
-> **Last Updated:** 2026-01-01
-> **Target Audience:** Backend developers implementing Basecamp Server APIs
-> **Purpose:** Spring Boot + Kotlin patterns following hexagonal architecture
-> **Cross-Reference:** [architecture.md](./architecture.md) for architecture details
+> **Purpose:** Detailed guidance for implementing new features in project-basecamp-server
+> **Audience:** Developers implementing features, AI agents building new functionality
+> **Use When:** "I'm implementing a new feature, guide me through it"
+
+**See Also:**
+- [PATTERNS.md](./PATTERNS.md) - Quick reference patterns, decision tables, naming conventions
+- [TESTING.md](./TESTING.md) - Comprehensive testing strategies and examples
+- [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Error codes, exception hierarchy, response format
 
 ---
 
 ## Table of Contents
 
-0. [Custom Rules](#custom-rules)
-1. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
-2. [Service Implementation Patterns](#service-implementation-patterns)
-3. [Repository Layer Patterns](#repository-layer-patterns)
-4. [Controller Patterns](#controller-patterns)
-5. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
-6. [Entity Patterns](#entity-patterns)
-7. [Testing Patterns](#testing-patterns)
-8. 
+1. [Custom Rules](#custom-rules-critical)
+2. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
+3. [Module Placement Guidelines](#module-placement-guidelines)
+4. [Entity Relationship Rules](#entity-relationship-rules-critical)
+5. [Service Implementation Patterns](#service-implementation-patterns)
+6. [Repository Layer Patterns](#repository-layer-patterns)
+7. [Controller Patterns](#controller-patterns)
+8. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
+9. [Entity Patterns](#entity-patterns)
+10. [Implementation Order](#implementation-order)
+
 ---
 
 ## Custom Rules (Critical)
 
-- 미래에는 MySQL 을 사용할 것이나, 현재는 H2 기반의 Entity 를 설계해 사용합니다. 단, MySQL 마이그레이션을 고려해주세요.
-- module-core-infra 에서 데이터 조회는 QueryDSL 을 사용합니다. 데이터 추가 / 변경 / 삭제는 JPA 를 사용할 수 있습니다.
-- **module-core-domain 내 Entity 는 JPA 연관 관계를 절대로 (중요) 사용하지 않습니다.** (See [Entity Relationship Rules](#entity-relationship-rules-critical))
-- Test 는 ServiceTest 를 위주로 작성합니다. ControllerTest 도 작성합니다.
-- SpringBootApplication 을 띄우는 무거운 테스트는 지양합니다.
-- Basecamp Server 의 자체 기능이 아니거나 외부와의 연동 (e.g, Airflow 연동, BigQuery 실행 등) 의 경우에는 Mock 방식으로 작업합니다.
+Before implementing any feature, understand these project-specific rules:
+
+1. **Database Strategy**: Currently using H2 for development, planning MySQL migration. Design entities with MySQL compatibility in mind.
+
+2. **Data Access Technology**:
+   - **Queries**: Use QueryDSL for all data retrieval in `module-core-infra`
+   - **Mutations**: JPA is acceptable for create/update/delete operations
+
+3. **No JPA Relationships**: Entities must NOT use JPA relationship annotations. See [Entity Relationship Rules](#entity-relationship-rules-critical).
+
+4. **Test Priority**:
+   - Focus on Service tests (unit tests with MockK)
+   - Also write Controller tests
+   - Avoid heavy SpringBootApplication-based tests
+
+5. **External Integrations**: Use Mock implementations for external systems (Airflow, BigQuery, etc.)
+
+---
+
+## Hexagonal Architecture Patterns
+
+### Module Structure Overview
+
+```
+project-basecamp-server/
+├── module-core-common/          # Shared utilities (NO domain dependencies)
+│   ├── src/main/kotlin/common/
+│   │   ├── exception/           # Base exceptions (BusinessException, etc.)
+│   │   ├── constant/            # Shared constants
+│   │   └── util/                # Utility classes
+├── module-core-domain/          # Domain models & interfaces
+│   ├── src/main/kotlin/domain/
+│   │   ├── model/               # JPA entities (domain-specific)
+│   │   ├── repository/          # Repository interfaces (ports)
+│   │   └── service/             # Domain services (concrete)
+├── module-core-infra/           # Infrastructure implementations
+│   ├── src/main/kotlin/infra/
+│   │   ├── repository/          # Repository implementations (adapters)
+│   │   ├── external/            # External service clients (Airflow, BigQuery)
+│   │   └── exception/           # Infrastructure-specific exceptions (optional)
+└── module-server-api/           # REST API layer
+    ├── src/main/kotlin/api/
+    │   ├── controller/          # REST controllers
+    │   ├── dto/                 # API request/response DTOs
+    │   └── mapper/              # DTO <-> Entity mappers
+```
+
+### Dependency Flow
+
+```
+module-server-api
+       │
+       ▼
+module-core-infra ───────► module-core-domain
+       │                          │
+       └──────────────────────────┼─────► module-core-common
+                                  │
+                                  ▼
+                          module-core-common
+```
+
+### Key Principles
+
+1. **Domain Independence**: `module-core-domain` has zero infrastructure imports
+2. **No Service Interfaces**: Services are concrete classes with `@Service` annotation
+3. **Direct Repository Injection**: Services inject domain repository interfaces directly
+4. **DTOs at Boundaries**: API layer uses DTOs, never exposes entities
+
+---
+
+## Module Placement Guidelines
+
+### Before Creating Any New Class
+
+Ask: **"What does this class depend on?"**
+
+| Module | Depends On | Contains | Examples |
+|--------|------------|----------|----------|
+| **module-core-common** | Nothing | Base exceptions, utilities, shared constants | `BusinessException`, `DateUtils` |
+| **module-core-domain** | common only | Entities, repository interfaces, domain services | `MetricEntity`, `MetricRepositoryJpa`, `MetricService` |
+| **module-core-infra** | common + domain | Repository impls, external clients | `MetricRepositoryJpaImpl`, `AirflowClient` |
+| **module-server-api** | all modules | Controllers, API DTOs, mappers | `MetricController`, `MetricRequest` |
+
+### Exception Placement Guidelines
+
+This is a common source of errors. Follow these rules strictly:
+
+```kotlin
+// CORRECT: module-core-common/exception/
+// - Base exceptions with NO domain dependencies
+abstract class BusinessException(
+    message: String,
+    val errorCode: String,
+    cause: Throwable? = null
+) : RuntimeException(message, cause)
+
+class ResourceNotFoundException(resourceType: String, identifier: Any) :
+    BusinessException("$resourceType not found: $identifier", "RESOURCE_NOT_FOUND")
+
+class ExternalSystemException(system: String, operation: String) :
+    BusinessException("External system error: $system - $operation", "EXTERNAL_ERROR")
+
+// CORRECT: module-core-domain (domain-specific exceptions)
+// - Exceptions tied to specific domain entities or business rules
+class MetricNotFoundException(name: String) :
+    BusinessException("Metric not found: $name", "METRIC_NOT_FOUND")
+
+class DatasetAlreadyExistsException(datasetName: String) :
+    BusinessException("Dataset already exists: $datasetName", "DATASET_EXISTS")
+
+// CORRECT: module-core-infra/external/ (infrastructure exceptions)
+// - Exceptions for external system integrations
+class AirflowConnectionException(operation: String) :
+    ExternalSystemException("Airflow", operation)
+
+class BigQueryExecutionException(query: String) :
+    ExternalSystemException("BigQuery", "Query execution failed")
+```
+
+**Quick Rule:** If an exception mentions an external system (Airflow, BigQuery, Trino, S3), it belongs in `module-core-common/exception/` (generic) or `module-core-infra/` (specific).
+
+### Bean Configuration Pattern
+
+```kotlin
+@Configuration
+@ComponentScan(basePackages = [
+    "com.basecamp.domain.service",
+    "com.basecamp.infra.repository",
+    "com.basecamp.infra.external"
+])
+class InfrastructureConfig {
+
+    @Bean("metricRepositoryJpa")
+    fun metricRepositoryJpa(springDataRepo: MetricRepositoryJpaSpringData): MetricRepositoryJpa {
+        return MetricRepositoryJpaImpl(springDataRepo)
+    }
+
+    @Bean("metricRepositoryDsl")
+    fun metricRepositoryDsl(entityManager: EntityManager): MetricRepositoryDsl {
+        return MetricRepositoryDslImpl(entityManager)
+    }
+}
+```
 
 ---
 
 ## Entity Relationship Rules (CRITICAL)
 
-> **Core Rule**: Entities must NOT use JPA relationship annotations (`@OneToMany`, `@ManyToOne`, `@OneToOne`, `@ManyToMany`).
+> **Core Rule**: Entities must NOT use JPA relationship annotations.
+
+This is a fundamental design decision for maintainability and performance.
+
+### Why No JPA Relationships?
+
+| Problem | JPA Relationships | Our Approach |
+|---------|-------------------|--------------|
+| **N+1 Queries** | Lazy loading causes unpredictable query counts | Explicit QueryDSL fetches |
+| **Complexity** | Cascade, orphan removal, bidirectional sync | Simple FK fields |
+| **Testing** | Mock setup for relationships is complex | Test entities in isolation |
+| **Boundaries** | Entity controls related data | Service controls aggregation |
 
 ### Entity Design Principles
 
@@ -51,7 +205,7 @@ class OrderEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
-    // ✅ CORRECT: Foreign key as simple field
+    // CORRECT: Foreign key as simple field
     @Column(name = "user_id", nullable = false)
     val userId: Long,
 
@@ -63,22 +217,41 @@ class OrderEntity(
     @Column(name = "created_at", nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 ) {
-    // ❌ NO relationship fields like:
-    // val user: UserEntity
-    // val items: List<OrderItemEntity>
+    // NO relationship fields like:
+    // val user: UserEntity          <- FORBIDDEN
+    // val items: List<OrderItemEntity>  <- FORBIDDEN
 }
 ```
 
-### JPA vs QueryDSL Decision Guide
+### Anti-Pattern Examples
 
-| Use Case | Technology | Rationale |
-|----------|------------|-----------|
-| **Create/Update/Delete** single entity | JPA | Simple persistence operations |
-| **Find by 1-2 fields** | JPA | `findById()`, `findByName()` are fine |
-| **Find by 3+ fields** | QueryDSL | Method names become unwieldy |
-| **Dynamic conditions** (user-selected filters) | QueryDSL | BooleanBuilder for optional conditions |
-| **Fetch related entities** | QueryDSL | Explicit joins, no lazy loading surprises |
-| **Aggregation projections** | QueryDSL | DTO projections with joined data |
+```kotlin
+// WRONG: Entity with relationships
+@Entity
+class UserEntity(
+    @Id val id: Long,
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    val orders: List<OrderEntity> = emptyList(),  // FORBIDDEN
+)
+
+// WRONG: Bidirectional relationship
+@Entity
+class OrderItemEntity(
+    @Id val id: Long,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    val order: OrderEntity,  // FORBIDDEN
+)
+
+// WRONG: JPA method with too many conditions
+interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
+    fun findByNameContainingAndStatusAndRoleAndCreatedAtAfter(
+        name: String, status: Status, role: Role, date: LocalDateTime
+    ): List<UserEntity>  // Too complex - use QueryDSL
+}
+```
 
 ### QueryDSL Aggregation Pattern
 
@@ -137,160 +310,12 @@ class OrderRepositoryDslImpl(
         return OrderAggregation(order = orderEntity, items = items)
     }
 }
-```
 
-### The "3-Word Rule"
-
-If a Spring Data JPA method name exceeds 3 words (by `And`/`Or` count), use QueryDSL:
-
-```kotlin
-// ✅ JPA OK: 1-2 conditions
-fun findByStatus(status: Status): List<Entity>
-fun findByNameAndType(name: String, type: Type): Entity?
-
-// ❌ Too complex for JPA: 3+ conditions -> Use QueryDSL
-// findByStatusAndTypeAndOwnerAndCreatedAtAfter(...)
-```
-
-### Anti-Pattern Examples
-
-```kotlin
-// ❌ WRONG: Entity with relationships
-@Entity
-class UserEntity(
-    @Id val id: Long,
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    val orders: List<OrderEntity> = emptyList(),  // ❌ FORBIDDEN
+// Aggregation Result (Domain Model, NOT Entity)
+data class OrderAggregation(
+    val order: OrderEntity,
+    val items: List<OrderItemEntity>,
 )
-
-// ❌ WRONG: Bidirectional relationship
-@Entity
-class OrderItemEntity(
-    @Id val id: Long,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    val order: OrderEntity,  // ❌ FORBIDDEN
-)
-
-// ❌ WRONG: JPA method with too many conditions
-interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
-    fun findByNameContainingAndStatusAndRoleAndCreatedAtAfter(
-        name: String, status: Status, role: Role, date: LocalDateTime
-    ): List<UserEntity>  // ❌ Too complex - use QueryDSL
-}
-```
-
----
-
-## Hexagonal Architecture Patterns
-
-### Module Structure
-
-```
-project-basecamp-server/
-├── module-core-common/          # Shared utilities (NO domain dependencies)
-│   ├── src/main/kotlin/common/
-│   │   ├── exception/           # Base exceptions (BusinessException, etc.)
-│   │   ├── constant/            # Shared constants
-│   │   └── util/               # Utility classes
-├── module-core-domain/          # Domain models & interfaces
-│   ├── src/main/kotlin/domain/
-│   │   ├── model/               # JPA entities (domain-specific)
-│   │   ├── repository/          # Repository interfaces (ports)
-│   │   └── service/            # Domain services (concrete)
-├── module-core-infra/           # Infrastructure implementations
-│   ├── src/main/kotlin/infra/
-│   │   ├── repository/          # Repository implementations (adapters)
-│   │   ├── external/           # External service clients (Airflow, BigQuery)
-│   │   └── exception/          # Infrastructure-specific exceptions (optional)
-└── module-server-api/           # REST API layer
-    ├── src/main/kotlin/api/
-    │   ├── controller/          # REST controllers
-    │   ├── dto/                # API request/response DTOs
-    │   └── mapper/             # DTO ↔ Entity mappers
-```
-
-### Module Placement Decision Guide (CRITICAL)
-
-**Before creating ANY new class, ask: "What does this class depend on?"**
-
-| Module | Depends On | Contains | Examples |
-|--------|------------|----------|----------|
-| **module-core-common** | Nothing (base module) | Base exceptions, utilities, shared constants | `BusinessException`, `DateUtils`, `CommonConstants` |
-| **module-core-domain** | common only | Entities, repository interfaces, domain services, domain exceptions | `MetricEntity`, `MetricRepositoryJpa`, `MetricService`, `MetricNotFoundException` |
-| **module-core-infra** | common + domain | Repository impls, external clients, infra exceptions | `MetricRepositoryJpaImpl`, `AirflowClient`, `AirflowConnectionException` |
-| **module-server-api** | common + domain + infra | Controllers, API DTOs, mappers | `MetricController`, `MetricRequest`, `MetricMapper` |
-
-### Exception Placement Guidelines
-
-```kotlin
-// CORRECT: module-core-common/exception/
-// - Base exceptions with NO domain dependencies
-abstract class BusinessException(message: String, errorCode: String, cause: Throwable?)
-class ResourceNotFoundException(resourceType: String, identifier: Any)
-class ExternalSystemException(system: String, operation: String)
-
-// CORRECT: module-core-domain (domain-specific exceptions)
-// - Exceptions tied to specific domain entities or business rules
-class MetricNotFoundException(name: String)         // Uses MetricEntity concept
-class DatasetAlreadyExistsException(datasetName: String)  // Uses Dataset domain
-
-// CORRECT: module-core-infra/external/ or infra/exception/ (infrastructure exceptions)
-// - Exceptions for external system integrations
-class AirflowConnectionException(operation: String) // Airflow-specific
-class BigQueryExecutionException(query: String)     // BigQuery-specific
-class WorkflowStorageException(operation: String)   // Storage-specific
-
-// WRONG: module-core-domain/external/ ❌
-// - External system exceptions should NOT be in domain layer
-// - They don't represent domain concepts
-```
-
-**Quick Rule:** If an exception mentions an external system (Airflow, BigQuery, Trino, S3, etc.), it belongs in `module-core-common/exception/` (generic) or `module-core-infra/` (specific implementation).
-
-### Dependency Rules
-
-```kotlin
-// ✅ CORRECT: Domain → Infrastructure dependency injection
-@Service
-class MetricService(
-    private val metricRepositoryJpa: MetricRepositoryJpa,    // Domain interface
-    private val metricRepositoryDsl: MetricRepositoryDsl,    // Domain interface
-) {
-    // Service implementation
-}
-
-// ❌ INCORRECT: Do not create service interfaces
-interface MetricService {  // Don't do this
-    fun createMetric(...): MetricDto
-}
-```
-
-### Bean Configuration Pattern
-
-```kotlin
-// Infrastructure Layer Configuration
-@Configuration
-@ComponentScan(basePackages = [
-    "com.basecamp.domain.service",      // Domain services
-    "com.basecamp.infra.repository",    // Infrastructure implementations
-    "com.basecamp.infra.external"       // External clients
-])
-class InfrastructureConfig {
-
-    // Repository bean naming for proper injection
-    @Bean("metricRepositoryJpa")
-    fun metricRepositoryJpa(springDataRepo: MetricRepositoryJpaSpringData): MetricRepositoryJpa {
-        return MetricRepositoryJpaImpl(springDataRepo)
-    }
-
-    @Bean("metricRepositoryDsl")
-    fun metricRepositoryDsl(entityManager: EntityManager): MetricRepositoryDsl {
-        return MetricRepositoryDslImpl(entityManager)
-    }
-}
 ```
 
 ---
@@ -306,31 +331,30 @@ class MetricService(
     private val metricRepositoryJpa: MetricRepositoryJpa,
     private val metricRepositoryDsl: MetricRepositoryDsl,
     private val metricValidator: MetricValidator,
-    private val metricExecutor: MetricExecutor,
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(MetricService::class.java)
     }
 
     @Transactional
-    fun createMetric(request: CreateMetricRequest): MetricDto {
-        logger.info("Creating metric: {}", request.name)
+    fun createMetric(command: CreateMetricCommand): MetricDto {
+        logger.info("Creating metric: {}", command.name)
 
         // 1. Validation
-        metricValidator.validate(request)
+        metricValidator.validate(command)
 
         // 2. Check for duplicates
-        metricRepositoryJpa.findByName(request.name)?.let {
-            throw MetricAlreadyExistsException(request.name)
+        metricRepositoryJpa.findByName(command.name)?.let {
+            throw MetricAlreadyExistsException(command.name)
         }
 
         // 3. Create entity
         val entity = MetricEntity(
             id = UUID.randomUUID().toString(),
-            name = request.name,
-            owner = request.owner,
-            sql = request.sql,
-            tags = request.tags.toSet(),
+            name = command.name,
+            owner = command.owner,
+            sql = command.sql,
+            tags = command.tags.toSet(),
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now()
         )
@@ -342,50 +366,42 @@ class MetricService(
         return MetricMapper.toDto(saved)
     }
 
-    fun listMetrics(
-        tag: String?,
-        owner: String?,
-        search: String?,
-        limit: Int,
-        offset: Int,
-    ): List<MetricDto> {
-        logger.debug("Listing metrics with filters: tag={}, owner={}, search={}", tag, owner, search)
+    fun listMetrics(query: ListMetricsQuery): List<MetricDto> {
+        logger.debug("Listing metrics with filters: {}", query)
 
         val entities = metricRepositoryDsl.findByFilters(
-            tag = tag,
-            owner = owner,
-            search = search,
-            limit = limit,
-            offset = offset
+            tag = query.tag,
+            owner = query.owner,
+            search = query.search,
+            limit = query.limit,
+            offset = query.offset
         )
 
         return entities.map { MetricMapper.toDto(it) }
     }
 
     fun getMetric(name: String): MetricDto? {
-        logger.debug("Getting metric: {}", name)
-
         return metricRepositoryJpa.findByName(name)
             ?.let { MetricMapper.toDto(it) }
     }
 
     @Transactional
     fun deleteMetric(name: String) {
-        logger.info("Deleting metric: {}", name)
-
         val entity = metricRepositoryJpa.findByName(name)
             ?: throw MetricNotFoundException(name)
 
         metricRepositoryJpa.delete(entity)
-        logger.info("Metric deleted successfully: {}", name)
+        logger.info("Metric deleted: {}", name)
     }
 }
 ```
 
 ### Command/Query Pattern
 
+Use dedicated objects for method parameters:
+
 ```kotlin
-// Command Objects (for mutations)
+// Commands (for mutations)
 data class CreateMetricCommand(
     val name: String,
     val owner: String,
@@ -402,7 +418,7 @@ data class UpdateMetricCommand(
     val description: String?,
 )
 
-// Query Objects (for reads)
+// Queries (for reads)
 data class ListMetricsQuery(
     val tag: String? = null,
     val owner: String? = null,
@@ -415,33 +431,16 @@ data class GetMetricQuery(
     val name: String,
     val includeSQL: Boolean = true,
 )
-
-// Service with Command/Query pattern
-@Service
-@Transactional(readOnly = true)
-class MetricService(
-    private val metricRepositoryJpa: MetricRepositoryJpa,
-    private val metricRepositoryDsl: MetricRepositoryDsl,
-) {
-    @Transactional
-    fun createMetric(command: CreateMetricCommand): MetricDto {
-        // Implementation using command
-    }
-
-    fun listMetrics(query: ListMetricsQuery): List<MetricDto> {
-        // Implementation using query
-    }
-}
 ```
 
 ---
 
 ## Repository Layer Patterns
 
-### Domain Repository Interfaces
+### Domain Repository Interfaces (Ports)
 
 ```kotlin
-// Domain Layer - Simple CRUD interface
+// module-core-domain/repository/MetricRepositoryJpa.kt
 interface MetricRepositoryJpa {
     fun save(metric: MetricEntity): MetricEntity
     fun findById(id: String): MetricEntity?
@@ -451,7 +450,7 @@ interface MetricRepositoryJpa {
     fun existsByName(name: String): Boolean
 }
 
-// Domain Layer - Complex Query interface
+// module-core-domain/repository/MetricRepositoryDsl.kt
 interface MetricRepositoryDsl {
     fun findByFilters(
         tag: String?,
@@ -462,53 +461,36 @@ interface MetricRepositoryDsl {
     ): List<MetricEntity>
 
     fun findByTagsIn(tags: List<String>): List<MetricEntity>
-    fun findByOwnerContaining(ownerPattern: String): List<MetricEntity>
     fun countByOwner(owner: String): Long
 }
 ```
 
-### Infrastructure Repository Implementations
+### Infrastructure Implementation - Simplified Pattern (Recommended)
+
+This pattern combines domain interface and JpaRepository into one interface:
 
 ```kotlin
-// Infrastructure Layer - Spring Data interface
-@Repository
-interface MetricRepositoryJpaSpringData : JpaRepository<MetricEntity, String> {
-    fun findByName(name: String): MetricEntity?
-    fun existsByName(name: String): Boolean
-}
-
-// Infrastructure Layer - JPA implementation
+// module-core-infra/repository/MetricRepositoryJpaImpl.kt
 @Repository("metricRepositoryJpa")
-class MetricRepositoryJpaImpl(
-    private val springDataRepository: MetricRepositoryJpaSpringData,
-) : MetricRepositoryJpa {
+interface MetricRepositoryJpaImpl :
+    MetricRepositoryJpa,
+    JpaRepository<MetricEntity, String> {
 
-    override fun save(metric: MetricEntity): MetricEntity {
-        return springDataRepository.save(metric)
-    }
-
-    override fun findById(id: String): MetricEntity? {
-        return springDataRepository.findById(id).orElse(null)
-    }
-
-    override fun findByName(name: String): MetricEntity? {
-        return springDataRepository.findByName(name)
-    }
-
-    override fun findAll(): List<MetricEntity> {
-        return springDataRepository.findAll()
-    }
-
-    override fun delete(metric: MetricEntity) {
-        springDataRepository.delete(metric)
-    }
-
-    override fun existsByName(name: String): Boolean {
-        return springDataRepository.existsByName(name)
-    }
+    // Spring Data JPA auto-implements these
+    override fun findByName(name: String): MetricEntity?
+    override fun existsByName(name: String): Boolean
 }
+```
 
-// Infrastructure Layer - QueryDSL implementation
+Benefits:
+- Eliminates the need for a separate `*SpringData` interface
+- Reduces boilerplate code
+- Leverages Spring Data JPA's auto-implementation
+
+### Infrastructure Implementation - QueryDSL
+
+```kotlin
+// module-core-infra/repository/MetricRepositoryDslImpl.kt
 @Repository("metricRepositoryDsl")
 class MetricRepositoryDslImpl(
     private val entityManager: EntityManager,
@@ -528,11 +510,9 @@ class MetricRepositoryDslImpl(
             .selectFrom(metric)
             .orderBy(metric.updatedAt.desc())
 
-        // Apply filters
+        // Apply filters dynamically
         tag?.let { query = query.where(metric.tags.contains(it)) }
-
         owner?.let { query = query.where(metric.owner.containsIgnoreCase(it)) }
-
         search?.let { searchTerm ->
             query = query.where(
                 metric.name.containsIgnoreCase(searchTerm)
@@ -552,7 +532,36 @@ class MetricRepositoryDslImpl(
             .where(metric.tags.any().`in`(tags))
             .fetch()
     }
+
+    override fun countByOwner(owner: String): Long {
+        return queryFactory
+            .select(metric.count())
+            .from(metric)
+            .where(metric.owner.eq(owner))
+            .fetchOne() ?: 0L
+    }
 }
+```
+
+### Critical Repository Pattern Rules
+
+**DO NOT create `*RepositoryJpaSpringData` interfaces!**
+
+```kotlin
+// WRONG - Do NOT create this
+interface ItemRepositoryJpaSpringData : JpaRepository<ItemEntity, Long>
+
+// WRONG - Do NOT use composition pattern
+@Repository
+class ItemRepositoryJpaImpl(
+    private val springDataRepository: ItemRepositoryJpaSpringData
+) : ItemRepositoryJpa
+
+// CORRECT - Single interface extending both
+@Repository("itemRepositoryJpa")
+interface ItemRepositoryJpaImpl :
+    ItemRepositoryJpa,           // Domain interface
+    JpaRepository<ItemEntity, Long>  // Spring Data JPA
 ```
 
 ---
@@ -566,85 +575,72 @@ class MetricRepositoryDslImpl(
 @RequestMapping("/api/v1/metrics")
 @CrossOrigin
 @Validated
+@Tag(name = "Metric", description = "Metric Management API")
 class MetricController(
     private val metricService: MetricService,
-    private val metricValidator: MetricValidator,
+    private val metricMapper: MetricMapper,
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(MetricController::class.java)
     }
 
     @GetMapping
+    @Operation(summary = "List metrics with optional filters")
     fun listMetrics(
         @RequestParam(required = false) tag: String?,
         @RequestParam(required = false) owner: String?,
         @RequestParam(required = false) search: String?,
         @RequestParam(defaultValue = "50") @Min(1) @Max(500) limit: Int,
         @RequestParam(defaultValue = "0") @Min(0) offset: Int,
-    ): ResponseEntity<List<MetricDto>> {
-        logger.info("GET /api/v1/metrics - tag: {}, owner: {}, search: {}, limit: {}, offset: {}",
-                   tag, owner, search, limit, offset)
+    ): ResponseEntity<ApiResponse<List<MetricDto>>> {
+        logger.info("GET /api/v1/metrics - tag={}, owner={}, search={}", tag, owner, search)
 
-        val metrics = metricService.listMetrics(
+        val query = ListMetricsQuery(
             tag = tag,
             owner = owner,
             search = search,
             limit = limit,
             offset = offset
         )
+        val metrics = metricService.listMetrics(query)
 
-        return ResponseEntity.ok(metrics)
+        return ResponseEntity.ok(ApiResponse.success(metrics))
     }
 
     @GetMapping("/{name}")
+    @Operation(summary = "Get metric by name")
     fun getMetric(
         @PathVariable @NotBlank name: String,
-    ): ResponseEntity<MetricDto> {
+    ): ResponseEntity<ApiResponse<MetricDto>> {
         logger.info("GET /api/v1/metrics/{}", name)
 
         val metric = metricService.getMetric(name)
-            ?: return ResponseEntity.notFound().build()
+            ?: throw MetricNotFoundException(name)
 
-        return ResponseEntity.ok(metric)
+        return ResponseEntity.ok(ApiResponse.success(metric))
     }
 
     @PostMapping
+    @Operation(summary = "Create new metric")
     fun createMetric(
         @RequestBody @Valid request: CreateMetricRequest,
-    ): ResponseEntity<CreateMetricResponse> {
-        logger.info("POST /api/v1/metrics - name: {}", request.name)
+    ): ResponseEntity<ApiResponse<CreateMetricResponse>> {
+        logger.info("POST /api/v1/metrics - name={}", request.name)
 
-        // Additional validation
-        metricValidator.validateCreate(request)
-
-        val metric = metricService.createMetric(request)
+        val command = metricMapper.toCommand(request)
+        val metric = metricService.createMetric(command)
 
         val response = CreateMetricResponse(
             message = "Metric '${metric.name}' registered successfully",
             name = metric.name
         )
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response)
-    }
-
-    @PostMapping("/{name}/run")
-    fun runMetric(
-        @PathVariable @NotBlank name: String,
-        @RequestBody @Valid request: RunMetricRequest,
-    ): ResponseEntity<MetricExecutionResult> {
-        logger.info("POST /api/v1/metrics/{}/run", name)
-
-        val result = metricService.executeMetric(
-            metricName = name,
-            parameters = request.parameters,
-            limit = request.limit,
-            timeout = request.timeout
-        )
-
-        return ResponseEntity.ok(result)
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success(response))
     }
 
     @DeleteMapping("/{name}")
+    @Operation(summary = "Delete metric by name")
     fun deleteMetric(
         @PathVariable @NotBlank name: String,
     ): ResponseEntity<Void> {
@@ -664,7 +660,6 @@ class MetricController(
 ### Request DTOs
 
 ```kotlin
-// Request DTOs
 data class CreateMetricRequest(
     @field:NotBlank(message = "Name is required")
     @field:Pattern(
@@ -689,24 +684,11 @@ data class CreateMetricRequest(
     @field:Size(max = 10, message = "Maximum 10 tags allowed")
     val tags: List<String> = emptyList(),
 )
-
-data class RunMetricRequest(
-    val parameters: Map<String, Any> = emptyMap(),
-
-    @field:Min(value = 1, message = "Limit must be at least 1")
-    @field:Max(value = 10000, message = "Limit must not exceed 10000")
-    val limit: Int? = null,
-
-    @field:Min(value = 1, message = "Timeout must be at least 1 second")
-    @field:Max(value = 3600, message = "Timeout must not exceed 3600 seconds")
-    val timeout: Int = 300,
-)
 ```
 
 ### Response DTOs
 
 ```kotlin
-// Response DTOs
 data class MetricDto(
     val name: String,
     val type: String = "Metric",
@@ -724,13 +706,6 @@ data class MetricDto(
 data class CreateMetricResponse(
     val message: String,
     val name: String,
-)
-
-data class MetricExecutionResult(
-    val rows: List<Map<String, Any>>,
-    val rowCount: Int,
-    val durationSeconds: Double,
-    val renderedSql: String,
 )
 ```
 
@@ -755,14 +730,22 @@ object MetricMapper {
         )
     }
 
+    fun toCommand(request: CreateMetricRequest): CreateMetricCommand {
+        return CreateMetricCommand(
+            name = request.name,
+            owner = request.owner,
+            sql = request.sql,
+            tags = request.tags,
+            description = request.description
+        )
+    }
+
     private fun extractSourceTable(sql: String): String? {
-        // Simple regex to extract main table - implement properly
         val regex = Regex("FROM\\s+([\\w.]+)", RegexOption.IGNORE_CASE)
         return regex.find(sql)?.groupValues?.get(1)
     }
 
     private fun extractDependencies(sql: String): List<String> {
-        // Extract all table references - implement properly
         val regex = Regex("(?:FROM|JOIN)\\s+([\\w.]+)", RegexOption.IGNORE_CASE)
         return regex.findAll(sql)
             .map { it.groupValues[1] }
@@ -776,7 +759,7 @@ object MetricMapper {
 
 ## Entity Patterns
 
-### Entity Pattern
+### Standard Entity Template
 
 ```kotlin
 @Entity
@@ -850,168 +833,104 @@ class MetricEntity(
 }
 ```
 
+### Entity Naming Conventions
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| JPA Entities | `*Entity` | `UserEntity`, `PipelineEntity` |
+| Enums | No suffix | `UserRole`, `PipelineStatus` |
+| API DTOs | `*Dto` | `UserDto`, `PipelineDto` |
+| Request DTOs | `*Request` | `CreateUserRequest` |
+| Response DTOs | `*Response` | `CreateUserResponse` |
+
 ---
 
-## Testing Patterns
+## Implementation Order
 
-### Unit Testing with MockK
+When implementing a new feature, follow this order:
+
+### Step 1: Domain Entity (module-core-domain/model/)
 
 ```kotlin
-@ExtendWith(MockKExtension::class)
-class MetricServiceTest {
-    @MockK
-    private lateinit var metricRepositoryJpa: MetricRepositoryJpa
+@Entity
+@Table(name = "pipelines")
+class PipelineEntity(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
 
-    @MockK
-    private lateinit var metricRepositoryDsl: MetricRepositoryDsl
+    @Column(name = "name", nullable = false, unique = true)
+    val name: String,
 
-    @MockK
-    private lateinit var metricValidator: MetricValidator
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    val status: PipelineStatus = PipelineStatus.INACTIVE,
+)
+```
 
-    @InjectMockKs
-    private lateinit var metricService: MetricService
+### Step 2: Domain Repository Interfaces (module-core-domain/repository/)
 
-    @Test
-    fun `should create metric successfully`() {
-        // Given
-        val request = CreateMetricRequest(
-            name = "test.metric.example",
-            owner = "test@example.com",
-            sql = "SELECT 1"
-        )
+```kotlin
+interface PipelineRepositoryJpa {
+    fun save(pipeline: PipelineEntity): PipelineEntity
+    fun findById(id: Long): PipelineEntity?
+    fun findByName(name: String): PipelineEntity?
+}
 
-        val entity = MetricEntity(
-            id = "test-id",
-            name = request.name,
-            owner = request.owner,
-            sql = request.sql,
-            tags = emptySet(),
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-
-        every { metricRepositoryJpa.findByName(request.name) } returns null
-        every { metricRepositoryJpa.save(any()) } returns entity
-
-        // When
-        val result = metricService.createMetric(request)
-
-        // Then
-        assertThat(result.name).isEqualTo(request.name)
-        assertThat(result.owner).isEqualTo(request.owner)
-        verify { metricValidator.validate(request) }
-        verify { metricRepositoryJpa.save(any()) }
-    }
-
-    @Test
-    fun `should throw exception when metric already exists`() {
-        // Given
-        val request = CreateMetricRequest(
-            name = "existing.metric",
-            owner = "test@example.com",
-            sql = "SELECT 1"
-        )
-
-        val existingEntity = MetricEntity(
-            id = "existing-id",
-            name = request.name,
-            owner = "other@example.com",
-            sql = "SELECT 2",
-            tags = emptySet(),
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-
-        every { metricRepositoryJpa.findByName(request.name) } returns existingEntity
-
-        // When & Then
-        assertThrows<MetricAlreadyExistsException> {
-            metricService.createMetric(request)
-        }
-
-        verify(exactly = 0) { metricRepositoryJpa.save(any()) }
-    }
+interface PipelineRepositoryDsl {
+    fun findByConditions(query: PipelineQuery): Page<PipelineEntity>
 }
 ```
 
-### Integration Testing
+### Step 3: Infrastructure Implementations (module-core-infra/repository/)
 
 ```kotlin
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestPropertySource(properties = [
-    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
-    "spring.jpa.hibernate.ddl-auto=create-drop"
-])
-class MetricControllerIntegrationTest {
+@Repository("pipelineRepositoryJpa")
+interface PipelineRepositoryJpaImpl :
+    PipelineRepositoryJpa,
+    JpaRepository<PipelineEntity, Long> {
 
-    @Autowired
-    private lateinit var testRestTemplate: TestRestTemplate
+    override fun findByName(name: String): PipelineEntity?
+}
 
-    @Autowired
-    private lateinit var metricRepository: MetricRepositoryJpaSpringData
+@Repository("pipelineRepositoryDsl")
+class PipelineRepositoryDslImpl(
+    private val entityManager: EntityManager,
+) : PipelineRepositoryDsl {
+    // QueryDSL implementation
+}
+```
 
-    @BeforeEach
-    fun setUp() {
-        metricRepository.deleteAll()
-    }
+### Step 4: Domain Service (module-core-domain/service/)
 
-    @Test
-    fun `should create metric via REST API`() {
-        // Given
-        val request = CreateMetricRequest(
-            name = "test.example.metric",
-            owner = "test@example.com",
-            sql = "SELECT COUNT(*) FROM users"
-        )
+```kotlin
+@Service
+@Transactional(readOnly = true)
+class PipelineService(
+    private val pipelineRepositoryJpa: PipelineRepositoryJpa,
+    private val pipelineRepositoryDsl: PipelineRepositoryDsl,
+) {
+    @Transactional
+    fun createPipeline(command: CreatePipelineCommand): PipelineDto { ... }
 
-        // When
-        val response = testRestTemplate.postForEntity(
-            "/api/v1/metrics",
-            request,
-            CreateMetricResponse::class.java
-        )
+    fun getPipeline(id: Long): PipelineDto? { ... }
+}
+```
 
-        // Then
-        assertThat(response.statusCode).isEqualTo(HttpStatus.CREATED)
-        assertThat(response.body?.name).isEqualTo(request.name)
+### Step 5: API Controller (module-server-api/controller/)
 
-        val saved = metricRepository.findByName(request.name)
-        assertThat(saved).isNotNull
-        assertThat(saved?.owner).isEqualTo(request.owner)
-    }
+```kotlin
+@RestController
+@RequestMapping("/api/v1/pipelines")
+class PipelineController(
+    private val pipelineService: PipelineService,
+    private val pipelineMapper: PipelineMapper,
+) {
+    @PostMapping
+    fun createPipeline(@Valid @RequestBody request: CreatePipelineRequest): ResponseEntity<...>
 
-    @Test
-    fun `should return 409 when creating duplicate metric`() {
-        // Given
-        val existingMetric = MetricEntity(
-            id = UUID.randomUUID().toString(),
-            name = "duplicate.metric",
-            owner = "existing@example.com",
-            sql = "SELECT 1",
-            tags = emptySet(),
-            createdAt = LocalDateTime.now(),
-            updatedAt = LocalDateTime.now()
-        )
-        metricRepository.save(existingMetric)
-
-        val request = CreateMetricRequest(
-            name = "duplicate.metric",
-            owner = "new@example.com",
-            sql = "SELECT 2"
-        )
-
-        // When
-        val response = testRestTemplate.postForEntity(
-            "/api/v1/metrics",
-            request,
-            ErrorResponse::class.java
-        )
-
-        // Then
-        assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
-        assertThat(response.body?.error?.code).isEqualTo("METRIC_ALREADY_EXISTS")
-    }
+    @GetMapping("/{id}")
+    fun getPipeline(@PathVariable id: Long): ResponseEntity<...>
 }
 ```
 
@@ -1019,11 +938,11 @@ class MetricControllerIntegrationTest {
 
 ## Related Documentation
 
-- **Architecture Overview**: [architecture.md](../../../docs/architecture.md) - System design and policies (platform-level)
+- **Quick Reference**: [PATTERNS.md](./PATTERNS.md) - Fast lookup patterns and templates
+- **Testing Guide**: [TESTING.md](./TESTING.md) - Comprehensive testing patterns by layer
 - **Error Handling**: [ERROR_HANDLING.md](./ERROR_HANDLING.md) - Exception handling and error codes
-- **Development Patterns**: [PATTERNS.md](./PATTERNS.md) - Quick reference templates
-- **Testing Guide**: [TESTING.md](./TESTING.md) - Comprehensive testing patterns
+- **Architecture Overview**: [architecture.md](../../../docs/architecture.md) - System design (platform-level)
 
 ---
 
-*This implementation guide provides production-ready Spring Boot + Kotlin patterns following hexagonal architecture principles for the Basecamp Server API.*
+*Last Updated: 2026-01-03*
