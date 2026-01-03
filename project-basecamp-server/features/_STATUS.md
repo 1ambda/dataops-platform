@@ -1,8 +1,8 @@
 # Basecamp Server - Implementation Status
 
-> **Last Updated:** 2026-01-02
+> **Last Updated:** 2026-01-03
 > **Scope:** BASECAMP API feature implementation (36 endpoints)
-> **Current Progress:** 60% (26/36 endpoints completed)
+> **Current Progress:** 64% (27/36 endpoints completed)
 
 ---
 
@@ -11,14 +11,14 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | **Total BASECAMP APIs** | 36 endpoints | Target scope |
-| **Completed** | 26 endpoints | Health + Metrics + Datasets + Catalog + Quality + Workflow API |
+| **Completed** | 27 endpoints | Health (Extended) + Metrics + Datasets + Catalog + Quality + Workflow API |
 | **In Progress** | 0 endpoints | - |
-| **Not Started** | 10 endpoints | P1-P3 priorities |
-| **Overall Progress** | **60%** | 🟢 Phase 1-3 complete, Phase 4 ready |
+| **Not Started** | 9 endpoints | P1-P3 priorities |
+| **Overall Progress** | **64%** | 🟢 Phase 1-3 complete, Phase 4 ready |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
 | **Estimated Timeline** | 7 weeks | ~1.8 months with 1.5 FTE (revised) |
 
-**Key Insight:** P0 Critical APIs (Health, Metrics, Datasets), P1 Catalog API, P2 Workflow API, and P3 Quality API completed with full hexagonal architecture, 370+ tests total. Workflow API implements comprehensive Airflow integration with mock-based development. All major API patterns established for rapid Phase 4 development.
+**Key Insight:** P0 Critical APIs (Health including Extended, Metrics, Datasets), P1 Catalog API, P2 Workflow API, and P3 Quality API completed with full hexagonal architecture, 428+ tests total. Health API refactored with Hexagonal Architecture (58 new tests). Workflow API implements comprehensive Airflow integration with mock-based development. All major API patterns established for rapid Phase 4 development.
 
 ---
 
@@ -28,7 +28,7 @@
 
 | Priority | Category | Required | Completed | Progress | CLI Command |
 |----------|----------|----------|-----------|----------|-------------|
-| **P0 Critical** | Health | 2 | 2 | ✅ **100%** | `dli debug` |
+| **P0 Critical** | Health | 3 | 3 | ✅ **100%** | `dli debug` |
 | **P0 Critical** | Metrics | 5 | 4 | ✅ **80%** | `dli metric` |
 | **P0 Critical** | Datasets | 4 | 4 | ✅ **100%** | `dli dataset` |
 | **P1 High** | Catalog | 4 | 4 | ✅ **100%** | `dli catalog` |
@@ -38,37 +38,38 @@
 | **P3 Low** | Query | 3 | 0 | ❌ **0%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 0 | ❌ **0%** | `dli transpile` |
 | **P3 Low** | Run | 2 | 0 | ❌ **0%** | `dli run` |
-| **TOTAL** | **10 features** | **36** | **26** | 🟢 **60%** | All CLI commands |
+| **TOTAL** | **10 features** | **36** | **27** | 🟢 **64%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
 | Phase | Priority | APIs | Timeline | Status |
 |-------|----------|------|----------|--------|
-| **Phase 1** | P0 Critical | 11 endpoints | Week 1-2.5 | 🟢 Nearly Complete (10/11) |
+| **Phase 1** | P0 Critical | 12 endpoints | Week 1-2.5 | 🟢 Nearly Complete (11/12) |
 | **Phase 2** | P1 High | 5 endpoints | Week 3-5 | 🟢 In Progress (4/5) |
 | **Phase 3** | P2 Medium | 9 endpoints | Week 6-9 | 🟢 **Complete** |
-| **Phase 4** | P3 Low | 11 endpoints | Week 10-12.5 | ⏳ Pending |
+| **Phase 4** | P3 Low | 10 endpoints | Week 10-12.5 | ⏳ Pending |
 
 ---
 
-## ✅ Completed Implementation (26/36)
+## ✅ Completed Implementation (27/36)
 
-### Health & System API - 100% Complete
+### Health & System API - 100% Complete (4/4 endpoints)
+
+> **📖 Detailed Documentation:** [`HEALTH_RELEASE.md`](./HEALTH_RELEASE.md)
 
 | Endpoint | Method | Status | Controller | Use Case |
 |----------|--------|--------|------------|----------|
-| `/api/health` | GET | ✅ Complete | `HealthController.health()` | Basic health check |
+| `/api/health` | GET | ✅ Complete | `HealthController.health()` | Basic health check (legacy) |
 | `/api/info` | GET | ✅ Complete | `HealthController.info()` | System information |
+| `/api/v1/health` | GET | ✅ Complete | `HealthController.basicHealth()` | Component status |
+| `/api/v1/health/extended` | GET | ✅ Complete | `HealthController.extendedHealth()` | Extended diagnostics |
 
 **Implementation Quality:**
-- ✅ Full test coverage (integration tests)
-- ✅ Error handling implemented
+- ✅ Full test coverage (58 tests - unit + integration)
+- ✅ Hexagonal Architecture (Domain ports, Infrastructure adapters)
+- ✅ Component health checks (Database, Redis, Airflow mock)
 - ✅ Documentation complete
-- ✅ CLI integration verified (`dli debug` partial support)
-
-**Missing for Full P0:**
-- ❌ Extended health endpoint (`GET /api/v1/health/extended`) for `dli debug` command
-- **Recommendation:** Add extended health endpoint in Phase 1, Week 2.5
+- ✅ CLI integration verified (`dli debug` full support)
 
 ### Metrics API - 80% Complete (4/5 endpoints)
 
@@ -173,16 +174,19 @@
 - ✅ Comprehensive Testing - 80+ tests covering all components
 - ✅ Cross-Review Completed - Both feature-basecamp-server and expert-spring-kotlin agents validated
 
-### Week 2.5: Extended Health API (0/1)
+### Week 2.5: Extended Health API (1/1) ✅ Complete
+
+> **📖 See:** [`HEALTH_RELEASE.md`](./HEALTH_RELEASE.md) for full implementation details
 
 | Endpoint | Method | Status | CLI Command |
 |----------|--------|--------|-------------|
-| `GET /api/v1/health/extended` | GET | ❌ Not Started | `dli debug` |
+| `GET /api/v1/health/extended` | GET | ✅ Complete | `dli debug` |
 
-**Implementation Scope:**
-- System diagnostics (database, Redis, external services)
-- Component health checks
-- Environment information
+**Implementation Completed:**
+- ✅ System diagnostics (database pool, Redis info)
+- ✅ Component health checks with Hexagonal Architecture
+- ✅ 58 tests covering all scenarios
+- ✅ Airflow mock implementation for MVP
 
 ---
 
@@ -433,6 +437,7 @@ project-basecamp-server/
 
 | API | Release Document | Status |
 |-----|------------------|--------|
+| **Health API** | [`HEALTH_RELEASE.md`](./HEALTH_RELEASE.md) | ✅ 100% (4/4 endpoints) |
 | **Metric API** | [`METRIC_RELEASE.md`](./METRIC_RELEASE.md) | ✅ 80% (4/5 endpoints) |
 | **Dataset API** | [`DATASET_RELEASE.md`](./DATASET_RELEASE.md) | ✅ 100% (4/4 endpoints) |
 | **Catalog API** | [`CATALOG_RELEASE.md`](./CATALOG_RELEASE.md) | ✅ 100% (4/4 endpoints) |
@@ -510,4 +515,4 @@ The codebase contains 11 dummy Pipeline endpoints that serve as **implementation
 
 ---
 
-*Last Updated: 2026-01-02 (Catalog API completed) | Next Review: Weekly during Phase 2*
+*Last Updated: 2026-01-03 (Health API Extended completed) | Next Review: Weekly during Phase 2*
