@@ -561,17 +561,23 @@ data class SampleQuery(
 ### 4.3 Repository Interfaces
 
 ```kotlin
-// Domain Layer: module-core-domain/src/main/kotlin/domain/catalog/repository/
+// Domain Layer: module-core-domain/src/main/kotlin/domain/repository/
+// Following Pure Hexagonal Architecture naming conventions:
 
-interface CatalogRepository {
-    fun listTables(filters: CatalogFilters): List<TableInfo>
-    fun searchTables(keyword: String, project: String?, limit: Int): List<TableInfo>
+// Simple CRUD operations (JPA pattern)
+interface CatalogRepositoryJpa {
     fun getTableDetail(tableRef: String): TableDetail?
     fun getTableColumns(tableRef: String): List<ColumnInfo>
+}
+
+// Complex query operations (DSL pattern)
+interface CatalogRepositoryDsl {
+    fun listTables(filters: CatalogFilters): List<TableInfo>
+    fun searchTables(keyword: String, project: String?, limit: Int): List<TableInfo>
     fun getSampleData(tableRef: String, limit: Int): List<Map<String, Any>>
 }
 
-interface SampleQueryRepository {
+interface SampleQueryRepositoryDsl {
     fun findByTableRef(tableRef: String, limit: Int): List<SampleQuery>
     fun save(tableRef: String, query: SampleQuery): SampleQuery
     fun incrementRunCount(tableRef: String, title: String)
@@ -601,7 +607,8 @@ data class CatalogFilters(
 class BigQueryCatalogClient(
     private val bigQuery: BigQuery,
     @Value("\${catalog.bigquery.projects}") private val projectIds: List<String>,
-) : CatalogRepository {
+) : CatalogRepositoryDsl {
+    // Note: In actual implementation, this would be split across JPA and DSL repositories
 
     companion object {
         private val logger = LoggerFactory.getLogger(BigQueryCatalogClient::class.java)
@@ -738,7 +745,8 @@ class BigQueryCatalogClient(
 class TrinoCatalogClient(
     private val trinoClient: TrinoClient,
     @Value("\${catalog.trino.catalogs}") private val catalogs: List<String>,
-) : CatalogRepository {
+) : CatalogRepositoryDsl {
+    // Note: In actual implementation, this would be split across JPA and DSL repositories
 
     companion object {
         private val logger = LoggerFactory.getLogger(TrinoCatalogClient::class.java)
@@ -874,7 +882,8 @@ class CatalogService(
         }
     }
 
-    private fun getClient(engine: String): CatalogRepository {
+    private fun getClient(engine: String): CatalogRepositoryDsl {
+        // Note: In actual implementation, CatalogService injects both JPA and DSL repositories
         return when (engine) {
             "bigquery" -> bigQueryClient
             "trino" -> trinoClient ?: throw UnsupportedEngineException("trino")

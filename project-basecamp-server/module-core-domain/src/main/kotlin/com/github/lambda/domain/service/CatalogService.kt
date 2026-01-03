@@ -7,7 +7,8 @@ import com.github.lambda.domain.model.catalog.ColumnInfo
 import com.github.lambda.domain.model.catalog.SampleQuery
 import com.github.lambda.domain.model.catalog.TableDetail
 import com.github.lambda.domain.model.catalog.TableInfo
-import com.github.lambda.domain.repository.CatalogRepository
+import com.github.lambda.domain.repository.CatalogRepositoryDsl
+import com.github.lambda.domain.repository.CatalogRepositoryJpa
 import com.github.lambda.domain.repository.SampleQueryRepositoryDsl
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,7 +25,8 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class CatalogService(
-    private val catalogRepository: CatalogRepository,
+    private val catalogRepositoryJpa: CatalogRepositoryJpa,
+    private val catalogRepositoryDsl: CatalogRepositoryDsl,
     private val sampleQueryRepository: SampleQueryRepositoryDsl,
 ) {
     companion object {
@@ -64,7 +66,7 @@ class CatalogService(
                 offset = offset.coerceAtLeast(0),
             )
 
-        return catalogRepository.listTables(filters)
+        return catalogRepositoryDsl.listTables(filters)
     }
 
     /**
@@ -84,7 +86,7 @@ class CatalogService(
     ): List<TableInfo> {
         require(keyword.length >= 2) { "Keyword must be at least 2 characters" }
 
-        return catalogRepository.searchTables(
+        return catalogRepositoryDsl.searchTables(
             keyword = keyword,
             project = project,
             limit = limit.coerceIn(1, 100),
@@ -107,11 +109,11 @@ class CatalogService(
         validateTableReference(tableRef)
 
         val detail =
-            catalogRepository.getTableDetail(tableRef)
+            catalogRepositoryJpa.getTableDetail(tableRef)
                 ?: throw TableNotFoundException(tableRef)
 
         return if (includeSample) {
-            val rawSample = catalogRepository.getSampleData(tableRef, DEFAULT_SAMPLE_LIMIT)
+            val rawSample = catalogRepositoryDsl.getSampleData(tableRef, DEFAULT_SAMPLE_LIMIT)
             val maskedSample = maskPiiData(detail.columns, rawSample)
             detail.copy(sampleData = maskedSample)
         } else {
@@ -135,7 +137,7 @@ class CatalogService(
         validateTableReference(tableRef)
 
         // Verify table exists
-        catalogRepository.getTableDetail(tableRef)
+        catalogRepositoryJpa.getTableDetail(tableRef)
             ?: throw TableNotFoundException(tableRef)
 
         return sampleQueryRepository.findByTableRef(

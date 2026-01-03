@@ -2,7 +2,8 @@ package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.domain.model.catalog.*
-import com.github.lambda.domain.repository.CatalogRepository
+import com.github.lambda.domain.repository.CatalogRepositoryDsl
+import com.github.lambda.domain.repository.CatalogRepositoryJpa
 import com.github.lambda.domain.repository.SampleQueryRepositoryDsl
 import io.mockk.*
 import org.assertj.core.api.Assertions.assertThat
@@ -21,7 +22,8 @@ import java.time.Instant
  */
 @DisplayName("CatalogService Unit Tests")
 class CatalogServiceTest {
-    private lateinit var catalogRepository: CatalogRepository
+    private lateinit var catalogRepositoryJpa: CatalogRepositoryJpa
+    private lateinit var catalogRepositoryDsl: CatalogRepositoryDsl
     private lateinit var sampleQueryRepository: SampleQueryRepositoryDsl
     private lateinit var catalogService: CatalogService
 
@@ -33,11 +35,13 @@ class CatalogServiceTest {
     @BeforeEach
     fun setUp() {
         // Create fresh mocks for each test to avoid parallel test interference
-        catalogRepository = mockk()
+        catalogRepositoryJpa = mockk()
+        catalogRepositoryDsl = mockk()
         sampleQueryRepository = mockk()
         catalogService =
             CatalogService(
-                catalogRepository = catalogRepository,
+                catalogRepositoryJpa = catalogRepositoryJpa,
+                catalogRepositoryDsl = catalogRepositoryDsl,
                 sampleQueryRepository = sampleQueryRepository,
             )
 
@@ -157,7 +161,7 @@ class CatalogServiceTest {
         fun `should return all tables without filters`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepository.listTables(any()) } returns expectedTables
+            every { catalogRepositoryDsl.listTables(any()) } returns expectedTables
 
             // When
             val result = catalogService.listTables(limit = 50)
@@ -165,7 +169,7 @@ class CatalogServiceTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].name).isEqualTo("my-project.analytics.users")
-            verify(exactly = 1) { catalogRepository.listTables(any()) }
+            verify(exactly = 1) { catalogRepositoryDsl.listTables(any()) }
         }
 
         @Test
@@ -173,7 +177,7 @@ class CatalogServiceTest {
         fun `should return filtered tables by project`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepository.listTables(match { it.project == "my-project" }) } returns expectedTables
+            every { catalogRepositoryDsl.listTables(match { it.project == "my-project" }) } returns expectedTables
 
             // When
             val result = catalogService.listTables(project = "my-project", limit = 50)
@@ -181,7 +185,7 @@ class CatalogServiceTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].name).startsWith("my-project.")
-            verify(exactly = 1) { catalogRepository.listTables(match { it.project == "my-project" }) }
+            verify(exactly = 1) { catalogRepositoryDsl.listTables(match { it.project == "my-project" }) }
         }
 
         @Test
@@ -189,7 +193,7 @@ class CatalogServiceTest {
         fun `should return filtered tables by tag`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepository.listTables(match { it.tags.contains("tier::critical") }) } returns expectedTables
+            every { catalogRepositoryDsl.listTables(match { it.tags.contains("tier::critical") }) } returns expectedTables
 
             // When
             val result = catalogService.listTables(tags = setOf("tier::critical"), limit = 50)
@@ -197,14 +201,14 @@ class CatalogServiceTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].tags).contains("tier::critical")
-            verify(exactly = 1) { catalogRepository.listTables(match { it.tags.contains("tier::critical") }) }
+            verify(exactly = 1) { catalogRepositoryDsl.listTables(match { it.tags.contains("tier::critical") }) }
         }
 
         @Test
         @DisplayName("should return empty list when no tables match filters")
         fun `should return empty list when no tables match filters`() {
             // Given
-            every { catalogRepository.listTables(match { it.project == "nonexistent-project" }) } returns emptyList()
+            every { catalogRepositoryDsl.listTables(match { it.project == "nonexistent-project" }) } returns emptyList()
 
             // When
             val result = catalogService.listTables(project = "nonexistent-project", limit = 50)
@@ -218,7 +222,7 @@ class CatalogServiceTest {
         fun `should filter by owner`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepository.listTables(match { it.owner == "data-team@example.com" }) } returns expectedTables
+            every { catalogRepositoryDsl.listTables(match { it.owner == "data-team@example.com" }) } returns expectedTables
 
             // When
             val result = catalogService.listTables(owner = "data-team@example.com", limit = 50)
@@ -233,7 +237,7 @@ class CatalogServiceTest {
         fun `should filter by team`() {
             // Given
             val expectedTables = listOf(testTableInfo)
-            every { catalogRepository.listTables(match { it.team == "@data-eng" }) } returns expectedTables
+            every { catalogRepositoryDsl.listTables(match { it.team == "@data-eng" }) } returns expectedTables
 
             // When
             val result = catalogService.listTables(team = "@data-eng", limit = 50)
@@ -247,13 +251,13 @@ class CatalogServiceTest {
         @DisplayName("should apply pagination with limit and offset")
         fun `should apply pagination with limit and offset`() {
             // Given
-            every { catalogRepository.listTables(match { it.limit == 10 && it.offset == 5 }) } returns emptyList()
+            every { catalogRepositoryDsl.listTables(match { it.limit == 10 && it.offset == 5 }) } returns emptyList()
 
             // When
             catalogService.listTables(limit = 10, offset = 5)
 
             // Then
-            verify(exactly = 1) { catalogRepository.listTables(match { it.limit == 10 && it.offset == 5 }) }
+            verify(exactly = 1) { catalogRepositoryDsl.listTables(match { it.limit == 10 && it.offset == 5 }) }
         }
     }
 
@@ -269,7 +273,7 @@ class CatalogServiceTest {
                 listOf(
                     testTableInfo.copy(matchContext = "Table name match: users"),
                 )
-            every { catalogRepository.searchTables(keyword, null, 20) } returns expectedTables
+            every { catalogRepositoryDsl.searchTables(keyword, null, 20) } returns expectedTables
 
             // When
             val result = catalogService.searchTables(keyword, null, 20)
@@ -277,7 +281,7 @@ class CatalogServiceTest {
             // Then
             assertThat(result).hasSize(1)
             assertThat(result[0].matchContext).isNotNull()
-            verify(exactly = 1) { catalogRepository.searchTables(keyword, null, 20) }
+            verify(exactly = 1) { catalogRepositoryDsl.searchTables(keyword, null, 20) }
         }
 
         @Test
@@ -287,14 +291,14 @@ class CatalogServiceTest {
             val keyword = "user"
             val project = "my-project"
             val expectedTables = listOf(testTableInfo.copy(matchContext = "Column: user_id"))
-            every { catalogRepository.searchTables(keyword, project, 20) } returns expectedTables
+            every { catalogRepositoryDsl.searchTables(keyword, project, 20) } returns expectedTables
 
             // When
             val result = catalogService.searchTables(keyword, project, 20)
 
             // Then
             assertThat(result).hasSize(1)
-            verify(exactly = 1) { catalogRepository.searchTables(keyword, project, 20) }
+            verify(exactly = 1) { catalogRepositoryDsl.searchTables(keyword, project, 20) }
         }
 
         @Test
@@ -302,7 +306,7 @@ class CatalogServiceTest {
         fun `should return empty list for no matches`() {
             // Given
             val keyword = "nonexistent"
-            every { catalogRepository.searchTables(keyword, null, 20) } returns emptyList()
+            every { catalogRepositoryDsl.searchTables(keyword, null, 20) } returns emptyList()
 
             // When
             val result = catalogService.searchTables(keyword, null, 20)
@@ -317,13 +321,13 @@ class CatalogServiceTest {
             // Given
             val keyword = "user"
             val limit = 5
-            every { catalogRepository.searchTables(keyword, null, limit) } returns emptyList()
+            every { catalogRepositoryDsl.searchTables(keyword, null, limit) } returns emptyList()
 
             // When
             catalogService.searchTables(keyword, null, limit)
 
             // Then
-            verify(exactly = 1) { catalogRepository.searchTables(keyword, null, limit) }
+            verify(exactly = 1) { catalogRepositoryDsl.searchTables(keyword, null, limit) }
         }
     }
 
@@ -335,7 +339,7 @@ class CatalogServiceTest {
         fun `should return table detail for existing table`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
 
             // When
             val result = catalogService.getTableDetail(tableRef)
@@ -344,7 +348,7 @@ class CatalogServiceTest {
             assertThat(result.name).isEqualTo(tableRef)
             assertThat(result.columns).hasSize(3)
             assertThat(result.owner).isEqualTo("data-team@example.com")
-            verify(exactly = 1) { catalogRepository.getTableDetail(tableRef) }
+            verify(exactly = 1) { catalogRepositoryJpa.getTableDetail(tableRef) }
         }
 
         @Test
@@ -352,7 +356,7 @@ class CatalogServiceTest {
         fun `should throw TableNotFoundException when table not found`() {
             // Given
             val tableRef = "project.dataset.nonexistent"
-            every { catalogRepository.getTableDetail(tableRef) } returns null
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns null
 
             // When & Then
             val exception =
@@ -368,7 +372,7 @@ class CatalogServiceTest {
         fun `should return table detail with ownership information`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
 
             // When
             val result = catalogService.getTableDetail(tableRef)
@@ -385,7 +389,7 @@ class CatalogServiceTest {
         fun `should return table detail with freshness information`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
 
             // When
             val result = catalogService.getTableDetail(tableRef)
@@ -402,7 +406,7 @@ class CatalogServiceTest {
         fun `should return table detail with quality information`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
 
             // When
             val result = catalogService.getTableDetail(tableRef)
@@ -424,7 +428,7 @@ class CatalogServiceTest {
         fun `should return sample queries for existing table`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
             every { sampleQueryRepository.findByTableRef(tableRef, 10) } returns testSampleQueries
 
             // When
@@ -442,7 +446,7 @@ class CatalogServiceTest {
         fun `should return empty list when no sample queries exist`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
             every { sampleQueryRepository.findByTableRef(tableRef, 10) } returns emptyList()
 
             // When
@@ -457,7 +461,7 @@ class CatalogServiceTest {
         fun `should throw TableNotFoundException when table not found`() {
             // Given
             val tableRef = "project.dataset.nonexistent"
-            every { catalogRepository.getTableDetail(tableRef) } returns null
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns null
 
             // When & Then
             val exception =
@@ -474,7 +478,7 @@ class CatalogServiceTest {
             // Given
             val tableRef = "my-project.analytics.users"
             val limit = 5
-            every { catalogRepository.getTableDetail(tableRef) } returns testTableDetail
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } returns testTableDetail
             every { sampleQueryRepository.findByTableRef(tableRef, limit) } returns testSampleQueries.take(1)
 
             // When
@@ -493,7 +497,7 @@ class CatalogServiceTest {
         fun `should propagate repository exceptions`() {
             // Given
             val tableRef = "my-project.analytics.users"
-            every { catalogRepository.getTableDetail(tableRef) } throws RuntimeException("Connection timeout")
+            every { catalogRepositoryJpa.getTableDetail(tableRef) } throws RuntimeException("Connection timeout")
 
             // When & Then
             assertThrows<RuntimeException> {

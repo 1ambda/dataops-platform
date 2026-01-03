@@ -1,17 +1,20 @@
 package com.github.lambda.domain.repository
 
 import com.github.lambda.domain.model.catalog.CatalogFilters
-import com.github.lambda.domain.model.catalog.ColumnInfo
-import com.github.lambda.domain.model.catalog.TableDetail
 import com.github.lambda.domain.model.catalog.TableInfo
 
 /**
- * Catalog Repository Interface (Domain Port)
+ * Catalog Repository DSL Interface (Domain Port)
  *
- * Defines operations for fetching table metadata from external catalog systems.
- * Implementations may integrate with BigQuery, Trino, or mock data sources.
+ * Defines complex query operations for fetching table metadata from external catalog systems.
+ * Follows Pure Hexagonal Architecture naming conventions.
+ *
+ * Operations:
+ * - Complex filtering and pagination
+ * - Text search across metadata
+ * - Sample data retrieval
  */
-interface CatalogRepository {
+interface CatalogRepositoryDsl {
     /**
      * List tables with optional filters
      *
@@ -33,22 +36,6 @@ interface CatalogRepository {
         project: String?,
         limit: Int,
     ): List<TableInfo>
-
-    /**
-     * Get detailed table information
-     *
-     * @param tableRef Fully qualified table reference (project.dataset.table)
-     * @return Table detail or null if not found
-     */
-    fun getTableDetail(tableRef: String): TableDetail?
-
-    /**
-     * Get column metadata for a table
-     *
-     * @param tableRef Fully qualified table reference
-     * @return List of column metadata
-     */
-    fun getTableColumns(tableRef: String): List<ColumnInfo>
 
     /**
      * Get sample data from a table
