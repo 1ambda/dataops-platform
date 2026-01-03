@@ -796,7 +796,7 @@ shell-snapshots
 statsig
 todos
 history.jsonl
-debug
+.claude/debug
 file-history/
 plugins/marketplaces/
 plugins/known_marketplaces.json
