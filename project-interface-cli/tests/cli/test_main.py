@@ -220,9 +220,22 @@ class TestCatalogSubcommand:
 
 
 class TestTranspileSubcommand:
-    """Tests for the transpile subcommand."""
+    """Tests for the transpile subcommand.
 
-    def test_transpile_help(self):
-        """Test 'dli transpile --help' shows command help."""
-        result = runner.invoke(app, ["transpile", "--help"])
+    Note: There is no top-level 'dli transpile' command.
+    Transpile is a subcommand of 'dli dataset' and 'dli metric'.
+    """
+
+    def test_dataset_transpile_help(self):
+        """Test 'dli dataset transpile --help' shows command help."""
+        result = runner.invoke(app, ["dataset", "transpile", "--help"])
         assert result.exit_code == 0
+        assert "transpile" in result.stdout.lower()
+        assert "--dialect" in result.stdout
+
+    def test_metric_transpile_help(self):
+        """Test 'dli metric transpile --help' shows command help."""
+        result = runner.invoke(app, ["metric", "transpile", "--help"])
+        assert result.exit_code == 0
+        assert "transpile" in result.stdout.lower()
+        assert "--dialect" in result.stdout
