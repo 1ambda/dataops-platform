@@ -66,10 +66,39 @@ context7.get-library-docs("/spring/spring-boot", "transaction")
 
 ## Implementation Patterns (CRITICAL)
 
-- Read docs/PATTERNS.md
-- Read docs/TESTING.md
+- Read docs/PATTERNS.md (includes **Module Placement Rules**)
+- Read docs/TESTING.md (includes **Test Patterns by Layer**)
 - Read docs/IMPLEMENTATION_GUIDE.md
 
+### Test Patterns Quick Reference
+
+| Layer | Test Type | Annotation | Focus |
+|-------|-----------|------------|-------|
+| Entity | Unit | None | Domain logic, validation |
+| Service | Unit + Mock | `@Mock` (MockK) | Business logic |
+| External Client | Unit + Mock | `@Mock` (MockK) | Interface behavior |
+| Controller | Slice | `@WebMvcTest` | HTTP, validation, security |
+| Controller Integration | Integration | `@SpringBootTest` | E2E, DB effects |
+| Repository JPA | Slice | `@DataJpaTest` | CRUD, mappings |
+| Repository DSL | Slice | `@DataJpaTest` + `@Import` | Dynamic queries |
+
+**See:** `docs/TESTING.md#test-patterns-by-layer` for detailed patterns and examples.
+
+### Module Placement Pre-Check (BEFORE implementing new classes)
+
+```
+Before creating ANY new class, verify module placement:
+
+1. module-core-common: Base exceptions, utilities (NO domain dependencies)
+2. module-core-domain: Entities, repository interfaces, domain services, domain exceptions
+3. module-core-infra: Repository impls, external clients, infrastructure exceptions
+4. module-server-api: Controllers, API DTOs, mappers
+
+Key Rule: External system exceptions (Airflow, BigQuery, etc.) -> module-core-common or module-core-infra
+         Domain-specific exceptions (MetricNotFound, etc.) -> module-core-domain
+```
+
+See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 
 ## Anti-Patterns to Avoid
 - Creating service interfaces (use concrete classes)
@@ -79,6 +108,31 @@ context7.get-library-docs("/spring/spring-boot", "transaction")
 - Business logic in controllers
 - Missing transaction boundaries on write operations
 - N+1 queries (use `@EntityGraph` or batch fetching)
+- **Placing external system exceptions in domain layer** (Airflow, BigQuery exceptions -> common or infra)
+- **JPA relationship annotations** (`@OneToMany`, `@ManyToOne`, `@OneToOne`, `@ManyToMany`) - use QueryDSL for aggregations instead
+- **JPA methods with 3+ conditions** - switch to QueryDSL for complex queries
+
+### Entity Relationship Rules (CRITICAL)
+
+> **See:** `docs/PATTERNS.md#entity-relationship-rules-no-jpa-associations`
+
+```
+❌ FORBIDDEN in entities:
+   @OneToMany, @ManyToOne, @OneToOne, @ManyToMany
+
+✅ CORRECT: Store FK as simple field
+   @Column(name = "user_id") val userId: Long
+
+✅ Use QueryDSL for aggregation queries
+   orderRepositoryDsl.findOrderWithItems(orderId)
+```
+
+| Scenario | Use |
+|----------|-----|
+| Create/Update/Delete single entity | JPA |
+| Find by 1-2 simple fields | JPA |
+| Find by 3+ conditions or dynamic | QueryDSL |
+| Fetch related entities | QueryDSL |
 
 ## Quality Checklist
 - [ ] `./gradlew clean build` passes

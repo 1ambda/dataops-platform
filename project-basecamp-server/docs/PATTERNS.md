@@ -4,6 +4,66 @@
 
 ---
 
+## 🚨 CRITICAL: Module Placement Rules (MUST READ)
+
+**Before creating ANY new class, verify which module it belongs to:**
+
+| Module | Purpose | What Goes Here | What Does NOT Go Here |
+|--------|---------|----------------|----------------------|
+| **module-core-common** | Shared utilities, no domain dependencies | Base exceptions, common enums, utilities, constants, shared DTOs | Domain entities, domain-specific exceptions |
+| **module-core-domain** | Domain models & business logic | JPA entities, domain services, repository interfaces (ports), domain-specific exceptions, domain enums | Infrastructure implementations, external client implementations |
+| **module-core-infra** | Infrastructure implementations | Repository implementations (adapters), external API clients, infrastructure exceptions | Domain entities, controllers, API DTOs |
+| **module-server-api** | REST API layer | Controllers, API request/response DTOs, mappers, API configuration | Domain services, entities, repository implementations |
+
+### Exception Placement Rules
+
+```kotlin
+// module-core-common: Base exceptions and shared exceptions
+// - Has NO dependencies on domain entities
+abstract class BusinessException(...)
+class ResourceNotFoundException(...)      // Generic, reusable
+class ExternalSystemException(...)        // Generic external system error
+
+// module-core-infra: Infrastructure-specific exceptions
+// - For external system integrations (Airflow, BigQuery, etc.)
+// - Extends BusinessException from common
+class AirflowConnectionException(...)     // External system specific
+class WorkflowStorageException(...)       // External storage specific
+class BigQueryExecutionException(...)     // External query engine specific
+
+// module-core-domain: Domain-specific exceptions
+// - Only for exceptions tied to domain concepts/entities
+class MetricNotFoundException(...)        // Tied to MetricEntity
+class DatasetValidationException(...)     // Tied to Dataset domain rules
+```
+
+### Quick Decision Tree for Module Placement
+
+```
+Does the class depend on domain entities or domain-specific logic?
+├── YES → module-core-domain
+│   ├── Is it a repository interface? → domain/repository/
+│   ├── Is it a service? → domain/service/
+│   └── Is it an entity? → domain/model/
+└── NO → Check if it's infrastructure
+    ├── External API client? → module-core-infra/external/
+    ├── Repository implementation? → module-core-infra/repository/
+    ├── External system exception? → module-core-common/exception/ (or infra)
+    └── Shared utility/base class? → module-core-common/
+```
+
+### Anti-Pattern Detection
+
+```bash
+# Check for misplaced exceptions (external exceptions in domain)
+grep -r "class.*Exception" module-core-domain/src/ --include="*.kt" | grep -v "Entity\|Service\|Repository"
+
+# Verify domain has no infrastructure imports
+grep -r "import.*infra\." module-core-domain/src/ --include="*.kt"
+```
+
+---
+
 ## 🚨 CRITICAL: Repository Naming Convention (MUST READ)
 
 **모든 Repository 클래스/인터페이스는 반드시 `Jpa` 또는 `Dsl` 접미사를 포함해야 합니다:**
@@ -35,6 +95,132 @@ interface SampleQueryRepositoryJpaImpl : SampleQueryRepositoryJpa, JpaRepository
 @Repository("sampleQueryRepositoryDsl")
 class SampleQueryRepositoryDslImpl : SampleQueryRepositoryDsl { ... }
 ```
+
+---
+
+## 🚨 CRITICAL: Entity Relationship Rules (NO JPA Associations)
+
+**Entities must NOT use JPA relationship annotations.** This is a fundamental design decision for maintainability and performance.
+
+### Forbidden Annotations
+
+```kotlin
+// ❌ ABSOLUTELY FORBIDDEN - Never use these in entities
+@OneToMany
+@ManyToOne
+@OneToOne
+@ManyToMany
+```
+
+### Why No JPA Relationships?
+
+1. **N+1 Query Prevention**: Lazy loading causes unpredictable query counts
+2. **Explicit Data Access**: QueryDSL makes data fetching visible and controllable
+3. **Simpler Testing**: No cascade/orphan removal complexity
+4. **Clear Boundaries**: Services control aggregation, not entities
+
+### Correct vs Wrong Patterns
+
+```kotlin
+// ❌ WRONG: Entity with JPA relationships
+@Entity
+class OrderEntity(
+    @Id val id: Long,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    val user: UserEntity,  // ❌ FORBIDDEN
+
+    @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL])
+    val items: List<OrderItemEntity> = emptyList(),  // ❌ FORBIDDEN
+)
+
+// ✅ CORRECT: Entity with only direct fields (foreign key as ID)
+@Entity
+class OrderEntity(
+    @Id val id: Long,
+    @Column(name = "user_id", nullable = false)
+    val userId: Long,  // ✅ Store FK as simple field
+    // items are fetched via QueryDSL when needed
+)
+```
+
+### JPA vs QueryDSL Decision Guide
+
+| Scenario | Use | Example |
+|----------|-----|---------|
+| Create/Update/Delete single entity | JPA | `repository.save(entity)` |
+| Find by 1-2 simple fields | JPA | `findById()`, `findByName()` |
+| Find by 3+ conditions or dynamic filters | QueryDSL | Variable WHERE clauses |
+| Fetch related entities (aggregation) | QueryDSL | Order + OrderItems |
+| Projection with joined data | QueryDSL | User with order count |
+| Paginated list with sorting | QueryDSL | Complex list queries |
+
+### The "3-Word Rule" for JPA Methods
+
+If a JPA method name exceeds **3 words** (counting `And`/`Or` separators), switch to QueryDSL:
+
+```kotlin
+// ✅ OK for JPA (1-2 conditions)
+fun findByName(name: String): Entity?
+fun findByStatusAndType(status: Status, type: Type): List<Entity>
+
+// ❌ TOO COMPLEX for JPA - Use QueryDSL instead
+fun findByNameAndStatusAndTypeAndCreatedAtAfter(...)  // 4+ conditions
+fun findByOwnerContainingOrDescriptionContaining(...)  // Complex OR logic
+```
+
+### Aggregation Root Pattern (QueryDSL)
+
+When fetching related entities, use QueryDSL projections:
+
+```kotlin
+// Domain Repository Interface
+interface OrderRepositoryDsl {
+    fun findOrderWithItems(orderId: Long): OrderAggregation?
+    fun findOrdersByUserWithItemCount(userId: Long): List<OrderSummary>
+}
+
+// Infrastructure Implementation
+@Repository("orderRepositoryDsl")
+class OrderRepositoryDslImpl(
+    private val entityManager: EntityManager,
+) : OrderRepositoryDsl {
+    private val queryFactory = JPAQueryFactory(entityManager)
+    private val order = QOrderEntity.orderEntity
+    private val item = QOrderItemEntity.orderItemEntity
+
+    override fun findOrderWithItems(orderId: Long): OrderAggregation? {
+        val orderEntity = queryFactory
+            .selectFrom(order)
+            .where(order.id.eq(orderId))
+            .fetchOne() ?: return null
+
+        val items = queryFactory
+            .selectFrom(item)
+            .where(item.orderId.eq(orderId))
+            .fetch()
+
+        return OrderAggregation(order = orderEntity, items = items)
+    }
+}
+
+// Aggregation Result (Domain Model, NOT Entity)
+data class OrderAggregation(
+    val order: OrderEntity,
+    val items: List<OrderItemEntity>,
+)
+```
+
+### Quick Reference Table
+
+| Task | Layer | Pattern |
+|------|-------|---------|
+| Simple CRUD | JPA Repository | `save()`, `findById()`, `delete()` |
+| 1-2 field lookup | JPA Repository | `findByName()`, `findByStatus()` |
+| 3+ conditions | QueryDSL Repository | Dynamic WHERE with BooleanBuilder |
+| Parent + Children fetch | QueryDSL Repository | Separate queries, aggregate in code |
+| Complex projections | QueryDSL Repository | DTO projections with Projections.constructor() |
+| Batch updates | JPA Repository | `saveAll()` |
 
 ---
 

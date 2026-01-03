@@ -13,11 +13,12 @@
 1. [Quick Reference](#quick-reference)
 2. [Spring Boot 4.x Migration Changes](#spring-boot-4x-migration-changes)
 3. [Dependency Versions](#dependency-versions)
-4. [Test Patterns](#test-patterns)
-5. [Multi-Module Project Testing](#multi-module-project-testing)
-6. [Security Testing](#security-testing)
-7. [Troubleshooting](#troubleshooting)
-8. [Test Structure](#test-structure)
+4. [Test Patterns by Layer](#test-patterns-by-layer) **(NEW)**
+5. [Test Patterns](#test-patterns)
+6. [Multi-Module Project Testing](#multi-module-project-testing)
+7. [Security Testing](#security-testing)
+8. [Troubleshooting](#troubleshooting)
+9. [Test Structure](#test-structure)
 
 ---
 
@@ -148,6 +149,741 @@ ext {
 | MockK | 1.13.12 | Kotlin 2.x support |
 | Kotest | 5.9.1 | Kotlin 2.x support |
 | Testcontainers | 1.19.3 | Stable with JDK 24 |
+
+---
+
+## Test Patterns by Layer
+
+> **Quick Reference:** Use this section to determine the correct test type and annotations for each architectural layer.
+
+### Summary Table
+
+| Layer | Test Type | Annotation | Focus Areas |
+|-------|-----------|------------|-------------|
+| Entity | Unit | None | Domain logic, validation, calculations |
+| Service | Unit + Mock | `@Mock` (MockK) | Business logic, orchestration |
+| External Client | Unit + Mock | `@Mock` (MockK) | Interface behavior, error handling |
+| Controller | Slice | `@WebMvcTest` | HTTP status, validation, security, JSON |
+| Controller Integration | Integration | `@SpringBootTest` | E2E scenarios, DB side-effects |
+| Repository JPA | Slice | `@DataJpaTest` | CRUD, mappings, auditing |
+| Repository DSL | Slice | `@DataJpaTest` + `@Import` | Dynamic queries, projections, joins |
+
+---
+
+### Entity Test (module-core-domain)
+
+**Test Type:** Unit Test only, no Spring context
+
+**What to Test:**
+- **Domain Logic:** State change methods (e.g., `activate()`, `cancel()`, `approve()`)
+- **Validation Logic:** Constructor/factory method validations
+- **Calculation Logic:** Calculation methods (e.g., `calculateTotal()`, `isExpired()`)
+
+**What NOT to Test:**
+- Getter/Setter (auto-generated, no logic)
+- JPA mappings (verified in Repository tests)
+
+```kotlin
+package com.github.lambda.domain.model
+
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+@DisplayName("PipelineEntity Domain Logic Test")
+class PipelineEntityTest {
+
+    @Nested
+    @DisplayName("activate()")
+    inner class Activate {
+
+        @Test
+        fun `should change status to ACTIVE when INACTIVE`() {
+            // Given
+            val pipeline = PipelineEntity(
+                name = "test-pipeline",
+                status = PipelineStatus.INACTIVE
+            )
+
+            // When
+            pipeline.activate()
+
+            // Then
+            assertThat(pipeline.status).isEqualTo(PipelineStatus.ACTIVE)
+        }
+
+        @Test
+        fun `should throw exception when already ACTIVE`() {
+            // Given
+            val pipeline = PipelineEntity(
+                name = "test-pipeline",
+                status = PipelineStatus.ACTIVE
+            )
+
+            // When & Then
+            assertThatThrownBy { pipeline.activate() }
+                .isInstanceOf(IllegalStateException::class.java)
+                .hasMessageContaining("already active")
+        }
+    }
+
+    @Nested
+    @DisplayName("Validation")
+    inner class Validation {
+
+        @Test
+        fun `should throw exception when name is blank`() {
+            assertThatThrownBy {
+                PipelineEntity(name = "", status = PipelineStatus.INACTIVE)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
+}
+```
+
+---
+
+### Service Test (module-core-domain)
+
+**Test Type:** Unit Test with Mocks, no Spring context
+
+**Key Patterns:**
+- Inject dependencies via `@Mock` (MockK) - **NO Spring context**
+- Constructor injection pattern
+- Test business logic only
+
+**CRITICAL:** Do NOT use `@MockkBean` for Service tests - it requires Spring context
+
+```kotlin
+package com.github.lambda.domain.service
+
+import com.github.lambda.domain.model.PipelineEntity
+import com.github.lambda.domain.repository.PipelineRepositoryJpa
+import com.github.lambda.domain.repository.PipelineRepositoryDsl
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+@DisplayName("PipelineService Business Logic Test")
+class PipelineServiceTest {
+
+    // Pure mocks - NO Spring context
+    private val pipelineRepositoryJpa: PipelineRepositoryJpa = mockk()
+    private val pipelineRepositoryDsl: PipelineRepositoryDsl = mockk()
+
+    private lateinit var pipelineService: PipelineService
+
+    @BeforeEach
+    fun setUp() {
+        // Constructor injection
+        pipelineService = PipelineService(
+            pipelineRepositoryJpa = pipelineRepositoryJpa,
+            pipelineRepositoryDsl = pipelineRepositoryDsl
+        )
+    }
+
+    @Nested
+    @DisplayName("createPipeline")
+    inner class CreatePipeline {
+
+        @Test
+        fun `should save and return pipeline`() {
+            // Given
+            val command = CreatePipelineCommand(name = "test-pipeline")
+            val savedEntity = PipelineEntity(id = 1L, name = "test-pipeline")
+            val saveSlot = slot<PipelineEntity>()
+
+            every { pipelineRepositoryJpa.save(capture(saveSlot)) } returns savedEntity
+
+            // When
+            val result = pipelineService.createPipeline(command)
+
+            // Then
+            assertThat(result.id).isEqualTo(1L)
+            assertThat(result.name).isEqualTo("test-pipeline")
+            verify(exactly = 1) { pipelineRepositoryJpa.save(any()) }
+
+            // Verify captured entity
+            val capturedEntity = saveSlot.captured
+            assertThat(capturedEntity.name).isEqualTo("test-pipeline")
+        }
+    }
+}
+```
+
+---
+
+### External Client Test (module-core-infra)
+
+**Test Type:** Unit Test with Mocks, no Spring context
+
+**Pattern:** External dependencies like `AirflowClient` exist as interfaces in `external/`
+
+**CRITICAL:**
+- **NO `@MockBean`** - use `@Mock` + constructor injection for pure unit tests
+- Real external integration tested separately with WireMock
+
+```kotlin
+package com.github.lambda.infra.external
+
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+@DisplayName("AirflowClientImpl Unit Test")
+class AirflowClientImplTest {
+
+    // Mock the HTTP client or RestTemplate - NOT the AirflowClient interface
+    private val restTemplate: RestTemplate = mockk()
+
+    private lateinit var airflowClient: AirflowClientImpl
+
+    @BeforeEach
+    fun setUp() {
+        airflowClient = AirflowClientImpl(
+            restTemplate = restTemplate,
+            baseUrl = "http://localhost:8080"
+        )
+    }
+
+    @Nested
+    @DisplayName("triggerDag")
+    inner class TriggerDag {
+
+        @Test
+        fun `should return run id when successful`() {
+            // Given
+            every { restTemplate.postForEntity(any<String>(), any(), any<Class<*>>()) } returns
+                ResponseEntity.ok(AirflowDagRunResponse(dagRunId = "run-123"))
+
+            // When
+            val result = airflowClient.triggerDag("my-dag", mapOf("date" to "2025-01-01"))
+
+            // Then
+            assertThat(result.dagRunId).isEqualTo("run-123")
+        }
+
+        @Test
+        fun `should throw AirflowException when API fails`() {
+            // Given
+            every { restTemplate.postForEntity(any<String>(), any(), any<Class<*>>()) } throws
+                HttpClientErrorException(HttpStatus.NOT_FOUND)
+
+            // When & Then
+            assertThatThrownBy {
+                airflowClient.triggerDag("unknown-dag", emptyMap())
+            }.isInstanceOf(AirflowException::class.java)
+        }
+    }
+}
+```
+
+---
+
+### Controller Test - Slice (module-server-api)
+
+**Test Type:** Slice Test with `@WebMvcTest`
+
+**Class Name Pattern:** `*ControllerTest`
+
+**Focus Areas:**
+- **HTTP Status Codes:** success (200), failure (400, 401, 403, 404, 500)
+- **Input Validation:** `@Valid` handling, Bad Request responses
+- **Security/Auth:** 403 for unauthorized access
+- **JSON Serialization:** Response DTO field names match API spec
+
+```kotlin
+package com.github.lambda.api.controller
+
+import tools.jackson.databind.json.JsonMapper
+import com.github.lambda.domain.service.PipelineService
+import com.ninjasquad.springmockk.MockkBean
+import io.mockk.every
+import io.mockk.verify
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.http.MediaType
+import org.springframework.security.test.context.support.WithMockUser
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+
+/**
+ * Controller Slice Test - focuses on HTTP layer only
+ *
+ * Pattern:
+ * - @WebMvcTest: Loads only web layer (controller, filters, converters)
+ * - @MockkBean: Mock all service dependencies
+ * - Focus: HTTP status, validation, JSON serialization
+ */
+@WebMvcTest(PipelineController::class)
+@ActiveProfiles("test")
+@Execution(ExecutionMode.SAME_THREAD)
+@WithMockUser(username = "testuser", roles = ["USER"])
+class PipelineControllerTest {
+
+    @Autowired
+    private lateinit var mockMvc: MockMvc
+
+    @Autowired
+    private lateinit var jsonMapper: JsonMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var pipelineService: PipelineService
+
+    @Nested
+    @DisplayName("GET /api/v1/pipelines/{id}")
+    inner class GetPipeline {
+
+        @Test
+        fun `should return 200 with pipeline data`() {
+            // Given
+            every { pipelineService.getPipeline(any()) } returns testPipelineDto
+
+            // When & Then
+            mockMvc.perform(get("/api/v1/pipelines/1"))
+                .andExpect(status().isOk)
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("test-pipeline"))
+        }
+
+        @Test
+        fun `should return 404 when pipeline not found`() {
+            // Given
+            every { pipelineService.getPipeline(any()) } returns null
+
+            // When & Then
+            mockMvc.perform(get("/api/v1/pipelines/999"))
+                .andExpect(status().isNotFound)
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/pipelines - Validation")
+    inner class CreatePipelineValidation {
+
+        @Test
+        fun `should return 400 when name is blank`() {
+            // Given - invalid request
+            val request = CreatePipelineRequest(name = "")
+
+            // When & Then
+            mockMvc.perform(
+                post("/api/v1/pipelines")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(jsonMapper.writeValueAsString(request))
+            )
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.errors").isArray)
+        }
+
+        @Test
+        @WithMockUser(roles = ["GUEST"])  // Insufficient role
+        fun `should return 403 when user lacks permission`() {
+            mockMvc.perform(
+                post("/api/v1/pipelines")
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(jsonMapper.writeValueAsString(validRequest))
+            )
+                .andExpect(status().isForbidden)
+        }
+    }
+}
+```
+
+---
+
+### Controller Integration Test (module-server-api)
+
+**Test Type:** Full Integration Test
+
+**Class Name Pattern:** `*ControllerIntegrationTest`
+
+**Annotations:** `@SpringBootTest`, `@AutoConfigureMockMvc`, TestContainers
+
+**Focus Areas:**
+- **Happy Path:** Full user scenarios with real DB
+- **Database Side-Effects:** Verify DB state after controller calls
+
+**WARNING:** Expensive to run - minimize count, prefer Unit Tests!
+
+```kotlin
+package com.github.lambda.api.controller
+
+import com.github.lambda.config.TestContainersConfig
+import tools.jackson.databind.json.JsonMapper
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.context.annotation.Import
+import org.springframework.http.MediaType
+import org.springframework.security.test.context.support.WithMockUser
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.springframework.transaction.annotation.Transactional
+
+/**
+ * Controller Integration Test - Full stack with real database
+ *
+ * Configuration Pattern:
+ * - @SpringBootTest: Full application context
+ * - @AutoConfigureMockMvc: HTTP testing without actual server
+ * - @Transactional: Test isolation (auto-rollback)
+ * - @Import(TestContainersConfig::class): Real database via TestContainers
+ *
+ * WARNING: Expensive! Use sparingly - prefer slice tests for most cases.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional  // Test isolation - rolls back after each test
+@Execution(ExecutionMode.SAME_THREAD)
+@Import(TestContainersConfig::class)
+@WithMockUser(username = "testuser", roles = ["USER"])
+class PipelineControllerIntegrationTest {
+
+    @Autowired
+    private lateinit var mockMvc: MockMvc
+
+    @Autowired
+    private lateinit var jsonMapper: JsonMapper
+
+    @Autowired
+    private lateinit var pipelineRepositoryJpaSpringData: PipelineRepositoryJpaSpringData
+
+    @Test
+    @DisplayName("POST /api/v1/pipelines - should create and persist pipeline")
+    fun `should create pipeline and verify database state`() {
+        // Given
+        val request = CreatePipelineRequest(name = "integration-test-pipeline")
+
+        // When
+        val result = mockMvc.perform(
+            post("/api/v1/pipelines")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(request))
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.id").isNumber)
+            .andReturn()
+
+        // Then - Verify database side-effect
+        val responseId = /* extract id from response */
+        val savedEntity = pipelineRepositoryJpaSpringData.findById(responseId)
+        assertThat(savedEntity).isPresent
+        assertThat(savedEntity.get().name).isEqualTo("integration-test-pipeline")
+    }
+
+    @Test
+    @DisplayName("Full scenario: Create -> Update -> Get")
+    fun `should handle full CRUD lifecycle`() {
+        // 1. Create
+        // 2. Update
+        // 3. Get and verify final state
+    }
+}
+```
+
+---
+
+### Repository Test - JPA (module-core-infra)
+
+**Test Type:** Slice Test with `@DataJpaTest`
+
+**Class Name Pattern:** `*RepositoryJpaImplTest`
+
+**Focus Areas:**
+- Mapping correctness
+- Basic CRUD operations
+- Entity lifecycle
+- Auditing (`@CreatedDate`, `@LastModifiedDate`)
+- Method naming conventions
+
+```kotlin
+package com.github.lambda.infra.repository
+
+import com.github.lambda.domain.model.PipelineEntity
+import com.github.lambda.domain.model.PipelineStatus
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import org.springframework.test.context.ActiveProfiles
+
+/**
+ * Repository JPA Test - Verifies CRUD operations and JPA mappings
+ *
+ * Pattern:
+ * - @DataJpaTest: Auto-rollback, embedded DB
+ * - TestEntityManager: Direct entity manipulation for test setup
+ */
+@DataJpaTest
+@ActiveProfiles("test")
+@DisplayName("PipelineRepositoryJpaImpl Test")
+class PipelineRepositoryJpaImplTest {
+
+    @Autowired
+    private lateinit var testEntityManager: TestEntityManager
+
+    @Autowired
+    private lateinit var pipelineRepository: PipelineRepositoryJpaSpringData
+
+    @Nested
+    @DisplayName("save()")
+    inner class Save {
+
+        @Test
+        fun `should persist entity with generated id`() {
+            // Given
+            val pipeline = PipelineEntity(name = "test-pipeline")
+
+            // When
+            val saved = pipelineRepository.save(pipeline)
+            testEntityManager.flush()
+
+            // Then
+            assertThat(saved.id).isNotNull()
+            assertThat(saved.name).isEqualTo("test-pipeline")
+        }
+
+        @Test
+        fun `should set createdAt on persist`() {
+            // Given
+            val pipeline = PipelineEntity(name = "audit-test")
+
+            // When
+            val saved = pipelineRepository.save(pipeline)
+            testEntityManager.flush()
+
+            // Then - Verify auditing
+            assertThat(saved.createdAt).isNotNull()
+        }
+    }
+
+    @Nested
+    @DisplayName("findByName()")
+    inner class FindByName {
+
+        @Test
+        fun `should return entity when name exists`() {
+            // Given
+            val pipeline = PipelineEntity(name = "unique-pipeline")
+            testEntityManager.persistAndFlush(pipeline)
+
+            // When
+            val found = pipelineRepository.findByName("unique-pipeline")
+
+            // Then
+            assertThat(found).isNotNull
+            assertThat(found!!.name).isEqualTo("unique-pipeline")
+        }
+
+        @Test
+        fun `should return null when name not found`() {
+            // When
+            val found = pipelineRepository.findByName("nonexistent")
+
+            // Then
+            assertThat(found).isNull()
+        }
+    }
+}
+```
+
+---
+
+### Repository Test - QueryDSL (module-core-infra)
+
+**Test Type:** Slice Test with `@DataJpaTest` + `@Import`
+
+**Class Name Pattern:** `*RepositoryDslImplTest`
+
+**Focus Areas:**
+- Dynamic conditions (BooleanExpression)
+- DTO projections
+- Joins and aggregations
+- Complex operations
+
+```kotlin
+package com.github.lambda.infra.repository
+
+import com.github.lambda.config.QueryDslConfig
+import com.github.lambda.domain.model.PipelineEntity
+import com.github.lambda.domain.model.PipelineStatus
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
+
+/**
+ * Repository QueryDSL Test - Verifies complex queries
+ *
+ * Pattern:
+ * - @DataJpaTest: Lightweight slice test
+ * - @Import(QueryDslConfig::class): Required for JPAQueryFactory
+ */
+@DataJpaTest
+@ActiveProfiles("test")
+@Import(QueryDslConfig::class)  // REQUIRED: Provides JPAQueryFactory
+@DisplayName("PipelineRepositoryDslImpl Test")
+class PipelineRepositoryDslImplTest {
+
+    @Autowired
+    private lateinit var testEntityManager: TestEntityManager
+
+    @Autowired
+    private lateinit var pipelineRepositoryDsl: PipelineRepositoryDslImpl
+
+    @BeforeEach
+    fun setUp() {
+        // Setup test data
+        testEntityManager.persistAndFlush(
+            PipelineEntity(name = "pipeline-1", status = PipelineStatus.ACTIVE)
+        )
+        testEntityManager.persistAndFlush(
+            PipelineEntity(name = "pipeline-2", status = PipelineStatus.INACTIVE)
+        )
+        testEntityManager.persistAndFlush(
+            PipelineEntity(name = "other-3", status = PipelineStatus.ACTIVE)
+        )
+    }
+
+    @Nested
+    @DisplayName("searchByConditions()")
+    inner class SearchByConditions {
+
+        @Test
+        fun `should filter by status`() {
+            // When
+            val result = pipelineRepositoryDsl.searchByConditions(
+                status = PipelineStatus.ACTIVE,
+                namePattern = null
+            )
+
+            // Then
+            assertThat(result).hasSize(2)
+            assertThat(result).allMatch { it.status == PipelineStatus.ACTIVE }
+        }
+
+        @Test
+        fun `should filter by name pattern`() {
+            // When
+            val result = pipelineRepositoryDsl.searchByConditions(
+                status = null,
+                namePattern = "pipeline%"
+            )
+
+            // Then
+            assertThat(result).hasSize(2)
+            assertThat(result.map { it.name }).containsExactlyInAnyOrder(
+                "pipeline-1", "pipeline-2"
+            )
+        }
+
+        @Test
+        fun `should combine multiple conditions`() {
+            // When
+            val result = pipelineRepositoryDsl.searchByConditions(
+                status = PipelineStatus.ACTIVE,
+                namePattern = "pipeline%"
+            )
+
+            // Then
+            assertThat(result).hasSize(1)
+            assertThat(result[0].name).isEqualTo("pipeline-1")
+        }
+    }
+
+    @Nested
+    @DisplayName("findWithRelatedData() - Aggregation Pattern")
+    inner class FindWithRelatedData {
+
+        @Test
+        fun `should fetch pipeline with tasks in single query`() {
+            // When
+            val result = pipelineRepositoryDsl.findPipelineWithTasks(1L)
+
+            // Then
+            assertThat(result).isNotNull
+            assertThat(result!!.tasks).isNotEmpty
+            // Verify no N+1 - single query executed
+        }
+    }
+}
+```
+
+---
+
+### Test Pattern Decision Tree
+
+```
+What are you testing?
+│
+├─> Domain Entity behavior
+│   └─> Entity Test (Unit, no Spring)
+│
+├─> Service business logic
+│   └─> Service Test (Unit + MockK)
+│
+├─> External API client
+│   └─> External Client Test (Unit + MockK)
+│       └─> Integration: WireMock (separate test)
+│
+├─> Controller HTTP behavior
+│   ├─> Input validation, status codes, JSON
+│   │   └─> Controller Test (@WebMvcTest)
+│   └─> Full scenario with DB
+│       └─> Controller Integration Test (@SpringBootTest)
+│
+└─> Repository data access
+    ├─> Simple CRUD, mappings
+    │   └─> JPA Repository Test (@DataJpaTest)
+    └─> Complex queries, projections
+        └─> DSL Repository Test (@DataJpaTest + @Import)
+```
 
 ---
 

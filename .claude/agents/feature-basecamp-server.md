@@ -69,6 +69,22 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 [ ] 2. Check feature spec header for Data Source type
 [ ] 3. Search existing code: grep -r "Entity" module-core-domain/
 [ ] 4. Verify repository naming ends with Jpa/Dsl
+[ ] 5. **Verify module placement** (see docs/PATTERNS.md#module-placement-rules):
+    - Base exceptions, shared utilities -> module-core-common
+    - Domain entities, domain services, domain exceptions -> module-core-domain
+    - Repository impls, external clients, infra exceptions -> module-core-infra
+    - Controllers, API DTOs -> module-server-api
+[ ] 6. **Verify NO JPA relationship annotations** in entities:
+    - No @OneToMany, @ManyToOne, @OneToOne, @ManyToMany
+    - Store foreign keys as simple fields (Long/String)
+    - Use QueryDSL for aggregation queries
+```
+
+### Entity Relationship Validation
+
+```bash
+# Anti-pattern detection: Check for forbidden JPA annotations (should return EMPTY)
+grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --include="*.kt"
 ```
 
 ---
@@ -92,9 +108,27 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 
 ## Implementation Patterns (CRITICAL)
 
-- Read docs/PATTERNS.md
-- Read docs/TESTING.md
-- Read docs/IMPLEMENTATION_GUIDE.md
+- Read docs/PATTERNS.md (includes **Module Placement Rules** - verify before creating new classes)
+- Read docs/TESTING.md (includes **Test Patterns by Layer** - verify test type per layer)
+- Read docs/IMPLEMENTATION_GUIDE.md (includes **Exception Placement Guidelines**)
+
+### Test Patterns Quick Reference
+
+| Layer | Test Type | Annotation | Key Rule |
+|-------|-----------|------------|----------|
+| Entity | Unit | None | No Spring context |
+| Service | Unit + Mock | `@Mock` (MockK) | **NO `@MockkBean`** |
+| External Client | Unit + Mock | `@Mock` (MockK) | **NO `@MockBean`** |
+| Controller | Slice | `@WebMvcTest` | Class name: `*ControllerTest` |
+| Controller Integration | Integration | `@SpringBootTest` | Class name: `*ControllerIntegrationTest` |
+| Repository JPA | Slice | `@DataJpaTest` | Class name: `*RepositoryJpaImplTest` |
+| Repository DSL | Slice | `@DataJpaTest` + `@Import` | Class name: `*RepositoryDslImplTest` |
+
+**CRITICAL:**
+- Service/External Client tests: Use pure MockK (`mockk()`), not `@MockkBean`
+- Controller Integration tests: **Expensive** - minimize count, prefer slice tests
+
+**See:** `docs/TESTING.md#test-patterns-by-layer` for detailed patterns and examples.
 
 ## Implementation Order
 
@@ -122,6 +156,31 @@ grep -r "@Entity\|RepositoryJpa" module-core-domain/src/ --include="*.kt" | head
 - Field injection (use constructor injection)
 - Exposing Spring Data interfaces to domain layer
 - Missing `@Repository("beanName")` on implementations
+- **Placing external system exceptions in domain layer** (e.g., `AirflowException` -> should be in common or infra)
+- **JPA relationship annotations in entities** (`@OneToMany`, `@ManyToOne`, `@OneToOne`, `@ManyToMany`)
+- **JPA methods with 3+ conditions** (use QueryDSL instead)
+- **Lazy loading for related entities** (use explicit QueryDSL aggregation queries)
+
+### Entity Relationship Rules (CRITICAL)
+
+> **See:** `docs/PATTERNS.md#entity-relationship-rules-no-jpa-associations`
+
+| Scenario | Use | Example |
+|----------|-----|---------|
+| Create/Update/Delete single entity | JPA | `repository.save(entity)` |
+| Find by 1-2 simple fields | JPA | `findById()`, `findByName()` |
+| Find by 3+ conditions | QueryDSL | Dynamic WHERE clauses |
+| Fetch related entities | QueryDSL | Aggregation pattern |
+
+```kotlin
+// ❌ FORBIDDEN
+@ManyToOne val user: UserEntity
+@OneToMany val items: List<ItemEntity>
+
+// ✅ CORRECT
+@Column(name = "user_id") val userId: Long
+// Fetch items via QueryDSL: orderRepositoryDsl.findOrderWithItems(id)
+```
 
 ## Quality Checklist
 

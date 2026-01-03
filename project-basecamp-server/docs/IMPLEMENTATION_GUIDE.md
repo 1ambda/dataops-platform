@@ -24,10 +24,163 @@
 
 - 미래에는 MySQL 을 사용할 것이나, 현재는 H2 기반의 Entity 를 설계해 사용합니다. 단, MySQL 마이그레이션을 고려해주세요.
 - module-core-infra 에서 데이터 조회는 QueryDSL 을 사용합니다. 데이터 추가 / 변경 / 삭제는 JPA 를 사용할 수 있습니다.
-- module-core-domain 내 Entity 는 JPA 연관 관계를 절대로 (중요) 사용하지 않습니다.
+- **module-core-domain 내 Entity 는 JPA 연관 관계를 절대로 (중요) 사용하지 않습니다.** (See [Entity Relationship Rules](#entity-relationship-rules-critical))
 - Test 는 ServiceTest 를 위주로 작성합니다. ControllerTest 도 작성합니다.
 - SpringBootApplication 을 띄우는 무거운 테스트는 지양합니다.
 - Basecamp Server 의 자체 기능이 아니거나 외부와의 연동 (e.g, Airflow 연동, BigQuery 실행 등) 의 경우에는 Mock 방식으로 작업합니다.
+
+---
+
+## Entity Relationship Rules (CRITICAL)
+
+> **Core Rule**: Entities must NOT use JPA relationship annotations (`@OneToMany`, `@ManyToOne`, `@OneToOne`, `@ManyToMany`).
+
+### Entity Design Principles
+
+1. **Store Foreign Keys as Simple Fields**: Use `Long` or `String` IDs instead of entity references
+2. **No Cascading Operations**: Handle related entity persistence explicitly in services
+3. **QueryDSL for Aggregations**: Fetch related data through QueryDSL, not lazy loading
+
+### Correct Entity Pattern
+
+```kotlin
+@Entity
+@Table(name = "orders")
+class OrderEntity(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    // ✅ CORRECT: Foreign key as simple field
+    @Column(name = "user_id", nullable = false)
+    val userId: Long,
+
+    @Column(name = "status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    val status: OrderStatus,
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+) {
+    // ❌ NO relationship fields like:
+    // val user: UserEntity
+    // val items: List<OrderItemEntity>
+}
+```
+
+### JPA vs QueryDSL Decision Guide
+
+| Use Case | Technology | Rationale |
+|----------|------------|-----------|
+| **Create/Update/Delete** single entity | JPA | Simple persistence operations |
+| **Find by 1-2 fields** | JPA | `findById()`, `findByName()` are fine |
+| **Find by 3+ fields** | QueryDSL | Method names become unwieldy |
+| **Dynamic conditions** (user-selected filters) | QueryDSL | BooleanBuilder for optional conditions |
+| **Fetch related entities** | QueryDSL | Explicit joins, no lazy loading surprises |
+| **Aggregation projections** | QueryDSL | DTO projections with joined data |
+
+### QueryDSL Aggregation Pattern
+
+When you need to fetch an entity with its related entities:
+
+```kotlin
+// Service Layer - Aggregation Logic
+@Service
+@Transactional(readOnly = true)
+class OrderService(
+    private val orderRepositoryJpa: OrderRepositoryJpa,
+    private val orderRepositoryDsl: OrderRepositoryDsl,
+) {
+    fun getOrderWithItems(orderId: Long): OrderDetailDto? {
+        // Fetch aggregated data via QueryDSL
+        val aggregation = orderRepositoryDsl.findOrderWithItems(orderId)
+            ?: return null
+
+        return OrderDetailDto(
+            id = aggregation.order.id,
+            userId = aggregation.order.userId,
+            status = aggregation.order.status,
+            items = aggregation.items.map { item ->
+                OrderItemDto(
+                    id = item.id,
+                    productName = item.productName,
+                    quantity = item.quantity,
+                )
+            },
+        )
+    }
+}
+
+// QueryDSL Repository Implementation
+@Repository("orderRepositoryDsl")
+class OrderRepositoryDslImpl(
+    private val entityManager: EntityManager,
+) : OrderRepositoryDsl {
+    private val queryFactory = JPAQueryFactory(entityManager)
+    private val order = QOrderEntity.orderEntity
+    private val item = QOrderItemEntity.orderItemEntity
+
+    override fun findOrderWithItems(orderId: Long): OrderAggregation? {
+        // Separate queries - explicit and predictable
+        val orderEntity = queryFactory
+            .selectFrom(order)
+            .where(order.id.eq(orderId))
+            .fetchOne() ?: return null
+
+        val items = queryFactory
+            .selectFrom(item)
+            .where(item.orderId.eq(orderId))
+            .orderBy(item.createdAt.asc())
+            .fetch()
+
+        return OrderAggregation(order = orderEntity, items = items)
+    }
+}
+```
+
+### The "3-Word Rule"
+
+If a Spring Data JPA method name exceeds 3 words (by `And`/`Or` count), use QueryDSL:
+
+```kotlin
+// ✅ JPA OK: 1-2 conditions
+fun findByStatus(status: Status): List<Entity>
+fun findByNameAndType(name: String, type: Type): Entity?
+
+// ❌ Too complex for JPA: 3+ conditions -> Use QueryDSL
+// findByStatusAndTypeAndOwnerAndCreatedAtAfter(...)
+```
+
+### Anti-Pattern Examples
+
+```kotlin
+// ❌ WRONG: Entity with relationships
+@Entity
+class UserEntity(
+    @Id val id: Long,
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    val orders: List<OrderEntity> = emptyList(),  // ❌ FORBIDDEN
+)
+
+// ❌ WRONG: Bidirectional relationship
+@Entity
+class OrderItemEntity(
+    @Id val id: Long,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    val order: OrderEntity,  // ❌ FORBIDDEN
+)
+
+// ❌ WRONG: JPA method with too many conditions
+interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
+    fun findByNameContainingAndStatusAndRoleAndCreatedAtAfter(
+        name: String, status: Status, role: Role, date: LocalDateTime
+    ): List<UserEntity>  // ❌ Too complex - use QueryDSL
+}
+```
 
 ---
 
@@ -37,22 +190,65 @@
 
 ```
 project-basecamp-server/
-├── module-core-common/          # Shared utilities
+├── module-core-common/          # Shared utilities (NO domain dependencies)
+│   ├── src/main/kotlin/common/
+│   │   ├── exception/           # Base exceptions (BusinessException, etc.)
+│   │   ├── constant/            # Shared constants
+│   │   └── util/               # Utility classes
 ├── module-core-domain/          # Domain models & interfaces
 │   ├── src/main/kotlin/domain/
-│   │   ├── entity/              # JPA entities
+│   │   ├── model/               # JPA entities (domain-specific)
 │   │   ├── repository/          # Repository interfaces (ports)
 │   │   └── service/            # Domain services (concrete)
 ├── module-core-infra/           # Infrastructure implementations
 │   ├── src/main/kotlin/infra/
 │   │   ├── repository/          # Repository implementations (adapters)
-│   │   └── external/           # External service clients
+│   │   ├── external/           # External service clients (Airflow, BigQuery)
+│   │   └── exception/          # Infrastructure-specific exceptions (optional)
 └── module-server-api/           # REST API layer
     ├── src/main/kotlin/api/
     │   ├── controller/          # REST controllers
-    │   ├── dto/                # Data transfer objects
+    │   ├── dto/                # API request/response DTOs
     │   └── mapper/             # DTO ↔ Entity mappers
 ```
+
+### Module Placement Decision Guide (CRITICAL)
+
+**Before creating ANY new class, ask: "What does this class depend on?"**
+
+| Module | Depends On | Contains | Examples |
+|--------|------------|----------|----------|
+| **module-core-common** | Nothing (base module) | Base exceptions, utilities, shared constants | `BusinessException`, `DateUtils`, `CommonConstants` |
+| **module-core-domain** | common only | Entities, repository interfaces, domain services, domain exceptions | `MetricEntity`, `MetricRepositoryJpa`, `MetricService`, `MetricNotFoundException` |
+| **module-core-infra** | common + domain | Repository impls, external clients, infra exceptions | `MetricRepositoryJpaImpl`, `AirflowClient`, `AirflowConnectionException` |
+| **module-server-api** | common + domain + infra | Controllers, API DTOs, mappers | `MetricController`, `MetricRequest`, `MetricMapper` |
+
+### Exception Placement Guidelines
+
+```kotlin
+// CORRECT: module-core-common/exception/
+// - Base exceptions with NO domain dependencies
+abstract class BusinessException(message: String, errorCode: String, cause: Throwable?)
+class ResourceNotFoundException(resourceType: String, identifier: Any)
+class ExternalSystemException(system: String, operation: String)
+
+// CORRECT: module-core-domain (domain-specific exceptions)
+// - Exceptions tied to specific domain entities or business rules
+class MetricNotFoundException(name: String)         // Uses MetricEntity concept
+class DatasetAlreadyExistsException(datasetName: String)  // Uses Dataset domain
+
+// CORRECT: module-core-infra/external/ or infra/exception/ (infrastructure exceptions)
+// - Exceptions for external system integrations
+class AirflowConnectionException(operation: String) // Airflow-specific
+class BigQueryExecutionException(query: String)     // BigQuery-specific
+class WorkflowStorageException(operation: String)   // Storage-specific
+
+// WRONG: module-core-domain/external/ ❌
+// - External system exceptions should NOT be in domain layer
+// - They don't represent domain concepts
+```
+
+**Quick Rule:** If an exception mentions an external system (Airflow, BigQuery, Trino, S3, etc.), it belongs in `module-core-common/exception/` (generic) or `module-core-infra/` (specific implementation).
 
 ### Dependency Rules
 
