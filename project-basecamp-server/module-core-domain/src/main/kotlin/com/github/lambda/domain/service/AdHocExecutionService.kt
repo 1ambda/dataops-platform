@@ -1,14 +1,16 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.ExecutionStatus
 import com.github.lambda.common.exception.AdHocExecutionException
 import com.github.lambda.common.exception.InvalidSqlException
 import com.github.lambda.common.exception.QueryExecutionTimeoutException
 import com.github.lambda.common.exception.ResultSizeLimitExceededException
+import com.github.lambda.common.util.QueryUtility
 import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.entity.adhoc.ExecutionStatus
 import com.github.lambda.domain.external.QueryEngineClient
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
-import com.github.lambda.domain.repository.AdHocExecutionRepositoryJpa
+import com.github.lambda.domain.projection.adhoc.AdHocExecutionResultProjection
+import com.github.lambda.domain.repository.adhoc.AdHocExecutionRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,7 +23,7 @@ import java.time.LocalDateTime
  * Ad-Hoc SQL 쿼리 실행을 담당하는 핵심 도메인 서비스입니다.
  * Pure Hexagonal Architecture 패턴을 따르는 concrete class입니다.
  *
- * Testability: Uses injected Clock and QueryIdGenerator for deterministic behavior.
+ * Testability: Uses injected Clock and QueryUtility for deterministic behavior.
  */
 @Service
 @Transactional(readOnly = true)
@@ -31,7 +33,7 @@ class AdHocExecutionService(
     private val queryEngineClient: QueryEngineClient,
     private val executionRepositoryJpa: AdHocExecutionRepositoryJpa,
     private val clock: Clock,
-    private val queryIdGenerator: QueryIdGenerator,
+    private val queryUtility: QueryUtility,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -46,7 +48,7 @@ class AdHocExecutionService(
         parameters: Map<String, Any>,
         downloadFormat: String?,
         dryRun: Boolean,
-    ): AdHocExecutionResult {
+    ): AdHocExecutionResultProjection {
         // 1. 실행 정책 검증
         executionPolicyService.validateExecution(userId, sql, engine)
 
@@ -59,7 +61,7 @@ class AdHocExecutionService(
         }
 
         // 4. 쿼리 ID 생성
-        val queryId = queryIdGenerator.generate()
+        val queryId = queryUtility.generate()
         val startTime = clock.millis()
 
         // 5. 실행 기록 생성
@@ -118,7 +120,7 @@ class AdHocExecutionService(
                 "Ad-hoc execution completed: queryId=$queryId, rows=${result.rows.size}, time=${executionTime}s",
             )
 
-            return AdHocExecutionResult(
+            return AdHocExecutionResultProjection(
                 queryId = queryId,
                 status = ExecutionStatus.COMPLETED,
                 executionTimeSeconds = executionTime,
@@ -157,7 +159,7 @@ class AdHocExecutionService(
         sql: String,
         renderedSql: String,
         engine: String,
-    ): AdHocExecutionResult {
+    ): AdHocExecutionResultProjection {
         val startTime = clock.millis()
 
         val validationResult = queryEngineClient.validateSQL(renderedSql, engine)
@@ -173,7 +175,7 @@ class AdHocExecutionService(
 
         logger.debug("Dry-run validation completed: userId=$userId, engine=$engine, time=${executionTime}s")
 
-        return AdHocExecutionResult(
+        return AdHocExecutionResultProjection(
             queryId = null,
             status = ExecutionStatus.VALIDATED,
             executionTimeSeconds = executionTime,
@@ -259,19 +261,3 @@ class AdHocExecutionService(
         return (estimatedBytes / (1024 * 1024)).toInt()
     }
 }
-
-/**
- * Ad-Hoc 실행 결과
- */
-data class AdHocExecutionResult(
-    val queryId: String?,
-    val status: ExecutionStatus,
-    val executionTimeSeconds: Double,
-    val rowsReturned: Int,
-    val bytesScanned: Long?,
-    val costUsd: java.math.BigDecimal?,
-    val rows: List<Map<String, Any?>>,
-    val expiresAt: LocalDateTime?,
-    val renderedSql: String,
-    val downloadFormat: String?,
-)

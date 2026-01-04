@@ -1,10 +1,10 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.AuditResourceAction
 import com.github.lambda.domain.entity.audit.AuditAccessEntity
 import com.github.lambda.domain.entity.audit.AuditResourceEntity
-import com.github.lambda.domain.model.audit.AuditResourceAction
-import com.github.lambda.domain.repository.AuditAccessRepositoryJpa
-import com.github.lambda.domain.repository.AuditResourceRepositoryJpa
+import com.github.lambda.domain.repository.audit.AuditAccessRepositoryJpa
+import com.github.lambda.domain.repository.audit.AuditResourceRepositoryJpa
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

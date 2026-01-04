@@ -1,5 +1,9 @@
 package com.github.lambda.domain.model.workflow
 
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

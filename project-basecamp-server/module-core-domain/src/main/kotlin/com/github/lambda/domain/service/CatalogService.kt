@@ -3,13 +3,12 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.InvalidTableReferenceException
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.domain.model.catalog.CatalogFilters
-import com.github.lambda.domain.model.catalog.ColumnInfo
 import com.github.lambda.domain.model.catalog.SampleQuery
 import com.github.lambda.domain.model.catalog.TableDetail
 import com.github.lambda.domain.model.catalog.TableInfo
-import com.github.lambda.domain.repository.CatalogRepositoryDsl
-import com.github.lambda.domain.repository.CatalogRepositoryJpa
-import com.github.lambda.domain.repository.SampleQueryRepositoryDsl
+import com.github.lambda.domain.repository.catalog.CatalogRepositoryDsl
+import com.github.lambda.domain.repository.catalog.CatalogRepositoryJpa
+import com.github.lambda.domain.repository.catalog.SampleQueryRepositoryDsl
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -20,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional
  * Services are concrete classes (no interfaces) following Pure Hexagonal Architecture.
  *
  * This is a simple MVP implementation that delegates to repositories.
- * No cache service or PII masking is implemented as per exclusion requirements.
+ * No cache service is implemented as per exclusion requirements.
  */
 @Service
 @Transactional(readOnly = true)
@@ -31,7 +30,6 @@ class CatalogService(
 ) {
     companion object {
         private const val DEFAULT_SAMPLE_LIMIT = 10
-        private const val PII_MASK_VALUE = "***"
     }
 
     /**
@@ -97,7 +95,7 @@ class CatalogService(
      * Get detailed table information
      *
      * @param tableRef Fully qualified table reference (project.dataset.table)
-     * @param includeSample Whether to include sample data (PII-masked)
+     * @param includeSample Whether to include sample data
      * @return Table detail
      * @throws InvalidTableReferenceException if table reference format is invalid
      * @throws TableNotFoundException if table not found
@@ -113,9 +111,8 @@ class CatalogService(
                 ?: throw TableNotFoundException(tableRef)
 
         return if (includeSample) {
-            val rawSample = catalogRepositoryDsl.getSampleData(tableRef, DEFAULT_SAMPLE_LIMIT)
-            val maskedSample = maskPiiData(detail.columns, rawSample)
-            detail.copy(sampleData = maskedSample)
+            val sampleData = catalogRepositoryDsl.getSampleData(tableRef, DEFAULT_SAMPLE_LIMIT)
+            detail.copy(sampleData = sampleData)
         } else {
             detail
         }
@@ -155,33 +152,6 @@ class CatalogService(
         val parts = tableRef.split(".")
         if (parts.size != 3 || parts.any { it.isBlank() }) {
             throw InvalidTableReferenceException(tableRef)
-        }
-    }
-
-    /**
-     * Mask PII data in sample rows
-     *
-     * Simple PII masking based on column isPii flag.
-     * Note: Real implementation would use PIIMaskingService.
-     */
-    private fun maskPiiData(
-        columns: List<ColumnInfo>,
-        sampleData: List<Map<String, Any>>,
-    ): List<Map<String, Any>> {
-        val piiColumns =
-            columns
-                .filter { it.isPii }
-                .map { it.name }
-                .toSet()
-
-        if (piiColumns.isEmpty()) {
-            return sampleData
-        }
-
-        return sampleData.map { row ->
-            row.mapValues { (columnName, value) ->
-                if (columnName in piiColumns) PII_MASK_VALUE else value
-            }
         }
     }
 }

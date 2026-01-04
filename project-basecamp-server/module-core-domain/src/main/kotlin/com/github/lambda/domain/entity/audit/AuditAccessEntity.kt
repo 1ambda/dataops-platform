@@ -1,6 +1,6 @@
 package com.github.lambda.domain.entity.audit
 
-import com.github.lambda.domain.model.audit.AuditResourceAction
+import com.github.lambda.common.enums.AuditResourceAction
 import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes

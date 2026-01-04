@@ -1,25 +1,25 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
 import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
-import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowDAGRunState
-import com.github.lambda.domain.external.AirflowDAGRunStatus
-import com.github.lambda.domain.external.WorkflowStorage
+import com.github.lambda.domain.external.airflow.AirflowClient
+import com.github.lambda.domain.external.airflow.AirflowDAGRunState
+import com.github.lambda.domain.external.airflow.AirflowDAGRunStatusResponse
+import com.github.lambda.domain.external.storage.WorkflowStorage
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
-import com.github.lambda.domain.model.workflow.WorkflowStatus
-import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
-import com.github.lambda.domain.repository.WorkflowRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRepositoryJpa
-import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRunRepositoryJpa
+import com.github.lambda.domain.repository.airflow.AirflowClusterRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -657,7 +657,7 @@ class WorkflowService(
     /**
      * Map Airflow DAG run status to WorkflowRunStatus
      */
-    private fun mapAirflowStatusToWorkflowStatus(airflowStatus: AirflowDAGRunStatus): WorkflowRunStatus =
+    private fun mapAirflowStatusToWorkflowStatus(airflowStatus: AirflowDAGRunStatusResponse): WorkflowRunStatus =
         when (airflowStatus.state) {
             AirflowDAGRunState.QUEUED -> WorkflowRunStatus.PENDING
             AirflowDAGRunState.RUNNING -> WorkflowRunStatus.RUNNING

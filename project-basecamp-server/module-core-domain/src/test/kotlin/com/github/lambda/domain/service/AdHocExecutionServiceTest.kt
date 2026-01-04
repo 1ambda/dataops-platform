@@ -1,24 +1,26 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.ExecutionStatus
 import com.github.lambda.common.exception.AdHocExecutionException
 import com.github.lambda.common.exception.InvalidSqlException
 import com.github.lambda.common.exception.QueryExecutionTimeoutException
 import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.common.exception.ResultNotFoundException
 import com.github.lambda.common.exception.ResultSizeLimitExceededException
+import com.github.lambda.common.util.QueryUtility
 import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.entity.adhoc.ExecutionStatus
 import com.github.lambda.domain.external.QueryEngineClient
 import com.github.lambda.domain.external.QueryExecutionResult
 import com.github.lambda.domain.external.QueryValidationResult
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
-import com.github.lambda.domain.repository.AdHocExecutionRepositoryJpa
+import com.github.lambda.domain.repository.adhoc.AdHocExecutionRepositoryJpa
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -44,7 +46,7 @@ class AdHocExecutionServiceTest {
     private val queryEngineClient: QueryEngineClient = mockk()
     private val executionRepositoryJpa: AdHocExecutionRepositoryJpa = mockk()
     private val clock: Clock = Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC"))
-    private val queryIdGenerator: QueryIdGenerator = mockk()
+    private val queryUtility: QueryUtility = mockk()
 
     private lateinit var adHocExecutionService: AdHocExecutionService
 
@@ -61,8 +63,8 @@ class AdHocExecutionServiceTest {
         every { config.maxResultSizeMb } returns 100
         every { config.resultExpirationHours } returns 8 // Per spec: 8 hours
 
-        // Setup query ID generator to return consistent ID for tests
-        every { queryIdGenerator.generate() } returns testQueryId
+        // Setup query utility to return consistent ID for tests
+        every { queryUtility.generate() } returns testQueryId
 
         adHocExecutionService =
             AdHocExecutionService(
@@ -71,7 +73,7 @@ class AdHocExecutionServiceTest {
                 queryEngineClient,
                 executionRepositoryJpa,
                 clock,
-                queryIdGenerator,
+                queryUtility,
             )
     }
 

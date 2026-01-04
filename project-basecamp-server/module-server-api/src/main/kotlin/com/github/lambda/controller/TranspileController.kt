@@ -1,7 +1,7 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.constant.CommonConstants
-import com.github.lambda.domain.model.transpile.SqlDialect
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.domain.service.TranspileService
 import com.github.lambda.dto.transpile.TranspileResultDto
 import com.github.lambda.dto.transpile.TranspileRulesDto

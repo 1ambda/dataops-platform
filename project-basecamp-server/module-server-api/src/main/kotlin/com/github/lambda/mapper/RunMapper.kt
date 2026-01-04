@@ -1,7 +1,7 @@
 package com.github.lambda.mapper
 
 import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.service.AdHocExecutionResult
+import com.github.lambda.domain.projection.adhoc.AdHocExecutionResultProjection
 import com.github.lambda.domain.projection.execution.CurrentUsageProjection
 import com.github.lambda.domain.projection.execution.ExecutionPolicyProjection
 import com.github.lambda.domain.projection.execution.RateLimitsProjection
@@ -55,10 +55,10 @@ object RunMapper {
         )
 
     /**
-     * AdHocExecutionResult -> ExecutionResultResponseDto 변환
+     * AdHocExecutionResultProjection -> ExecutionResultResponseDto 변환
      */
     fun toResponseDto(
-        result: AdHocExecutionResult,
+        result: AdHocExecutionResultProjection,
         downloadUrls: Map<String, String>,
     ): ExecutionResultResponseDto =
         ExecutionResultResponseDto(

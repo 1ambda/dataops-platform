@@ -1,5 +1,7 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.ComparisonStatus
+import com.github.lambda.common.enums.PullRequestState
 import com.github.lambda.common.exception.GitHubRepositoryAlreadyExistsException
 import com.github.lambda.common.exception.GitHubRepositoryNotFoundException
 import com.github.lambda.common.exception.GitHubRepositoryUrlAlreadyExistsException
@@ -7,10 +9,8 @@ import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
 import com.github.lambda.domain.model.github.BranchComparison
 import com.github.lambda.domain.model.github.CommitSummary
-import com.github.lambda.domain.model.github.ComparisonStatus
 import com.github.lambda.domain.model.github.GitHubBranch
 import com.github.lambda.domain.model.github.GitHubPullRequest
-import com.github.lambda.domain.model.github.PullRequestState
 import com.github.lambda.domain.service.GitHubService
 import com.github.lambda.dto.github.BranchComparisonResponse
 import com.github.lambda.dto.github.CommitSummaryResponse

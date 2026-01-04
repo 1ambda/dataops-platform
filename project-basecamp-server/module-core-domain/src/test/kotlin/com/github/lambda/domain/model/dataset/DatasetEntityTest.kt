@@ -1,5 +1,7 @@
 package com.github.lambda.domain.model.dataset
 
+import com.github.lambda.domain.entity.dataset.DatasetEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

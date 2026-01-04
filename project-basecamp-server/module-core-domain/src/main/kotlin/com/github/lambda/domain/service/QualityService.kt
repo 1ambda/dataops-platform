@@ -1,20 +1,21 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.ResourceType
+import com.github.lambda.common.enums.TestStatus
+import com.github.lambda.common.enums.TestType
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
 import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.domain.entity.quality.QualityRunEntity
 import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.entity.quality.QualityTestEntity
-import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.TestStatus
-import com.github.lambda.domain.model.quality.TestType
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
-import com.github.lambda.domain.repository.QualityRunRepositoryJpa
-import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
-import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
-import com.github.lambda.domain.repository.QualityTestRepositoryJpa
+import com.github.lambda.domain.projection.quality.MockTestResultProjection
+import com.github.lambda.domain.repository.quality.QualityRunRepositoryJpa
+import com.github.lambda.domain.repository.quality.QualitySpecRepositoryDsl
+import com.github.lambda.domain.repository.quality.QualitySpecRepositoryJpa
+import com.github.lambda.domain.repository.quality.QualityTestRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -326,7 +327,7 @@ class QualityService(
         resourceName: String,
         test: QualityTestEntity,
         runId: Long,
-    ): MockTestResult {
+    ): MockTestResultProjection {
         log.debug("Executing test: {} for resource: {}", test.name, resourceName)
 
         try {
@@ -384,7 +385,7 @@ class QualityService(
             return mockResult
         } catch (ex: Exception) {
             log.error("Failed to execute test: {}", test.name, ex)
-            return MockTestResult(
+            return MockTestResultProjection(
                 status = TestStatus.FAILED,
                 failedRows = 0,
                 totalRows = 0,
@@ -400,7 +401,7 @@ class QualityService(
     private fun executeMockQuery(
         sql: String,
         test: QualityTestEntity,
-    ): MockTestResult {
+    ): MockTestResultProjection {
         // Mock implementation - returns random results for demonstration
         val totalRows = 1000000L
         val failedRows =
@@ -413,7 +414,7 @@ class QualityService(
 
         val status = if (failedRows == 0L) TestStatus.PASSED else TestStatus.FAILED
 
-        return MockTestResult(
+        return MockTestResultProjection(
             status = status,
             failedRows = failedRows,
             totalRows = totalRows,
@@ -588,8 +589,8 @@ class QualityService(
     fun registerQualitySpec(
         yamlContent: String,
         registeredBy: String,
-        sourceType: com.github.lambda.domain.model.workflow.WorkflowSourceType =
-            com.github.lambda.domain.model.workflow.WorkflowSourceType.MANUAL,
+        sourceType: com.github.lambda.common.enums.WorkflowSourceType =
+            com.github.lambda.common.enums.WorkflowSourceType.MANUAL,
         s3Path: String? = null,
     ): QualitySpecEntity {
         // TODO: Implement YAML parsing and QualitySpec creation
@@ -624,15 +625,3 @@ class QualityService(
         return deleteQualitySpec(specName)
     }
 }
-
-/**
- * Mock test result for demonstration purposes
- * In production, this would be replaced with actual query engine response
- */
-data class MockTestResult(
-    val status: TestStatus,
-    val failedRows: Long,
-    val totalRows: Long,
-    val executionTimeSeconds: Double,
-    val errorMessage: String? = null,
-)

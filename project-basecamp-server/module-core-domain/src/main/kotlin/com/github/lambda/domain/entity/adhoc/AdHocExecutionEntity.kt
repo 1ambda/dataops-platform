@@ -1,6 +1,6 @@
 package com.github.lambda.domain.entity.adhoc
 
-import com.github.lambda.domain.model.adhoc.ExecutionStatus
+import com.github.lambda.common.enums.ExecutionStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType

@@ -1,14 +1,16 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.SpecSyncErrorType
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
+import com.github.lambda.common.exception.SpecParseException
+import com.github.lambda.common.exception.SpecValidationException
 import com.github.lambda.domain.external.WorkflowStorage
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.model.workflow.SpecSyncError
-import com.github.lambda.domain.model.workflow.SpecSyncErrorType
 import com.github.lambda.domain.model.workflow.SpecSyncResult
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.WorkflowSpec
-import com.github.lambda.domain.model.workflow.WorkflowStatus
-import com.github.lambda.domain.repository.WorkflowRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -127,13 +129,17 @@ class WorkflowSpecSyncService(
         val parseResult = yamlParser.parse(yamlContent)
         if (!parseResult.isSuccess()) {
             throw SpecParseException(
-                "Failed to parse YAML: ${parseResult.errorsOrEmpty().joinToString(", ")}",
+                specContent = yamlContent,
+                parseError = "Failed to parse YAML: ${parseResult.errorsOrEmpty().joinToString(", ")}",
             )
         }
 
         val spec =
             parseResult.getOrNull()
-                ?: throw SpecParseException("Parsed spec is null")
+                ?: throw SpecParseException(
+                    specContent = yamlContent,
+                    parseError = "Parsed spec is null",
+                )
 
         // 3. 기존 Workflow 확인
         val existingWorkflow = workflowRepositoryJpa.findByDatasetName(spec.name)
@@ -231,17 +237,3 @@ class WorkflowSpecSyncService(
         UPDATED,
     }
 }
-
-/**
- * Spec 파싱 실패 예외
- */
-class SpecParseException(
-    message: String,
-) : RuntimeException(message)
-
-/**
- * Spec 유효성 검사 실패 예외
- */
-class SpecValidationException(
-    message: String,
-) : RuntimeException(message)

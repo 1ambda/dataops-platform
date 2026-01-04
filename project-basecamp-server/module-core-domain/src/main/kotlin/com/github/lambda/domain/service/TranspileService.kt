@@ -1,15 +1,14 @@
 package com.github.lambda.domain.service
 
-import com.github.lambda.common.exception.BusinessException
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.common.exception.DatasetNotFoundException
 import com.github.lambda.common.exception.MetricNotFoundException
-import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
+import com.github.lambda.common.exception.TranspileException
 import com.github.lambda.domain.external.BasecampParserClient
 import com.github.lambda.domain.external.TranspileRule
-import com.github.lambda.domain.model.transpile.SqlDialect
 import com.github.lambda.domain.projection.transpile.*
-import com.github.lambda.domain.repository.TranspileRuleRepositoryDsl
-import com.github.lambda.domain.repository.TranspileRuleRepositoryJpa
+import com.github.lambda.domain.repository.transpile.TranspileRuleRepositoryDsl
+import com.github.lambda.domain.repository.transpile.TranspileRuleRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -130,7 +129,7 @@ class TranspileService(
             val duration = System.currentTimeMillis() - startTime
 
             if (!parserResult.success) {
-                throw TranspileException("Failed to transpile metric SQL: ${parserResult.errorMessage}")
+                throw TranspileException(parserResult.errorMessage ?: "Unknown transpilation error")
             }
 
             return MetricTranspileProjection(
@@ -226,7 +225,7 @@ class TranspileService(
             val duration = System.currentTimeMillis() - startTime
 
             if (!parserResult.success) {
-                throw TranspileException("Failed to transpile dataset SQL: ${parserResult.errorMessage}")
+                throw TranspileException(parserResult.errorMessage ?: "Unknown transpilation error")
             }
 
             return DatasetTranspileProjection(
@@ -289,16 +288,3 @@ class TranspileService(
         return "$date-$sequence"
     }
 }
-
-
-/**
- * Transpile exception for SQL transpilation errors
- */
-class TranspileException(
-    message: String,
-    cause: Throwable? = null,
-) : BusinessException(
-        message = message,
-        errorCode = "TRANSPILE_ERROR",
-        cause = cause,
-    )

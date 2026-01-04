@@ -510,6 +510,32 @@ class WorkflowStorageException(
         cause = cause,
     )
 
+/**
+ * Exception thrown when workflow spec parsing fails
+ */
+class SpecParseException(
+    val specContent: String,
+    val parseError: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Failed to parse workflow spec: $parseError",
+        errorCode = "SPEC_PARSE_ERROR",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when workflow spec validation fails
+ */
+class SpecValidationException(
+    val specName: String,
+    val validationError: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Workflow spec '$specName' validation failed: $validationError",
+        errorCode = "SPEC_VALIDATION_ERROR",
+        cause = cause,
+    )
+
 // ============= External System Exceptions =============
 
 /**
@@ -665,6 +691,60 @@ class GitHubRepositoryUrlAlreadyExistsException(
 ) : BusinessException(
         message = "GitHub repository URL '$repositoryUrl' is already registered",
         errorCode = "GITHUB_REPOSITORY_URL_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+// ============= Query Exceptions =============
+
+/**
+ * Exception thrown when a query is not found
+ */
+class QueryNotFoundException(
+    val queryId: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Query not found: $queryId",
+        errorCode = "QUERY_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a query cannot be cancelled due to its current status
+ */
+class QueryNotCancellableException(
+    val queryId: String,
+    val currentStatus: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Query $queryId cannot be cancelled. Current status: $currentStatus",
+        errorCode = "QUERY_NOT_CANCELLABLE",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when access to a resource is denied
+ */
+class AccessDeniedException(
+    val resource: String,
+    val action: String = "access",
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Access denied to $resource for action: $action",
+        errorCode = "ACCESS_DENIED",
+        cause = cause,
+    )
+
+// ============= Transpile Exceptions =============
+
+/**
+ * Exception thrown when SQL transpilation fails
+ */
+class TranspileException(
+    val sqlError: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL transpilation failed: $sqlError",
+        errorCode = "TRANSPILE_ERROR",
         cause = cause,
     )
 

@@ -18,10 +18,9 @@
 3. [API Specifications](#3-api-specifications)
 4. [Domain Model](#4-domain-model)
 5. [External Integrations](#5-external-integrations)
-6. [PII Masking Policy](#6-pii-masking-policy)
-7. [Caching Strategy](#7-caching-strategy)
-8. [Testing Requirements](#8-testing-requirements)
-9. [Related Documents](#9-related-documents)
+6. [Caching Strategy](#6-caching-strategy)
+7. [Testing Requirements](#7-testing-requirements)
+8. [Related Documents](#8-related-documents)
 
 ---
 
@@ -49,7 +48,7 @@ The Catalog API provides data discovery capabilities for the DataOps Platform, e
 ```
 P0 Metrics/Datasets (Complete) --> Catalog Metadata --> Lineage Graph
                                         |
-BigQuery/Trino Integration <-- PII Masking Policy <-- Sample Data
+BigQuery/Trino Integration --> Sample Data
 ```
 
 ### 1.4 External System Requirements
@@ -829,7 +828,6 @@ class TrinoCatalogClient(
 class CatalogService(
     private val bigQueryClient: BigQueryCatalogClient,
     private val trinoClient: TrinoCatalogClient?,
-    private val piiMaskingService: PIIMaskingService,
     private val cacheService: CatalogCacheService,
     @Value("\${catalog.default-engine:bigquery}") private val defaultEngine: String,
 ) {
@@ -874,9 +872,8 @@ class CatalogService(
         }
 
         return if (includeSample) {
-            val rawSample = getClient(defaultEngine).getSampleData(tableRef, 10)
-            val maskedSample = piiMaskingService.maskSampleData(detail.columns, rawSample)
-            detail.copy(sampleData = maskedSample)
+            val sampleData = getClient(defaultEngine).getSampleData(tableRef, 10)
+            detail.copy(sampleData = sampleData)
         } else {
             detail
         }
@@ -895,102 +892,9 @@ class CatalogService(
 
 ---
 
-## 6. PII Masking Policy
+## 6. Caching Strategy
 
-### 6.1 Policy Overview
-
-**Requirement**: Columns with `is_pii: true` MUST have their sample data values masked with `***`
-
-### 6.2 PII Detection Rules
-
-| Category | Column Name Patterns | Description |
-|----------|---------------------|-------------|
-| **Identity** | `email`, `phone`, `ssn`, `passport`, `driver_license` | Personal identifiers |
-| **Name** | `name`, `first_name`, `last_name`, `full_name` | Personal names |
-| **Address** | `address`, `street`, `city`, `zip`, `postal` | Location data |
-| **Financial** | `credit_card`, `bank_account`, `salary`, `income` | Financial data |
-| **Health** | `medical`, `health`, `diagnosis`, `prescription` | Health information |
-| **Behavioral** | `ip_address`, `device_id`, `session_id` | Tracking identifiers |
-
-### 6.3 Implementation
-
-```kotlin
-@Service
-class PIIMaskingService(
-    @Value("\${catalog.pii.patterns}") private val additionalPatterns: List<String> = emptyList(),
-) {
-    companion object {
-        private val DEFAULT_PII_PATTERNS = listOf(
-            // Identity
-            "email", "phone", "mobile", "ssn", "social_security",
-            "passport", "driver_license", "national_id",
-            // Name
-            "name", "first_name", "last_name", "full_name", "username",
-            // Address
-            "address", "street", "city", "zip", "postal", "state", "country",
-            // Financial
-            "credit_card", "bank_account", "routing", "salary", "income", "payment",
-            // Health
-            "medical", "health", "diagnosis", "prescription", "insurance",
-            // Behavioral
-            "ip_address", "device_id", "session_id", "cookie", "fingerprint",
-            // Demographics
-            "birth", "dob", "age", "gender", "race", "ethnicity", "religion",
-        )
-        private const val MASK_VALUE = "***"
-    }
-
-    private val piiPatterns: Set<String> by lazy {
-        (DEFAULT_PII_PATTERNS + additionalPatterns).map { it.lowercase() }.toSet()
-    }
-
-    fun maskSampleData(
-        columns: List<ColumnInfo>,
-        sampleData: List<Map<String, Any>>,
-    ): List<Map<String, Any>> {
-        val piiColumns = columns
-            .filter { it.isPii }
-            .map { it.name }
-            .toSet()
-
-        return sampleData.map { row ->
-            row.mapValues { (columnName, value) ->
-                if (columnName in piiColumns) MASK_VALUE else value
-            }
-        }
-    }
-
-    fun detectPII(columnName: String, description: String?): Boolean {
-        val text = "$columnName ${description ?: ""}".lowercase()
-        return piiPatterns.any { pattern ->
-            text.contains(pattern) || text.matches(Regex(".*\\b$pattern\\b.*"))
-        }
-    }
-
-    fun getPIIColumns(columns: List<ColumnInfo>): List<String> {
-        return columns.filter { it.isPii }.map { it.name }
-    }
-}
-```
-
-### 6.4 Configuration
-
-```yaml
-# application.yaml
-catalog:
-  pii:
-    enabled: true
-    mask-value: "***"
-    patterns:
-      - custom_sensitive_field
-      - proprietary_id
-```
-
----
-
-## 7. Caching Strategy
-
-### 7.1 Cache Configuration
+### 6.1 Cache Configuration
 
 | Cache Key Pattern | TTL | Purpose |
 |-------------------|-----|---------|
@@ -999,7 +903,7 @@ catalog:
 | `catalog:detail:{table_ref}` | 30 minutes | Table details (without sample) |
 | `catalog:columns:{table_ref}` | 1 hour | Column metadata |
 
-### 7.2 Implementation
+### 6.2 Implementation
 
 ```kotlin
 @Service
@@ -1095,7 +999,7 @@ class CatalogCacheService(
 }
 ```
 
-### 7.3 Cache Invalidation Events
+### 6.3 Cache Invalidation Events
 
 ```kotlin
 @Component
@@ -1116,9 +1020,9 @@ class CatalogCacheInvalidator(
 
 ---
 
-## 8. Testing Requirements
+## 7. Testing Requirements
 
-### 8.1 Unit Tests
+### 7.1 Unit Tests
 
 ```kotlin
 @ExtendWith(MockitoExtension::class)
@@ -1127,8 +1031,6 @@ class CatalogServiceTest {
     @Mock
     private lateinit var bigQueryClient: BigQueryCatalogClient
 
-    @Mock
-    private lateinit var piiMaskingService: PIIMaskingService
 
     @Mock
     private lateinit var cacheService: CatalogCacheService
@@ -1193,52 +1095,9 @@ class CatalogServiceTest {
     }
 }
 
-@ExtendWith(MockitoExtension::class)
-class PIIMaskingServiceTest {
-
-    private lateinit var piiMaskingService: PIIMaskingService
-
-    @BeforeEach
-    fun setUp() {
-        piiMaskingService = PIIMaskingService()
-    }
-
-    @Test
-    fun `should mask PII columns in sample data`() {
-        // Given
-        val columns = listOf(
-            ColumnInfo(name = "user_id", dataType = "STRING", isPii = false),
-            ColumnInfo(name = "email", dataType = "STRING", isPii = true),
-            ColumnInfo(name = "name", dataType = "STRING", isPii = true),
-            ColumnInfo(name = "country", dataType = "STRING", isPii = false),
-        )
-        val sampleData = listOf(
-            mapOf("user_id" to "user_001", "email" to "john@example.com", "name" to "John Doe", "country" to "US"),
-            mapOf("user_id" to "user_002", "email" to "jane@example.com", "name" to "Jane Doe", "country" to "UK"),
-        )
-
-        // When
-        val masked = piiMaskingService.maskSampleData(columns, sampleData)
-
-        // Then
-        assertThat(masked[0]["user_id"]).isEqualTo("user_001")
-        assertThat(masked[0]["email"]).isEqualTo("***")
-        assertThat(masked[0]["name"]).isEqualTo("***")
-        assertThat(masked[0]["country"]).isEqualTo("US")
-    }
-
-    @Test
-    fun `should detect PII from column name patterns`() {
-        assertThat(piiMaskingService.detectPII("email", null)).isTrue()
-        assertThat(piiMaskingService.detectPII("user_email", null)).isTrue()
-        assertThat(piiMaskingService.detectPII("phone_number", null)).isTrue()
-        assertThat(piiMaskingService.detectPII("created_at", null)).isFalse()
-        assertThat(piiMaskingService.detectPII("amount", null)).isFalse()
-    }
-}
 ```
 
-### 8.2 Integration Tests
+### 7.2 Integration Tests
 
 ```kotlin
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -1336,7 +1195,7 @@ class CatalogControllerIntegrationTest {
 }
 ```
 
-### 8.3 Performance Tests
+### 7.3 Performance Tests
 
 ```kotlin
 @Test
@@ -1373,7 +1232,7 @@ fun `cached catalog list should respond within 100ms`() {
 }
 ```
 
-### 8.4 CLI Integration Tests
+### 7.4 CLI Integration Tests
 
 ```bash
 # Test catalog browsing
@@ -1397,9 +1256,9 @@ dli catalog get my-project.analytics.users --sample --format json --server-url h
 
 ---
 
-## 9. Related Documents
+## 8. Related Documents
 
-### 9.1 Internal Documentation
+### 8.1 Internal Documentation
 
 | Document | Description |
 |----------|-------------|
@@ -1410,7 +1269,7 @@ dli catalog get my-project.analytics.users --sample --format json --server-url h
 | [`CLI_API_MAPPING.md`](../docs/CLI_API_MAPPING.md) | CLI to API endpoint mapping |
 | [`archive/P1_HIGH_APIS.md`](./archive/P1_HIGH_APIS.md) | P1 API specifications |
 
-### 9.2 External References
+### 8.2 External References
 
 | Resource | URL |
 |----------|-----|
@@ -1418,7 +1277,7 @@ dli catalog get my-project.analytics.users --sample --format json --server-url h
 | Trino Documentation | https://trino.io/docs/current/ |
 | Spring Boot 4.0 | https://docs.spring.io/spring-boot/docs/current/reference/html/ |
 
-### 9.3 Related Features
+### 8.3 Related Features
 
 | Feature | Dependency Relationship |
 |---------|------------------------|

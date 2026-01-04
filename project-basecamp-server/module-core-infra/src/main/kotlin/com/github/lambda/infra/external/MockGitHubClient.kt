@@ -1,14 +1,14 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.enums.ComparisonStatus
+import com.github.lambda.common.enums.PullRequestState
 import com.github.lambda.domain.external.GitHubClient
 import com.github.lambda.domain.model.github.BranchComparison
 import com.github.lambda.domain.model.github.CommitSummary
-import com.github.lambda.domain.model.github.ComparisonStatus
 import com.github.lambda.domain.model.github.GitHubBranch
 import com.github.lambda.domain.model.github.GitHubPullRequest
 import com.github.lambda.domain.model.github.GitHubRepositoryInfo
 import com.github.lambda.domain.model.github.PullRequestFilter
-import com.github.lambda.domain.model.github.PullRequestState
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime

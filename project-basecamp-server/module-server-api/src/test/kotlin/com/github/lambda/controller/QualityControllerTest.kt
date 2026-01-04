@@ -1,15 +1,14 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.ResourceType
+import com.github.lambda.common.enums.Severity
+import com.github.lambda.common.enums.TestType
+import com.github.lambda.common.enums.WorkflowRunStatus
 import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.entity.quality.QualityRunEntity
 import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.entity.quality.QualityTestEntity
-import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.RunStatus
-import com.github.lambda.domain.model.quality.Severity
-import com.github.lambda.domain.model.quality.TestStatus
-import com.github.lambda.domain.model.quality.TestType
 import com.github.lambda.domain.service.QualityService
 import com.github.lambda.dto.quality.ExecuteQualityTestRequest
 import com.github.lambda.dto.quality.QualityRunResultDto
@@ -127,15 +126,17 @@ class QualityControllerTest {
         testQualityRun =
             QualityRunEntity(
                 runId = "run-20260101-001",
-                resourceName = "analytics.users",
-                status = RunStatus.COMPLETED,
-                overallStatus = TestStatus.PASSED,
+                qualitySpecId = 1L,
+                specName = "dataset_users_quality",
+                targetResource = "analytics.users",
+                targetResourceType = ResourceType.DATASET,
+                status = WorkflowRunStatus.SUCCESS,
+                triggeredBy = "system",
+                startedAt = LocalDateTime.parse("2026-01-01T08:00:00"),
+                endedAt = LocalDateTime.parse("2026-01-01T08:00:02"),
                 passedTests = 3,
                 failedTests = 0,
-                durationSeconds = 2.5,
-                startedAt = Instant.parse("2026-01-01T08:00:00Z"),
-                completedAt = Instant.parse("2026-01-01T08:00:02Z"),
-                executedBy = "system",
+                totalTests = 3,
             )
 
         // Setup response DTOs

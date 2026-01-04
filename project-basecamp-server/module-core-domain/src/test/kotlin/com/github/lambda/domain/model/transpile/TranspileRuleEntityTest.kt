@@ -1,5 +1,8 @@
 package com.github.lambda.domain.model.transpile
 
+import com.github.lambda.common.enums.SqlDialect
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -25,7 +28,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                 )
 
             // Then
@@ -33,7 +36,7 @@ class TranspileRuleEntityTest {
             assertThat(rule.fromDialect).isEqualTo(SqlDialect.BIGQUERY)
             assertThat(rule.toDialect).isEqualTo(SqlDialect.TRINO)
             assertThat(rule.pattern).isEqualTo("DATETIME\\((.+?)\\)")
-            assertThat(rule.replacement).isEqualTo("CAST(\\$1 AS TIMESTAMP)")
+            assertThat(rule.replacement).isEqualTo("CAST($1 AS TIMESTAMP)")
             assertThat(rule.priority).isEqualTo(100) // Default value
             assertThat(rule.enabled).isTrue() // Default value
             assertThat(rule.description).isNull()
@@ -259,7 +262,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = true,
                 )
 
@@ -282,7 +285,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "FUNC\\((\\w+)\\)",
-                    replacement = "NEW_FUNC(\\$1)",
+                    replacement = "NEW_FUNC($1)",
                     enabled = true,
                 )
 
@@ -305,7 +308,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = true,
                 )
 
@@ -328,7 +331,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = false,
                 )
 
@@ -351,7 +354,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "EXTRACT\\((\\w+)\\s+FROM\\s+(\\w+)\\)",
-                    replacement = "DATE_PART('\\$1', \\$2)",
+                    replacement = "DATE_PART('$1', $2)",
                     enabled = true,
                 )
 
@@ -378,7 +381,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = true,
                 )
 
@@ -401,7 +404,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = true,
                 )
 
@@ -424,7 +427,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "DATETIME\\((.+?)\\)",
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = false,
                 )
 
@@ -447,7 +450,7 @@ class TranspileRuleEntityTest {
                     fromDialect = SqlDialect.BIGQUERY,
                     toDialect = SqlDialect.TRINO,
                     pattern = "datetime\\((.+?)\\)", // lowercase
-                    replacement = "CAST(\\$1 AS TIMESTAMP)",
+                    replacement = "CAST($1 AS TIMESTAMP)",
                     enabled = true,
                 )
 

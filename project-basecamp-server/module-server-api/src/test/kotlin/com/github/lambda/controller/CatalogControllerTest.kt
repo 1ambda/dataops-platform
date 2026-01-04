@@ -84,7 +84,7 @@ class CatalogControllerTest {
 
     // Query-related mock beans needed by CatalogController
     @MockkBean(relaxed = true)
-    private lateinit var queryMetadataService: com.github.lambda.domain.service.QueryMetadataService
+    private lateinit var queryService: com.github.lambda.domain.service.QueryService
 
     @MockkBean(relaxed = true)
     private lateinit var queryMapper: com.github.lambda.mapper.QueryMapper

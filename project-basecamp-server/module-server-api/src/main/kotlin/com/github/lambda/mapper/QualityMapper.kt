@@ -1,9 +1,9 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.common.enums.WorkflowRunStatus
 import com.github.lambda.domain.entity.quality.QualityRunEntity
 import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.entity.quality.QualityTestEntity
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.dto.quality.QualityRunResultDto
 import com.github.lambda.dto.quality.QualityRunSummaryDto
 import com.github.lambda.dto.quality.QualitySpecDetailDto

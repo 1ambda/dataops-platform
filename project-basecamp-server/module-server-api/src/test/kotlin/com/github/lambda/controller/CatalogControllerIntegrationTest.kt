@@ -2,8 +2,8 @@ package com.github.lambda.controller
 
 import com.github.lambda.domain.entity.catalog.CatalogColumnEntity
 import com.github.lambda.domain.entity.catalog.CatalogTableEntity
-import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
-import com.github.lambda.domain.repository.CatalogTableRepositoryJpa
+import com.github.lambda.domain.repository.catalog.CatalogColumnRepositoryJpa
+import com.github.lambda.domain.repository.catalog.CatalogTableRepositoryJpa
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

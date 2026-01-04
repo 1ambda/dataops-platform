@@ -1,7 +1,7 @@
 package com.github.lambda.domain.projection.workflow
 
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
 
 /**
  * Workflow Run 통계 정보 Projection

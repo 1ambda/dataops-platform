@@ -1,22 +1,22 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.ComparisonStatus
+import com.github.lambda.common.enums.PullRequestState
 import com.github.lambda.common.exception.GitHubRepositoryAlreadyExistsException
 import com.github.lambda.common.exception.GitHubRepositoryNotFoundException
 import com.github.lambda.common.exception.GitHubRepositoryUrlAlreadyExistsException
 import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
-import com.github.lambda.domain.external.GitHubClient
-import com.github.lambda.domain.model.github.BranchComparison
-import com.github.lambda.domain.model.github.CommitSummary
-import com.github.lambda.domain.model.github.ComparisonStatus
-import com.github.lambda.domain.model.github.GitHubBranch
-import com.github.lambda.domain.model.github.GitHubPullRequest
-import com.github.lambda.domain.model.github.PullRequestState
-import com.github.lambda.domain.repository.GitHubRepositoryDsl
-import com.github.lambda.domain.repository.GitHubRepositoryJpa
+import com.github.lambda.domain.external.github.BranchComparisonResponse
+import com.github.lambda.domain.external.github.GitHubBranchResponse
+import com.github.lambda.domain.external.github.GitHubClient
+import com.github.lambda.domain.external.github.GitHubPullRequestResponse
+import com.github.lambda.domain.repository.github.GitHubRepositoryDsl
+import com.github.lambda.domain.repository.github.GitHubRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -44,9 +44,9 @@ class GitHubServiceTest {
         )
 
     private lateinit var testRepository: GitHubRepositoryEntity
-    private lateinit var testBranch: GitHubBranch
-    private lateinit var testPullRequest: GitHubPullRequest
-    private lateinit var testBranchComparison: BranchComparison
+    private lateinit var testBranch: GitHubBranchResponse
+    private lateinit var testPullRequest: GitHubPullRequestResponse
+    private lateinit var testBranchComparison: BranchComparisonResponse
 
     @BeforeEach
     fun setUp() {
@@ -64,7 +64,7 @@ class GitHubServiceTest {
             )
 
         testBranch =
-            GitHubBranch(
+            GitHubBranchResponse(
                 name = "main",
                 sha = "abc123def456",
                 isProtected = true,
@@ -74,39 +74,42 @@ class GitHubServiceTest {
             )
 
         testPullRequest =
-            GitHubPullRequest(
-                number = 42,
+            GitHubPullRequestResponse(
+                id = 1L,
+                number = 42L,
                 title = "feat: add new feature",
-                state = PullRequestState.OPEN,
-                sourceBranch = "feature/new-feature",
-                targetBranch = "main",
+                body = null,
+                state = "open",
+                isDraft = false,
+                baseBranch = "main",
+                headBranch = "feature/new-feature",
                 author = "developer",
+                assignees = emptyList(),
+                reviewers = listOf("reviewer1", "reviewer2"),
+                url = "https://github.com/org-name/data-models/pull/42",
                 createdAt = LocalDateTime.now().minusDays(1),
                 updatedAt = LocalDateTime.now(),
                 mergedAt = null,
-                mergedBy = null,
-                reviewers = listOf("reviewer1", "reviewer2"),
-                labels = listOf("feature", "ready-for-review"),
+                closedAt = null,
+                isMerged = false,
+                isClosed = false,
+                mergeCommitSha = null,
+                changedFiles = 5,
                 additions = 100,
                 deletions = 50,
-                changedFiles = 5,
-                url = "https://github.com/org-name/data-models/pull/42",
             )
 
         testBranchComparison =
-            BranchComparison(
+            BranchComparisonResponse(
+                baseBranch = "main",
+                headBranch = "feature/new-feature",
                 aheadBy = 5,
                 behindBy = 2,
-                status = ComparisonStatus.DIVERGED,
-                commits =
-                    listOf(
-                        CommitSummary(
-                            sha = "abc123",
-                            message = "feat: add feature",
-                            author = "developer",
-                            date = LocalDateTime.now().minusHours(2),
-                        ),
-                    ),
+                status = "diverged",
+                totalCommits = 7,
+                filesChanged = 3,
+                additions = 150,
+                deletions = 75,
             )
     }
 

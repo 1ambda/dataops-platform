@@ -3,9 +3,9 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.BusinessRuleViolationException
 import com.github.lambda.domain.entity.user.UserEntity
 import com.github.lambda.domain.model.user.UserAggregate
-import com.github.lambda.domain.repository.UserAuthorityRepositoryJpa
-import com.github.lambda.domain.repository.UserRepositoryDsl
-import com.github.lambda.domain.repository.UserRepositoryJpa
+import com.github.lambda.domain.repository.user.UserAuthorityRepositoryJpa
+import com.github.lambda.domain.repository.user.UserRepositoryDsl
+import com.github.lambda.domain.repository.user.UserRepositoryJpa
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

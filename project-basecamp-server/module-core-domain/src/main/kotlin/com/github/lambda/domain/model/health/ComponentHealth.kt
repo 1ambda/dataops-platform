@@ -1,5 +1,7 @@
 package com.github.lambda.domain.model.health
 
+import com.github.lambda.common.enums.HealthStatus
+
 /**
  * 개별 컴포넌트의 헬스체크 결과
  */

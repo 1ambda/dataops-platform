@@ -1,5 +1,6 @@
 package com.github.lambda.domain.entity.workflow
 
+import com.github.lambda.common.enums.AirflowEnvironment
 import com.github.lambda.domain.entity.BaseAuditableEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

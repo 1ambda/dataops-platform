@@ -83,17 +83,17 @@ class CacheTransactionAspect(
         }
 
     /**
-     * Pipeline 관련 모든 캐시 무효화
+     * 관련 모든 캐시 무효화
      */
     private fun evictAllRelatedCaches() {
         try {
             // 관련 캐시들을 순서대로 무효화
             val cacheNames =
                 listOf(
-                    CommonConstants.Cache.PIPELINE_CACHE,
-                    CommonConstants.Cache.JOB_CACHE,
-                    CommonConstants.Cache.PIPELINE_STATS_CACHE,
-                    CommonConstants.Cache.JOB_STATS_CACHE,
+                    CommonConstants.Cache.DATASET_CACHE,
+                    CommonConstants.Cache.USER_CACHE,
+                    CommonConstants.Cache.WORKFLOW_CACHE,
+                    CommonConstants.Cache.WORKFLOW_STATS_CACHE,
                 )
 
             cacheNames.forEach { cacheName ->

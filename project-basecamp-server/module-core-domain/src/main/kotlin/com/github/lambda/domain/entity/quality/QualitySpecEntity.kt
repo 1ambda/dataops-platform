@@ -1,9 +1,9 @@
 package com.github.lambda.domain.entity.quality
 
+import com.github.lambda.common.enums.QualitySpecStatus
+import com.github.lambda.common.enums.ResourceType
+import com.github.lambda.common.enums.WorkflowSourceType
 import com.github.lambda.domain.entity.BaseEntity
-import com.github.lambda.domain.model.quality.QualitySpecStatus
-import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
 import jakarta.persistence.ElementCollection

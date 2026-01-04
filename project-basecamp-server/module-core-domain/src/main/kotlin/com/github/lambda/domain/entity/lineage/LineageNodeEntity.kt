@@ -1,6 +1,6 @@
 package com.github.lambda.domain.entity.lineage
 
-import com.github.lambda.domain.model.lineage.LineageNodeType
+import com.github.lambda.common.enums.LineageNodeType
 import jakarta.persistence.*
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank

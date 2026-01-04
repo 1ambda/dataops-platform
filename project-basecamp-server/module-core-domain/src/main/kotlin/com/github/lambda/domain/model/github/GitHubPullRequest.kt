@@ -1,5 +1,6 @@
 package com.github.lambda.domain.model.github
 
+import com.github.lambda.common.enums.PullRequestState
 import java.time.LocalDateTime
 
 /**

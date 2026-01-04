@@ -2,6 +2,7 @@ package com.github.lambda.domain.service
 
 import com.github.lambda.domain.model.workflow.WorkflowScheduleSpec
 import com.github.lambda.domain.model.workflow.WorkflowSpec
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

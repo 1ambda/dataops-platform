@@ -3,14 +3,15 @@ package com.github.lambda.domain.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
-import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowDagRun
+import com.github.lambda.domain.external.airflow.AirflowClient
+import com.github.lambda.domain.external.airflow.AirflowDagRunResponse
 import com.github.lambda.domain.model.workflow.ClusterSyncResult
 import com.github.lambda.domain.model.workflow.RunSyncResult
 import com.github.lambda.domain.model.workflow.TaskProgress
-import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
-import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRunRepositoryJpa
+import com.github.lambda.domain.projection.workflow.WorkflowSyncStatisticsProjection
+import com.github.lambda.domain.repository.airflow.AirflowClusterRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -162,7 +163,7 @@ class AirflowRunSyncService(
      * @param clusterId 클러스터 ID (null이면 전체)
      * @return 동기화 통계
      */
-    fun getSyncStatistics(clusterId: Long? = null): Map<String, Any> =
+    fun getSyncStatistics(clusterId: Long? = null): WorkflowSyncStatisticsProjection =
         workflowRunRepositoryDsl.getSyncStatistics(clusterId)
 
     // === Private Helper Methods ===
@@ -231,7 +232,7 @@ class AirflowRunSyncService(
     }
 
     private fun syncAirflowRun(
-        airflowRun: AirflowDagRun,
+        airflowRun: AirflowDagRunResponse,
         cluster: AirflowClusterEntity,
     ): SyncAction {
         // 기존 Run 조회
@@ -250,7 +251,7 @@ class AirflowRunSyncService(
 
     private fun updateRunFromAirflow(
         run: WorkflowRunEntity,
-        airflowRun: AirflowDagRun,
+        airflowRun: AirflowDagRunResponse,
         cluster: AirflowClusterEntity,
     ) {
         // Task 진행 상황 조회
@@ -321,7 +322,7 @@ class AirflowRunSyncService(
 
     private fun buildAirflowUrl(
         cluster: AirflowClusterEntity,
-        airflowRun: AirflowDagRun,
+        airflowRun: AirflowDagRunResponse,
     ): String = "${cluster.airflowUrl}/dags/${airflowRun.dagId}/grid?dag_run_id=${airflowRun.dagRunId}"
 
     private fun serializeTaskProgress(taskProgress: TaskProgress): String? =

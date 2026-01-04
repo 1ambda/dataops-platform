@@ -6,7 +6,7 @@ import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
 import com.github.lambda.domain.projection.execution.*
-import com.github.lambda.domain.repository.UserExecutionQuotaRepositoryJpa
+import com.github.lambda.domain.repository.adhoc.UserExecutionQuotaRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -143,4 +143,3 @@ class ExecutionPolicyService(
      */
     fun getConfig(): RunExecutionConfig = config
 }
-

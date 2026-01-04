@@ -1,6 +1,9 @@
 package com.github.lambda.domain.entity.workflow
 
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
 import com.github.lambda.domain.entity.BaseAuditableEntity
+import com.github.lambda.domain.model.workflow.ScheduleInfo
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity

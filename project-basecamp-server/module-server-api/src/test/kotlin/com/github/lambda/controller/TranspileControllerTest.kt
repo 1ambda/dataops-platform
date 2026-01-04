@@ -1,7 +1,8 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.config.SecurityConfig
-import com.github.lambda.domain.model.transpile.SqlDialect
+import com.github.lambda.domain.projection.transpile.*
 import com.github.lambda.domain.service.*
 import com.github.lambda.dto.transpile.TranspileResultDto
 import com.github.lambda.dto.transpile.TranspileRulesDto
@@ -17,8 +18,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
@@ -69,20 +70,20 @@ class TranspileControllerTest {
     @MockkBean
     private lateinit var transpileMapper: TranspileMapper
 
-    private lateinit var testTranspileRulesResult: TranspileRulesResult
+    private lateinit var testTranspileRulesResult: TranspileRulesProjection
     private lateinit var testTranspileRulesDto: TranspileRulesDto
-    private lateinit var testMetricTranspileResult: MetricTranspileResult
-    private lateinit var testDatasetTranspileResult: DatasetTranspileResult
+    private lateinit var testMetricTranspileResult: MetricTranspileProjection
+    private lateinit var testDatasetTranspileResult: DatasetTranspileProjection
     private lateinit var testTranspileResultDto: TranspileResultDto
 
     @BeforeEach
     fun setUp() {
         testTranspileRulesResult =
-            TranspileRulesResult(
+            TranspileRulesProjection(
                 version = "1.0.0",
                 rules = emptyList(),
                 metadata =
-                    TranspileMetadata(
+                    TranspileMetadataProjection(
                         createdAt = Instant.parse("2024-01-01T09:00:00Z"),
                         createdBy = "system",
                         totalRules = 0,
@@ -104,7 +105,7 @@ class TranspileControllerTest {
             )
 
         testMetricTranspileResult =
-            MetricTranspileResult(
+            MetricTranspileProjection(
                 metricName = "test_catalog.test_schema.test_metric",
                 sourceDialect = "bigquery",
                 targetDialect = "trino",
@@ -117,7 +118,7 @@ class TranspileControllerTest {
             )
 
         testDatasetTranspileResult =
-            DatasetTranspileResult(
+            DatasetTranspileProjection(
                 datasetName = "test_catalog.test_schema.test_dataset",
                 sourceDialect = "bigquery",
                 targetDialect = "trino",
@@ -131,8 +132,7 @@ class TranspileControllerTest {
 
         testTranspileResultDto =
             TranspileResultDto(
-                resourceType = "metric",
-                resourceName = "test_catalog.test_schema.test_metric",
+                metricName = "test_catalog.test_schema.test_metric",
                 sourceDialect = "bigquery",
                 targetDialect = "trino",
                 originalSql = "SELECT COUNT(*) FROM users",
@@ -270,8 +270,8 @@ class TranspileControllerTest {
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.resourceType").value("metric"))
-                .andExpect(jsonPath("$.resourceName").value(metricName))
+                .andExpect(jsonPath("$.metric_name").value(metricName))
+                .andExpect(jsonPath("$.dataset_name").doesNotExist())
                 .andExpect(jsonPath("$.sourceDialect").value("bigquery"))
                 .andExpect(jsonPath("$.targetDialect").value("trino"))
                 .andExpect(jsonPath("$.originalSql").value("SELECT COUNT(*) FROM users"))
@@ -301,7 +301,8 @@ class TranspileControllerTest {
                     parameters = emptyMap(),
                 )
             } returns testMetricTranspileResult
-            every { transpileMapper.toTranspileResultDto(any()) } returns testTranspileResultDto
+            every { transpileMapper.toTranspileResultDto(any<MetricTranspileProjection>()) } returns
+                testTranspileResultDto
 
             // When & Then
             mockMvc
@@ -399,8 +400,8 @@ class TranspileControllerTest {
             val datasetName = "test_catalog.test_schema.test_dataset"
             val datasetResultDto =
                 testTranspileResultDto.copy(
-                    resourceType = "dataset",
-                    resourceName = datasetName,
+                    metricName = null,
+                    datasetName = datasetName,
                 )
 
             every {
@@ -422,8 +423,8 @@ class TranspileControllerTest {
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.resourceType").value("dataset"))
-                .andExpect(jsonPath("$.resourceName").value(datasetName))
+                .andExpect(jsonPath("$.dataset_name").value(datasetName))
+                .andExpect(jsonPath("$.metric_name").doesNotExist())
                 .andExpect(jsonPath("$.sourceDialect").value("bigquery"))
                 .andExpect(jsonPath("$.targetDialect").value("trino"))
 
@@ -446,12 +447,13 @@ class TranspileControllerTest {
             every {
                 transpileService.transpileDataset(
                     datasetName = datasetName,
-                    targetDialect = SqlDialect.POSTGRESQL,
-                    sourceDialect = SqlDialect.MYSQL,
+                    targetDialect = SqlDialect.TRINO,
+                    sourceDialect = SqlDialect.BIGQUERY,
                     parameters = emptyMap(),
                 )
             } returns testDatasetTranspileResult
-            every { transpileMapper.toTranspileResultDto(any()) } returns testTranspileResultDto
+            every { transpileMapper.toTranspileResultDto(any<DatasetTranspileProjection>()) } returns
+                testTranspileResultDto
 
             // When & Then
             mockMvc
@@ -466,8 +468,8 @@ class TranspileControllerTest {
             verify {
                 transpileService.transpileDataset(
                     datasetName = datasetName,
-                    targetDialect = SqlDialect.POSTGRESQL,
-                    sourceDialect = SqlDialect.MYSQL,
+                    targetDialect = SqlDialect.TRINO,
+                    sourceDialect = SqlDialect.BIGQUERY,
                     parameters = emptyMap(),
                 )
             }
@@ -508,7 +510,8 @@ class TranspileControllerTest {
                     parameters = emptyMap(),
                 )
             } returns testMetricTranspileResult
-            every { transpileMapper.toTranspileResultDto(any()) } returns testTranspileResultDto
+            every { transpileMapper.toTranspileResultDto(any<MetricTranspileProjection>()) } returns
+                testTranspileResultDto
 
             // When & Then
             mockMvc

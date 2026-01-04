@@ -1,7 +1,7 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.constant.CommonConstants
-import com.github.lambda.domain.model.github.PullRequestState
+import com.github.lambda.common.enums.PullRequestState
 import com.github.lambda.domain.service.GitHubService
 import com.github.lambda.dto.github.BranchComparisonResponse
 import com.github.lambda.dto.github.GitHubBranchResponse

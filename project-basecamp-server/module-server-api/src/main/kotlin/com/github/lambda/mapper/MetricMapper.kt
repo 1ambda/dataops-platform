@@ -1,5 +1,6 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.domain.command.metric.CreateMetricCommand
 import com.github.lambda.domain.entity.metric.MetricEntity
 import com.github.lambda.domain.projection.metric.MetricExecutionProjection
 import com.github.lambda.dto.metric.CreateMetricRequest
@@ -68,29 +69,16 @@ class MetricMapper {
         )
 
     /**
-     * Extract parameters from CreateMetricRequest
+     * Extract command from CreateMetricRequest
      */
-    fun extractCreateParams(request: CreateMetricRequest): CreateMetricParams =
-        CreateMetricParams(
+    fun extractCreateCommand(request: CreateMetricRequest): CreateMetricCommand =
+        CreateMetricCommand(
             name = request.name,
             owner = request.owner,
             team = request.team,
             description = request.description,
             sql = request.sql,
             sourceTable = request.sourceTable,
-            tags = request.tags,
+            tags = request.tags.toSet(), // Convert List to Set as expected by Command
         )
 }
-
-/**
- * Parameters for creating a metric
- */
-data class CreateMetricParams(
-    val name: String,
-    val owner: String,
-    val team: String?,
-    val description: String?,
-    val sql: String,
-    val sourceTable: String?,
-    val tags: List<String>,
-)

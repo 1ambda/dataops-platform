@@ -1,17 +1,18 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.ComparisonStatus
+import com.github.lambda.common.enums.PullRequestState
 import com.github.lambda.common.exception.GitHubRepositoryAlreadyExistsException
 import com.github.lambda.common.exception.GitHubRepositoryNotFoundException
 import com.github.lambda.common.exception.GitHubRepositoryUrlAlreadyExistsException
 import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
-import com.github.lambda.domain.external.GitHubClient
+import com.github.lambda.domain.external.github.GitHubClient
 import com.github.lambda.domain.model.github.BranchComparison
 import com.github.lambda.domain.model.github.GitHubBranch
 import com.github.lambda.domain.model.github.GitHubPullRequest
 import com.github.lambda.domain.model.github.PullRequestFilter
-import com.github.lambda.domain.model.github.PullRequestState
-import com.github.lambda.domain.repository.GitHubRepositoryDsl
-import com.github.lambda.domain.repository.GitHubRepositoryJpa
+import com.github.lambda.domain.repository.github.GitHubRepositoryDsl
+import com.github.lambda.domain.repository.github.GitHubRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -247,7 +248,17 @@ class GitHubService(
             repository.repoName,
         )
 
-        return gitHubClient.listBranches(repository.owner, repository.repoName)
+        val branches = gitHubClient.listBranches(repository.owner, repository.repoName)
+        return branches.map { response ->
+            GitHubBranch(
+                name = response.name,
+                sha = response.sha,
+                isProtected = response.isProtected,
+                lastCommitDate = response.lastCommitDate,
+                lastCommitAuthor = response.lastCommitAuthor,
+                lastCommitMessage = response.lastCommitMessage,
+            )
+        }
     }
 
     /**
@@ -271,7 +282,17 @@ class GitHubService(
             branchName,
         )
 
-        return gitHubClient.getBranch(repository.owner, repository.repoName, branchName)
+        val response = gitHubClient.getBranch(repository.owner, repository.repoName, branchName)
+        return response?.let {
+            GitHubBranch(
+                name = it.name,
+                sha = it.sha,
+                isProtected = it.isProtected,
+                lastCommitDate = it.lastCommitDate,
+                lastCommitAuthor = it.lastCommitAuthor,
+                lastCommitMessage = it.lastCommitMessage,
+            )
+        }
     }
 
     /**
@@ -298,8 +319,25 @@ class GitHubService(
             headBranch,
         )
 
-        return gitHubClient.compareBranches(repository.owner, repository.repoName, baseBranch, headBranch)
+        val response = gitHubClient.compareBranches(repository.owner, repository.repoName, baseBranch, headBranch)
+        return response?.let {
+            BranchComparison(
+                aheadBy = it.aheadBy,
+                behindBy = it.behindBy,
+                status = mapStringToComparisonStatus(it.status),
+                commits = emptyList(), // TODO: Map commits from external response if available
+            )
+        }
     }
+
+    private fun mapStringToComparisonStatus(status: String): ComparisonStatus =
+        when (status.lowercase()) {
+            "ahead" -> ComparisonStatus.AHEAD
+            "behind" -> ComparisonStatus.BEHIND
+            "diverged" -> ComparisonStatus.DIVERGED
+            "identical" -> ComparisonStatus.IDENTICAL
+            else -> ComparisonStatus.DIVERGED // Default fallback
+        }
 
     // ========================
     // Pull Request Operations (via GitHubClient)
@@ -339,8 +377,36 @@ class GitHubService(
                 limit = limit,
             )
 
-        return gitHubClient.listPullRequests(repository.owner, repository.repoName, filter)
+        val responses = gitHubClient.listPullRequests(repository.owner, repository.repoName, filter)
+        return responses.map { response ->
+            GitHubPullRequest(
+                number = response.number,
+                title = response.title,
+                state = mapStringToPullRequestState(response.state),
+                sourceBranch = response.headBranch,
+                targetBranch = response.baseBranch,
+                author = response.author,
+                createdAt = response.createdAt,
+                updatedAt = response.updatedAt,
+                mergedAt = response.mergedAt,
+                mergedBy = response.reviewers.firstOrNull(), // TODO: This mapping needs improvement
+                reviewers = response.reviewers,
+                labels = emptyList(), // TODO: Map labels from response if available
+                additions = response.additions,
+                deletions = response.deletions,
+                changedFiles = response.changedFiles,
+                url = response.url,
+            )
+        }
     }
+
+    private fun mapStringToPullRequestState(state: String): PullRequestState =
+        when (state.lowercase()) {
+            "open" -> PullRequestState.OPEN
+            "closed" -> PullRequestState.CLOSED
+            "merged" -> PullRequestState.MERGED
+            else -> PullRequestState.OPEN // Default fallback
+        }
 
     /**
      * Get a specific pull request of a repository
@@ -363,7 +429,27 @@ class GitHubService(
             prNumber,
         )
 
-        return gitHubClient.getPullRequest(repository.owner, repository.repoName, prNumber)
+        val response = gitHubClient.getPullRequest(repository.owner, repository.repoName, prNumber)
+        return response?.let {
+            GitHubPullRequest(
+                number = it.number,
+                title = it.title,
+                state = mapStringToPullRequestState(it.state),
+                sourceBranch = it.headBranch,
+                targetBranch = it.baseBranch,
+                author = it.author,
+                createdAt = it.createdAt,
+                updatedAt = it.updatedAt,
+                mergedAt = it.mergedAt,
+                mergedBy = it.reviewers.firstOrNull(), // TODO: This mapping needs improvement
+                reviewers = it.reviewers,
+                labels = emptyList(), // TODO: Map labels from response if available
+                additions = it.additions,
+                deletions = it.deletions,
+                changedFiles = it.changedFiles,
+                url = it.url,
+            )
+        }
     }
 
     /**

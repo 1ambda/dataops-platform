@@ -1,5 +1,7 @@
 package com.github.lambda.domain.entity.workflow
 
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
 import com.github.lambda.domain.entity.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

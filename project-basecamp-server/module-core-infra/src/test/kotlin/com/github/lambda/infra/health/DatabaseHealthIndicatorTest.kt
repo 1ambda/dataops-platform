@@ -1,6 +1,6 @@
 package com.github.lambda.infra.health
 
-import com.github.lambda.domain.model.health.HealthStatus
+import com.github.lambda.common.enums.HealthStatus
 import com.zaxxer.hikari.HikariDataSource
 import io.mockk.every
 import io.mockk.mockk

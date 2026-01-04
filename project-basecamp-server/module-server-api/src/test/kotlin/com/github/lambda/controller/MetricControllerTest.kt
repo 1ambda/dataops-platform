@@ -3,8 +3,9 @@ package com.github.lambda.controller
 import com.github.lambda.common.exception.MetricAlreadyExistsException
 import com.github.lambda.common.exception.MetricNotFoundException
 import com.github.lambda.config.SecurityConfig
+import com.github.lambda.domain.command.metric.CreateMetricCommand
 import com.github.lambda.domain.entity.metric.MetricEntity
-import com.github.lambda.domain.service.MetricExecutionResult
+import com.github.lambda.domain.projection.metric.MetricExecutionProjection
 import com.github.lambda.domain.service.MetricExecutionService
 import com.github.lambda.domain.service.MetricService
 import com.github.lambda.dto.metric.CreateMetricRequest
@@ -12,7 +13,6 @@ import com.github.lambda.dto.metric.MetricExecutionResultDto
 import com.github.lambda.dto.metric.MetricResponse
 import com.github.lambda.dto.metric.RunMetricRequest
 import com.github.lambda.exception.GlobalExceptionHandler
-import com.github.lambda.mapper.CreateMetricParams
 import com.github.lambda.mapper.MetricMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
@@ -85,7 +85,7 @@ class MetricControllerTest {
     private lateinit var testMetricEntity: MetricEntity
     private lateinit var testMetricResponse: MetricResponse
     private lateinit var testMetricListResponse: MetricResponse
-    private lateinit var testExecutionResult: MetricExecutionResult
+    private lateinit var testExecutionResult: MetricExecutionProjection
     private lateinit var testExecutionResultDto: MetricExecutionResultDto
 
     @BeforeEach
@@ -134,7 +134,7 @@ class MetricControllerTest {
             )
 
         testExecutionResult =
-            MetricExecutionResult(
+            MetricExecutionProjection(
                 rows = listOf(mapOf("count" to 100)),
                 rowCount = 1,
                 durationSeconds = 0.5,
@@ -330,17 +330,17 @@ class MetricControllerTest {
                 )
 
             val params =
-                CreateMetricParams(
+                CreateMetricCommand(
                     name = request.name,
                     owner = request.owner,
                     team = null,
                     description = request.description,
                     sql = request.sql,
                     sourceTable = null,
-                    tags = request.tags,
+                    tags = request.tags.toSet(),
                 )
 
-            every { metricMapper.extractCreateParams(request) } returns params
+            every { metricMapper.extractCreateCommand(request) } returns params
             every {
                 metricService.createMetric(
                     name = params.name,
@@ -349,7 +349,7 @@ class MetricControllerTest {
                     description = params.description,
                     sql = params.sql,
                     sourceTable = params.sourceTable,
-                    tags = params.tags,
+                    tags = params.tags.toList(),
                 )
             } returns
                 MetricEntity(
@@ -371,7 +371,7 @@ class MetricControllerTest {
                 .andExpect(jsonPath("$.name").value(request.name))
                 .andExpect(jsonPath("$.message").exists())
 
-            verify(exactly = 1) { metricMapper.extractCreateParams(request) }
+            verify(exactly = 1) { metricMapper.extractCreateCommand(request) }
         }
 
         @Test
@@ -516,17 +516,17 @@ class MetricControllerTest {
                 )
 
             val params =
-                CreateMetricParams(
+                CreateMetricCommand(
                     name = request.name,
                     owner = request.owner,
                     team = null,
                     description = null,
                     sql = request.sql,
                     sourceTable = null,
-                    tags = emptyList(),
+                    tags = mutableSetOf(),
                 )
 
-            every { metricMapper.extractCreateParams(request) } returns params
+            every { metricMapper.extractCreateCommand(request) } returns params
             every {
                 metricService.createMetric(
                     name = params.name,
@@ -761,14 +761,14 @@ class MetricControllerTest {
                 )
 
             val createParams =
-                CreateMetricParams(
+                CreateMetricCommand(
                     name = createRequest.name,
                     owner = createRequest.owner,
                     team = null,
                     description = null,
                     sql = createRequest.sql,
                     sourceTable = null,
-                    tags = emptyList(),
+                    tags = mutableSetOf(),
                 )
 
             val createdMetric =
@@ -793,7 +793,7 @@ class MetricControllerTest {
                     updatedAt = LocalDateTime.now(),
                 )
 
-            every { metricMapper.extractCreateParams(createRequest) } returns createParams
+            every { metricMapper.extractCreateCommand(createRequest) } returns createParams
             every {
                 metricService.createMetric(
                     name = createParams.name,
@@ -848,7 +848,7 @@ class MetricControllerTest {
                 ).andExpect(status().isOk)
 
             // Verify all calls
-            verify(exactly = 1) { metricMapper.extractCreateParams(createRequest) }
+            verify(exactly = 1) { metricMapper.extractCreateCommand(createRequest) }
             verify(exactly = 1) { metricService.getMetricOrThrow(createRequest.name) }
         }
     }

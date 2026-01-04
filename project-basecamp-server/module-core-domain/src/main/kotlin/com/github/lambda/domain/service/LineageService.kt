@@ -1,10 +1,11 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.LineageDirection
 import com.github.lambda.common.exception.ResourceNotFoundException
-import com.github.lambda.domain.model.lineage.LineageDirection
+import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 import com.github.lambda.domain.model.lineage.LineageGraphResult
-import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
-import com.github.lambda.domain.repository.LineageNodeRepositoryJpa
+import com.github.lambda.domain.repository.lineage.LineageEdgeRepositoryDsl
+import com.github.lambda.domain.repository.lineage.LineageNodeRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -85,7 +86,7 @@ class LineageService(
         depth: Int,
     ): Pair<
         List<LineageEdgeRepositoryDsl.NodeWithDepth>,
-        List<com.github.lambda.domain.model.lineage.LineageEdgeEntity>,
+        List<LineageEdgeEntity>,
     > {
         val nodes = lineageEdgeRepositoryDsl.findUpstream(resourceName, depth)
         val edges = getRelevantEdges(nodes.map { it.name })
@@ -100,7 +101,7 @@ class LineageService(
         depth: Int,
     ): Pair<
         List<LineageEdgeRepositoryDsl.NodeWithDepth>,
-        List<com.github.lambda.domain.model.lineage.LineageEdgeEntity>,
+        List<LineageEdgeEntity>,
     > {
         val nodes = lineageEdgeRepositoryDsl.findDownstream(resourceName, depth)
         val edges = getRelevantEdges(nodes.map { it.name })
@@ -115,7 +116,7 @@ class LineageService(
         depth: Int,
     ): Pair<
         List<LineageEdgeRepositoryDsl.NodeWithDepth>,
-        List<com.github.lambda.domain.model.lineage.LineageEdgeEntity>,
+        List<LineageEdgeEntity>,
     > {
         val allNodes = lineageEdgeRepositoryDsl.findBothDirections(resourceName, depth)
 
@@ -126,9 +127,7 @@ class LineageService(
     /**
      * Get edges that connect the given nodes
      */
-    private fun getRelevantEdges(
-        nodeNames: List<String>,
-    ): List<com.github.lambda.domain.model.lineage.LineageEdgeEntity> {
+    private fun getRelevantEdges(nodeNames: List<String>): List<LineageEdgeEntity> {
         if (nodeNames.isEmpty()) return emptyList()
 
         // Get all connected edges for the nodes

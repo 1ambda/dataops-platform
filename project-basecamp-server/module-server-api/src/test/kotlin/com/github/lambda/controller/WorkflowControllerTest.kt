@@ -1,5 +1,9 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
@@ -7,10 +11,6 @@ import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
-import com.github.lambda.domain.model.workflow.WorkflowStatus
 import com.github.lambda.domain.service.WorkflowService
 import com.github.lambda.dto.workflow.BackfillRequest
 import com.github.lambda.dto.workflow.BackfillResponseDto

@@ -1,13 +1,13 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.LineageDirection
+import com.github.lambda.common.enums.LineageEdgeType
+import com.github.lambda.common.enums.LineageNodeType
 import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 import com.github.lambda.domain.entity.lineage.LineageNodeEntity
-import com.github.lambda.domain.model.lineage.LineageDirection
-import com.github.lambda.domain.model.lineage.LineageEdgeType
 import com.github.lambda.domain.model.lineage.LineageGraphResult
-import com.github.lambda.domain.model.lineage.LineageNodeType
-import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
+import com.github.lambda.domain.repository.lineage.LineageEdgeRepositoryDsl
 import com.github.lambda.domain.service.LineageService
 import com.github.lambda.dto.lineage.LineageEdgeDto
 import com.github.lambda.dto.lineage.LineageGraphDto

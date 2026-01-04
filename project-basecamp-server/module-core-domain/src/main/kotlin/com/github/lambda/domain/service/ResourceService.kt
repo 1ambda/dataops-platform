@@ -1,8 +1,8 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.domain.entity.resource.ResourceEntity
-import com.github.lambda.domain.repository.ResourceRepositoryDsl
-import com.github.lambda.domain.repository.ResourceRepositoryJpa
+import com.github.lambda.domain.repository.resource.ResourceRepositoryDsl
+import com.github.lambda.domain.repository.resource.ResourceRepositoryJpa
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

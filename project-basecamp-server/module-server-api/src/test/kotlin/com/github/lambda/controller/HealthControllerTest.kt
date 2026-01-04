@@ -1,8 +1,8 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.HealthStatus
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.model.health.ComponentHealth
-import com.github.lambda.domain.model.health.HealthStatus
 import com.github.lambda.domain.service.HealthService
 import com.github.lambda.exception.GlobalExceptionHandler
 import com.ninjasquad.springmockk.MockkBean

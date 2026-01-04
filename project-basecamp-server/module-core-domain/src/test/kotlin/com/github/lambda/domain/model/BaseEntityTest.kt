@@ -1,5 +1,7 @@
 package com.github.lambda.domain.model
 
+import com.github.lambda.domain.entity.BaseEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow

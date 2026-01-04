@@ -1,5 +1,7 @@
 package com.github.lambda.domain.entity.query
 
+import com.github.lambda.common.enums.QueryEngine
+import com.github.lambda.common.enums.QueryStatus
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotBlank
 import java.time.Instant
@@ -98,32 +100,4 @@ class QueryExecutionEntity(
     override fun hashCode(): Int = queryId.hashCode()
 }
 
-/**
- * Query execution status
- */
-enum class QueryStatus {
-    PENDING,
-    RUNNING,
-    COMPLETED,
-    FAILED,
-    CANCELLED,
-}
-
-/**
- * Supported query engines
- */
-enum class QueryEngine {
-    BIGQUERY,
-    TRINO,
-    SPARK,
-}
-
-/**
- * Query scope for access control
- */
-enum class QueryScope {
-    MY, // Current user's queries only
-    SYSTEM, // System-generated queries
-    USER, // Specific user's queries (requires role)
-    ALL, // All queries (requires role)
-}
+// Enums moved to module-core-common/src/main/kotlin/com/github/lambda/common/enums/QueryEnums.kt

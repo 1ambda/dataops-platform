@@ -1,11 +1,12 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.HealthStatus
+import com.github.lambda.domain.external.HealthIndicator
 import com.github.lambda.domain.model.health.ComponentHealth
-import com.github.lambda.domain.model.health.HealthStatus
-import com.github.lambda.domain.port.HealthIndicator
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

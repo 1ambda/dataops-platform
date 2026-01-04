@@ -1,5 +1,6 @@
 package com.github.lambda.exception
 
+import com.github.lambda.common.exception.AccessDeniedException
 import com.github.lambda.common.exception.AirflowClusterAlreadyExistsException
 import com.github.lambda.common.exception.AirflowClusterNotFoundException
 import com.github.lambda.common.exception.BusinessException
@@ -25,6 +26,8 @@ import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.common.exception.QueryExecutionTimeoutException
+import com.github.lambda.common.exception.QueryNotCancellableException
+import com.github.lambda.common.exception.QueryNotFoundException
 import com.github.lambda.common.exception.QueryTooLargeException
 import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.common.exception.ResourceNotFoundException
@@ -35,9 +38,6 @@ import com.github.lambda.common.exception.TooManyTagsException
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
-import com.github.lambda.domain.service.AccessDeniedException
-import com.github.lambda.domain.service.QueryNotCancellableException
-import com.github.lambda.domain.service.QueryNotFoundException
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails
 import jakarta.validation.ConstraintViolationException

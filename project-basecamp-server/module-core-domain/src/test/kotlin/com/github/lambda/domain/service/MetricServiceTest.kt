@@ -3,12 +3,13 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.MetricAlreadyExistsException
 import com.github.lambda.common.exception.MetricNotFoundException
 import com.github.lambda.domain.entity.metric.MetricEntity
-import com.github.lambda.domain.repository.MetricRepositoryDsl
-import com.github.lambda.domain.repository.MetricRepositoryJpa
+import com.github.lambda.domain.repository.metric.MetricRepositoryDsl
+import com.github.lambda.domain.repository.metric.MetricRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

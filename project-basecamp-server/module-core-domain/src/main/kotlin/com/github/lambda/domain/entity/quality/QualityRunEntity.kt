@@ -1,9 +1,9 @@
 package com.github.lambda.domain.entity.quality
 
+import com.github.lambda.common.enums.ResourceType
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
 import com.github.lambda.domain.entity.BaseEntity
-import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType

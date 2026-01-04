@@ -1,8 +1,8 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.LineageDirection
 import com.github.lambda.common.exception.InvalidParameterException
 import com.github.lambda.common.exception.ResourceNotFoundException
-import com.github.lambda.domain.model.lineage.LineageDirection
 import com.github.lambda.domain.service.LineageService
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.ErrorDetails

@@ -1,8 +1,8 @@
 package com.github.lambda.infra.health
 
+import com.github.lambda.common.enums.HealthStatus
+import com.github.lambda.domain.external.HealthIndicator
 import com.github.lambda.domain.model.health.ComponentHealth
-import com.github.lambda.domain.model.health.HealthStatus
-import com.github.lambda.domain.port.HealthIndicator
 import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.RedisConnectionFactory
 import org.springframework.stereotype.Component

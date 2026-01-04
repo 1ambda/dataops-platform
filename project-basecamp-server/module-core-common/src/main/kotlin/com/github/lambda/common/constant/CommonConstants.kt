@@ -29,25 +29,24 @@ object CommonConstants {
     object Cache {
         // 분 단위 TTL
         const val DEFAULT_TTL_MINUTES = 10L // 기본 10분
-        const val SHORT_TTL_MINUTES = 5L // 5분 (Job 상태 등 빈번한 변경)
+        const val SHORT_TTL_MINUTES = 5L // 5분 (Workflow 실행 상태 등 빈번한 변경)
         const val MEDIUM_TTL_MINUTES = 30L // 30분 (Dataset 메타데이터)
-        const val LONG_TTL_MINUTES = 60L // 1시간 (Pipeline 설정)
+        const val LONG_TTL_MINUTES = 60L // 1시간 (User 정보, 설정)
         const val VERY_LONG_TTL_MINUTES = 120L // 2시간 (읽기 전용 데이터)
 
         // 초 단위 TTL (하위 호환성)
         const val DEFAULT_TTL_SECONDS = 600L // 기본 10분 (초 단위)
-        const val SHORT_TTL_SECONDS = 300L // 5분 (Job 상태 등 빈번한 변경)
+        const val SHORT_TTL_SECONDS = 300L // 5분 (Workflow 실행 상태 등 빈번한 변경)
         const val MEDIUM_TTL_SECONDS = 1800L // 30분 (Dataset 메타데이터)
-        const val LONG_TTL_SECONDS = 3600L // 1시간 (Pipeline 설정)
+        const val LONG_TTL_SECONDS = 3600L // 1시간 (User 정보, 설정)
         const val VERY_LONG_TTL_SECONDS = 7200L // 2시간 (읽기 전용 데이터)
         const val DAILY_TTL_SECONDS = 86400L // 1일 (통계 데이터)
 
         // 캐시 이름 상수
-        const val PIPELINE_CACHE = "pipeline"
-        const val JOB_CACHE = "job"
         const val DATASET_CACHE = "dataset"
-        const val PIPELINE_STATS_CACHE = "pipeline-statistics"
-        const val JOB_STATS_CACHE = "job-statistics"
-        const val READONLY_CACHE = "pipeline-readonly"
+        const val USER_CACHE = "user"
+        const val WORKFLOW_CACHE = "workflow"
+        const val WORKFLOW_STATS_CACHE = "workflow-statistics"
+        const val READONLY_CACHE = "catalog-readonly"
     }
 }

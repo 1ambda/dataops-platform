@@ -5,11 +5,12 @@ import com.github.lambda.common.exception.QueryTooLargeException
 import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
-import com.github.lambda.domain.repository.UserExecutionQuotaRepositoryJpa
+import com.github.lambda.domain.repository.adhoc.UserExecutionQuotaRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

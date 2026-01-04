@@ -1,11 +1,11 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.common.enums.LineageEdgeType
+import com.github.lambda.common.enums.LineageNodeType
 import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 import com.github.lambda.domain.entity.lineage.LineageNodeEntity
-import com.github.lambda.domain.model.lineage.LineageEdgeType
 import com.github.lambda.domain.model.lineage.LineageGraphResult
-import com.github.lambda.domain.model.lineage.LineageNodeType
-import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
+import com.github.lambda.domain.repository.lineage.LineageEdgeRepositoryDsl
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

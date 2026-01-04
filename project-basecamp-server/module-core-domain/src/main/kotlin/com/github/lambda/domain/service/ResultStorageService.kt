@@ -3,6 +3,7 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.InvalidDownloadTokenException
 import com.github.lambda.common.exception.ResultNotFoundException
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
+import com.github.lambda.domain.projection.run.StoredResultProjection
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -32,8 +33,8 @@ class ResultStorageService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    // In-memory storage for MVP - queryId -> StoredResult
-    private val resultStorage = ConcurrentHashMap<String, StoredResult>()
+    // In-memory storage for MVP - queryId -> StoredResultProjection
+    private val resultStorage = ConcurrentHashMap<String, StoredResultProjection>()
 
     /**
      * 결과 저장 및 다운로드 URL 생성
@@ -60,7 +61,7 @@ class ResultStorageService(
 
         // Store the result
         val storedResult =
-            StoredResult(
+            StoredResultProjection(
                 queryId = queryId,
                 csvContent = csvContent,
                 rowCount = rows.size,
@@ -256,23 +257,4 @@ class ResultStorageService(
         val hash = mac.doFinal(data.toByteArray(Charsets.UTF_8))
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hash)
     }
-}
-
-/**
- * 저장된 결과 데이터
- */
-data class StoredResult(
-    val queryId: String,
-    val csvContent: ByteArray,
-    val rowCount: Int,
-    val expiresAt: Instant,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as StoredResult
-        return queryId == other.queryId
-    }
-
-    override fun hashCode(): Int = queryId.hashCode()
 }

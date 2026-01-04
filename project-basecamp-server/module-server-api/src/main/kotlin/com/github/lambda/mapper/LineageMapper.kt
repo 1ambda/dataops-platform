@@ -3,7 +3,7 @@ package com.github.lambda.mapper
 import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 import com.github.lambda.domain.entity.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageGraphResult
-import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl.NodeWithDepth
+import com.github.lambda.domain.repository.lineage.LineageEdgeRepositoryDsl.NodeWithDepth
 import com.github.lambda.dto.lineage.LineageEdgeDto
 import com.github.lambda.dto.lineage.LineageGraphDto
 import com.github.lambda.dto.lineage.LineageNodeDto

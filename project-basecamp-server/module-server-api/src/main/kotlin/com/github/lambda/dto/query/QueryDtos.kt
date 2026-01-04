@@ -1,8 +1,8 @@
 package com.github.lambda.dto.query
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.github.lambda.domain.model.query.QueryEngine
-import com.github.lambda.domain.model.query.QueryStatus
+import com.github.lambda.common.enums.QueryEngine
+import com.github.lambda.common.enums.QueryStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
 

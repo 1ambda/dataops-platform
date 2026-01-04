@@ -2,8 +2,8 @@ package com.github.lambda.dto.health
 
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.github.lambda.common.enums.HealthStatus
 import com.github.lambda.domain.model.health.ComponentHealth
-import com.github.lambda.domain.model.health.HealthStatus
 import java.time.LocalDateTime
 
 /**

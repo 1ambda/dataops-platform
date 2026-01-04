@@ -13,7 +13,7 @@ import com.github.lambda.domain.external.BackfillResponse
 import com.github.lambda.domain.external.BackfillState
 import com.github.lambda.domain.external.BackfillStatus
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
+import com.github.lambda.domain.repository.airflow.AirflowClusterRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository

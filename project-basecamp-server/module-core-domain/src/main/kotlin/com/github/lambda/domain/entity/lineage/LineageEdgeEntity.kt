@@ -1,7 +1,7 @@
 package com.github.lambda.domain.entity.lineage
 
+import com.github.lambda.common.enums.LineageEdgeType
 import com.github.lambda.domain.entity.BaseEntity
-import com.github.lambda.domain.model.lineage.LineageEdgeType
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size

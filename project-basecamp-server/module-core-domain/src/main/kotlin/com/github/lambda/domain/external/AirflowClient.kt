@@ -1,7 +1,7 @@
 package com.github.lambda.domain.external
 
+import com.github.lambda.common.enums.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 
 /**
  * Airflow 클라이언트 인터페이스 (Domain Port)

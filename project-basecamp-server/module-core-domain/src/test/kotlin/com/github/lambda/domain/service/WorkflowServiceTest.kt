@@ -1,27 +1,28 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
 import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
 import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
-import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowDAGRunState
-import com.github.lambda.domain.external.AirflowDAGRunStatus
-import com.github.lambda.domain.external.WorkflowStorage
+import com.github.lambda.domain.external.airflow.AirflowClient
+import com.github.lambda.domain.external.airflow.AirflowDAGRunState
+import com.github.lambda.domain.external.airflow.AirflowDAGRunStatusResponse
+import com.github.lambda.domain.external.storage.WorkflowStorage
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
-import com.github.lambda.domain.model.workflow.WorkflowStatus
-import com.github.lambda.domain.repository.WorkflowRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRepositoryJpa
-import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRunRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -442,7 +443,7 @@ class WorkflowServiceTest {
             val runId = "test_run_123"
             testWorkflowRun.status = WorkflowRunStatus.RUNNING
             val airflowStatus =
-                AirflowDAGRunStatus(
+                AirflowDAGRunStatusResponse(
                     dagRunId = runId,
                     state = AirflowDAGRunState.SUCCESS,
                     startDate = LocalDateTime.now().minusMinutes(5),

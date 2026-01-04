@@ -1,16 +1,16 @@
 package com.github.lambda.infra.external
 
 import com.github.lambda.common.exception.AirflowConnectionException
-import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowDAGRunState
-import com.github.lambda.domain.external.AirflowDAGRunStatus
-import com.github.lambda.domain.external.AirflowDagRun
-import com.github.lambda.domain.external.AirflowDagStatus
-import com.github.lambda.domain.external.AirflowTaskInstance
-import com.github.lambda.domain.external.AirflowTaskState
-import com.github.lambda.domain.external.BackfillResponse
-import com.github.lambda.domain.external.BackfillState
-import com.github.lambda.domain.external.BackfillStatus
+import com.github.lambda.domain.external.airflow.AirflowClient
+import com.github.lambda.domain.external.airflow.AirflowDAGRunState
+import com.github.lambda.domain.external.airflow.AirflowDAGRunStatusResponse
+import com.github.lambda.domain.external.airflow.AirflowDagRunResponse
+import com.github.lambda.domain.external.airflow.AirflowDagStatusResponse
+import com.github.lambda.domain.external.airflow.AirflowTaskInstanceResponse
+import com.github.lambda.domain.external.airflow.AirflowTaskState
+import com.github.lambda.domain.external.airflow.BackfillCreateResponse
+import com.github.lambda.domain.external.airflow.BackfillState
+import com.github.lambda.domain.external.airflow.BackfillStatusResponse
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -42,10 +42,10 @@ class MockAirflowClient(
     private val log = LoggerFactory.getLogger(MockAirflowClient::class.java)
 
     // Mock storage for DAG states and run statuses
-    private val dagStates = ConcurrentHashMap<String, AirflowDagStatus>()
-    private val dagRuns = ConcurrentHashMap<String, AirflowDAGRunStatus>()
-    private val backfills = ConcurrentHashMap<String, BackfillStatus>()
-    private val taskInstances = ConcurrentHashMap<String, List<AirflowTaskInstance>>()
+    private val dagStates = ConcurrentHashMap<String, AirflowDagStatusResponse>()
+    private val dagRuns = ConcurrentHashMap<String, AirflowDAGRunStatusResponse>()
+    private val backfills = ConcurrentHashMap<String, BackfillStatusResponse>()
+    private val taskInstances = ConcurrentHashMap<String, List<AirflowTaskInstanceResponse>>()
 
     override fun triggerDAGRun(
         dagId: String,
@@ -61,7 +61,7 @@ class MockAirflowClient(
 
         // Create and store DAG run status
         val dagRunStatus =
-            AirflowDAGRunStatus(
+            AirflowDAGRunStatusResponse(
                 dagRunId = runId,
                 state = AirflowDAGRunState.QUEUED,
                 startDate = LocalDateTime.now(),
@@ -75,7 +75,7 @@ class MockAirflowClient(
         // Ensure DAG exists in state storage
         if (!dagStates.containsKey(dagId)) {
             dagStates[dagId] =
-                AirflowDagStatus(
+                AirflowDagStatusResponse(
                     dagId = dagId,
                     isPaused = false,
                     lastParsed = LocalDateTime.now(),
@@ -92,7 +92,7 @@ class MockAirflowClient(
     override fun getDAGRun(
         dagId: String,
         runId: String,
-    ): AirflowDAGRunStatus {
+    ): AirflowDAGRunStatusResponse {
         log.info("Mock Airflow: Getting DAG run status - dagId: {}, runId: {}", dagId, runId)
 
         val key = "${dagId}_$runId"
@@ -146,7 +146,7 @@ class MockAirflowClient(
         }
 
         val currentStatus =
-            dagStates[dagId] ?: AirflowDagStatus(
+            dagStates[dagId] ?: AirflowDagStatusResponse(
                 dagId = dagId,
                 isPaused = false,
                 lastParsed = LocalDateTime.now(),
@@ -175,7 +175,7 @@ class MockAirflowClient(
         }
 
         val dagStatus =
-            AirflowDagStatus(
+            AirflowDagStatusResponse(
                 dagId = dagId,
                 isPaused = false,
                 lastParsed = LocalDateTime.now(),
@@ -203,7 +203,7 @@ class MockAirflowClient(
         return removed
     }
 
-    override fun getDagStatus(dagId: String): AirflowDagStatus {
+    override fun getDagStatus(dagId: String): AirflowDagStatusResponse {
         log.info("Mock Airflow: Getting DAG status - dagId: {}", dagId)
 
         val status =
@@ -228,14 +228,14 @@ class MockAirflowClient(
         dagId: String,
         fromDate: String,
         toDate: String,
-    ): BackfillResponse {
+    ): BackfillCreateResponse {
         log.info("Mock Airflow: Creating backfill - dagId: {}, fromDate: {}, toDate: {}", dagId, fromDate, toDate)
 
         val backfillId = UUID.randomUUID().toString()
         val now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
 
         val status =
-            BackfillStatus(
+            BackfillStatusResponse(
                 id = backfillId,
                 dagId = dagId,
                 fromDate = fromDate,
@@ -248,7 +248,7 @@ class MockAirflowClient(
 
         simulateDelay(100, 300)
 
-        return BackfillResponse(
+        return BackfillCreateResponse(
             id = backfillId,
             dagId = dagId,
             fromDate = fromDate,
@@ -258,7 +258,7 @@ class MockAirflowClient(
         )
     }
 
-    override fun getBackfillStatus(backfillId: String): BackfillStatus {
+    override fun getBackfillStatus(backfillId: String): BackfillStatusResponse {
         log.info("Mock Airflow: Getting backfill status - backfillId: {}", backfillId)
 
         val status =
@@ -277,7 +277,7 @@ class MockAirflowClient(
         return updatedStatus
     }
 
-    override fun pauseBackfill(backfillId: String): BackfillStatus {
+    override fun pauseBackfill(backfillId: String): BackfillStatusResponse {
         log.info("Mock Airflow: Pausing backfill - backfillId: {}", backfillId)
 
         val status =
@@ -297,7 +297,7 @@ class MockAirflowClient(
         return status
     }
 
-    override fun unpauseBackfill(backfillId: String): BackfillStatus {
+    override fun unpauseBackfill(backfillId: String): BackfillStatusResponse {
         log.info("Mock Airflow: Unpausing backfill - backfillId: {}", backfillId)
 
         val status =
@@ -339,7 +339,7 @@ class MockAirflowClient(
     override fun listRecentDagRuns(
         since: LocalDateTime,
         limit: Int,
-    ): List<AirflowDagRun> {
+    ): List<AirflowDagRunResponse> {
         log.info("Mock Airflow: Listing recent DAG runs - since: {}, limit: {}", since, limit)
 
         simulateDelay(50, 200)
@@ -351,7 +351,7 @@ class MockAirflowClient(
             }.sortedByDescending { it.startDate ?: it.executionDate }
             .take(limit)
             .map { status ->
-                AirflowDagRun(
+                AirflowDagRunResponse(
                     dagId = extractDagId(status.dagRunId),
                     dagRunId = status.dagRunId,
                     state = status.state,
@@ -366,7 +366,7 @@ class MockAirflowClient(
     override fun listDagRuns(
         dagId: String,
         limit: Int,
-    ): List<AirflowDagRun> {
+    ): List<AirflowDagRunResponse> {
         log.info("Mock Airflow: Listing DAG runs - dagId: {}, limit: {}", dagId, limit)
 
         simulateDelay(50, 200)
@@ -374,7 +374,7 @@ class MockAirflowClient(
         return dagRuns.entries
             .filter { (key, _) -> key.startsWith("${dagId}_") }
             .map { (_, status) ->
-                AirflowDagRun(
+                AirflowDagRunResponse(
                     dagId = dagId,
                     dagRunId = status.dagRunId,
                     state = status.state,
@@ -390,7 +390,7 @@ class MockAirflowClient(
     override fun getTaskInstances(
         dagId: String,
         dagRunId: String,
-    ): List<AirflowTaskInstance> {
+    ): List<AirflowTaskInstanceResponse> {
         log.info("Mock Airflow: Getting task instances - dagId: {}, dagRunId: {}", dagId, dagRunId)
 
         val key = "${dagId}_$dagRunId"
@@ -411,7 +411,7 @@ class MockAirflowClient(
     /**
      * Simulate realistic state progression for DAG runs
      */
-    private fun simulateStateProgression(currentStatus: AirflowDAGRunStatus): AirflowDAGRunStatus {
+    private fun simulateStateProgression(currentStatus: AirflowDAGRunStatusResponse): AirflowDAGRunStatusResponse {
         val now = LocalDateTime.now()
         val startTime = currentStatus.startDate ?: now
         val timeSinceStart =
@@ -489,7 +489,7 @@ class MockAirflowClient(
     /**
      * Simulate realistic state progression for backfills
      */
-    private fun simulateBackfillProgression(currentStatus: BackfillStatus): BackfillStatus {
+    private fun simulateBackfillProgression(currentStatus: BackfillStatusResponse): BackfillStatusResponse {
         if (currentStatus.isPaused || currentStatus.state !in listOf(BackfillState.QUEUED, BackfillState.RUNNING)) {
             return currentStatus
         }
@@ -511,7 +511,7 @@ class MockAirflowClient(
     private fun generateMockTaskInstances(
         dagId: String,
         dagRunId: String,
-    ): List<AirflowTaskInstance> {
+    ): List<AirflowTaskInstanceResponse> {
         val taskNames = listOf("start", "extract", "transform", "load", "validate", "end")
         val now = LocalDateTime.now()
 
@@ -537,7 +537,7 @@ class MockAirflowClient(
                     null
                 }
 
-            AirflowTaskInstance(
+            AirflowTaskInstanceResponse(
                 taskId = taskName,
                 dagId = dagId,
                 dagRunId = dagRunId,

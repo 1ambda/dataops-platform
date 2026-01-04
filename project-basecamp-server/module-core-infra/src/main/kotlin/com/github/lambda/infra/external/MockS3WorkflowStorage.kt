@@ -1,8 +1,8 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.enums.WorkflowSourceType
 import com.github.lambda.common.exception.WorkflowStorageException
 import com.github.lambda.domain.external.WorkflowStorage
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty

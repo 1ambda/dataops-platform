@@ -1,7 +1,7 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.constant.CommonConstants
-import com.github.lambda.domain.model.health.HealthStatus
+import com.github.lambda.common.enums.HealthStatus
 import com.github.lambda.domain.service.HealthService
 import com.github.lambda.dto.ApiResponse
 import com.github.lambda.dto.health.ExtendedHealthResponse

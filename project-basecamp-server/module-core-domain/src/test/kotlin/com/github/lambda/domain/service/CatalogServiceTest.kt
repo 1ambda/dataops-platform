@@ -2,10 +2,11 @@ package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.TableNotFoundException
 import com.github.lambda.domain.model.catalog.*
-import com.github.lambda.domain.repository.CatalogRepositoryDsl
-import com.github.lambda.domain.repository.CatalogRepositoryJpa
-import com.github.lambda.domain.repository.SampleQueryRepositoryDsl
+import com.github.lambda.domain.repository.catalog.CatalogRepositoryDsl
+import com.github.lambda.domain.repository.catalog.CatalogRepositoryJpa
+import com.github.lambda.domain.repository.catalog.SampleQueryRepositoryDsl
 import io.mockk.*
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -18,7 +19,7 @@ import java.time.Instant
  * CatalogService Unit Tests
  *
  * Uses MockK to isolate dependencies and test pure business logic.
- * Note: Cache Service and PII Masking Service are excluded from this test scope.
+ * Note: Cache Service is excluded from this test scope.
  */
 @DisplayName("CatalogService Unit Tests")
 class CatalogServiceTest {

@@ -1,19 +1,20 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.SpecSyncErrorType
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
 import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.external.WorkflowStorage
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.SpecSyncErrorType
 import com.github.lambda.domain.model.workflow.WorkflowParseResult
 import com.github.lambda.domain.model.workflow.WorkflowScheduleSpec
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.WorkflowSpec
-import com.github.lambda.domain.model.workflow.WorkflowStatus
-import com.github.lambda.domain.repository.WorkflowRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

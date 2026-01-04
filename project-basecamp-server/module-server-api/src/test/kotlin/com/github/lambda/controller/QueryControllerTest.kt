@@ -1,18 +1,18 @@
 package com.github.lambda.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.lambda.common.enums.QueryEngine
+import com.github.lambda.common.enums.QueryScope
+import com.github.lambda.common.enums.QueryStatus
+import com.github.lambda.common.exception.AccessDeniedException
+import com.github.lambda.common.exception.QueryNotCancellableException
+import com.github.lambda.common.exception.QueryNotFoundException
 import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.command.query.CancelQueryCommand
 import com.github.lambda.domain.entity.query.QueryExecutionEntity
-import com.github.lambda.domain.model.query.QueryEngine
-import com.github.lambda.domain.model.query.QueryScope
-import com.github.lambda.domain.model.query.QueryStatus
-import com.github.lambda.domain.query.query.ListQueriesQuery
-import com.github.lambda.domain.service.AccessDeniedException
-import com.github.lambda.domain.service.QueryMetadataService
-import com.github.lambda.domain.service.QueryNotCancellableException
-import com.github.lambda.domain.service.QueryNotFoundException
+import com.github.lambda.domain.model.query.ListQueriesQuery
+import com.github.lambda.domain.service.QueryService
 import com.github.lambda.dto.query.CancelQueryRequestDto
 import com.github.lambda.dto.query.CancelQueryResponseDto
 import com.github.lambda.dto.query.QueryDetailDto
@@ -83,7 +83,7 @@ class QueryControllerTest {
     private lateinit var objectMapper: ObjectMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var queryMetadataService: QueryMetadataService
+    private lateinit var queryService: QueryService
 
     @MockkBean(relaxed = true)
     private lateinit var queryMapper: QueryMapper
@@ -202,7 +202,7 @@ class QueryControllerTest {
             val querySlot = slot<ListQueriesQuery>()
             val currentUserSlot = slot<String>()
 
-            every { queryMetadataService.listQueries(capture(querySlot), capture(currentUserSlot)) } returns
+            every { queryService.listQueries(capture(querySlot), capture(currentUserSlot)) } returns
                 expectedQueries
             every { queryMapper.toListItemDtoList(expectedQueries) } returns expectedDtos
 
@@ -218,7 +218,7 @@ class QueryControllerTest {
                 .andExpect(jsonPath("$[0].engine").value("BIGQUERY"))
 
             // Verify service calls
-            verify(exactly = 1) { queryMetadataService.listQueries(any(), any()) }
+            verify(exactly = 1) { queryService.listQueries(any(), any()) }
             verify(exactly = 1) { queryMapper.toListItemDtoList(expectedQueries) }
 
             // Verify query parameters
@@ -240,7 +240,7 @@ class QueryControllerTest {
 
             val querySlot = slot<ListQueriesQuery>()
 
-            every { queryMetadataService.listQueries(capture(querySlot), any()) } returns expectedQueries
+            every { queryService.listQueries(capture(querySlot), any()) } returns expectedQueries
             every { queryMapper.toListItemDtoList(expectedQueries) } returns expectedDtos
 
             // When & Then
@@ -270,7 +270,7 @@ class QueryControllerTest {
         @DisplayName("should return empty list when no queries found")
         fun `should return empty list when no queries found`() {
             // Given
-            every { queryMetadataService.listQueries(any(), any()) } returns emptyList()
+            every { queryService.listQueries(any(), any()) } returns emptyList()
             every { queryMapper.toListItemDtoList(emptyList()) } returns emptyList()
 
             // When & Then
@@ -305,7 +305,7 @@ class QueryControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error.code").value("INVALID_DATE_RANGE"))
 
-            verify(exactly = 0) { queryMetadataService.listQueries(any(), any()) }
+            verify(exactly = 0) { queryService.listQueries(any(), any()) }
         }
 
         @Test
@@ -396,7 +396,7 @@ class QueryControllerTest {
             // Given
             val queryId = "query_completed_001"
 
-            every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } returns testCompletedEntity
+            every { queryService.getQueryDetails(queryId, "analyst@example.com") } returns testCompletedEntity
             every { queryMapper.toDetailDto(testCompletedEntity) } returns testDetailDto
 
             // When & Then
@@ -414,7 +414,7 @@ class QueryControllerTest {
                 .andExpect(jsonPath("$.bytes_scanned").value("1.2 GB"))
                 .andExpect(jsonPath("$.cost_usd").value(0.006))
 
-            verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
+            verify(exactly = 1) { queryService.getQueryDetails(queryId, "analyst@example.com") }
             verify(exactly = 1) { queryMapper.toDetailDto(testCompletedEntity) }
         }
 
@@ -424,14 +424,14 @@ class QueryControllerTest {
             // Given
             val queryId = "non_existent_query"
 
-            every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } returns null
+            every { queryService.getQueryDetails(queryId, "analyst@example.com") } returns null
 
             // When & Then
             mockMvc
                 .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isNotFound())
 
-            verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
+            verify(exactly = 1) { queryService.getQueryDetails(queryId, "analyst@example.com") }
             verify(exactly = 0) { queryMapper.toDetailDto(any()) }
         }
 
@@ -450,7 +450,7 @@ class QueryControllerTest {
                         ),
                 )
 
-            every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } throws
+            every { queryService.getQueryDetails(queryId, "analyst@example.com") } throws
                 AccessDeniedException(errorMessage)
 
             // When & Then
@@ -461,7 +461,7 @@ class QueryControllerTest {
                 .andExpect(jsonPath("$.message").value(errorMessage))
                 .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"))
 
-            verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
+            verify(exactly = 1) { queryService.getQueryDetails(queryId, "analyst@example.com") }
         }
 
         @Test
@@ -470,7 +470,7 @@ class QueryControllerTest {
             // Given
             val queryId = "query_test_001"
 
-            every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } throws
+            every { queryService.getQueryDetails(queryId, "analyst@example.com") } throws
                 ResourceNotFoundException("Query", queryId)
 
             // When & Then
@@ -478,7 +478,7 @@ class QueryControllerTest {
                 .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isNotFound())
 
-            verify(exactly = 1) { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") }
+            verify(exactly = 1) { queryService.getQueryDetails(queryId, "analyst@example.com") }
         }
     }
 
@@ -493,7 +493,7 @@ class QueryControllerTest {
             val cancelRequest = CancelQueryRequestDto(reason = "User requested cancellation")
             val commandSlot = slot<CancelQueryCommand>()
 
-            every { queryMetadataService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
+            every { queryService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
                 testCancelledEntity
             every { queryMapper.toCancelQueryResponseDto(testCancelledEntity) } returns testCancelResponseDto
 
@@ -514,7 +514,7 @@ class QueryControllerTest {
             assertThat(commandSlot.captured.queryId).isEqualTo(queryId)
             assertThat(commandSlot.captured.reason).isEqualTo("User requested cancellation")
 
-            verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
+            verify(exactly = 1) { queryService.cancelQuery(any(), "analyst@example.com") }
             verify(exactly = 1) { queryMapper.toCancelQueryResponseDto(testCancelledEntity) }
         }
 
@@ -525,7 +525,7 @@ class QueryControllerTest {
             val queryId = "query_test_001"
             val commandSlot = slot<CancelQueryCommand>()
 
-            every { queryMetadataService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
+            every { queryService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
                 testCancelledEntity
             every { queryMapper.toCancelQueryResponseDto(testCancelledEntity) } returns testCancelResponseDto
 
@@ -549,7 +549,7 @@ class QueryControllerTest {
             val queryId = "query_test_001"
             val commandSlot = slot<CancelQueryCommand>()
 
-            every { queryMetadataService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
+            every { queryService.cancelQuery(capture(commandSlot), "analyst@example.com") } returns
                 testCancelledEntity
             every { queryMapper.toCancelQueryResponseDto(testCancelledEntity) } returns testCancelResponseDto
 
@@ -573,7 +573,7 @@ class QueryControllerTest {
             val queryId = "non_existent_query"
             val errorMessage = "Query not found"
 
-            every { queryMetadataService.cancelQuery(any(), "analyst@example.com") } throws
+            every { queryService.cancelQuery(any(), "analyst@example.com") } throws
                 QueryNotFoundException(queryId)
 
             // When & Then
@@ -581,7 +581,7 @@ class QueryControllerTest {
                 .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isNotFound())
 
-            verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
+            verify(exactly = 1) { queryService.cancelQuery(any(), "analyst@example.com") }
         }
 
         @Test
@@ -599,7 +599,7 @@ class QueryControllerTest {
                         ),
                 )
 
-            every { queryMetadataService.cancelQuery(any(), "analyst@example.com") } throws
+            every { queryService.cancelQuery(any(), "analyst@example.com") } throws
                 AccessDeniedException(errorMessage)
             // When & Then
             mockMvc
@@ -609,7 +609,7 @@ class QueryControllerTest {
                 .andExpect(jsonPath("$.message").value(errorMessage))
                 .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"))
 
-            verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
+            verify(exactly = 1) { queryService.cancelQuery(any(), "analyst@example.com") }
         }
 
         @Test
@@ -627,8 +627,8 @@ class QueryControllerTest {
                         ),
                 )
 
-            every { queryMetadataService.cancelQuery(any(), "analyst@example.com") } throws
-                QueryNotCancellableException(queryId, QueryStatus.COMPLETED)
+            every { queryService.cancelQuery(any(), "analyst@example.com") } throws
+                QueryNotCancellableException(queryId, QueryStatus.COMPLETED.name)
 
             // When & Then
             mockMvc
@@ -637,7 +637,7 @@ class QueryControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error.code").value("QUERY_NOT_CANCELLABLE"))
 
-            verify(exactly = 1) { queryMetadataService.cancelQuery(any(), "analyst@example.com") }
+            verify(exactly = 1) { queryService.cancelQuery(any(), "analyst@example.com") }
         }
 
         @Test
@@ -666,7 +666,7 @@ class QueryControllerTest {
             val allQueries = listOf(testQueryEntity, testCompletedEntity, testCancelledEntity)
             val allDtos = listOf(testListItemDto)
 
-            every { queryMetadataService.listQueries(any(), any()) } returns allQueries
+            every { queryService.listQueries(any(), any()) } returns allQueries
             every { queryMapper.toListItemDtoList(allQueries) } returns allDtos
 
             // Test each scope
@@ -690,7 +690,7 @@ class QueryControllerTest {
             val filteredQueries = listOf(testCompletedEntity)
             val filteredDtos = listOf(testListItemDto)
 
-            every { queryMetadataService.listQueries(any(), any()) } returns filteredQueries
+            every { queryService.listQueries(any(), any()) } returns filteredQueries
             every { queryMapper.toListItemDtoList(filteredQueries) } returns filteredDtos
 
             // Test different statuses
@@ -711,7 +711,7 @@ class QueryControllerTest {
         fun `should handle concurrent requests safely`() {
             // Given
             val queryId = "query_completed_001" // Use the same queryId as testDetailDto
-            every { queryMetadataService.getQueryDetails(queryId, "analyst@example.com") } returns testCompletedEntity
+            every { queryService.getQueryDetails(queryId, "analyst@example.com") } returns testCompletedEntity
             every { queryMapper.toDetailDto(testCompletedEntity) } returns testDetailDto
 
             // When & Then - Multiple concurrent requests should all succeed

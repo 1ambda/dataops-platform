@@ -2,12 +2,13 @@ package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.*
 import com.github.lambda.domain.entity.dataset.DatasetEntity
-import com.github.lambda.domain.repository.DatasetRepositoryDsl
-import com.github.lambda.domain.repository.DatasetRepositoryJpa
+import com.github.lambda.domain.repository.dataset.DatasetRepositoryDsl
+import com.github.lambda.domain.repository.dataset.DatasetRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

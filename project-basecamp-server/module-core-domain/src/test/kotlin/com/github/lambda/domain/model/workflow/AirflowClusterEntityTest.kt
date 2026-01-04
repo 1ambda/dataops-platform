@@ -1,5 +1,8 @@
 package com.github.lambda.domain.model.workflow
 
+import com.github.lambda.common.enums.AirflowEnvironment
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

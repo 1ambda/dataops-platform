@@ -1,5 +1,7 @@
 package com.github.lambda.domain.model.quality
 
+import com.github.lambda.common.enums.TestType
+
 /**
  * Request model for generating Quality Test SQL via external rule engine
  *

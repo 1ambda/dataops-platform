@@ -129,16 +129,16 @@ class MetricController(
     ): ResponseEntity<CreateMetricResponse> {
         logger.info { "POST /api/v1/metrics - name: ${request.name}" }
 
-        val params = metricMapper.extractCreateParams(request)
+        val command = metricMapper.extractCreateCommand(request)
         val metric =
             metricService.createMetric(
-                name = params.name,
-                owner = params.owner,
-                team = params.team,
-                description = params.description,
-                sql = params.sql,
-                sourceTable = params.sourceTable,
-                tags = params.tags,
+                name = command.name,
+                owner = command.owner,
+                team = command.team,
+                description = command.description,
+                sql = command.sql,
+                sourceTable = command.sourceTable,
+                tags = command.tags.toList(), // Convert Set back to List for service compatibility
             )
 
         val response =

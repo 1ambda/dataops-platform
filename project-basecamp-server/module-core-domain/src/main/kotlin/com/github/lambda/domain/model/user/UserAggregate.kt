@@ -1,5 +1,8 @@
 package com.github.lambda.domain.model.user
 
+import com.github.lambda.domain.entity.user.UserAuthorityEntity
+import com.github.lambda.domain.entity.user.UserEntity
+
 /**
  * 사용자 집합 루트
  *

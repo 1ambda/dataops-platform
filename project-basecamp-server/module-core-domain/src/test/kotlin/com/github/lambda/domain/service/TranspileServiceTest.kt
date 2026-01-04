@@ -1,5 +1,6 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.common.exception.*
 import com.github.lambda.domain.entity.dataset.DatasetEntity
 import com.github.lambda.domain.entity.metric.MetricEntity
@@ -9,12 +10,12 @@ import com.github.lambda.domain.external.BasecampParserClient
 import com.github.lambda.domain.external.TranspileResult
 import com.github.lambda.domain.external.TranspileRule
 import com.github.lambda.domain.external.TranspileWarning
-import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.repository.TranspileRuleRepositoryDsl
-import com.github.lambda.domain.repository.TranspileRuleRepositoryJpa
+import com.github.lambda.domain.repository.transpile.TranspileRuleRepositoryDsl
+import com.github.lambda.domain.repository.transpile.TranspileRuleRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -348,7 +349,7 @@ class TranspileServiceTest {
                     )
                 }
 
-            assertThat(exception.message).contains("Failed to transpile metric SQL")
+            assertThat(exception.message).contains("Failed to transpile metric")
             assertThat(exception.message).contains("Syntax error in SQL query")
         }
     }

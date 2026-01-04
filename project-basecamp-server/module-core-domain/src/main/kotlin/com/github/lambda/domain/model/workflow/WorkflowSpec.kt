@@ -2,6 +2,9 @@ package com.github.lambda.domain.model.workflow
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.github.lambda.common.enums.WorkflowSourceType
+import com.github.lambda.common.enums.WorkflowStatus
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
 
 /**
  * Workflow Spec - YAML 파일로부터 파싱된 워크플로우 명세

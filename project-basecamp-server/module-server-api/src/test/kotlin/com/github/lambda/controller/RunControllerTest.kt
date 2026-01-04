@@ -1,17 +1,17 @@
 package com.github.lambda.controller
 
+import com.github.lambda.common.enums.ExecutionStatus
 import com.github.lambda.common.exception.InvalidDownloadTokenException
 import com.github.lambda.common.exception.QueryEngineNotSupportedException
 import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.common.exception.ResultNotFoundException
 import com.github.lambda.config.SecurityConfig
-import com.github.lambda.domain.entity.adhoc.ExecutionStatus
-import com.github.lambda.domain.service.AdHocExecutionResult
+import com.github.lambda.domain.projection.adhoc.AdHocExecutionResultProjection
+import com.github.lambda.domain.projection.execution.CurrentUsageProjection
+import com.github.lambda.domain.projection.execution.ExecutionPolicyProjection
+import com.github.lambda.domain.projection.execution.RateLimitsProjection
 import com.github.lambda.domain.service.AdHocExecutionService
-import com.github.lambda.domain.service.CurrentUsageDto
-import com.github.lambda.domain.service.ExecutionPolicyDto
 import com.github.lambda.domain.service.ExecutionPolicyService
-import com.github.lambda.domain.service.RateLimitsDto
 import com.github.lambda.domain.service.ResultStorageService
 import com.github.lambda.exception.GlobalExceptionHandler
 import com.ninjasquad.springmockk.MockkBean
@@ -84,8 +84,8 @@ class RunControllerTest {
     private lateinit var resultStorageService: ResultStorageService
 
     // Test data
-    private lateinit var testPolicy: ExecutionPolicyDto
-    private lateinit var testExecutionResult: AdHocExecutionResult
+    private lateinit var testPolicy: ExecutionPolicyProjection
+    private lateinit var testExecutionResult: AdHocExecutionResultProjection
     private val testQueryId = "adhoc_20260101_120000_abc12345"
     private val testUserId = "anonymous" // Default for unauthenticated requests
 
@@ -93,7 +93,7 @@ class RunControllerTest {
     fun setUp() {
         // Setup test policy (using values from RUN_FEATURE.md spec)
         testPolicy =
-            ExecutionPolicyDto(
+            ExecutionPolicyProjection(
                 maxQueryDurationSeconds = 1800, // 30 min per spec
                 maxResultRows = 10000,
                 maxResultSizeMb = 100,
@@ -101,12 +101,12 @@ class RunControllerTest {
                 allowedFileTypes = listOf("csv"),
                 maxFileSizeMb = 10,
                 rateLimits =
-                    RateLimitsDto(
+                    RateLimitsProjection(
                         queriesPerHour = 50, // Per spec: 50/hour
                         queriesPerDay = 200, // Per spec: 200/day
                     ),
                 currentUsage =
-                    CurrentUsageDto(
+                    CurrentUsageProjection(
                         queriesToday = 12, // Example usage
                         queriesThisHour = 3,
                     ),
@@ -114,7 +114,7 @@ class RunControllerTest {
 
         // Setup test execution result
         testExecutionResult =
-            AdHocExecutionResult(
+            AdHocExecutionResultProjection(
                 queryId = testQueryId,
                 status = ExecutionStatus.COMPLETED,
                 executionTimeSeconds = 1.5,
@@ -171,7 +171,7 @@ class RunControllerTest {
             val newUserPolicy =
                 testPolicy.copy(
                     currentUsage =
-                        CurrentUsageDto(
+                        CurrentUsageProjection(
                             queriesToday = 0,
                             queriesThisHour = 0,
                         ),
@@ -195,7 +195,7 @@ class RunControllerTest {
         fun `should return VALIDATED status for dry run`() {
             // Given
             val dryRunResult =
-                AdHocExecutionResult(
+                AdHocExecutionResultProjection(
                     queryId = null,
                     status = ExecutionStatus.VALIDATED,
                     executionTimeSeconds = 0.5,
@@ -468,7 +468,7 @@ class RunControllerTest {
         fun `should not store results for dry run`() {
             // Given
             val dryRunResult =
-                AdHocExecutionResult(
+                AdHocExecutionResultProjection(
                     queryId = null,
                     status = ExecutionStatus.VALIDATED,
                     executionTimeSeconds = 0.3,

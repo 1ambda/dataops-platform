@@ -1,6 +1,6 @@
 package com.github.lambda.domain.projection.quality
 
-import com.github.lambda.domain.model.quality.ResourceType
+import com.github.lambda.common.enums.ResourceType
 
 /**
  * Quality Spec 통계 정보 Projection

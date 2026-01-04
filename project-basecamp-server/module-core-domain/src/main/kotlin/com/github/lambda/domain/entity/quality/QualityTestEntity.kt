@@ -1,9 +1,9 @@
 package com.github.lambda.domain.entity.quality
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.lambda.common.enums.Severity
+import com.github.lambda.common.enums.TestType
 import com.github.lambda.domain.entity.BaseEntity
-import com.github.lambda.domain.model.quality.Severity
-import com.github.lambda.domain.model.quality.TestType
 import jakarta.persistence.CollectionTable
 import jakarta.persistence.Column
 import jakarta.persistence.ElementCollection

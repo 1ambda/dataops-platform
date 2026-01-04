@@ -1,5 +1,6 @@
 package com.github.lambda.domain.entity.transpile
 
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.domain.entity.BaseEntity
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotBlank

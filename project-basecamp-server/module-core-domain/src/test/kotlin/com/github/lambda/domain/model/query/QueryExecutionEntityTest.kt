@@ -1,5 +1,9 @@
 package com.github.lambda.domain.model.query
 
+import com.github.lambda.common.enums.QueryEngine
+import com.github.lambda.common.enums.QueryStatus
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

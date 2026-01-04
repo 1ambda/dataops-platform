@@ -571,32 +571,6 @@ project-basecamp-server/
 
 ## Appendix: Dummy Reference Code
 
-### Pipeline APIs (Not Production Code)
-
-The codebase contains 11 dummy Pipeline endpoints that serve as **implementation pattern references** only:
-
-**Pipeline CRUD (5 endpoints):**
-- `GET /api/v1/pipelines` - List pipelines
-- `GET /api/v1/pipelines/{id}` - Get pipeline details
-- `POST /api/v1/pipelines` - Create pipeline
-- `PUT /api/v1/pipelines/{id}` - Update pipeline
-- `DELETE /api/v1/pipelines/{id}` - Delete pipeline
-
-**Pipeline Management (6 endpoints):**
-- `PATCH /api/v1/pipelines/{id}/status` - Change status
-- `PATCH /api/v1/pipelines/{id}/toggle-active` - Toggle active state
-- `POST /api/v1/pipelines/{id}/execute` - Execute pipeline
-- `POST /api/v1/pipelines/{id}/stop/{executionId}` - Stop execution
-- `GET /api/v1/pipelines/public/{id}` - Public view
-- `GET /api/v1/pipelines/statistics` - Pipeline statistics
-
-⚠️ **These APIs are NOT production-ready and do NOT count toward BASECAMP feature completion.**
-
-**Use for Reference:**
-- Hexagonal architecture patterns
-- Service/Repository/Controller structure
-- DTO mapping examples
-- Test patterns
 
 ---
 

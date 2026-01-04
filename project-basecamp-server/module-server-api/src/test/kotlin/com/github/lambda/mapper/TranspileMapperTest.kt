@@ -1,8 +1,8 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.common.enums.SqlDialect
 import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
-import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.service.*
+import com.github.lambda.domain.projection.transpile.*
 import com.github.lambda.dto.transpile.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -21,11 +21,11 @@ class TranspileMapperTest {
     private val mapper = TranspileMapper()
 
     private lateinit var testTranspileRule: TranspileRuleEntity
-    private lateinit var testTranspileRulesResult: TranspileRulesResult
-    private lateinit var testMetricTranspileResult: MetricTranspileResult
-    private lateinit var testDatasetTranspileResult: DatasetTranspileResult
-    private lateinit var testAppliedRule: AppliedRule
-    private lateinit var testTranspileWarning: TranspileWarning
+    private lateinit var testTranspileRulesResult: TranspileRulesProjection
+    private lateinit var testMetricTranspileResult: MetricTranspileProjection
+    private lateinit var testDatasetTranspileResult: DatasetTranspileProjection
+    private lateinit var testAppliedRule: AppliedRuleProjection
+    private lateinit var testTranspileWarning: TranspileWarningProjection
 
     @BeforeEach
     fun setUp() {
@@ -42,14 +42,14 @@ class TranspileMapperTest {
             )
 
         testAppliedRule =
-            AppliedRule(
+            AppliedRuleProjection(
                 name = "bigquery_to_trino_datetime",
                 source = "DATETIME(created_at)",
                 target = "CAST(created_at AS TIMESTAMP)",
             )
 
         testTranspileWarning =
-            TranspileWarning(
+            TranspileWarningProjection(
                 type = "PARAMETER_SUBSTITUTION",
                 message = "Parameter '{{date}}' was substituted",
                 line = 1,
@@ -57,11 +57,11 @@ class TranspileMapperTest {
             )
 
         testTranspileRulesResult =
-            TranspileRulesResult(
+            TranspileRulesProjection(
                 version = "1.0.0",
                 rules = listOf(testTranspileRule),
                 metadata =
-                    TranspileMetadata(
+                    TranspileMetadataProjection(
                         createdAt = Instant.parse("2024-01-01T09:00:00Z"),
                         createdBy = "system",
                         totalRules = 1,
@@ -70,7 +70,7 @@ class TranspileMapperTest {
             )
 
         testMetricTranspileResult =
-            MetricTranspileResult(
+            MetricTranspileProjection(
                 metricName = "test_catalog.test_schema.test_metric",
                 sourceDialect = "bigquery",
                 targetDialect = "trino",
@@ -83,7 +83,7 @@ class TranspileMapperTest {
             )
 
         testDatasetTranspileResult =
-            DatasetTranspileResult(
+            DatasetTranspileProjection(
                 datasetName = "test_catalog.test_schema.test_dataset",
                 sourceDialect = "bigquery",
                 targetDialect = "trino",
@@ -153,8 +153,8 @@ class TranspileMapperTest {
             val additionalRule =
                 TranspileRuleEntity(
                     name = "mysql_to_postgresql_limit",
-                    fromDialect = SqlDialect.MYSQL,
-                    toDialect = SqlDialect.POSTGRESQL,
+                    fromDialect = SqlDialect.BIGQUERY,
+                    toDialect = SqlDialect.TRINO,
                     pattern = "LIMIT (\\d+)",
                     replacement = "LIMIT \\$1",
                     priority = 200,
@@ -183,8 +183,8 @@ class TranspileMapperTest {
 
             val secondRule = result.rules[1]
             assertThat(secondRule.name).isEqualTo("mysql_to_postgresql_limit")
-            assertThat(secondRule.fromDialect).isEqualTo("mysql")
-            assertThat(secondRule.toDialect).isEqualTo("postgresql")
+            assertThat(secondRule.fromDialect).isEqualTo("bigquery")
+            assertThat(secondRule.toDialect).isEqualTo("trino")
             assertThat(secondRule.enabled).isFalse()
         }
     }
@@ -200,8 +200,8 @@ class TranspileMapperTest {
 
             // Then
             assertThat(result).isNotNull()
-            assertThat(result.resourceType).isEqualTo("metric")
-            assertThat(result.resourceName).isEqualTo(testMetricTranspileResult.metricName)
+            assertThat(result.metricName).isEqualTo(testMetricTranspileResult.metricName)
+            assertThat(result.datasetName).isNull()
             assertThat(result.sourceDialect).isEqualTo(testMetricTranspileResult.sourceDialect)
             assertThat(result.targetDialect).isEqualTo(testMetricTranspileResult.targetDialect)
             assertThat(result.originalSql).isEqualTo(testMetricTranspileResult.originalSql)
@@ -237,7 +237,8 @@ class TranspileMapperTest {
             val result = mapper.toTranspileResultDto(simpleMetricResult)
 
             // Then
-            assertThat(result.resourceType).isEqualTo("metric")
+            assertThat(result.metricName).isNotNull()
+            assertThat(result.datasetName).isNull()
             assertThat(result.appliedRules).isEmpty()
             assertThat(result.warnings).isEmpty()
         }
@@ -254,8 +255,8 @@ class TranspileMapperTest {
 
             // Then
             assertThat(result).isNotNull()
-            assertThat(result.resourceType).isEqualTo("dataset")
-            assertThat(result.resourceName).isEqualTo(testDatasetTranspileResult.datasetName)
+            assertThat(result.datasetName).isEqualTo(testDatasetTranspileResult.datasetName)
+            assertThat(result.metricName).isNull()
             assertThat(result.sourceDialect).isEqualTo(testDatasetTranspileResult.sourceDialect)
             assertThat(result.targetDialect).isEqualTo(testDatasetTranspileResult.targetDialect)
             assertThat(result.originalSql).isEqualTo(testDatasetTranspileResult.originalSql)
@@ -272,7 +273,7 @@ class TranspileMapperTest {
         fun shouldHandleDatasetResultWithMultipleAppliedRules() {
             // Given
             val additionalRule =
-                AppliedRule(
+                AppliedRuleProjection(
                     name = "timestamp_conversion",
                     source = "TIMESTAMP('2024-01-01')",
                     target = "CAST('2024-01-01' AS TIMESTAMP)",
@@ -287,7 +288,7 @@ class TranspileMapperTest {
             val result = mapper.toTranspileResultDto(multipleRulesDatasetResult)
 
             // Then
-            assertThat(result.resourceType).isEqualTo("dataset")
+            assertThat(result.datasetName).isEqualTo(testDatasetTranspileResult.datasetName)
             assertThat(result.appliedRules).hasSize(2)
             assertThat(result.appliedRules[0].name).isEqualTo("bigquery_to_trino_datetime")
             assertThat(result.appliedRules[1].name).isEqualTo("timestamp_conversion")
@@ -298,7 +299,7 @@ class TranspileMapperTest {
         fun shouldHandleDatasetResultWithMultipleWarnings() {
             // Given
             val additionalWarning =
-                TranspileWarning(
+                TranspileWarningProjection(
                     type = "DEPRECATED_FUNCTION",
                     message = "Function FUNC is deprecated",
                     line = 2,
@@ -332,7 +333,7 @@ class TranspileMapperTest {
                     TranspileRuleEntity(
                         name = "test_${dialect.name.lowercase()}",
                         fromDialect = dialect,
-                        toDialect = SqlDialect.GENERIC,
+                        toDialect = SqlDialect.TRINO,
                         pattern = "test",
                         replacement = "test",
                     )
@@ -364,7 +365,17 @@ class TranspileMapperTest {
         @DisplayName("should handle rule with null description")
         fun shouldHandleRuleWithNullDescription() {
             // Given
-            val ruleWithNullDescription = testTranspileRule.copy(description = null)
+            val ruleWithNullDescription =
+                TranspileRuleEntity(
+                    name = testTranspileRule.name,
+                    fromDialect = testTranspileRule.fromDialect,
+                    toDialect = testTranspileRule.toDialect,
+                    pattern = testTranspileRule.pattern,
+                    replacement = testTranspileRule.replacement,
+                    priority = testTranspileRule.priority,
+                    enabled = testTranspileRule.enabled,
+                    description = null,
+                )
             val rulesResult = testTranspileRulesResult.copy(rules = listOf(ruleWithNullDescription))
 
             // When

@@ -1,10 +1,10 @@
 package com.github.lambda.infra.external
 
+import com.github.lambda.common.enums.AirflowEnvironment
 import com.github.lambda.common.exception.AirflowConnectionException
 import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
-import com.github.lambda.domain.model.workflow.AirflowEnvironment
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
+import com.github.lambda.domain.repository.airflow.AirflowClusterRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat

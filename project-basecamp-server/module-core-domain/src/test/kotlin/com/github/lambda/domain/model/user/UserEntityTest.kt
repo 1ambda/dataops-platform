@@ -1,6 +1,8 @@
 package com.github.lambda.domain.model.user
 
-import com.github.lambda.domain.model.user.UserRole
+import com.github.lambda.common.enums.UserRole
+import com.github.lambda.domain.entity.user.UserEntity
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

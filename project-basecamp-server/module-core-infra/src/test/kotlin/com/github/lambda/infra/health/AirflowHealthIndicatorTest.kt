@@ -1,6 +1,6 @@
 package com.github.lambda.infra.health
 
-import com.github.lambda.domain.model.health.HealthStatus
+import com.github.lambda.common.enums.HealthStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

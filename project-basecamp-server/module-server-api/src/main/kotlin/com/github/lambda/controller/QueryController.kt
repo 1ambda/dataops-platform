@@ -1,11 +1,11 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.constant.CommonConstants
+import com.github.lambda.common.enums.QueryScope
+import com.github.lambda.common.enums.QueryStatus
 import com.github.lambda.domain.command.query.CancelQueryCommand
-import com.github.lambda.domain.model.query.QueryScope
-import com.github.lambda.domain.model.query.QueryStatus
-import com.github.lambda.domain.query.query.ListQueriesQuery
-import com.github.lambda.domain.service.QueryMetadataService
+import com.github.lambda.domain.model.query.ListQueriesQuery
+import com.github.lambda.domain.service.QueryService
 import com.github.lambda.dto.query.CancelQueryRequestDto
 import com.github.lambda.mapper.QueryMapper
 import io.swagger.v3.oas.annotations.Operation
@@ -33,7 +33,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 @Validated
 @Tag(name = "Query", description = "Query execution metadata API")
 class QueryController(
-    private val queryMetadataService: QueryMetadataService,
+    private val queryService: QueryService,
     private val queryMapper: QueryMapper,
 ) {
     private val logger = KotlinLogging.logger {}
@@ -91,7 +91,7 @@ class QueryController(
                 )
 
             val currentUser = getCurrentUser()
-            val queries = queryMetadataService.listQueries(query, currentUser)
+            val queries = queryService.listQueries(query, currentUser)
 
             ResponseEntity.ok(queryMapper.toListItemDtoList(queries))
         } catch (e: IllegalArgumentException) {
@@ -127,7 +127,7 @@ class QueryController(
         logger.info { "GET /api/v1/queries/$queryId" }
 
         val currentUser = getCurrentUser()
-        val query = queryMetadataService.getQueryDetails(queryId, currentUser)
+        val query = queryService.getQueryDetails(queryId, currentUser)
 
         return if (query != null) {
             ResponseEntity.ok(queryMapper.toDetailDto(query))
@@ -165,7 +165,7 @@ class QueryController(
                 reason = request?.reason,
             )
 
-        val cancelledQuery = queryMetadataService.cancelQuery(command, currentUser)
+        val cancelledQuery = queryService.cancelQuery(command, currentUser)
 
         return ResponseEntity.ok(queryMapper.toCancelQueryResponseDto(cancelledQuery))
     }

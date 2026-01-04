@@ -1,8 +1,8 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.common.enums.QueryEngine
+import com.github.lambda.common.enums.QueryStatus
 import com.github.lambda.domain.entity.query.QueryExecutionEntity
-import com.github.lambda.domain.model.query.QueryEngine
-import com.github.lambda.domain.model.query.QueryStatus
 import com.github.lambda.dto.query.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

@@ -1,5 +1,6 @@
 package com.github.lambda.domain.entity.user
 
+import com.github.lambda.common.enums.UserRole
 import com.github.lambda.domain.entity.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

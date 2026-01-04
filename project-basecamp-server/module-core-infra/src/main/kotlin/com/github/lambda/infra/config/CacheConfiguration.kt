@@ -21,9 +21,9 @@ import java.time.Duration
  * 캐시 설정 클래스
  *
  * Redis 기반 캐싱 전략:
- * - Pipeline: 긴 TTL (1시간) - 자주 변경되지 않음
- * - Job: 짧은 TTL (5분) - 상태 변경이 빈번
  * - Dataset: 중간 TTL (30분) - 메타데이터 변경이 가끔
+ * - User: 긴 TTL (1시간) - 사용자 정보는 자주 변경되지 않음
+ * - Workflow: 짧은 TTL (5분) - 실행 상태 변경이 빈번
  */
 @Configuration
 @EnableCaching

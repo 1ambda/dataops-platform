@@ -1,9 +1,9 @@
 package com.github.lambda.domain.entity.quality
 
+import com.github.lambda.common.enums.Severity
+import com.github.lambda.common.enums.TestStatus
+import com.github.lambda.common.enums.TestType
 import com.github.lambda.domain.entity.BaseEntity
-import com.github.lambda.domain.model.quality.Severity
-import com.github.lambda.domain.model.quality.TestStatus
-import com.github.lambda.domain.model.quality.TestType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType

@@ -1,8 +1,8 @@
 package com.github.lambda.controller
 
 import com.github.lambda.common.constant.CommonConstants
+import com.github.lambda.common.enums.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import com.github.lambda.domain.service.QualityService
 import com.github.lambda.domain.service.WorkflowService
 import com.github.lambda.dto.quality.QualityRunResultDto
@@ -633,9 +633,7 @@ class WorkflowController(
         qualityService.registerQualitySpec(
             yamlContent = request.yamlContent,
             registeredBy = registeredBy,
-            sourceType =
-                com.github.lambda.domain.model.workflow.WorkflowSourceType
-                    .valueOf(request.sourceType),
+            sourceType = WorkflowSourceType.valueOf(request.sourceType),
             s3Path = null, // s3Path not available in RegisterWorkflowRequest
         )
 

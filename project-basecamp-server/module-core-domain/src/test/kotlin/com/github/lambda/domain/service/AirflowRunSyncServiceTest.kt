@@ -1,21 +1,23 @@
 package com.github.lambda.domain.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.lambda.common.enums.AirflowEnvironment
+import com.github.lambda.common.enums.WorkflowRunStatus
+import com.github.lambda.common.enums.WorkflowRunType
 import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
-import com.github.lambda.domain.external.AirflowClient
-import com.github.lambda.domain.external.AirflowDAGRunState
-import com.github.lambda.domain.external.AirflowDAGRunStatus
-import com.github.lambda.domain.external.AirflowDagRun
-import com.github.lambda.domain.model.workflow.AirflowEnvironment
-import com.github.lambda.domain.model.workflow.WorkflowRunStatus
-import com.github.lambda.domain.model.workflow.WorkflowRunType
-import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
-import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
-import com.github.lambda.domain.repository.WorkflowRunRepositoryJpa
+import com.github.lambda.domain.external.airflow.AirflowClient
+import com.github.lambda.domain.external.airflow.AirflowDAGRunState
+import com.github.lambda.domain.external.airflow.AirflowDAGRunStatusResponse
+import com.github.lambda.domain.external.airflow.AirflowDagRunResponse
+import com.github.lambda.domain.projection.workflow.WorkflowSyncStatisticsProjection
+import com.github.lambda.domain.repository.airflow.AirflowClusterRepositoryJpa
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryDsl
+import com.github.lambda.domain.repository.workflow.WorkflowRunRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.assertj.core.api.Assertions.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -88,7 +90,7 @@ class AirflowRunSyncServiceTest {
             // Given
             val airflowRuns =
                 listOf(
-                    AirflowDagRun(
+                    AirflowDagRunResponse(
                         dagId = "dag_catalog_schema_dataset",
                         dagRunId = "manual__2025-01-15T12:00:00",
                         state = AirflowDAGRunState.SUCCESS,
@@ -226,7 +228,7 @@ class AirflowRunSyncServiceTest {
         fun `should update workflow run status from Airflow`() {
             // Given
             val airflowRun =
-                AirflowDagRun(
+                AirflowDagRunResponse(
                     dagId = "dag_catalog_schema_dataset",
                     dagRunId = "manual__2025-01-15T12:00:00",
                     state = AirflowDAGRunState.SUCCESS,
@@ -279,7 +281,7 @@ class AirflowRunSyncServiceTest {
                 )
 
             val airflowStatus =
-                AirflowDAGRunStatus(
+                AirflowDAGRunStatusResponse(
                     dagRunId = "manual__2025-01-15T10:00:00",
                     state = AirflowDAGRunState.SUCCESS,
                     startDate = LocalDateTime.now().minusHours(2),
@@ -362,10 +364,13 @@ class AirflowRunSyncServiceTest {
         fun `should return sync statistics for all clusters`() {
             // Given
             val stats =
-                mapOf(
-                    "totalRuns" to 100L,
-                    "syncedRuns" to 95L,
-                    "pendingRuns" to 5L,
+                WorkflowSyncStatisticsProjection(
+                    clusterId = null,
+                    totalRuns = 100L,
+                    syncedRuns = 95L,
+                    pendingSyncRuns = 5L,
+                    staleRuns = 0L,
+                    lastSyncedAt = null,
                 )
             every { workflowRunRepositoryDsl.getSyncStatistics(null) } returns stats
 
@@ -373,9 +378,9 @@ class AirflowRunSyncServiceTest {
             val result = service.getSyncStatistics()
 
             // Then
-            assertThat(result).containsEntry("totalRuns", 100L)
-            assertThat(result).containsEntry("syncedRuns", 95L)
-            assertThat(result).containsEntry("pendingRuns", 5L)
+            assertThat(result.totalRuns).isEqualTo(100L)
+            assertThat(result.syncedRuns).isEqualTo(95L)
+            assertThat(result.pendingSyncRuns).isEqualTo(5L)
         }
 
         @Test
@@ -383,10 +388,13 @@ class AirflowRunSyncServiceTest {
         fun `should return sync statistics for specific cluster`() {
             // Given
             val stats =
-                mapOf(
-                    "totalRuns" to 50L,
-                    "syncedRuns" to 48L,
-                    "pendingRuns" to 2L,
+                WorkflowSyncStatisticsProjection(
+                    clusterId = 1L,
+                    totalRuns = 50L,
+                    syncedRuns = 48L,
+                    pendingSyncRuns = 2L,
+                    staleRuns = 0L,
+                    lastSyncedAt = null,
                 )
             every { workflowRunRepositoryDsl.getSyncStatistics(1L) } returns stats
 
@@ -394,7 +402,7 @@ class AirflowRunSyncServiceTest {
             val result = service.getSyncStatistics(clusterId = 1L)
 
             // Then
-            assertThat(result).containsEntry("totalRuns", 50L)
+            assertThat(result.totalRuns).isEqualTo(50L)
         }
     }
 }
