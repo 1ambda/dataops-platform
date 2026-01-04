@@ -34,6 +34,25 @@ serena.find_symbol("IntegrationService")
 context7.get-library-docs("/sqlalchemy/sqlalchemy")
 ```
 
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"import.*sqlalchemy")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"@app.route",
+    relative_path="project-basecamp-connect/src/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색은 find_file 사용:** `find_file(file_mask="*.py", relative_path="...")`
+
 ---
 
 ## When to Use Skills

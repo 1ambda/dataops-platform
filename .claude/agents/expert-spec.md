@@ -56,8 +56,26 @@ Your job is to **prevent these costs by defining clear system integration patter
 
 ALWAYS use MCP tools before file reads:
 - `serena.get_symbols_overview("project-*/")` - understand existing patterns (~90% token savings)
-- `serena.search_for_pattern("class.*Service")` - find service patterns (~85%)
 - `serena.read_memory("cli_patterns")` - CLI development patterns (~80%)
+
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"class.*Service")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"class.*Service",
+    relative_path="module-core-domain/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색:** `find_file(file_mask="*.kt", relative_path="...")`
 - `context7.resolve-library-id("framework", query)` - framework best practices
 - `claude-mem.search("architecture decision")` - past integration decisions
 

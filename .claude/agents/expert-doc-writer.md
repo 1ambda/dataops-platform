@@ -18,6 +18,25 @@ ALWAYS use MCP tools before reading full files:
 - `serena.list_dir(recursive=True)` - map project structure
 - `context7.get-library-docs` - reference framework documentation
 
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"##.*")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"## API",
+    relative_path="docs/",
+    context_lines_after=2,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색:** `find_file(file_mask="*.md", relative_path="...")`
+
 ## Expertise
 
 **Focus**: Architecture docs · API references · README files · System guides

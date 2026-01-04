@@ -43,6 +43,25 @@ make doc-search q="cli pattern"
 Read: project-interface-cli/docs/PATTERNS.md
 ```
 
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"import.*API")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"def.*command",
+    relative_path="project-interface-cli/src/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색은 find_file 사용:** `find_file(file_mask="*.py", relative_path="...")`
+
 ### Serena Cache Structure (Python)
 
 ```

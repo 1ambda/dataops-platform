@@ -540,6 +540,12 @@ serena-help: ## Show Serena symbol update system help
 	@echo "  $(CYAN)make doc-index$(RESET)            - Rebuild document index"
 	@echo "  $(CYAN)make doc-index-status$(RESET)     - Check document index status"
 	@echo ""
+	@echo "$(BOLD)$(GREEN)Cleanup:$(RESET)"
+	@echo "  $(CYAN)make serena-clean$(RESET)         - Show cleanup options and status"
+	@echo "  $(CYAN)make serena-clean-memories$(RESET)- Delete all memory files"
+	@echo "  $(CYAN)make serena-clean-cache$(RESET)   - Delete symbol/document caches"
+	@echo "  $(CYAN)make serena-clean-all$(RESET)     - Full reset (memories + caches)"
+	@echo ""
 
 .PHONY: serena-update
 serena-update: ## Update Serena symbol cache (with dry-run check)
@@ -610,6 +616,39 @@ serena-cli: ## Update interface-cli symbols, docs & memories
 	@echo "$(BOLD)$(BLUE)[SERENA]$(RESET) Updating interface-cli symbols, docs & memories..."
 	@python3 scripts/serena/update-symbols.py --project project-interface-cli --with-docs --with-memories
 	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Interface-cli updated!"
+
+.PHONY: serena-clean
+serena-clean: ## Clean Serena memories and caches (interactive)
+	@echo "$(BOLD)$(YELLOW)[SERENA-CLEAN]$(RESET) Serena Cleanup Options:"
+	@echo ""
+	@echo "  $(CYAN)Current Status:$(RESET)"
+	@echo "  - Memories: $$(ls -1 .serena/memories/ 2>/dev/null | wc -l | tr -d ' ') files ($$(du -sh .serena/memories/ 2>/dev/null | cut -f1))"
+	@echo "  - Caches:   $$(du -sh .serena/cache/ 2>/dev/null | cut -f1 || echo 'N/A')"
+	@echo ""
+	@echo "  $(CYAN)Commands:$(RESET)"
+	@echo "  make serena-clean-memories  - Delete all memory files"
+	@echo "  make serena-clean-cache     - Delete symbol/document caches"
+	@echo "  make serena-clean-all       - Delete everything (full reset)"
+	@echo ""
+
+.PHONY: serena-clean-memories
+serena-clean-memories: ## Delete all Serena memory files
+	@echo "$(BOLD)$(YELLOW)[SERENA]$(RESET) Deleting Serena memories..."
+	@rm -f .serena/memories/*.md
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Memories cleaned!"
+
+.PHONY: serena-clean-cache
+serena-clean-cache: ## Delete Serena symbol and document caches
+	@echo "$(BOLD)$(YELLOW)[SERENA]$(RESET) Deleting Serena caches..."
+	@rm -rf .serena/cache/
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Caches cleaned! Run 'make serena-update-all' to rebuild."
+
+.PHONY: serena-clean-all
+serena-clean-all: ## Full Serena reset (memories + caches)
+	@echo "$(BOLD)$(RED)[SERENA]$(RESET) Full reset - deleting all Serena data..."
+	@rm -f .serena/memories/*.md
+	@rm -rf .serena/cache/
+	@echo "$(BOLD)$(GREEN)[SERENA]$(RESET) Full reset complete! Run 'make serena-update-all' to rebuild."
 
 # ------------------------------------------------------------------------------
 # Document Index System (Token-efficient documentation search)

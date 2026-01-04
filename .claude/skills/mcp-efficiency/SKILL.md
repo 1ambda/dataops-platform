@@ -7,6 +7,46 @@ description: Token-efficient codebase exploration using MCP servers (Serena, Con
 
 Master MCP tools to reduce token usage while improving code understanding.
 
+---
+
+## CRITICAL: search_for_pattern Token Limits
+
+> **WARNING: Improper use of `search_for_pattern` causes 20k+ token responses!**
+
+### MANDATORY Parameters for search_for_pattern
+
+| Parameter | REQUIRED | Default Danger |
+|-----------|----------|----------------|
+| `relative_path` | ALWAYS set | Full codebase = 50k+ tokens |
+| `context_lines_after` | `0-2` max | High values = exponential growth |
+| `max_answer_chars` | `3000-5000` | No limit = unbounded output |
+
+### Quick Examples
+
+```python
+# BAD - Will return 20k+ tokens:
+search_for_pattern(substring_pattern=r"import.*Dto")
+search_for_pattern(substring_pattern=r".*Mapper\.kt")  # Wrong tool!
+
+# GOOD - Scoped and limited:
+search_for_pattern(
+    substring_pattern=r"@Service",
+    relative_path="module-core-domain/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+### Use Correct Tool
+
+| Need | WRONG | CORRECT |
+|------|-------|---------|
+| Find files | `search_for_pattern(r".*\.kt")` | `find_file(file_mask="*.kt")` |
+| Signatures | `search_for_pattern` | `find_symbol(include_body=False)` |
+| Structure | `search_for_pattern` | `get_symbols_overview` |
+
+---
+
 ## Serena Infrastructure (Project-Specific)
 
 ### Cache Structure

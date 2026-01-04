@@ -35,8 +35,26 @@ make doc-search q="typer command"
 ALWAYS use MCP tools before file reads:
 - `serena.get_symbols_overview` - module structure
 - `serena.find_symbol("ClassName")` - locate definitions
-- `serena.search_for_pattern("@app.command")` - find CLI commands
 - `context7.get-library-docs("/tiangolo/typer")` - Typer best practices
+
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"@app.command")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"@app.command",
+    relative_path="project-interface-cli/src/dli/commands/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색:** `find_file(file_mask="*.py", relative_path="...")`
 
 ### Serena Cache Structure (Python)
 

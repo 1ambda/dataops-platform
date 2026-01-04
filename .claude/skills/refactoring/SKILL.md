@@ -28,8 +28,13 @@ serena.get_symbols_overview(relative_path="target/file")
 # 2. Check all usages before change
 serena.find_referencing_symbols(name_path="TargetClass/method")
 
-# 3. Verify test coverage
-serena.search_for_pattern("test.*TargetClass", relative_path="test/")
+# 3. Verify test coverage (TOKEN CRITICAL - Always limit!)
+serena.search_for_pattern(
+    substring_pattern="test.*TargetClass",
+    relative_path="test/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
 
 # 4. Get target code
 serena.find_symbol(name_path="TargetClass/method", include_body=True)

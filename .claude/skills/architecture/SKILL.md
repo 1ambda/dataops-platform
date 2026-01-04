@@ -30,8 +30,13 @@ serena.get_symbols_overview(relative_path="src/application/")
 # 3. Past architecture decisions
 claude-mem.search(query="architecture decision", project="<project>")
 
-# 4. Layer dependencies (targeted patterns)
-serena.search_for_pattern("^import|^from", relative_path="src/domain/")
+# 4. Layer dependencies (TOKEN CRITICAL - Always limit!)
+serena.search_for_pattern(
+    substring_pattern="^import",
+    relative_path="src/domain/",
+    context_lines_after=0,
+    max_answer_chars=3000
+)
 
 # 5. Framework patterns when needed
 context7.get-library-docs("<framework>", topic="architecture")
@@ -72,12 +77,22 @@ Presentation  -> Application -> Domain <- Infrastructure
 
 ## Layer Validation
 
-```
-# Domain should NOT import Infrastructure
-serena.search_for_pattern("import.*infra", relative_path="src/domain/")
+```python
+# Domain should NOT import Infrastructure (TOKEN CRITICAL - Always limit!)
+serena.search_for_pattern(
+    substring_pattern="import.*infra",
+    relative_path="src/domain/",
+    context_lines_after=0,
+    max_answer_chars=3000
+)
 
 # Domain should NOT import Presentation
-serena.search_for_pattern("import.*api|from.*controller", relative_path="src/domain/")
+serena.search_for_pattern(
+    substring_pattern="import.*controller",
+    relative_path="src/domain/",
+    context_lines_after=0,
+    max_answer_chars=3000
+)
 ```
 
 ## Output Format

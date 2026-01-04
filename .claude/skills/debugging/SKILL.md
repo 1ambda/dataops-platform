@@ -23,8 +23,13 @@ serena.find_symbol(name_path="ErrorClass/method", include_body=True)
 # 2. Trace call chain
 serena.find_referencing_symbols(name_path="ErrorClass/method")
 
-# 3. Search for similar patterns
-serena.search_for_pattern("null.*check|error.*handling", relative_path="src/")
+# 3. Search for similar patterns (TOKEN CRITICAL - Always limit!)
+serena.search_for_pattern(
+    substring_pattern="null.*check",
+    relative_path="src/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
 
 # 4. Check past similar issues
 claude-mem.search(query="<error-type>", project="<project>")

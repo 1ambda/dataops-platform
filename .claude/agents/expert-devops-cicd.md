@@ -15,10 +15,28 @@ skills:
 ## Token Efficiency (MCP-First)
 
 ALWAYS use MCP tools before file reads:
-- `serena.search_for_pattern("uses:.*actions")` - find GitHub Actions
 - `serena.list_dir(".github/workflows")` - list workflow files
 - `context7.get-library-docs("/github/actions")` - GitHub Actions docs
 - `claude-mem.search("deployment", obs_type="decision")` - past decisions
+
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"uses:.*actions")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"uses:.*actions",
+    relative_path=".github/workflows/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색:** `find_file(file_mask="*.yml", relative_path=".github/")`
 
 ## Expertise
 

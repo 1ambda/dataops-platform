@@ -36,6 +36,25 @@ ALWAYS use MCP tools before file reads:
 - `serena.find_referencing_symbols` - find component usages
 - `context7.get-library-docs("/facebook/react", "hooks")` - best practices
 
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"import.*React")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"useQuery",
+    relative_path="project-basecamp-ui/src/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색:** `find_file(file_mask="*.tsx", relative_path="...")`
+
 ### Serena Cache Structure (TypeScript)
 
 ```
