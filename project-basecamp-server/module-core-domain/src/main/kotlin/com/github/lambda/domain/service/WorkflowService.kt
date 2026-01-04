@@ -7,6 +7,7 @@ import com.github.lambda.domain.external.AirflowClient
 import com.github.lambda.domain.external.AirflowDAGRunState
 import com.github.lambda.domain.external.AirflowDAGRunStatus
 import com.github.lambda.domain.external.WorkflowStorage
+import com.github.lambda.domain.model.workflow.AirflowClusterEntity
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.model.workflow.WorkflowEntity
 import com.github.lambda.domain.model.workflow.WorkflowRunEntity
@@ -14,6 +15,7 @@ import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.WorkflowStatus
+import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
 import com.github.lambda.domain.repository.WorkflowRepositoryDsl
 import com.github.lambda.domain.repository.WorkflowRepositoryJpa
 import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
@@ -41,6 +43,7 @@ class WorkflowService(
     private val workflowRunRepositoryDsl: WorkflowRunRepositoryDsl,
     private val airflowClient: AirflowClient,
     private val workflowStorage: WorkflowStorage,
+    private val clusterRepository: AirflowClusterRepositoryJpa? = null,
 ) {
     private val log = LoggerFactory.getLogger(WorkflowService::class.java)
 
@@ -104,12 +107,21 @@ class WorkflowService(
     /**
      * Get workflow run by run ID with Airflow status sync
      *
+     * When the run has been synced from Airflow and is not stale (within 1 hour),
+     * the synced data is used directly without making additional Airflow API calls.
+     *
      * @param runId Workflow run ID
      * @return Workflow run entity with updated status
      * @throws WorkflowRunNotFoundException if workflow run not found
      */
     fun getWorkflowRunWithSync(runId: String): WorkflowRunEntity {
         val workflowRun = getWorkflowRunOrThrow(runId)
+
+        // Phase 6: Prefer synced data when available and not stale
+        if (workflowRun.isSyncedFromAirflow() && !workflowRun.isSyncStale(SYNC_STALE_THRESHOLD_MINUTES)) {
+            log.debug("Using synced data for run {}, last synced at {}", runId, workflowRun.lastSyncedAt)
+            return workflowRun
+        }
 
         // Sync with Airflow status if run is not finished
         if (!workflowRun.isFinished()) {
@@ -274,6 +286,9 @@ class WorkflowService(
         // Generate run ID
         val runId = generateRunId(datasetName, WorkflowRunType.MANUAL)
 
+        // Resolve cluster for team (Phase 6)
+        val cluster = workflow.team?.let { resolveClusterForTeam(it) }
+
         try {
             // Trigger DAG in Airflow
             val airflowConf =
@@ -286,7 +301,7 @@ class WorkflowService(
             airflowClient.triggerDAGRun(workflow.airflowDagId, runId, airflowConf)
             log.debug("Triggered Airflow DAG run: {}", runId)
 
-            // Create workflow run entity
+            // Create workflow run entity with cluster ID
             val workflowRun =
                 WorkflowRunEntity(
                     runId = runId,
@@ -297,10 +312,12 @@ class WorkflowService(
                     startedAt = LocalDateTime.now(),
                     params = if (params.isNotEmpty()) serializeParams(params) else null,
                     workflowId = workflow.datasetName,
+                    airflowClusterId = cluster?.id,
+                    airflowDagRunId = runId,
                 )
 
             val savedRun = workflowRunRepositoryJpa.save(workflowRun)
-            log.info("Successfully triggered workflow run: {}", runId)
+            log.info("Successfully triggered workflow run: {} on cluster: {}", runId, cluster?.team ?: "default")
 
             return savedRun
         } catch (ex: Exception) {
@@ -351,6 +368,9 @@ class WorkflowService(
 
         log.info("Generated {} dates for backfill: {}", dates.size, dates)
 
+        // Resolve cluster for team (Phase 6)
+        val cluster = workflow.team?.let { resolveClusterForTeam(it) }
+
         val runs = mutableListOf<WorkflowRunEntity>()
 
         try {
@@ -368,7 +388,7 @@ class WorkflowService(
                 airflowClient.triggerDAGRun(workflow.airflowDagId, runId, dateParams)
                 log.debug("Triggered Airflow DAG run for date {}: {}", date, runId)
 
-                // Create workflow run entity
+                // Create workflow run entity with cluster ID
                 val workflowRun =
                     WorkflowRunEntity(
                         runId = runId,
@@ -379,12 +399,19 @@ class WorkflowService(
                         startedAt = LocalDateTime.now(),
                         params = serializeParams(dateParams),
                         workflowId = workflow.datasetName,
+                        airflowClusterId = cluster?.id,
+                        airflowDagRunId = runId,
                     )
 
                 runs.add(workflowRunRepositoryJpa.save(workflowRun))
             }
 
-            log.info("Successfully triggered {} backfill runs for dataset: {}", runs.size, datasetName)
+            log.info(
+                "Successfully triggered {} backfill runs for dataset: {} on cluster: {}",
+                runs.size,
+                datasetName,
+                cluster?.team ?: "default",
+            )
             return runs
         } catch (ex: Exception) {
             log.error("Failed to trigger backfill for dataset: {}", datasetName, ex)
@@ -639,4 +666,33 @@ class WorkflowService(
             AirflowDAGRunState.UP_FOR_RETRY -> WorkflowRunStatus.RUNNING
             AirflowDAGRunState.SKIPPED -> WorkflowRunStatus.FAILED
         }
+
+    // === Phase 6: Cluster Routing ===
+
+    /**
+     * Resolve the Airflow cluster for a given team
+     *
+     * @param team Team name
+     * @return AirflowClusterEntity if found and active, null otherwise
+     */
+    private fun resolveClusterForTeam(team: String): AirflowClusterEntity? {
+        if (clusterRepository == null) {
+            log.debug("Cluster repository not available, returning null for team: {}", team)
+            return null
+        }
+
+        return try {
+            clusterRepository.findByTeam(team)?.also { cluster ->
+                log.debug("Resolved cluster {} for team: {}", cluster.id, team)
+            }
+        } catch (ex: Exception) {
+            log.warn("Failed to resolve cluster for team {}: {}", team, ex.message)
+            null
+        }
+    }
+
+    companion object {
+        /** Threshold in minutes for considering synced data as stale */
+        private const val SYNC_STALE_THRESHOLD_MINUTES: Long = 60
+    }
 }

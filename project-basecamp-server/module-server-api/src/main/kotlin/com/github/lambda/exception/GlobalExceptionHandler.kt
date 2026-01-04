@@ -1,5 +1,7 @@
 package com.github.lambda.exception
 
+import com.github.lambda.common.exception.AirflowClusterAlreadyExistsException
+import com.github.lambda.common.exception.AirflowClusterNotFoundException
 import com.github.lambda.common.exception.BusinessException
 import com.github.lambda.common.exception.CatalogServiceException
 import com.github.lambda.common.exception.CatalogTimeoutException
@@ -7,6 +9,9 @@ import com.github.lambda.common.exception.DatasetAlreadyExistsException
 import com.github.lambda.common.exception.DatasetExecutionFailedException
 import com.github.lambda.common.exception.DatasetExecutionTimeoutException
 import com.github.lambda.common.exception.DatasetNotFoundException
+import com.github.lambda.common.exception.GitHubRepositoryAlreadyExistsException
+import com.github.lambda.common.exception.GitHubRepositoryNotFoundException
+import com.github.lambda.common.exception.GitHubRepositoryUrlAlreadyExistsException
 import com.github.lambda.common.exception.InvalidCronException
 import com.github.lambda.common.exception.InvalidDatasetNameException
 import com.github.lambda.common.exception.InvalidDownloadTokenException
@@ -257,6 +262,135 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(ApiResponse.error(ex.message ?: "Workflow already exists", errorDetails))
+    }
+
+    // === GitHub-specific exception handlers ===
+
+    /**
+     * GitHub repository not found exception (404)
+     */
+    @ExceptionHandler(GitHubRepositoryNotFoundException::class)
+    fun handleGitHubRepositoryNotFoundException(
+        ex: GitHubRepositoryNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "GitHub repository not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "identifier" to ex.identifier,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "GitHub repository not found", errorDetails))
+    }
+
+    /**
+     * GitHub repository already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(GitHubRepositoryAlreadyExistsException::class)
+    fun handleGitHubRepositoryAlreadyExistsException(
+        ex: GitHubRepositoryAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "GitHub repository already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "team" to ex.team,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "GitHub repository already exists for team", errorDetails))
+    }
+
+    /**
+     * GitHub repository URL already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(GitHubRepositoryUrlAlreadyExistsException::class)
+    fun handleGitHubRepositoryUrlAlreadyExistsException(
+        ex: GitHubRepositoryUrlAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "GitHub repository URL already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "repository_url" to ex.repositoryUrl,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "GitHub repository URL already registered", errorDetails))
+    }
+
+    // === Airflow Cluster exception handlers (Phase 6) ===
+
+    /**
+     * Airflow cluster not found exception (404)
+     */
+    @ExceptionHandler(AirflowClusterNotFoundException::class)
+    fun handleAirflowClusterNotFoundException(
+        ex: AirflowClusterNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Airflow cluster not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "team" to ex.team,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Airflow cluster not found", errorDetails))
+    }
+
+    /**
+     * Airflow cluster already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(AirflowClusterAlreadyExistsException::class)
+    fun handleAirflowClusterAlreadyExistsException(
+        ex: AirflowClusterAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Airflow cluster already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "team" to ex.team,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Airflow cluster already exists", errorDetails))
     }
 
     // === Dataset-specific exception handlers ===

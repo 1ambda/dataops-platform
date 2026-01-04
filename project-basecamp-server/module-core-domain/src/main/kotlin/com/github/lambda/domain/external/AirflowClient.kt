@@ -95,6 +95,90 @@ interface AirflowClient {
      * @return 연결 가능 여부
      */
     fun isAvailable(): Boolean = true
+
+    // ============ Phase 4: Backfill & Run Sync Methods ============
+
+    /**
+     * Backfill 생성 (Airflow 3 API)
+     *
+     * @param dagId DAG ID
+     * @param fromDate 시작 날짜 (ISO 8601 형식)
+     * @param toDate 종료 날짜 (ISO 8601 형식)
+     * @return 생성된 Backfill 응답
+     */
+    fun createBackfill(
+        dagId: String,
+        fromDate: String,
+        toDate: String,
+    ): BackfillResponse
+
+    /**
+     * Backfill 상태 조회
+     *
+     * @param backfillId Backfill ID
+     * @return Backfill 상태 정보
+     */
+    fun getBackfillStatus(backfillId: String): BackfillStatus
+
+    /**
+     * Backfill 일시정지
+     *
+     * @param backfillId Backfill ID
+     * @return 일시정지된 Backfill 상태
+     */
+    fun pauseBackfill(backfillId: String): BackfillStatus
+
+    /**
+     * Backfill 재개
+     *
+     * @param backfillId Backfill ID
+     * @return 재개된 Backfill 상태
+     */
+    fun unpauseBackfill(backfillId: String): BackfillStatus
+
+    /**
+     * Backfill 취소
+     *
+     * @param backfillId Backfill ID
+     * @return 취소 성공 여부
+     */
+    fun cancelBackfill(backfillId: String): Boolean
+
+    /**
+     * 최근 DAG Run 목록 조회 (동기화용)
+     *
+     * @param since 조회 시작 시간
+     * @param limit 최대 조회 개수
+     * @return DAG Run 목록
+     */
+    fun listRecentDagRuns(
+        since: java.time.LocalDateTime,
+        limit: Int = 100,
+    ): List<AirflowDagRun>
+
+    /**
+     * 특정 DAG의 최근 Run 목록 조회
+     *
+     * @param dagId DAG ID
+     * @param limit 최대 조회 개수
+     * @return DAG Run 목록
+     */
+    fun listDagRuns(
+        dagId: String,
+        limit: Int = 25,
+    ): List<AirflowDagRun>
+
+    /**
+     * 특정 DAG Run의 Task Instance 목록 조회
+     *
+     * @param dagId DAG ID
+     * @param dagRunId DAG Run ID
+     * @return Task Instance 목록
+     */
+    fun getTaskInstances(
+        dagId: String,
+        dagRunId: String,
+    ): List<AirflowTaskInstance>
 }
 
 /**
@@ -160,4 +244,19 @@ interface WorkflowStorage {
         s3Path: String,
         yamlContent: String,
     ): String
+
+    /**
+     * 저장소의 모든 Spec 파일 경로 목록 조회 (S3 Sync용)
+     *
+     * @return 모든 YAML 파일 경로 목록
+     */
+    fun listAllSpecs(): List<String>
+
+    /**
+     * 특정 prefix 경로의 Spec 파일 목록 조회
+     *
+     * @param prefix 디렉토리 prefix (e.g., "workflows/manual/", "workflows/code/")
+     * @return 해당 prefix 하위의 파일 경로 목록
+     */
+    fun listSpecsByPrefix(prefix: String): List<String>
 }

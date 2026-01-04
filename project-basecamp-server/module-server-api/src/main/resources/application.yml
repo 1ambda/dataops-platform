@@ -142,6 +142,43 @@ basecamp:
     # External parser service URL (when not in mock mode)
     service-url: ${LINEAGE_PARSER_URL:http://localhost:5000}
 
+  # Workflow Storage Configuration
+  workflow:
+    # Airflow Client Configuration
+    client:
+      # Client type: mock (simple mock), rest-mock (cluster-aware mock), airflow (real API - future)
+      type: ${WORKFLOW_CLIENT_TYPE:mock}
+    storage:
+      # Storage type: mock (file-system based), inmemory, s3
+      type: ${WORKFLOW_STORAGE_TYPE:mock}
+      # Directory for mock storage (file-system based)
+      mock-dir: ${WORKFLOW_STORAGE_MOCK_DIR:./data/workflows}
+      # S3 configuration (for production)
+      s3:
+        bucket: ${WORKFLOW_S3_BUCKET:workflow-bucket}
+        region: ${WORKFLOW_S3_REGION:ap-northeast-2}
+        prefix: ${WORKFLOW_S3_PREFIX:workflows}
+    # Spec Sync Configuration (S3 -> Workflow Entity)
+    spec-sync:
+      # Enable/disable scheduled spec sync (default: true)
+      enabled: ${WORKFLOW_SPEC_SYNC_ENABLED:true}
+      # Cron expression for sync schedule (default: every 5 minutes)
+      cron: ${WORKFLOW_SPEC_SYNC_CRON:0 */5 * * * *}
+    # Run Sync Configuration (Airflow -> WorkflowRun Entity) - Phase 5
+    run-sync:
+      # Enable/disable scheduled run sync (default: false for local development)
+      enabled: ${WORKFLOW_RUN_SYNC_ENABLED:false}
+      # Cron expression for run sync schedule (default: every 2 minutes)
+      cron: ${WORKFLOW_RUN_SYNC_CRON:0 */2 * * * *}
+      # Cron expression for stale run sync schedule (default: every 1 hour)
+      stale-cron: ${WORKFLOW_RUN_SYNC_STALE_CRON:0 0 */1 * * *}
+      # How far back to look for runs to sync (hours)
+      lookback-hours: ${WORKFLOW_RUN_SYNC_LOOKBACK_HOURS:24}
+      # Maximum number of runs to sync per cluster per execution
+      batch-size: ${WORKFLOW_RUN_SYNC_BATCH_SIZE:100}
+      # Threshold for considering a run's sync state as stale (hours)
+      stale-threshold-hours: ${WORKFLOW_RUN_SYNC_STALE_HOURS:1}
+
 logging:
   level:
     com.github.lambda: INFO

@@ -499,4 +499,335 @@ class WorkflowRunEntityTest {
             assertThat(workflowRun.workflowId).isEmpty()
         }
     }
+
+    @Nested
+    @DisplayName("Airflow Integration Fields")
+    inner class AirflowIntegrationFields {
+        @Test
+        @DisplayName("should update from Airflow data correctly")
+        fun `should update from Airflow data correctly`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+            val airflowState = "SUCCESS"
+            val airflowUrl = "https://airflow.example.com/dags/dag_id/grid"
+            val taskProgress = """{"total": 5, "success": 5, "failed": 0}"""
+            val startedAt = LocalDateTime.now().minusMinutes(10)
+            val endedAt = LocalDateTime.now()
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = airflowState,
+                airflowUrl = airflowUrl,
+                taskProgress = taskProgress,
+                startedAt = startedAt,
+                endedAt = endedAt,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.airflowState).isEqualTo("SUCCESS")
+            assertThat(testWorkflowRun.airflowUrl).isEqualTo(airflowUrl)
+            assertThat(testWorkflowRun.taskProgress).isEqualTo(taskProgress)
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.SUCCESS)
+            assertThat(testWorkflowRun.lastSyncedAt).isNotNull()
+        }
+
+        @Test
+        @DisplayName("should map QUEUED state to PENDING")
+        fun `should map QUEUED state to PENDING`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "QUEUED",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.PENDING)
+            assertThat(testWorkflowRun.airflowState).isEqualTo("QUEUED")
+        }
+
+        @Test
+        @DisplayName("should map RUNNING state to RUNNING")
+        fun `should map RUNNING state to RUNNING`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.PENDING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "RUNNING",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = LocalDateTime.now(),
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.RUNNING)
+        }
+
+        @Test
+        @DisplayName("should map SUCCESS state to SUCCESS")
+        fun `should map SUCCESS state to SUCCESS`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "SUCCESS",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = LocalDateTime.now(),
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.SUCCESS)
+        }
+
+        @Test
+        @DisplayName("should map FAILED state to FAILED")
+        fun `should map FAILED state to FAILED`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "FAILED",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = LocalDateTime.now(),
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.FAILED)
+        }
+
+        @Test
+        @DisplayName("should map UP_FOR_RETRY state to RUNNING")
+        fun `should map UP_FOR_RETRY state to RUNNING`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.PENDING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "UP_FOR_RETRY",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.RUNNING)
+        }
+
+        @Test
+        @DisplayName("should map UPSTREAM_FAILED state to FAILED")
+        fun `should map UPSTREAM_FAILED state to FAILED`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "UPSTREAM_FAILED",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = LocalDateTime.now(),
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.FAILED)
+        }
+
+        @Test
+        @DisplayName("should map SKIPPED state to SKIPPED")
+        fun `should map SKIPPED state to SKIPPED`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "SKIPPED",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.SKIPPED)
+        }
+
+        @Test
+        @DisplayName("should map unknown state to UNKNOWN")
+        fun `should map unknown state to UNKNOWN`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "SOME_UNKNOWN_STATE",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.UNKNOWN)
+        }
+
+        @Test
+        @DisplayName("should handle lowercase state strings")
+        fun `should handle lowercase state strings`() {
+            // Given
+            testWorkflowRun.status = WorkflowRunStatus.RUNNING
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "success",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.status).isEqualTo(WorkflowRunStatus.SUCCESS)
+        }
+
+        @Test
+        @DisplayName("should not overwrite startedAt if already set")
+        fun `should not overwrite startedAt if already set`() {
+            // Given
+            val originalStartedAt = LocalDateTime.of(2025, 1, 15, 10, 0, 0)
+            testWorkflowRun.startedAt = originalStartedAt
+            val newStartedAt = LocalDateTime.of(2025, 1, 15, 11, 0, 0)
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "RUNNING",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = newStartedAt,
+                endedAt = null,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.startedAt).isEqualTo(originalStartedAt)
+        }
+
+        @Test
+        @DisplayName("should not overwrite endedAt if already set")
+        fun `should not overwrite endedAt if already set`() {
+            // Given
+            val originalEndedAt = LocalDateTime.of(2025, 1, 15, 12, 0, 0)
+            testWorkflowRun.endedAt = originalEndedAt
+            val newEndedAt = LocalDateTime.of(2025, 1, 15, 13, 0, 0)
+
+            // When
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "SUCCESS",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = newEndedAt,
+            )
+
+            // Then
+            assertThat(testWorkflowRun.endedAt).isEqualTo(originalEndedAt)
+        }
+
+        @Test
+        @DisplayName("should check if synced from Airflow")
+        fun `should check if synced from Airflow`() {
+            // Given - run not synced (no airflowDagRunId and no lastSyncedAt)
+            assertThat(testWorkflowRun.isSyncedFromAirflow()).isFalse()
+
+            // Set airflowDagRunId to simulate run triggered in Airflow
+            testWorkflowRun.airflowDagRunId = "manual__2025-01-15T12:00:00"
+            testWorkflowRun.airflowClusterId = 1L
+
+            // Still not synced because lastSyncedAt is null
+            assertThat(testWorkflowRun.isSyncedFromAirflow()).isFalse()
+
+            // When - update from Airflow (sets lastSyncedAt)
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "RUNNING",
+                airflowUrl = "https://airflow.example.com",
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // Then - now synced (both airflowDagRunId and lastSyncedAt are set)
+            assertThat(testWorkflowRun.isSyncedFromAirflow()).isTrue()
+            assertThat(testWorkflowRun.lastSyncedAt).isNotNull()
+        }
+
+        @Test
+        @DisplayName("should check if sync is stale")
+        fun `should check if sync is stale`() {
+            // Given - set last synced time to 2 hours ago
+            testWorkflowRun.updateFromAirflow(
+                airflowState = "RUNNING",
+                airflowUrl = null,
+                taskProgress = null,
+                startedAt = null,
+                endedAt = null,
+            )
+
+            // When - check with 1 hour threshold
+            val isStale1h = testWorkflowRun.isSyncStale(staleThresholdMinutes = 60)
+            val isStale24h = testWorkflowRun.isSyncStale(staleThresholdMinutes = 60 * 24)
+
+            // Then - should not be stale when just synced
+            assertThat(isStale1h).isFalse()
+            assertThat(isStale24h).isFalse()
+        }
+
+        @Test
+        @DisplayName("should return true for stale check when never synced")
+        fun `should return true for stale check when never synced`() {
+            // Given - run never synced (lastSyncedAt is null)
+            assertThat(testWorkflowRun.lastSyncedAt).isNull()
+
+            // When
+            val isStale = testWorkflowRun.isSyncStale(staleThresholdMinutes = 60)
+
+            // Then
+            assertThat(isStale).isTrue()
+        }
+
+        @Test
+        @DisplayName("should create workflow run with Airflow fields")
+        fun `should create workflow run with Airflow fields`() {
+            // When
+            val workflowRun =
+                WorkflowRunEntity(
+                    runId = "airflow_run_123",
+                    datasetName = "catalog.schema.dataset",
+                    triggeredBy = "user@example.com",
+                    workflowId = "dag_catalog_schema_dataset",
+                    airflowDagRunId = "manual__2025-01-15T12:00:00",
+                    airflowClusterId = 1L,
+                )
+
+            // Then
+            assertThat(workflowRun.workflowId).isEqualTo("dag_catalog_schema_dataset")
+            assertThat(workflowRun.airflowDagRunId).isEqualTo("manual__2025-01-15T12:00:00")
+            assertThat(workflowRun.airflowClusterId).isEqualTo(1L)
+            assertThat(workflowRun.airflowState).isNull()
+            assertThat(workflowRun.airflowUrl).isNull()
+            assertThat(workflowRun.taskProgress).isNull()
+            assertThat(workflowRun.lastSyncedAt).isNull()
+        }
+    }
 }

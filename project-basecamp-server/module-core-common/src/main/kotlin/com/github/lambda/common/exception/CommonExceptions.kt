@@ -629,3 +629,67 @@ class InvalidDownloadTokenException(
         errorCode = "INVALID_DOWNLOAD_TOKEN",
         cause = cause,
     )
+
+// ============= GitHub Exceptions =============
+
+/**
+ * Exception thrown when a GitHub repository is not found
+ */
+class GitHubRepositoryNotFoundException(
+    val identifier: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "GitHub repository '$identifier' not found",
+        errorCode = "GITHUB_REPOSITORY_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a GitHub repository that already exists
+ */
+class GitHubRepositoryAlreadyExistsException(
+    val team: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "GitHub repository for team '$team' already exists",
+        errorCode = "GITHUB_REPOSITORY_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when GitHub repository URL is already registered
+ */
+class GitHubRepositoryUrlAlreadyExistsException(
+    val repositoryUrl: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "GitHub repository URL '$repositoryUrl' is already registered",
+        errorCode = "GITHUB_REPOSITORY_URL_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+// ============= Airflow Cluster Exceptions =============
+
+/**
+ * Exception thrown when an Airflow cluster is not found for a team
+ */
+class AirflowClusterNotFoundException(
+    val team: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "No active Airflow cluster found for team: $team",
+        errorCode = "AIRFLOW_CLUSTER_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create an Airflow cluster that already exists for a team
+ */
+class AirflowClusterAlreadyExistsException(
+    val team: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Airflow cluster for team '$team' already exists",
+        errorCode = "AIRFLOW_CLUSTER_ALREADY_EXISTS",
+        cause = cause,
+    )

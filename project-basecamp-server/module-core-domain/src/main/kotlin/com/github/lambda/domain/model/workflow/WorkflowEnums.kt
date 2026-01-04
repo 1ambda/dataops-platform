@@ -27,6 +27,8 @@ enum class WorkflowRunStatus {
     FAILED,
     STOPPING,
     STOPPED,
+    SKIPPED,
+    UNKNOWN,
 }
 
 /**

@@ -4,16 +4,24 @@ import com.github.lambda.common.exception.WorkflowStorageException
 import com.github.lambda.domain.external.WorkflowStorage
 import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * InMemory Workflow Storage Implementation
  *
- * 개발 환경에서 S3 없이도 워크플로우 YAML 파일 저장/관리를 위한
- * 메모리 기반 저장소 구현
+ * 테스트 환경에서 사용하는 메모리 기반 저장소 구현.
+ * 서버 재시작 시 데이터가 초기화됨.
+ *
+ * 활성화 조건: basecamp.workflow.storage.type=inmemory
  */
 @Repository("workflowStorage")
+@ConditionalOnProperty(
+    name = ["basecamp.workflow.storage.type"],
+    havingValue = "inmemory",
+    matchIfMissing = false,
+)
 class InMemoryWorkflowStorage : WorkflowStorage {
     private val log = LoggerFactory.getLogger(InMemoryWorkflowStorage::class.java)
 
@@ -108,6 +116,31 @@ class InMemoryWorkflowStorage : WorkflowStorage {
         } catch (e: Exception) {
             log.error("Failed to update workflow YAML at path: {}", s3Path, e)
             throw WorkflowStorageException("updateWorkflowYaml", e)
+        }
+    }
+
+    override fun listAllSpecs(): List<String> {
+        try {
+            val allPaths = fileStorage.keys.filter { it.endsWith(".yaml") || it.endsWith(".yml") }.sorted()
+            log.info("Listed all specs - count: {}", allPaths.size)
+            return allPaths
+        } catch (e: Exception) {
+            log.error("Failed to list all specs", e)
+            throw WorkflowStorageException("listAllSpecs", e)
+        }
+    }
+
+    override fun listSpecsByPrefix(prefix: String): List<String> {
+        try {
+            val matchingPaths =
+                fileStorage.keys
+                    .filter { it.contains(prefix) && (it.endsWith(".yaml") || it.endsWith(".yml")) }
+                    .sorted()
+            log.info("Listed specs by prefix - prefix: {}, count: {}", prefix, matchingPaths.size)
+            return matchingPaths
+        } catch (e: Exception) {
+            log.error("Failed to list specs by prefix: {}", prefix, e)
+            throw WorkflowStorageException("listSpecsByPrefix", e)
         }
     }
 

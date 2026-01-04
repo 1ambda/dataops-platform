@@ -121,4 +121,29 @@ interface WorkflowRunRepositoryJpa {
     fun findByLogsUrlIsNotNull(): List<WorkflowRunEntity>
 
     fun findByLogsUrlIsNull(): List<WorkflowRunEntity>
+
+    // === Airflow 동기화 관련 조회 (Phase 5) ===
+
+    /**
+     * Airflow DAG Run ID로 조회
+     */
+    fun findByAirflowDagRunId(dagRunId: String): WorkflowRunEntity?
+
+    /**
+     * 특정 Airflow 클러스터의 실행 목록 조회
+     */
+    fun findByAirflowClusterId(clusterId: Long): List<WorkflowRunEntity>
+
+    /**
+     * 특정 Airflow 클러스터의 특정 상태 실행 조회
+     */
+    fun findByAirflowClusterIdAndStatus(
+        clusterId: Long,
+        status: WorkflowRunStatus,
+    ): List<WorkflowRunEntity>
+
+    /**
+     * 동기화가 필요한 (진행 중인) 실행 조회
+     */
+    fun findByStatusInAndAirflowDagRunIdIsNotNull(statuses: List<WorkflowRunStatus>): List<WorkflowRunEntity>
 }

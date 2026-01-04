@@ -60,6 +60,9 @@ erDiagram
     %% Workflow Domain
     WorkflowEntity ||--o{ WorkflowRunEntity : "has runs"
 
+    %% Airflow Domain
+    AirflowClusterEntity ||--o{ WorkflowRunEntity : "cluster for runs"
+
     %% Quality Domain
     QualitySpecEntity ||--o{ QualityTestEntity : "contains tests"
     QualitySpecEntity ||--o{ QualityRunEntity : "has runs"
@@ -156,6 +159,18 @@ erDiagram
         String runId UK
         String datasetName
         WorkflowRunStatus status
+        Long airflowClusterId FK_nullable
+    }
+
+    AirflowClusterEntity {
+        Long id PK
+        String team UK
+        String clusterName
+        String airflowUrl
+        AirflowEnvironment environment
+        String dagS3Path
+        String apiKey
+        Boolean isActive
     }
 
     QualitySpecEntity {
@@ -237,6 +252,12 @@ erDiagram
 |--------|----------|------------|-------------|-------|
 | `WorkflowRunEntity` | `workflowId` | `WorkflowEntity.datasetName` | N:1 | String FK (dataset name as PK) |
 
+### Airflow Domain
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `WorkflowRunEntity` | `airflowClusterId` | `AirflowClusterEntity` | N:1 (nullable) | Optional cluster reference for sync |
+
 ### Quality Domain
 
 | Entity | FK Field | References | Cardinality | Notes |
@@ -257,6 +278,7 @@ erDiagram
 | `DatasetEntity` | Root aggregate (natural key: name) |
 | `MetricEntity` | Root aggregate |
 | `UserEntity` | Root aggregate |
+| `AirflowClusterEntity` | Root aggregate (team-based cluster management) |
 
 ---
 
@@ -292,6 +314,13 @@ CatalogTableEntity (root)
 ```
 WorkflowEntity (root, natural key: datasetName)
   +-- WorkflowRunEntity (workflowId FK - string reference)
+```
+
+### Airflow Cluster Management
+
+```
+AirflowClusterEntity (root)
+  +-- WorkflowRunEntity (airflowClusterId FK - nullable)
 ```
 
 ### Quality Testing
@@ -527,4 +556,4 @@ interface UserRepositoryDsl {
 
 ---
 
-*Last Updated: 2026-01-03*
+*Last Updated: 2026-01-04 (Added AirflowClusterEntity)*

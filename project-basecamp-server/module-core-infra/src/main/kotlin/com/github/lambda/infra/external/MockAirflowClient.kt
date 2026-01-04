@@ -4,11 +4,20 @@ import com.github.lambda.common.exception.AirflowConnectionException
 import com.github.lambda.domain.external.AirflowClient
 import com.github.lambda.domain.external.AirflowDAGRunState
 import com.github.lambda.domain.external.AirflowDAGRunStatus
+import com.github.lambda.domain.external.AirflowDagRun
 import com.github.lambda.domain.external.AirflowDagStatus
+import com.github.lambda.domain.external.AirflowTaskInstance
+import com.github.lambda.domain.external.AirflowTaskState
+import com.github.lambda.domain.external.BackfillResponse
+import com.github.lambda.domain.external.BackfillState
+import com.github.lambda.domain.external.BackfillStatus
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
@@ -22,6 +31,11 @@ import kotlin.random.Random
  *                          Default is false for realistic simulation in development.
  */
 @Repository("airflowClient")
+@ConditionalOnProperty(
+    name = ["basecamp.workflow.client.type"],
+    havingValue = "mock",
+    matchIfMissing = true,
+)
 class MockAirflowClient(
     private val deterministicMode: Boolean = false,
 ) : AirflowClient {
@@ -30,6 +44,8 @@ class MockAirflowClient(
     // Mock storage for DAG states and run statuses
     private val dagStates = ConcurrentHashMap<String, AirflowDagStatus>()
     private val dagRuns = ConcurrentHashMap<String, AirflowDAGRunStatus>()
+    private val backfills = ConcurrentHashMap<String, BackfillStatus>()
+    private val taskInstances = ConcurrentHashMap<String, List<AirflowTaskInstance>>()
 
     override fun triggerDAGRun(
         dagId: String,
@@ -206,6 +222,190 @@ class MockAirflowClient(
         return deterministicMode || Random.nextInt(100) >= 1
     }
 
+    // ============ Phase 4: Backfill & Run Sync Methods ============
+
+    override fun createBackfill(
+        dagId: String,
+        fromDate: String,
+        toDate: String,
+    ): BackfillResponse {
+        log.info("Mock Airflow: Creating backfill - dagId: {}, fromDate: {}, toDate: {}", dagId, fromDate, toDate)
+
+        val backfillId = UUID.randomUUID().toString()
+        val now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+
+        val status =
+            BackfillStatus(
+                id = backfillId,
+                dagId = dagId,
+                fromDate = fromDate,
+                toDate = toDate,
+                isPaused = false,
+                completedAt = null,
+                state = BackfillState.RUNNING,
+            )
+        backfills[backfillId] = status
+
+        simulateDelay(100, 300)
+
+        return BackfillResponse(
+            id = backfillId,
+            dagId = dagId,
+            fromDate = fromDate,
+            toDate = toDate,
+            isPaused = false,
+            createdAt = now,
+        )
+    }
+
+    override fun getBackfillStatus(backfillId: String): BackfillStatus {
+        log.info("Mock Airflow: Getting backfill status - backfillId: {}", backfillId)
+
+        val status =
+            backfills[backfillId]
+                ?: throw AirflowConnectionException(
+                    "getBackfillStatus",
+                    RuntimeException("Backfill not found: $backfillId"),
+                )
+
+        // Simulate state progression for backfills
+        val updatedStatus = simulateBackfillProgression(status)
+        backfills[backfillId] = updatedStatus
+
+        simulateDelay(50, 150)
+
+        return updatedStatus
+    }
+
+    override fun pauseBackfill(backfillId: String): BackfillStatus {
+        log.info("Mock Airflow: Pausing backfill - backfillId: {}", backfillId)
+
+        val status =
+            backfills[backfillId]
+                ?: throw AirflowConnectionException(
+                    "pauseBackfill",
+                    RuntimeException("Backfill not found: $backfillId"),
+                )
+
+        if (status.state == BackfillState.RUNNING) {
+            val pausedStatus = status.copy(isPaused = true)
+            backfills[backfillId] = pausedStatus
+            simulateDelay(50, 150)
+            return pausedStatus
+        }
+
+        return status
+    }
+
+    override fun unpauseBackfill(backfillId: String): BackfillStatus {
+        log.info("Mock Airflow: Unpausing backfill - backfillId: {}", backfillId)
+
+        val status =
+            backfills[backfillId]
+                ?: throw AirflowConnectionException(
+                    "unpauseBackfill",
+                    RuntimeException("Backfill not found: $backfillId"),
+                )
+
+        if (status.isPaused) {
+            val unpausedStatus = status.copy(isPaused = false)
+            backfills[backfillId] = unpausedStatus
+            simulateDelay(50, 150)
+            return unpausedStatus
+        }
+
+        return status
+    }
+
+    override fun cancelBackfill(backfillId: String): Boolean {
+        log.info("Mock Airflow: Cancelling backfill - backfillId: {}", backfillId)
+
+        val status = backfills[backfillId] ?: return false
+
+        if (status.state in listOf(BackfillState.RUNNING, BackfillState.QUEUED)) {
+            val cancelledStatus =
+                status.copy(
+                    state = BackfillState.CANCELLED,
+                    completedAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                )
+            backfills[backfillId] = cancelledStatus
+            simulateDelay(50, 150)
+            return true
+        }
+
+        return false
+    }
+
+    override fun listRecentDagRuns(
+        since: LocalDateTime,
+        limit: Int,
+    ): List<AirflowDagRun> {
+        log.info("Mock Airflow: Listing recent DAG runs - since: {}, limit: {}", since, limit)
+
+        simulateDelay(50, 200)
+
+        return dagRuns.values
+            .filter { run ->
+                val startDate = run.startDate ?: run.executionDate
+                startDate.isAfter(since)
+            }.sortedByDescending { it.startDate ?: it.executionDate }
+            .take(limit)
+            .map { status ->
+                AirflowDagRun(
+                    dagId = extractDagId(status.dagRunId),
+                    dagRunId = status.dagRunId,
+                    state = status.state,
+                    logicalDate = status.executionDate,
+                    startDate = status.startDate,
+                    endDate = status.endDate,
+                    conf = null,
+                )
+            }
+    }
+
+    override fun listDagRuns(
+        dagId: String,
+        limit: Int,
+    ): List<AirflowDagRun> {
+        log.info("Mock Airflow: Listing DAG runs - dagId: {}, limit: {}", dagId, limit)
+
+        simulateDelay(50, 200)
+
+        return dagRuns.entries
+            .filter { (key, _) -> key.startsWith("${dagId}_") }
+            .map { (_, status) ->
+                AirflowDagRun(
+                    dagId = dagId,
+                    dagRunId = status.dagRunId,
+                    state = status.state,
+                    logicalDate = status.executionDate,
+                    startDate = status.startDate,
+                    endDate = status.endDate,
+                    conf = null,
+                )
+            }.sortedByDescending { it.startDate ?: it.logicalDate }
+            .take(limit)
+    }
+
+    override fun getTaskInstances(
+        dagId: String,
+        dagRunId: String,
+    ): List<AirflowTaskInstance> {
+        log.info("Mock Airflow: Getting task instances - dagId: {}, dagRunId: {}", dagId, dagRunId)
+
+        val key = "${dagId}_$dagRunId"
+
+        // Return stored task instances or generate mock ones
+        val instances =
+            taskInstances.getOrPut(key) {
+                generateMockTaskInstances(dagId, dagRunId)
+            }
+
+        simulateDelay(50, 150)
+
+        return instances
+    }
+
     // === Helper Methods ===
 
     /**
@@ -285,4 +485,73 @@ class MockAirflowClient(
             Thread.currentThread().interrupt()
         }
     }
+
+    /**
+     * Simulate realistic state progression for backfills
+     */
+    private fun simulateBackfillProgression(currentStatus: BackfillStatus): BackfillStatus {
+        if (currentStatus.isPaused || currentStatus.state !in listOf(BackfillState.QUEUED, BackfillState.RUNNING)) {
+            return currentStatus
+        }
+
+        // Random chance to complete (10% per check)
+        return if (Random.nextInt(100) < 10) {
+            currentStatus.copy(
+                state = BackfillState.COMPLETED,
+                completedAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            )
+        } else {
+            currentStatus
+        }
+    }
+
+    /**
+     * Generate mock task instances for a DAG run
+     */
+    private fun generateMockTaskInstances(
+        dagId: String,
+        dagRunId: String,
+    ): List<AirflowTaskInstance> {
+        val taskNames = listOf("start", "extract", "transform", "load", "validate", "end")
+        val now = LocalDateTime.now()
+
+        return taskNames.mapIndexed { index, taskName ->
+            val taskState =
+                when {
+                    index < taskNames.size - 2 -> AirflowTaskState.SUCCESS
+                    index == taskNames.size - 2 -> AirflowTaskState.RUNNING
+                    else -> AirflowTaskState.SCHEDULED
+                }
+
+            val startDate =
+                if (taskState != AirflowTaskState.SCHEDULED) {
+                    now.minusMinutes((taskNames.size - index - 1) * 5L)
+                } else {
+                    null
+                }
+
+            val endDate =
+                if (taskState == AirflowTaskState.SUCCESS) {
+                    startDate?.plusMinutes(3)
+                } else {
+                    null
+                }
+
+            AirflowTaskInstance(
+                taskId = taskName,
+                dagId = dagId,
+                dagRunId = dagRunId,
+                state = taskState,
+                startDate = startDate,
+                endDate = endDate,
+                tryNumber = 1,
+                duration = endDate?.let { 180.0 },
+            )
+        }
+    }
+
+    /**
+     * Extract DAG ID from the dag run key (format: "{dagId}_{runId}")
+     */
+    private fun extractDagId(dagRunKey: String): String = dagRunKey.substringBefore("_")
 }

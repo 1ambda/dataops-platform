@@ -229,4 +229,39 @@ interface WorkflowRunRepositoryJpaImpl :
         @Param("runId") runId: String,
         @Param("logsUrl") logsUrl: String,
     ): Int
+
+    // === Airflow 동기화 관련 조회 (Phase 5) ===
+
+    /**
+     * Airflow DAG Run ID로 조회
+     */
+    override fun findByAirflowDagRunId(dagRunId: String): WorkflowRunEntity?
+
+    /**
+     * 특정 Airflow 클러스터의 실행 목록 조회
+     */
+    override fun findByAirflowClusterId(clusterId: Long): List<WorkflowRunEntity>
+
+    /**
+     * 특정 Airflow 클러스터의 특정 상태 실행 조회
+     */
+    override fun findByAirflowClusterIdAndStatus(
+        clusterId: Long,
+        status: WorkflowRunStatus,
+    ): List<WorkflowRunEntity>
+
+    /**
+     * 동기화가 필요한 (진행 중인) 실행 조회
+     */
+    @Query(
+        """
+        SELECT wr FROM WorkflowRunEntity wr
+        WHERE wr.status IN :statuses
+        AND wr.airflowDagRunId IS NOT NULL
+        ORDER BY wr.startedAt DESC
+        """,
+    )
+    override fun findByStatusInAndAirflowDagRunIdIsNotNull(
+        @Param("statuses") statuses: List<WorkflowRunStatus>,
+    ): List<WorkflowRunEntity>
 }

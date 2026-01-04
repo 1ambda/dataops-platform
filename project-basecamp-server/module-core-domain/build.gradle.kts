@@ -34,9 +34,10 @@ dependencies {
     // 검증
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
-    // Jackson for JSON processing (JsonNode for Quality entities)
+    // Jackson for JSON/YAML processing (JsonNode for Quality entities, YAML for Workflow specs)
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
 
     // 테스트 의존성
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

@@ -198,4 +198,42 @@ interface WorkflowRunRepositoryDsl {
         datasetName: String,
         limit: Int = 10,
     ): Double?
+
+    // === Airflow 동기화 관련 쿼리 (Phase 5) ===
+
+    /**
+     * 특정 클러스터에서 진행 중인 Run 조회 (동기화용)
+     *
+     * @param clusterId Airflow 클러스터 ID
+     * @param since 조회 시작 시간
+     * @return 진행 중인 workflow run 목록
+     */
+    fun findPendingRunsByCluster(
+        clusterId: Long,
+        since: LocalDateTime,
+    ): List<WorkflowRunEntity>
+
+    /**
+     * 동기화가 오래된 실행 조회 (stale 상태)
+     *
+     * @param staleThreshold 마지막 동기화 이후 경과 시간 기준
+     * @param statuses 조회할 상태 목록 (기본: PENDING, RUNNING)
+     * @return stale 상태의 workflow run 목록
+     */
+    fun findStaleRuns(
+        staleThreshold: LocalDateTime,
+        statuses: List<WorkflowRunStatus> =
+            listOf(
+                WorkflowRunStatus.PENDING,
+                WorkflowRunStatus.RUNNING,
+            ),
+    ): List<WorkflowRunEntity>
+
+    /**
+     * 클러스터별 동기화 통계 조회
+     *
+     * @param clusterId Airflow 클러스터 ID (null이면 전체)
+     * @return 동기화 통계 (총 실행 수, 동기화된 수, 동기화 필요한 수 등)
+     */
+    fun getSyncStatistics(clusterId: Long? = null): Map<String, Any>
 }

@@ -492,4 +492,85 @@ class WorkflowRunRepositoryDslImpl(
 
         return if (condition.hasValue()) condition.value as? BooleanExpression else null
     }
+
+    // === Airflow 동기화 관련 쿼리 (Phase 5) ===
+
+    override fun findPendingRunsByCluster(
+        clusterId: Long,
+        since: LocalDateTime,
+    ): List<WorkflowRunEntity> =
+        queryFactory
+            .selectFrom(workflowRun)
+            .where(
+                workflowRun.airflowClusterId.eq(clusterId),
+                workflowRun.status.`in`(
+                    WorkflowRunStatus.PENDING,
+                    WorkflowRunStatus.RUNNING,
+                    WorkflowRunStatus.STOPPING,
+                ),
+                workflowRun.createdAt.goe(since),
+            ).orderBy(workflowRun.startedAt.desc())
+            .fetch()
+
+    override fun findStaleRuns(
+        staleThreshold: LocalDateTime,
+        statuses: List<WorkflowRunStatus>,
+    ): List<WorkflowRunEntity> =
+        queryFactory
+            .selectFrom(workflowRun)
+            .where(
+                workflowRun.status.`in`(statuses),
+                workflowRun.airflowDagRunId.isNotNull,
+                workflowRun.lastSyncedAt
+                    .lt(staleThreshold)
+                    .or(workflowRun.lastSyncedAt.isNull),
+            ).orderBy(workflowRun.lastSyncedAt.asc().nullsFirst())
+            .fetch()
+
+    override fun getSyncStatistics(clusterId: Long?): Map<String, Any> {
+        val condition = BooleanBuilder()
+        clusterId?.let { condition.and(workflowRun.airflowClusterId.eq(it)) }
+
+        // Total count with Airflow sync
+        val totalSynced =
+            queryFactory
+                .select(workflowRun.count())
+                .from(workflowRun)
+                .where(condition, workflowRun.airflowDagRunId.isNotNull)
+                .fetchOne() ?: 0L
+
+        // Pending sync (running but not recently synced)
+        val oneHourAgo = LocalDateTime.now().minusHours(1)
+        val pendingSync =
+            queryFactory
+                .select(workflowRun.count())
+                .from(workflowRun)
+                .where(
+                    condition,
+                    workflowRun.status.`in`(WorkflowRunStatus.PENDING, WorkflowRunStatus.RUNNING),
+                    workflowRun.airflowDagRunId.isNotNull,
+                    workflowRun.lastSyncedAt
+                        .lt(oneHourAgo)
+                        .or(workflowRun.lastSyncedAt.isNull),
+                ).fetchOne() ?: 0L
+
+        // Count by status
+        val statusCounts =
+            queryFactory
+                .select(workflowRun.status, workflowRun.count())
+                .from(workflowRun)
+                .where(condition, workflowRun.airflowDagRunId.isNotNull)
+                .groupBy(workflowRun.status)
+                .fetch()
+                .associate { tuple ->
+                    tuple.get(workflowRun.status)!!.name to (tuple.get(workflowRun.count()) ?: 0L)
+                }
+
+        return mapOf(
+            "totalSynced" to totalSynced,
+            "pendingSync" to pendingSync,
+            "statusCounts" to statusCounts,
+            "clusterId" to (clusterId ?: "all"),
+        )
+    }
 }
