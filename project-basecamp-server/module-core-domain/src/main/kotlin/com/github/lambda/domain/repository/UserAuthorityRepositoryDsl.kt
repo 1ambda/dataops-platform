@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.user.UserAuthorityEntity
+import com.github.lambda.domain.entity.user.UserAuthorityEntity
 
 /**
  * 사용자 권한 리포지토리 DSL 인터페이스

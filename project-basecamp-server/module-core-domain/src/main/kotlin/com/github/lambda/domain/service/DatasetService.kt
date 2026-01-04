@@ -1,7 +1,7 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.*
-import com.github.lambda.domain.model.dataset.DatasetEntity
+import com.github.lambda.domain.entity.dataset.DatasetEntity
 import com.github.lambda.domain.repository.DatasetRepositoryDsl
 import com.github.lambda.domain.repository.DatasetRepositoryJpa
 import org.springframework.data.domain.Page

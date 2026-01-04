@@ -1,6 +1,6 @@
 package com.github.lambda.domain.service
 
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 import com.github.lambda.domain.repository.ResourceRepositoryDsl
 import com.github.lambda.domain.repository.ResourceRepositoryJpa
 import org.springframework.stereotype.Service

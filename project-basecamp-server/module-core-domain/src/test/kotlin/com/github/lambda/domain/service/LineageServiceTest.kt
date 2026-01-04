@@ -1,10 +1,10 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.ResourceNotFoundException
+import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
+import com.github.lambda.domain.entity.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageDirection
-import com.github.lambda.domain.model.lineage.LineageEdgeEntity
 import com.github.lambda.domain.model.lineage.LineageEdgeType
-import com.github.lambda.domain.model.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageNodeType
 import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
 import com.github.lambda.domain.repository.LineageNodeRepositoryJpa

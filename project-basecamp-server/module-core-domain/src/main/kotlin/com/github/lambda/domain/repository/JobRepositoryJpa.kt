@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.pipeline.JobEntity
+import com.github.lambda.domain.entity.pipeline.JobEntity
 import com.github.lambda.domain.model.pipeline.JobStatus
 import java.util.*
 

@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.metric.MetricEntity
+import com.github.lambda.domain.entity.metric.MetricEntity
 import com.github.lambda.domain.repository.MetricRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

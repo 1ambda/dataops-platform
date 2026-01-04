@@ -28,6 +28,7 @@ enum class WorkflowRunStatus {
     STOPPING,
     STOPPED,
     SKIPPED,
+    TIMEOUT,
     UNKNOWN,
 }
 

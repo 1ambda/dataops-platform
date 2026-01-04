@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.dataset.DatasetEntity
+import com.github.lambda.domain.entity.dataset.DatasetEntity
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 

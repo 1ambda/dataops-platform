@@ -1,8 +1,9 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
-import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualityTestEntity
+import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.dto.quality.QualityRunResultDto
 import com.github.lambda.dto.quality.QualityRunSummaryDto
 import com.github.lambda.dto.quality.QualitySpecDetailDto
@@ -10,6 +11,8 @@ import com.github.lambda.dto.quality.QualitySpecSummaryDto
 import com.github.lambda.dto.quality.QualityTestDto
 import com.github.lambda.dto.quality.TestResultSummaryDto
 import org.springframework.stereotype.Component
+import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * Quality Mapper
@@ -90,44 +93,63 @@ class QualityMapper {
 
     /**
      * Convert QualityRunEntity to QualityRunSummaryDto
+     *
+     * v2.0: Maps new entity fields to existing DTO structure:
+     * - targetResource -> resourceName
+     * - endedAt -> completedAt
+     * - triggeredBy -> executedBy
+     * - getDurationSeconds() -> durationSeconds
+     * - overallStatus derived from passedTests/failedTests
      */
     fun toRunSummaryDto(entity: QualityRunEntity): QualityRunSummaryDto =
         QualityRunSummaryDto(
             runId = entity.runId,
-            resourceName = entity.resourceName,
+            resourceName = entity.targetResource,
             status = entity.status.name,
-            overallStatus = entity.overallStatus?.name,
+            overallStatus = deriveOverallStatus(entity),
             passedTests = entity.passedTests,
             failedTests = entity.failedTests,
-            durationSeconds = entity.durationSeconds,
-            startedAt = entity.startedAt,
-            completedAt = entity.completedAt,
-            executedBy = entity.executedBy,
+            durationSeconds = entity.getDurationSeconds(),
+            startedAt = entity.startedAt?.toInstant(ZoneOffset.UTC) ?: Instant.now(),
+            completedAt = entity.endedAt?.toInstant(ZoneOffset.UTC),
+            executedBy = entity.triggeredBy,
         )
+
+    /**
+     * Derive overall status from entity state
+     * Returns PASSED if all tests passed, FAILED if any failed, null if still running
+     */
+    private fun deriveOverallStatus(entity: QualityRunEntity): String? =
+        when {
+            entity.status == WorkflowRunStatus.RUNNING ||
+                entity.status == WorkflowRunStatus.PENDING -> null
+            entity.failedTests > 0 -> "FAILED"
+            entity.passedTests > 0 -> "PASSED"
+            else -> null
+        }
 
     /**
      * Convert QualityRunEntity to QualityRunResultDto (for test execution)
      *
-     * Note: specName and testResults must be provided separately since relationships were removed
+     * v2.0: Entity now has specName field, testResults provided separately
      */
     fun toRunResultDto(
         entity: QualityRunEntity,
-        specName: String = "",
         testResults: List<TestResultSummaryDto> = emptyList(),
     ): QualityRunResultDto =
         QualityRunResultDto(
             runId = entity.runId,
-            resourceName = entity.resourceName,
-            qualitySpecName = specName,
+            resourceName = entity.targetResource,
+            qualitySpecName = entity.specName,
             status = entity.status.name,
-            overallStatus = entity.overallStatus?.name,
+            overallStatus = deriveOverallStatus(entity),
             passedTests = entity.passedTests,
             failedTests = entity.failedTests,
-            totalTests = entity.passedTests + entity.failedTests,
-            durationSeconds = entity.durationSeconds,
-            startedAt = entity.startedAt,
-            completedAt = entity.completedAt,
-            executedBy = entity.executedBy,
+            totalTests = entity.totalTests,
+            durationSeconds = entity.getDurationSeconds(),
+            startedAt = entity.startedAt?.toInstant(ZoneOffset.UTC) ?: Instant.now(),
+            completedAt = entity.endedAt?.toInstant(ZoneOffset.UTC),
+            executedBy = entity.triggeredBy,
             testResults = testResults,
         )
 

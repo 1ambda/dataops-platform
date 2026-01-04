@@ -1,18 +1,9 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.domain.projection.metric.MetricExecutionProjection
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import kotlin.system.measureTimeMillis
-
-/**
- * Metric Execution Result
- */
-data class MetricExecutionResult(
-    val rows: List<Map<String, Any>>,
-    val rowCount: Int,
-    val durationSeconds: Double,
-    val renderedSql: String,
-)
 
 /**
  * Metric Execution Service
@@ -41,14 +32,14 @@ class MetricExecutionService(
         parameters: Map<String, Any> = emptyMap(),
         limit: Int? = null,
         timeout: Int = 300,
-    ): MetricExecutionResult {
+    ): MetricExecutionProjection {
         val metric = metricService.getMetricOrThrow(metricName)
         val renderedSql = renderSqlWithParameters(metric.sql, parameters)
 
         // Mock execution - returns sample data
         val (rows, durationMs) = mockExecute(renderedSql, limit)
 
-        return MetricExecutionResult(
+        return MetricExecutionProjection(
             rows = rows,
             rowCount = rows.size,
             durationSeconds = durationMs / 1000.0,

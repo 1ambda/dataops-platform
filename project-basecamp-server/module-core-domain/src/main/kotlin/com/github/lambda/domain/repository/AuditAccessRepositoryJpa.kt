@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.audit.AuditAccessEntity
+import com.github.lambda.domain.entity.audit.AuditAccessEntity
 import java.time.LocalDateTime
 import java.util.*
 

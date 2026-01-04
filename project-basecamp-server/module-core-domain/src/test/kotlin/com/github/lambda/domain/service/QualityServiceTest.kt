@@ -3,13 +3,14 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
-import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualityTestEntity
 import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.RunStatus
 import com.github.lambda.domain.model.quality.Severity
 import com.github.lambda.domain.model.quality.TestType
+import com.github.lambda.domain.model.workflow.WorkflowRunStatus
+import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.domain.repository.QualityRunRepositoryJpa
 import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
 import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
-import java.time.Instant
 import java.time.LocalDateTime
 
 /**
@@ -86,12 +86,17 @@ class QualityServiceTest {
         testQualityRun =
             QualityRunEntity(
                 runId = "run_20250102_120000_001",
-                resourceName = "iceberg.analytics.users",
-                status = RunStatus.RUNNING,
-                startedAt = Instant.now(),
+                qualitySpecId = 1L,
+                specName = "test_dataset_quality_spec",
+                targetResource = "iceberg.analytics.users",
+                targetResourceType = ResourceType.DATASET,
+                status = WorkflowRunStatus.RUNNING,
+                runType = WorkflowRunType.MANUAL,
+                triggeredBy = "test@example.com",
+                startedAt = LocalDateTime.now(),
                 passedTests = 0,
                 failedTests = 0,
-                executedBy = "test@example.com",
+                totalTests = 0,
             )
     }
 
@@ -585,9 +590,9 @@ class QualityServiceTest {
                 )
 
             // Then
-            assertThat(result.resourceName).isEqualTo(resourceName)
-            assertThat(result.executedBy).isEqualTo(executedBy)
-            assertThat(result.status).isEqualTo(RunStatus.COMPLETED)
+            assertThat(result.targetResource).isEqualTo(resourceName)
+            assertThat(result.triggeredBy).isEqualTo(executedBy)
+            assertThat(result.status).isEqualTo(WorkflowRunStatus.SUCCESS)
 
             verify(exactly = 1) { qualitySpecRepositoryJpa.findByName(qualitySpecName) }
             verify(exactly = 2) { qualityRunRepositoryJpa.save(any()) } // Initial save + final save
@@ -629,8 +634,8 @@ class QualityServiceTest {
                 )
 
             // Then
-            assertThat(result.resourceName).isEqualTo(resourceName)
-            assertThat(result.executedBy).isEqualTo(executedBy)
+            assertThat(result.targetResource).isEqualTo(resourceName)
+            assertThat(result.triggeredBy).isEqualTo(executedBy)
         }
 
         @Test

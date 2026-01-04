@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.workflow.WorkflowEntity
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.model.workflow.WorkflowSourceType
 import com.github.lambda.domain.model.workflow.WorkflowStatus
 import com.github.lambda.domain.repository.WorkflowRepositoryJpa

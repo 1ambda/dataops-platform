@@ -1,6 +1,6 @@
 package com.github.lambda.dto
 
-import com.github.lambda.domain.model.pipeline.PipelineEntity
+import com.github.lambda.domain.entity.pipeline.PipelineEntity
 import com.github.lambda.domain.model.pipeline.PipelineStatus
 import java.time.LocalDateTime
 

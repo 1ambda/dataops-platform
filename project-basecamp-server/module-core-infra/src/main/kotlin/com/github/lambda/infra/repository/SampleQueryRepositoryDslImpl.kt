@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
+import com.github.lambda.domain.entity.catalog.SampleQueryEntity
 import com.github.lambda.domain.model.catalog.SampleQuery
-import com.github.lambda.domain.model.catalog.SampleQueryEntity
 import com.github.lambda.domain.repository.SampleQueryRepositoryDsl
 import com.github.lambda.domain.repository.SampleQueryRepositoryJpa
 import org.springframework.data.domain.PageRequest

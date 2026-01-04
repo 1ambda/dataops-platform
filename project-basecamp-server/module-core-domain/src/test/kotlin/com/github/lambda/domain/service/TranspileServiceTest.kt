@@ -1,15 +1,15 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.*
+import com.github.lambda.domain.entity.dataset.DatasetEntity
+import com.github.lambda.domain.entity.metric.MetricEntity
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.external.AppliedTransformation
 import com.github.lambda.domain.external.BasecampParserClient
 import com.github.lambda.domain.external.TranspileResult
 import com.github.lambda.domain.external.TranspileRule
 import com.github.lambda.domain.external.TranspileWarning
-import com.github.lambda.domain.model.dataset.DatasetEntity
-import com.github.lambda.domain.model.metric.MetricEntity
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
 import com.github.lambda.domain.repository.TranspileRuleRepositoryDsl
 import com.github.lambda.domain.repository.TranspileRuleRepositoryJpa
 import io.mockk.every

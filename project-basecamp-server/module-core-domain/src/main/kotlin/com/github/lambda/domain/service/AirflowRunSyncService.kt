@@ -1,13 +1,13 @@
 package com.github.lambda.domain.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.external.AirflowClient
 import com.github.lambda.domain.external.AirflowDagRun
-import com.github.lambda.domain.model.workflow.AirflowClusterEntity
 import com.github.lambda.domain.model.workflow.ClusterSyncResult
 import com.github.lambda.domain.model.workflow.RunSyncResult
 import com.github.lambda.domain.model.workflow.TaskProgress
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
 import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
 import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl
 import com.github.lambda.domain.repository.WorkflowRunRepositoryJpa

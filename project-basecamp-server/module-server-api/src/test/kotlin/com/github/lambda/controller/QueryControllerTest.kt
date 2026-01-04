@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.lambda.common.exception.ResourceNotFoundException
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.command.query.CancelQueryCommand
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
 import com.github.lambda.domain.model.query.QueryEngine
-import com.github.lambda.domain.model.query.QueryExecutionEntity
 import com.github.lambda.domain.model.query.QueryScope
 import com.github.lambda.domain.model.query.QueryStatus
 import com.github.lambda.domain.query.query.ListQueriesQuery

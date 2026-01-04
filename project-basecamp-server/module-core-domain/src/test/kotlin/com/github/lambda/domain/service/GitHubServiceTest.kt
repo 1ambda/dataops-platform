@@ -3,13 +3,13 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.GitHubRepositoryAlreadyExistsException
 import com.github.lambda.common.exception.GitHubRepositoryNotFoundException
 import com.github.lambda.common.exception.GitHubRepositoryUrlAlreadyExistsException
+import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
 import com.github.lambda.domain.external.GitHubClient
 import com.github.lambda.domain.model.github.BranchComparison
 import com.github.lambda.domain.model.github.CommitSummary
 import com.github.lambda.domain.model.github.ComparisonStatus
 import com.github.lambda.domain.model.github.GitHubBranch
 import com.github.lambda.domain.model.github.GitHubPullRequest
-import com.github.lambda.domain.model.github.GitHubRepositoryEntity
 import com.github.lambda.domain.model.github.PullRequestState
 import com.github.lambda.domain.repository.GitHubRepositoryDsl
 import com.github.lambda.domain.repository.GitHubRepositoryJpa

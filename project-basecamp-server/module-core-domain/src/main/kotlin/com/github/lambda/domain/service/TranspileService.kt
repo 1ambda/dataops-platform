@@ -3,10 +3,11 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.BusinessException
 import com.github.lambda.common.exception.DatasetNotFoundException
 import com.github.lambda.common.exception.MetricNotFoundException
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.external.BasecampParserClient
 import com.github.lambda.domain.external.TranspileRule
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
+import com.github.lambda.domain.projection.transpile.*
 import com.github.lambda.domain.repository.TranspileRuleRepositoryDsl
 import com.github.lambda.domain.repository.TranspileRuleRepositoryJpa
 import org.slf4j.LoggerFactory
@@ -38,13 +39,13 @@ class TranspileService(
      * @param version Version identifier (not used in mock implementation)
      * @param fromDialect Filter by source dialect
      * @param toDialect Filter by target dialect
-     * @return TranspileRulesResult with rules and metadata
+     * @return TranspileRulesProjection with rules and metadata
      */
     fun getTranspileRules(
         version: String? = null,
         fromDialect: SqlDialect? = null,
         toDialect: SqlDialect? = null,
-    ): TranspileRulesResult {
+    ): TranspileRulesProjection {
         logger.debug("Getting transpile rules - version: {}, from: {}, to: {}", version, fromDialect, toDialect)
 
         val rules =
@@ -56,11 +57,11 @@ class TranspileService(
 
         val currentVersion = generateVersion()
 
-        return TranspileRulesResult(
+        return TranspileRulesProjection(
             version = currentVersion,
             rules = rules,
             metadata =
-                TranspileMetadata(
+                TranspileMetadataProjection(
                     createdAt = Instant.now(),
                     createdBy = "system",
                     totalRules = rules.size,
@@ -85,7 +86,7 @@ class TranspileService(
         targetDialect: SqlDialect,
         sourceDialect: SqlDialect? = null,
         parameters: Map<String, Any> = emptyMap(),
-    ): MetricTranspileResult {
+    ): MetricTranspileProjection {
         logger.debug("Transpiling metric: {} from {} to {}", metricName, sourceDialect, targetDialect)
 
         val startTime = System.currentTimeMillis()
@@ -132,7 +133,7 @@ class TranspileService(
                 throw TranspileException("Failed to transpile metric SQL: ${parserResult.errorMessage}")
             }
 
-            return MetricTranspileResult(
+            return MetricTranspileProjection(
                 metricName = metricName,
                 sourceDialect = detectedSourceDialect.name.lowercase(),
                 targetDialect = targetDialect.name.lowercase(),
@@ -140,7 +141,7 @@ class TranspileService(
                 transpiledSql = parserResult.transpiledSql,
                 appliedRules =
                     parserResult.appliedTransformations.map { transform ->
-                        AppliedRule(
+                        AppliedRuleProjection(
                             name = transform.name ?: transform.type,
                             source = transform.from ?: "",
                             target = transform.to ?: "",
@@ -148,7 +149,7 @@ class TranspileService(
                     },
                 warnings =
                     parserResult.warnings.map { warning ->
-                        TranspileWarning(
+                        TranspileWarningProjection(
                             type = warning.type,
                             message = warning.message,
                             line = warning.line,
@@ -181,7 +182,7 @@ class TranspileService(
         targetDialect: SqlDialect,
         sourceDialect: SqlDialect? = null,
         parameters: Map<String, Any> = emptyMap(),
-    ): DatasetTranspileResult {
+    ): DatasetTranspileProjection {
         logger.debug("Transpiling dataset: {} from {} to {}", datasetName, sourceDialect, targetDialect)
 
         val startTime = System.currentTimeMillis()
@@ -228,7 +229,7 @@ class TranspileService(
                 throw TranspileException("Failed to transpile dataset SQL: ${parserResult.errorMessage}")
             }
 
-            return DatasetTranspileResult(
+            return DatasetTranspileProjection(
                 datasetName = datasetName,
                 sourceDialect = detectedSourceDialect.name.lowercase(),
                 targetDialect = targetDialect.name.lowercase(),
@@ -236,7 +237,7 @@ class TranspileService(
                 transpiledSql = parserResult.transpiledSql,
                 appliedRules =
                     parserResult.appliedTransformations.map { transform ->
-                        AppliedRule(
+                        AppliedRuleProjection(
                             name = transform.name ?: transform.type,
                             source = transform.from ?: "",
                             target = transform.to ?: "",
@@ -244,7 +245,7 @@ class TranspileService(
                     },
                 warnings =
                     parserResult.warnings.map { warning ->
-                        TranspileWarning(
+                        TranspileWarningProjection(
                             type = warning.type,
                             message = warning.message,
                             line = warning.line,
@@ -289,89 +290,6 @@ class TranspileService(
     }
 }
 
-// === Result Classes ===
-
-/**
- * Result class for transpile rules query
- */
-data class TranspileRulesResult(
-    val version: String,
-    val rules: List<TranspileRuleEntity>,
-    val metadata: TranspileMetadata,
-)
-
-/**
- * Metadata for transpile rules
- */
-data class TranspileMetadata(
-    val createdAt: Instant,
-    val createdBy: String,
-    val totalRules: Int,
-    val cacheTtlSeconds: Int,
-)
-
-/**
- * Base transpile result interface
- */
-interface TranspileResult {
-    val sourceDialect: String
-    val targetDialect: String
-    val originalSql: String
-    val transpiledSql: String
-    val appliedRules: List<AppliedRule>
-    val warnings: List<TranspileWarning>
-    val transpiledAt: Instant
-    val durationMs: Long
-}
-
-/**
- * Metric transpile result
- */
-data class MetricTranspileResult(
-    val metricName: String,
-    override val sourceDialect: String,
-    override val targetDialect: String,
-    override val originalSql: String,
-    override val transpiledSql: String,
-    override val appliedRules: List<AppliedRule>,
-    override val warnings: List<TranspileWarning>,
-    override val transpiledAt: Instant,
-    override val durationMs: Long,
-) : TranspileResult
-
-/**
- * Dataset transpile result
- */
-data class DatasetTranspileResult(
-    val datasetName: String,
-    override val sourceDialect: String,
-    override val targetDialect: String,
-    override val originalSql: String,
-    override val transpiledSql: String,
-    override val appliedRules: List<AppliedRule>,
-    override val warnings: List<TranspileWarning>,
-    override val transpiledAt: Instant,
-    override val durationMs: Long,
-) : TranspileResult
-
-/**
- * Applied rule information
- */
-data class AppliedRule(
-    val name: String,
-    val source: String,
-    val target: String,
-)
-
-/**
- * Transpile warning
- */
-data class TranspileWarning(
-    val type: String,
-    val message: String,
-    val line: Int?,
-    val column: Int?,
-)
 
 /**
  * Transpile exception for SQL transpilation errors

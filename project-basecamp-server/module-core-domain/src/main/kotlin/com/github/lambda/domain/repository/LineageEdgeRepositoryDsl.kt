@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.lineage.LineageEdgeEntity
+import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 
 /**
  * Lineage Edge Repository DSL Interface (Pure Domain Abstraction)

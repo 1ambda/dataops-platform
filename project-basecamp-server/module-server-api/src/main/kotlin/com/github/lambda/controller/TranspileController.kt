@@ -1,10 +1,10 @@
 package com.github.lambda.controller
 
-import com.github.lambda.api.dto.transpile.TranspileResultDto
-import com.github.lambda.api.dto.transpile.TranspileRulesDto
 import com.github.lambda.common.constant.CommonConstants
 import com.github.lambda.domain.model.transpile.SqlDialect
 import com.github.lambda.domain.service.TranspileService
+import com.github.lambda.dto.transpile.TranspileResultDto
+import com.github.lambda.dto.transpile.TranspileRulesDto
 import com.github.lambda.mapper.TranspileMapper
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter

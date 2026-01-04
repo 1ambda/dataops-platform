@@ -1,8 +1,8 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.transpile.QTranspileRuleEntity
+import com.github.lambda.domain.entity.transpile.QTranspileRuleEntity
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
 import com.github.lambda.domain.repository.TranspileRuleRepositoryDsl
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.jpa.impl.JPAQueryFactory

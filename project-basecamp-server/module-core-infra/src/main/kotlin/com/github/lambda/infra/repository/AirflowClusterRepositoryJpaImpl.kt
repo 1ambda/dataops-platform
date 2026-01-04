@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.workflow.AirflowClusterEntity
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.model.workflow.AirflowEnvironment
 import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository

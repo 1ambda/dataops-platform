@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.pipeline.JobEntity
+import com.github.lambda.domain.entity.pipeline.JobEntity
 
 /**
  * 작업 Repository DSL 인터페이스 (순수 도메인 추상화)

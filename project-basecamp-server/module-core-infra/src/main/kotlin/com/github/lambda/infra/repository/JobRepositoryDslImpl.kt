@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.pipeline.JobEntity
+import com.github.lambda.domain.entity.pipeline.JobEntity
 import com.github.lambda.domain.repository.JobRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

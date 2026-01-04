@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.model.quality.ResourceType
 import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
 import org.springframework.data.domain.Page

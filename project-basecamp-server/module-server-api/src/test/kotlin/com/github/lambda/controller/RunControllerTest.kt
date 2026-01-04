@@ -5,7 +5,7 @@ import com.github.lambda.common.exception.QueryEngineNotSupportedException
 import com.github.lambda.common.exception.RateLimitExceededException
 import com.github.lambda.common.exception.ResultNotFoundException
 import com.github.lambda.config.SecurityConfig
-import com.github.lambda.domain.model.adhoc.ExecutionStatus
+import com.github.lambda.domain.entity.adhoc.ExecutionStatus
 import com.github.lambda.domain.service.AdHocExecutionResult
 import com.github.lambda.domain.service.AdHocExecutionService
 import com.github.lambda.domain.service.CurrentUsageDto

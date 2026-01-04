@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 import com.github.lambda.domain.repository.ResourceRepositoryJpa
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest

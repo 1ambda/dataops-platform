@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.workflow.AirflowClusterEntity
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 
 /**
  * Airflow Cluster Repository DSL 인터페이스 (순수 도메인 추상화)

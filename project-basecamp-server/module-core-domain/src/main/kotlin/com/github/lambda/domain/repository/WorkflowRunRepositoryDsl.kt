@@ -1,8 +1,9 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.domain.model.workflow.WorkflowRunType
+import com.github.lambda.domain.projection.workflow.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import java.time.LocalDateTime
@@ -66,35 +67,35 @@ interface WorkflowRunRepositoryDsl {
     fun getRunStatistics(
         datasetName: String? = null,
         triggeredBy: String? = null,
-    ): Map<String, Any>
+    ): WorkflowRunStatisticsProjection
 
     /**
      * 상태별 workflow run 개수 조회
      *
      * @return 상태별 workflow run 개수 맵
      */
-    fun getRunCountByStatus(): List<Map<String, Any>>
+    fun getRunCountByStatus(): List<WorkflowRunCountByStatusProjection>
 
     /**
      * 실행 타입별 workflow run 개수 조회
      *
      * @return 실행 타입별 workflow run 개수 맵
      */
-    fun getRunCountByRunType(): List<Map<String, Any>>
+    fun getRunCountByRunType(): List<WorkflowRunCountByTypeProjection>
 
     /**
      * 실행자별 workflow run 개수 조회
      *
      * @return 실행자별 workflow run 개수 맵
      */
-    fun getRunCountByTriggeredBy(): List<Map<String, Any>>
+    fun getRunCountByTriggeredBy(): List<WorkflowRunCountByTriggeredByProjection>
 
     /**
      * 데이터셋별 workflow run 개수 조회
      *
      * @return 데이터셋별 workflow run 개수 맵
      */
-    fun getRunCountByDatasetName(): List<Map<String, Any>>
+    fun getRunCountByDatasetName(): List<WorkflowRunCountByDatasetProjection>
 
     /**
      * 실행 시간 통계 조회
@@ -106,7 +107,7 @@ interface WorkflowRunRepositoryDsl {
     fun getDurationStatistics(
         datasetName: String? = null,
         daysSince: Int = 30,
-    ): Map<String, Any>
+    ): WorkflowDurationStatisticsProjection
 
     /**
      * 특정 데이터셋의 실행 이력 조회
@@ -154,7 +155,7 @@ interface WorkflowRunRepositoryDsl {
     fun getSuccessRateStatistics(
         datasetName: String? = null,
         daysSince: Int = 30,
-    ): Map<String, Any>
+    ): WorkflowSuccessRateProjection
 
     /**
      * 현재 실행 중인 workflow run 조회
@@ -173,7 +174,7 @@ interface WorkflowRunRepositoryDsl {
     fun getDailyRunStatistics(
         datasetName: String? = null,
         daysSince: Int = 30,
-    ): List<Map<String, Any>>
+    ): List<WorkflowDailyRunStatisticsProjection>
 
     /**
      * 중지된 workflow run 조회
@@ -235,5 +236,5 @@ interface WorkflowRunRepositoryDsl {
      * @param clusterId Airflow 클러스터 ID (null이면 전체)
      * @return 동기화 통계 (총 실행 수, 동기화된 수, 동기화 필요한 수 등)
      */
-    fun getSyncStatistics(clusterId: Long? = null): Map<String, Any>
+    fun getSyncStatistics(clusterId: Long? = null): WorkflowSyncStatisticsProjection
 }

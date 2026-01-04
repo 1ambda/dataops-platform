@@ -1,10 +1,10 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.RunStatus
-import com.github.lambda.domain.model.quality.TestStatus
+import com.github.lambda.domain.model.workflow.WorkflowRunStatus
+import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.infra.config.JpaTestConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -19,8 +19,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import org.springframework.context.annotation.Import
 import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDateTime
 import java.util.UUID
 
 /**
@@ -28,6 +27,8 @@ import java.util.UUID
  *
  * Tests CRUD operations, status queries, time-based queries,
  * and quality spec relationship queries.
+ *
+ * v2.0 Update: Uses WorkflowRunStatus and new entity structure
  */
 @DataJpaTest
 @ActiveProfiles("test")
@@ -46,9 +47,9 @@ class QualityRunRepositoryJpaImplTest {
     private lateinit var run2: QualityRunEntity
     private lateinit var run3: QualityRunEntity
 
-    private val now = Instant.now()
-    private val yesterday = now.minus(1, ChronoUnit.DAYS)
-    private val lastWeek = now.minus(7, ChronoUnit.DAYS)
+    private val now: LocalDateTime = LocalDateTime.now()
+    private val yesterday: LocalDateTime = now.minusDays(1)
+    private val lastWeek: LocalDateTime = now.minusDays(7)
 
     @BeforeEach
     fun setUp() {
@@ -69,48 +70,56 @@ class QualityRunRepositoryJpaImplTest {
             )
         testEntityManager.persistAndFlush(spec)
 
-        // Create test runs
+        // Create test runs with v2.0 structure
         run1 =
             QualityRunEntity(
                 runId = "run-${UUID.randomUUID()}",
-                resourceName = "dataset.sales",
-                status = RunStatus.COMPLETED,
-                overallStatus = TestStatus.PASSED,
+                qualitySpecId = spec.id!!,
+                specName = spec.name,
+                targetResource = "dataset.sales",
+                targetResourceType = ResourceType.DATASET,
+                status = WorkflowRunStatus.SUCCESS,
+                runType = WorkflowRunType.MANUAL,
+                triggeredBy = "user1@example.com",
                 startedAt = now,
-                completedAt = now.plusSeconds(60),
-                durationSeconds = 60.0,
+                endedAt = now.plusSeconds(60),
+                totalTests = 5,
                 passedTests = 5,
                 failedTests = 0,
-                executedBy = "user1@example.com",
-            ).also { it.specId = spec.id!! }
+            )
 
         run2 =
             QualityRunEntity(
                 runId = "run-${UUID.randomUUID()}",
-                resourceName = "dataset.sales",
-                status = RunStatus.COMPLETED,
-                overallStatus = TestStatus.FAILED,
+                qualitySpecId = spec.id!!,
+                specName = spec.name,
+                targetResource = "dataset.sales",
+                targetResourceType = ResourceType.DATASET,
+                status = WorkflowRunStatus.FAILED,
+                runType = WorkflowRunType.SCHEDULED,
+                triggeredBy = "user2@example.com",
                 startedAt = yesterday,
-                completedAt = yesterday.plusSeconds(120),
-                durationSeconds = 120.0,
+                endedAt = yesterday.plusSeconds(120),
+                totalTests = 5,
                 passedTests = 3,
                 failedTests = 2,
-                executedBy = "user2@example.com",
-            ).also { it.specId = spec.id!! }
+            )
 
         run3 =
             QualityRunEntity(
                 runId = "run-${UUID.randomUUID()}",
-                resourceName = "dataset.orders",
-                status = RunStatus.RUNNING,
-                overallStatus = null,
+                qualitySpecId = spec.id!!,
+                specName = spec.name,
+                targetResource = "dataset.orders",
+                targetResourceType = ResourceType.DATASET,
+                status = WorkflowRunStatus.RUNNING,
+                runType = WorkflowRunType.MANUAL,
+                triggeredBy = "user1@example.com",
                 startedAt = lastWeek,
-                completedAt = null,
-                durationSeconds = null,
+                totalTests = 0,
                 passedTests = 0,
                 failedTests = 0,
-                executedBy = "user1@example.com",
-            ).also { it.specId = spec.id!! }
+            )
 
         testEntityManager.persistAndFlush(run1)
         testEntityManager.persistAndFlush(run2)
@@ -128,11 +137,14 @@ class QualityRunRepositoryJpaImplTest {
             val newRun =
                 QualityRunEntity(
                     runId = "run-${UUID.randomUUID()}",
-                    resourceName = "dataset.new",
-                    status = RunStatus.RUNNING,
-                    startedAt = Instant.now(),
-                    executedBy = "new@example.com",
-                ).also { it.specId = spec.id!! }
+                    qualitySpecId = spec.id!!,
+                    specName = spec.name,
+                    targetResource = "dataset.new",
+                    targetResourceType = ResourceType.DATASET,
+                    status = WorkflowRunStatus.PENDING,
+                    runType = WorkflowRunType.MANUAL,
+                    triggeredBy = "new@example.com",
+                )
 
             // When
             val saved = repository.save(newRun)
@@ -140,7 +152,7 @@ class QualityRunRepositoryJpaImplTest {
 
             // Then
             assertThat(saved.id).isNotNull()
-            assertThat(saved.resourceName).isEqualTo("dataset.new")
+            assertThat(saved.targetResource).isEqualTo("dataset.new")
         }
 
         @Test
@@ -152,7 +164,7 @@ class QualityRunRepositoryJpaImplTest {
             // Then
             assertThat(found).isNotNull
             assertThat(found!!.runId).isEqualTo(run1.runId)
-            assertThat(found.resourceName).isEqualTo("dataset.sales")
+            assertThat(found.targetResource).isEqualTo("dataset.sales")
         }
 
         @Test
@@ -193,44 +205,25 @@ class QualityRunRepositoryJpaImplTest {
         @DisplayName("should find by run status")
         fun `should find runs by status`() {
             // When
-            val completed = repository.findByStatus(RunStatus.COMPLETED)
-            val running = repository.findByStatus(RunStatus.RUNNING)
+            val success = repository.findByStatus(WorkflowRunStatus.SUCCESS)
+            val running = repository.findByStatus(WorkflowRunStatus.RUNNING)
+            val failed = repository.findByStatus(WorkflowRunStatus.FAILED)
 
             // Then
-            assertThat(completed).hasSize(2)
+            assertThat(success).hasSize(1)
             assertThat(running).hasSize(1)
-            assertThat(running[0].runId).isEqualTo(run3.runId)
-        }
-
-        @Test
-        @DisplayName("should find by overall test status")
-        fun `should find runs by overall status`() {
-            // When
-            val passed = repository.findByOverallStatus(TestStatus.PASSED)
-            val failed = repository.findByOverallStatus(TestStatus.FAILED)
-
-            // Then
-            assertThat(passed).hasSize(1)
-            assertThat(passed[0].runId).isEqualTo(run1.runId)
             assertThat(failed).hasSize(1)
-            assertThat(failed[0].runId).isEqualTo(run2.runId)
+            assertThat(running[0].runId).isEqualTo(run3.runId)
         }
 
         @Test
         @DisplayName("should count by status")
         fun `should count runs by status`() {
             // When & Then
-            assertThat(repository.countByStatus(RunStatus.COMPLETED)).isEqualTo(2)
-            assertThat(repository.countByStatus(RunStatus.RUNNING)).isEqualTo(1)
-            assertThat(repository.countByStatus(RunStatus.FAILED)).isEqualTo(0)
-        }
-
-        @Test
-        @DisplayName("should count by overall status")
-        fun `should count runs by overall status`() {
-            // When & Then
-            assertThat(repository.countByOverallStatus(TestStatus.PASSED)).isEqualTo(1)
-            assertThat(repository.countByOverallStatus(TestStatus.FAILED)).isEqualTo(1)
+            assertThat(repository.countByStatus(WorkflowRunStatus.SUCCESS)).isEqualTo(1)
+            assertThat(repository.countByStatus(WorkflowRunStatus.RUNNING)).isEqualTo(1)
+            assertThat(repository.countByStatus(WorkflowRunStatus.FAILED)).isEqualTo(1)
+            assertThat(repository.countByStatus(WorkflowRunStatus.PENDING)).isEqualTo(0)
         }
     }
 
@@ -241,7 +234,7 @@ class QualityRunRepositoryJpaImplTest {
         @DisplayName("should find runs between dates")
         fun `should find runs between time range`() {
             // When
-            val twoDaysAgo = now.minus(2, ChronoUnit.DAYS)
+            val twoDaysAgo = now.minusDays(2)
             val result = repository.findByStartedAtBetween(twoDaysAgo, now.plusSeconds(1))
 
             // Then
@@ -252,7 +245,7 @@ class QualityRunRepositoryJpaImplTest {
         @DisplayName("should find runs after date")
         fun `should find runs started after date`() {
             // When
-            val twoDaysAgo = now.minus(2, ChronoUnit.DAYS)
+            val twoDaysAgo = now.minusDays(2)
             val result = repository.findByStartedAtAfter(twoDaysAgo)
 
             // Then
@@ -263,7 +256,7 @@ class QualityRunRepositoryJpaImplTest {
         @DisplayName("should find runs before date")
         fun `should find runs started before date`() {
             // When
-            val twoDaysAgo = now.minus(2, ChronoUnit.DAYS)
+            val twoDaysAgo = now.minusDays(2)
             val result = repository.findByStartedAtBefore(twoDaysAgo)
 
             // Then
@@ -272,14 +265,14 @@ class QualityRunRepositoryJpaImplTest {
     }
 
     @Nested
-    @DisplayName("Resource Queries")
-    inner class ResourceQueries {
+    @DisplayName("Target Resource Queries")
+    inner class TargetResourceQueries {
         @Test
-        @DisplayName("should find by resource name")
-        fun `should find runs by resource name`() {
+        @DisplayName("should find by target resource")
+        fun `should find runs by target resource`() {
             // When
-            val salesRuns = repository.findByResourceName("dataset.sales")
-            val ordersRuns = repository.findByResourceName("dataset.orders")
+            val salesRuns = repository.findByTargetResource("dataset.sales")
+            val ordersRuns = repository.findByTargetResource("dataset.orders")
 
             // Then
             assertThat(salesRuns).hasSize(2)
@@ -287,24 +280,24 @@ class QualityRunRepositoryJpaImplTest {
         }
 
         @Test
-        @DisplayName("should count by resource name")
-        fun `should count runs by resource name`() {
+        @DisplayName("should count by target resource")
+        fun `should count runs by target resource`() {
             // When & Then
-            assertThat(repository.countByResourceName("dataset.sales")).isEqualTo(2)
-            assertThat(repository.countByResourceName("dataset.orders")).isEqualTo(1)
-            assertThat(repository.countByResourceName("nonexistent")).isEqualTo(0)
+            assertThat(repository.countByTargetResource("dataset.sales")).isEqualTo(2)
+            assertThat(repository.countByTargetResource("dataset.orders")).isEqualTo(1)
+            assertThat(repository.countByTargetResource("nonexistent")).isEqualTo(0)
         }
     }
 
     @Nested
-    @DisplayName("Executor Queries")
-    inner class ExecutorQueries {
+    @DisplayName("Triggered By Queries")
+    inner class TriggeredByQueries {
         @Test
-        @DisplayName("should find by executedBy")
-        fun `should find runs by executor`() {
+        @DisplayName("should find by triggeredBy")
+        fun `should find runs by triggeredBy`() {
             // When
-            val user1Runs = repository.findByExecutedBy("user1@example.com")
-            val user2Runs = repository.findByExecutedBy("user2@example.com")
+            val user1Runs = repository.findByTriggeredBy("user1@example.com")
+            val user2Runs = repository.findByTriggeredBy("user2@example.com")
 
             // Then
             assertThat(user1Runs).hasSize(2)
@@ -312,36 +305,11 @@ class QualityRunRepositoryJpaImplTest {
         }
 
         @Test
-        @DisplayName("should count by executedBy")
-        fun `should count runs by executor`() {
+        @DisplayName("should count by triggeredBy")
+        fun `should count runs by triggeredBy`() {
             // When & Then
-            assertThat(repository.countByExecutedBy("user1@example.com")).isEqualTo(2)
-            assertThat(repository.countByExecutedBy("user2@example.com")).isEqualTo(1)
-        }
-    }
-
-    @Nested
-    @DisplayName("Duration Queries")
-    inner class DurationQueries {
-        @Test
-        @DisplayName("should find by duration greater than")
-        fun `should find runs with duration greater than threshold`() {
-            // When
-            val longRuns = repository.findByDurationSecondsGreaterThan(90.0)
-
-            // Then
-            assertThat(longRuns).hasSize(1)
-            assertThat(longRuns[0].runId).isEqualTo(run2.runId)
-        }
-
-        @Test
-        @DisplayName("should find by duration between range")
-        fun `should find runs with duration in range`() {
-            // When
-            val result = repository.findByDurationSecondsBetween(50.0, 130.0)
-
-            // Then
-            assertThat(result).hasSize(2)
+            assertThat(repository.countByTriggeredBy("user1@example.com")).isEqualTo(2)
+            assertThat(repository.countByTriggeredBy("user2@example.com")).isEqualTo(1)
         }
     }
 
@@ -372,21 +340,21 @@ class QualityRunRepositoryJpaImplTest {
             val pageable = PageRequest.of(0, 10)
 
             // When
-            val page = repository.findByStatusOrderByStartedAtDesc(RunStatus.COMPLETED, pageable)
+            val page = repository.findByStatusOrderByStartedAtDesc(WorkflowRunStatus.SUCCESS, pageable)
 
             // Then
-            assertThat(page.content).hasSize(2)
-            assertThat(page.totalElements).isEqualTo(2)
+            assertThat(page.content).hasSize(1)
+            assertThat(page.totalElements).isEqualTo(1)
         }
 
         @Test
-        @DisplayName("should return resource filtered runs with pagination")
-        fun `should return resource filtered runs paginated`() {
+        @DisplayName("should return target resource filtered runs with pagination")
+        fun `should return target resource filtered runs paginated`() {
             // Given
             val pageable = PageRequest.of(0, 10)
 
             // When
-            val page = repository.findByResourceNameOrderByStartedAtDesc("dataset.sales", pageable)
+            val page = repository.findByTargetResourceOrderByStartedAtDesc("dataset.sales", pageable)
 
             // Then
             assertThat(page.content).hasSize(2)
@@ -413,6 +381,16 @@ class QualityRunRepositoryJpaImplTest {
             // When & Then
             assertThat(repository.countBySpecName("test-quality-spec")).isEqualTo(3)
             assertThat(repository.countBySpecName("nonexistent")).isEqualTo(0)
+        }
+
+        @Test
+        @DisplayName("should find by quality spec ID")
+        fun `should find runs by quality spec id`() {
+            // When
+            val result = repository.findByQualitySpecId(spec.id!!)
+
+            // Then
+            assertThat(result).hasSize(3)
         }
     }
 }

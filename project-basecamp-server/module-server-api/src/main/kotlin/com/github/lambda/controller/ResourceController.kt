@@ -1,6 +1,6 @@
 package com.github.lambda.controller
 
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 import com.github.lambda.domain.service.ResourceService
 import com.github.lambda.util.SecurityContext
 import org.springframework.data.domain.Pageable

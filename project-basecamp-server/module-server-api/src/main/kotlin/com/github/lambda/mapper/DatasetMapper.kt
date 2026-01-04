@@ -1,6 +1,6 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.dataset.DatasetEntity
+import com.github.lambda.domain.entity.dataset.DatasetEntity
 import com.github.lambda.dto.dataset.*
 import org.springframework.stereotype.Component
 import java.time.format.DateTimeFormatter

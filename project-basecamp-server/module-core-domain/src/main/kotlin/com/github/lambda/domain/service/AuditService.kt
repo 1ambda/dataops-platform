@@ -1,8 +1,8 @@
 package com.github.lambda.domain.service
 
-import com.github.lambda.domain.model.audit.AuditAccessEntity
+import com.github.lambda.domain.entity.audit.AuditAccessEntity
+import com.github.lambda.domain.entity.audit.AuditResourceEntity
 import com.github.lambda.domain.model.audit.AuditResourceAction
-import com.github.lambda.domain.model.audit.AuditResourceEntity
 import com.github.lambda.domain.repository.AuditAccessRepositoryJpa
 import com.github.lambda.domain.repository.AuditResourceRepositoryJpa
 import org.springframework.stereotype.Service

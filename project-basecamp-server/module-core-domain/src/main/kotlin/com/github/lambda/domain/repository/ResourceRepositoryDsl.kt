@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 
 /**
  * 리소스 Repository DSL 인터페이스 (순수 도메인 추상화)

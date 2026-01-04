@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.adhoc.UserExecutionQuotaEntity
+import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.repository.UserExecutionQuotaRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying

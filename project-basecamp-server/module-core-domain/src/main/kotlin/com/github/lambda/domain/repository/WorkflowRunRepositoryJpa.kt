@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.domain.model.workflow.WorkflowRunType
 import org.springframework.data.domain.Page

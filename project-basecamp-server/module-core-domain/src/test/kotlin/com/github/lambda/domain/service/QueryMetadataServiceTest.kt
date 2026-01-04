@@ -1,8 +1,8 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.domain.command.query.CancelQueryCommand
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
 import com.github.lambda.domain.model.query.QueryEngine
-import com.github.lambda.domain.model.query.QueryExecutionEntity
 import com.github.lambda.domain.model.query.QueryScope
 import com.github.lambda.domain.model.query.QueryStatus
 import com.github.lambda.domain.query.query.ListQueriesQuery

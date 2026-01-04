@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.user.UserEntity
+import com.github.lambda.domain.entity.user.UserEntity
 import com.github.lambda.domain.repository.UserRepositoryJpa
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest

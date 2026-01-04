@@ -1,7 +1,7 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.model.adhoc.ExecutionStatus
+import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
+import com.github.lambda.domain.entity.adhoc.ExecutionStatus
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import java.time.LocalDateTime

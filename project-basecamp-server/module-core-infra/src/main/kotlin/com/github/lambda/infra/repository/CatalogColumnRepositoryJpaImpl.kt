@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.catalog.CatalogColumnEntity
+import com.github.lambda.domain.entity.catalog.CatalogColumnEntity
 import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

@@ -1,9 +1,9 @@
 package com.github.lambda.domain.service
 
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
 import com.github.lambda.domain.external.WorkflowStorage
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.model.workflow.SpecSyncErrorType
-import com.github.lambda.domain.model.workflow.WorkflowEntity
 import com.github.lambda.domain.model.workflow.WorkflowParseResult
 import com.github.lambda.domain.model.workflow.WorkflowScheduleSpec
 import com.github.lambda.domain.model.workflow.WorkflowSourceType

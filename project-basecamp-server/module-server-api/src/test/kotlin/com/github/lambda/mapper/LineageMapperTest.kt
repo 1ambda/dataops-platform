@@ -1,9 +1,9 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.lineage.LineageEdgeEntity
+import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
+import com.github.lambda.domain.entity.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageEdgeType
 import com.github.lambda.domain.model.lineage.LineageGraphResult
-import com.github.lambda.domain.model.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageNodeType
 import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
 import org.assertj.core.api.Assertions.assertThat

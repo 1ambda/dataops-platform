@@ -3,8 +3,9 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.QueryEngineNotSupportedException
 import com.github.lambda.common.exception.QueryTooLargeException
 import com.github.lambda.common.exception.RateLimitExceededException
+import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
-import com.github.lambda.domain.model.adhoc.UserExecutionQuotaEntity
+import com.github.lambda.domain.projection.execution.*
 import com.github.lambda.domain.repository.UserExecutionQuotaRepositoryJpa
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -31,11 +32,11 @@ class ExecutionPolicyService(
     /**
      * 사용자의 실행 정책 조회
      */
-    fun getPolicy(userId: String): ExecutionPolicyDto {
+    fun getPolicy(userId: String): ExecutionPolicyProjection {
         val quota = getOrCreateQuota(userId)
         quota.refreshIfNeeded(clock)
 
-        return ExecutionPolicyDto(
+        return ExecutionPolicyProjection(
             maxQueryDurationSeconds = config.maxQueryDurationSeconds,
             maxResultRows = config.maxResultRows,
             maxResultSizeMb = config.maxResultSizeMb,
@@ -43,12 +44,12 @@ class ExecutionPolicyService(
             allowedFileTypes = config.allowedFileTypes,
             maxFileSizeMb = config.maxFileSizeMb,
             rateLimits =
-                RateLimitsDto(
+                RateLimitsProjection(
                     queriesPerHour = config.queriesPerHour,
                     queriesPerDay = config.queriesPerDay,
                 ),
             currentUsage =
-                CurrentUsageDto(
+                CurrentUsageProjection(
                     queriesToday = quota.queriesToday,
                     queriesThisHour = quota.queriesThisHour,
                 ),
@@ -143,32 +144,3 @@ class ExecutionPolicyService(
     fun getConfig(): RunExecutionConfig = config
 }
 
-/**
- * 실행 정책 DTO
- */
-data class ExecutionPolicyDto(
-    val maxQueryDurationSeconds: Int,
-    val maxResultRows: Int,
-    val maxResultSizeMb: Int,
-    val allowedEngines: List<String>,
-    val allowedFileTypes: List<String>,
-    val maxFileSizeMb: Int,
-    val rateLimits: RateLimitsDto,
-    val currentUsage: CurrentUsageDto,
-)
-
-/**
- * Rate Limits DTO
- */
-data class RateLimitsDto(
-    val queriesPerHour: Int,
-    val queriesPerDay: Int,
-)
-
-/**
- * 현재 사용량 DTO
- */
-data class CurrentUsageDto(
-    val queriesToday: Int,
-    val queriesThisHour: Int,
-)

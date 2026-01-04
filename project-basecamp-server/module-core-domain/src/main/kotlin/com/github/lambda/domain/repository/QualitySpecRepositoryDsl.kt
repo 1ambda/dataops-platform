@@ -1,7 +1,8 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.model.quality.ResourceType
+import com.github.lambda.domain.projection.quality.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 
@@ -68,35 +69,35 @@ interface QualitySpecRepositoryDsl {
     fun getQualitySpecStatistics(
         resourceType: ResourceType? = null,
         owner: String? = null,
-    ): Map<String, Any>
+    ): QualitySpecStatisticsProjection
 
     /**
      * 리소스 타입별 quality spec 개수 조회
      *
      * @return 리소스 타입별 quality spec 개수 맵
      */
-    fun getQualitySpecCountByResourceType(): List<Map<String, Any>>
+    fun getQualitySpecCountByResourceType(): List<QualitySpecCountByResourceTypeProjection>
 
     /**
      * 소유자별 quality spec 개수 조회
      *
      * @return 소유자별 quality spec 개수 맵
      */
-    fun getQualitySpecCountByOwner(): List<Map<String, Any>>
+    fun getQualitySpecCountByOwner(): List<QualitySpecCountByOwnerProjection>
 
     /**
      * 태그별 quality spec 개수 조회
      *
      * @return 태그별 quality spec 개수 맵
      */
-    fun getQualitySpecCountByTag(): List<Map<String, Any>>
+    fun getQualitySpecCountByTag(): List<QualitySpecCountByTagProjection>
 
     /**
      * 팀별 quality spec 개수 조회
      *
      * @return 팀별 quality spec 개수 맵
      */
-    fun getQualitySpecCountByTeam(): List<Map<String, Any>>
+    fun getQualitySpecCountByTeam(): List<QualitySpecCountByTeamProjection>
 
     /**
      * 최근에 업데이트된 quality spec 조회

@@ -2,7 +2,7 @@ package com.github.lambda.mapper
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.lambda.domain.model.query.QueryExecutionEntity
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
 import com.github.lambda.dto.query.*
 import org.springframework.stereotype.Component
 

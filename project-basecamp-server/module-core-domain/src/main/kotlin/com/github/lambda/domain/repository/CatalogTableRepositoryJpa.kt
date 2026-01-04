@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.catalog.CatalogTableEntity
+import com.github.lambda.domain.entity.catalog.CatalogTableEntity
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 

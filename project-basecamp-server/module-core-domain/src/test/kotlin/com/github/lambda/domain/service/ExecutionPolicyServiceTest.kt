@@ -3,8 +3,8 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.QueryEngineNotSupportedException
 import com.github.lambda.common.exception.QueryTooLargeException
 import com.github.lambda.common.exception.RateLimitExceededException
+import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
-import com.github.lambda.domain.model.adhoc.UserExecutionQuotaEntity
 import com.github.lambda.domain.repository.UserExecutionQuotaRepositoryJpa
 import io.mockk.every
 import io.mockk.mockk

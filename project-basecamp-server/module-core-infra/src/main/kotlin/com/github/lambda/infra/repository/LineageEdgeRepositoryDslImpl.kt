@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.lineage.LineageEdgeEntity
+import com.github.lambda.domain.entity.lineage.LineageEdgeEntity
 import com.github.lambda.domain.repository.LineageEdgeRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

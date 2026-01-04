@@ -1,8 +1,8 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.model.adhoc.ExecutionStatus
-import com.github.lambda.domain.model.adhoc.QAdHocExecutionEntity
+import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
+import com.github.lambda.domain.entity.adhoc.ExecutionStatus
+import com.github.lambda.domain.entity.adhoc.QAdHocExecutionEntity
 import com.github.lambda.domain.repository.AdHocExecutionRepositoryDsl
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.jpa.impl.JPAQueryFactory

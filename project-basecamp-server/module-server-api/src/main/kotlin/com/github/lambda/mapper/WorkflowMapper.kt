@@ -1,7 +1,7 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.workflow.WorkflowEntity
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.dto.workflow.BackfillResponseDto
 import com.github.lambda.dto.workflow.RegisterWorkflowRequest
 import com.github.lambda.dto.workflow.WorkflowDetailDto

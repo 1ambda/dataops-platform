@@ -1,9 +1,9 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.api.dto.transpile.*
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
 import com.github.lambda.domain.service.*
+import com.github.lambda.dto.transpile.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

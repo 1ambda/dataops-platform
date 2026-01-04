@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.adhoc.UserExecutionQuotaEntity
+import com.github.lambda.domain.entity.adhoc.UserExecutionQuotaEntity
 import java.time.LocalDate
 
 /**

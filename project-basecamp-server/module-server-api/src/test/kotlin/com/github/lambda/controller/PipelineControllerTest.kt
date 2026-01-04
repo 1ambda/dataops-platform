@@ -5,7 +5,7 @@ import com.github.lambda.domain.command.pipeline.CreatePipelineCommand
 import com.github.lambda.domain.command.pipeline.DeletePipelineCommand
 import com.github.lambda.domain.command.pipeline.ExecutePipelineCommand
 import com.github.lambda.domain.command.pipeline.UpdatePipelineCommand
-import com.github.lambda.domain.model.pipeline.PipelineEntity
+import com.github.lambda.domain.entity.pipeline.PipelineEntity
 import com.github.lambda.domain.model.pipeline.PipelineExecution
 import com.github.lambda.domain.model.pipeline.PipelineStatus
 import com.github.lambda.domain.query.pipeline.GetPipelineQuery

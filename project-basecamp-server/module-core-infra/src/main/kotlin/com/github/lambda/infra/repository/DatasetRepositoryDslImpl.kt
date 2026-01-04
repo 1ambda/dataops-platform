@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.dataset.DatasetEntity
+import com.github.lambda.domain.entity.dataset.DatasetEntity
 import com.github.lambda.domain.repository.DatasetRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.github.GitHubRepositoryEntity
-import com.github.lambda.domain.model.github.QGitHubRepositoryEntity
+import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
+import com.github.lambda.domain.entity.github.QGitHubRepositoryEntity
 import com.github.lambda.domain.repository.GitHubRepositoryDsl
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.jpa.impl.JPAQueryFactory

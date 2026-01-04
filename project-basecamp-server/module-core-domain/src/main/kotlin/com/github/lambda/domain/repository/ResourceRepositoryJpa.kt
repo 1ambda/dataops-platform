@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 import java.util.*
 
 /**

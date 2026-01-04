@@ -1,6 +1,6 @@
 package com.github.lambda.domain.command.pipeline
 
-import com.github.lambda.domain.model.pipeline.PipelineStatus
+import com.github.lambda.domain.entity.pipeline.PipelineStatus
 
 /**
  * 파이프라인 생성 명령

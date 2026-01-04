@@ -1,7 +1,7 @@
 package com.github.lambda.domain.repository
 
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
 import java.util.Optional
 
 /**

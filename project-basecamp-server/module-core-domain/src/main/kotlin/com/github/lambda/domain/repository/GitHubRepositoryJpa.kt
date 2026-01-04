@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.github.GitHubRepositoryEntity
+import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
 
 /**
  * GitHub Repository JPA 인터페이스 (순수 도메인 추상화)

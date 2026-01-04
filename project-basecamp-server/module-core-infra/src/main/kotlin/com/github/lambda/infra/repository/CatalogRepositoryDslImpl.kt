@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
+import com.github.lambda.domain.entity.catalog.CatalogTableEntity
 import com.github.lambda.domain.model.catalog.CatalogFilters
-import com.github.lambda.domain.model.catalog.CatalogTableEntity
 import com.github.lambda.domain.model.catalog.TableInfo
 import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
 import com.github.lambda.domain.repository.CatalogRepositoryDsl

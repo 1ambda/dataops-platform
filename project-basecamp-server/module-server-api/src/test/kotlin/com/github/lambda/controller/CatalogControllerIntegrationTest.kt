@@ -1,7 +1,7 @@
 package com.github.lambda.controller
 
-import com.github.lambda.domain.model.catalog.CatalogColumnEntity
-import com.github.lambda.domain.model.catalog.CatalogTableEntity
+import com.github.lambda.domain.entity.catalog.CatalogColumnEntity
+import com.github.lambda.domain.entity.catalog.CatalogTableEntity
 import com.github.lambda.domain.repository.CatalogColumnRepositoryJpa
 import com.github.lambda.domain.repository.CatalogTableRepositoryJpa
 import org.junit.jupiter.api.BeforeEach

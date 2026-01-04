@@ -1,8 +1,8 @@
 # Basecamp Server - Implementation Status
 
 > **Last Updated:** 2026-01-04
-> **Scope:** BASECAMP API feature implementation (51 endpoints)
-> **Current Progress:** 100% (51/51 endpoints completed)
+> **Scope:** BASECAMP API feature implementation (59 endpoints)
+> **Current Progress:** 100% (59/59 endpoints completed)
 
 ---
 
@@ -10,15 +10,15 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total BASECAMP APIs** | 51 endpoints | Target scope |
-| **Completed** | 51 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + Workflow + Run + Query + Transpile + GitHub + **Airflow** APIs |
+| **Total BASECAMP APIs** | 59 endpoints | Target scope |
+| **Completed** | 59 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** APIs |
 | **In Progress** | 0 endpoints | - |
 | **Not Started** | 0 endpoints | - |
 | **Overall Progress** | **100%** | 🟢 All phases complete |
 | **Infrastructure Readiness** | **98%** | ✅ Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow), P3 (Quality, Run, Query, Transpile), P4 (GitHub), and **P5 (Airflow Integration)** APIs all operational with 960+ tests total. All CLI commands fully supported. **New:** Airflow Integration API added (4 endpoints, S3 Spec Sync, DAG Run Sync).
+**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), and **P5 (Airflow Integration)** APIs all operational with 960+ tests total. All CLI commands fully supported. **v2.0 Update:** Workflow API v2.0 completed with Quality workflow integration (8 new endpoints, unified controller architecture).
 
 ---
 
@@ -33,14 +33,14 @@
 | **P0 Critical** | Datasets | 4 | 4 | ✅ **100%** | `dli dataset` |
 | **P1 High** | Catalog | 4 | 4 | ✅ **100%** | `dli catalog` |
 | **P1 High** | Lineage | 1 | 1 | ✅ **100%** | `dli lineage` |
-| **P2 Medium** | Workflow | 9 | 9 | ✅ **100%** | `dli workflow` |
+| **P2 Medium** | Workflow v2.0 | 18 | 18 | ✅ **100%** | `dli workflow` + `dli quality` (workflow ops) |
 | **P3 Low** | Quality | 3 | 3 | ✅ **100%** | `dli quality` |
 | **P3 Low** | Query | 3 | 3 | ✅ **100%** | `dli query` |
 | **P3 Low** | Transpile | 2 | 2 | ✅ **100%** | `dli transpile` |
 | **P3 Low** | Run | 3 | 3 | ✅ **100%** | `dli run` |
 | **P4 GitHub** | GitHub | 11 | 11 | ✅ **100%** | (Server API) |
 | **P5 Airflow** | Airflow Integration | 4 | 4 | ✅ **100%** | (Server API) |
-| **TOTAL** | **12 features** | **51** | **51** | 🟢 **100%** | All CLI commands |
+| **TOTAL** | **12 features** | **59** | **59** | 🟢 **100%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -135,9 +135,11 @@
 
 **Summary:** 109+ tests, comprehensive domain model (QualitySpecEntity, QualityTestEntity, QualityRunEntity, TestResultEntity), external rule engine integration with project-basecamp-parser, mock implementation for development, hexagonal architecture, comprehensive cross-review completed with identified improvement areas
 
-### Workflow API - 100% Complete (9/9 endpoints)
+### Workflow API v2.0 - 100% Complete (18/18 endpoints)
 
 > **📖 Detailed Documentation:** [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md)
+
+#### Dataset Workflow Endpoints (10/10)
 
 | Endpoint | Status |
 |----------|--------|
@@ -152,7 +154,20 @@
 | `POST /api/v1/workflows/{dataset_name}/unpause` | ✅ Complete |
 | `DELETE /api/v1/workflows/{dataset_name}` | ✅ Complete |
 
-**Summary:** 93 unit tests + 30+ integration tests, comprehensive domain model (WorkflowEntity, WorkflowRunEntity), Airflow integration with mock-based development (MockAirflowClient, InMemoryWorkflowStorage), hexagonal architecture, comprehensive cross-review completed
+#### Quality Workflow Endpoints (8/8) - **New in v2.0**
+
+| Endpoint | Status |
+|----------|--------|
+| `POST /api/v1/workflows/quality/{spec_name}/run` | ✅ **Complete** |
+| `GET /api/v1/workflows/quality/runs/{run_id}` | ✅ **Complete** |
+| `POST /api/v1/workflows/quality/runs/{run_id}/stop` | ✅ **Complete** |
+| `GET /api/v1/workflows/quality/history` | ✅ **Complete** |
+| `POST /api/v1/workflows/quality/{spec_name}/pause` | ✅ **Complete** |
+| `POST /api/v1/workflows/quality/{spec_name}/unpause` | ✅ **Complete** |
+| `POST /api/v1/workflows/quality/register` | ✅ **Complete** |
+| `DELETE /api/v1/workflows/quality/{spec_name}` | ✅ **Complete** |
+
+**v2.0 Summary:** **Unified `WorkflowController`** (675+ lines), 93 unit tests + 30+ integration tests, comprehensive domain model (WorkflowEntity + QualityRunEntity), merged dependencies (WorkflowService + QualityService), unified API architecture, **backward compatible** (no breaking changes)
 
 ### Run API - 100% Complete (3/3 endpoints)
 
@@ -229,19 +244,13 @@
 **Lineage API (0/1):**
 - `GET /api/v1/lineage/{resource_name}` - Dependency graph
 
-### Phase 3: P2 Medium Priority (Week 6-9) - ✅ 9/9 APIs Complete
+### Phase 3: P2 Medium Priority (Week 6-9) - ✅ 18/18 APIs Complete
 
-**Workflow Management (9/9):** ✅ **Complete**
-- ✅ `GET /api/v1/workflows` - List workflows
-- ✅ `GET /api/v1/workflows/runs/{run_id}` - Run status
-- ✅ `GET /api/v1/workflows/history` - Execution history
-- ✅ `POST /api/v1/workflows/{dataset_name}/run` - Trigger workflow
-- ✅ `POST /api/v1/workflows/{dataset_name}/backfill` - Backfill execution
-- ✅ `POST /api/v1/workflows/runs/{run_id}/stop` - Stop workflow
-- ✅ `POST /api/v1/workflows/{dataset_name}/pause` - Pause workflow
-- ✅ `POST /api/v1/workflows/{dataset_name}/unpause` - Unpause workflow
-- ✅ `POST /api/v1/workflows/register` - Register workflow
-- ✅ `DELETE /api/v1/workflows/{dataset_name}` - Unregister workflow
+**Workflow Management v2.0 (18/18):** ✅ **Complete**
+- ✅ **Dataset Workflows (10/10):** All existing endpoints maintained
+- ✅ **Quality Workflows (8/8):** New in v2.0 under `/workflows/quality/*` path
+- ✅ **Controller Architecture:** Unified `WorkflowController` (merged from `QualityWorkflowController`)
+- ✅ **Backward Compatibility:** No breaking changes to existing APIs
 
 > **📖 See:** [`WORKFLOW_RELEASE.md`](./WORKFLOW_RELEASE.md) for full implementation details
 
@@ -591,4 +600,4 @@ The codebase contains 11 dummy Pipeline endpoints that serve as **implementation
 
 ---
 
-*Last Updated: 2026-01-04 (Airflow Integration completed - 4 endpoints, 100+ tests) | Next Review: Weekly during Phase 2*
+*Last Updated: 2026-01-04 (Workflow API v2.0 completed - Quality workflow integration, unified controller, 8 new endpoints) | Next Review: Weekly during Phase 2*

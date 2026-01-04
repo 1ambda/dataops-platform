@@ -30,10 +30,20 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
 /**
- * Quality Management REST API Controller
+ * Quality Management REST API Controller (v1.0 - Partial Migration)
  *
  * Provides endpoints for quality spec management and quality test execution.
  * Supports CLI commands: dli quality list/get/run
+ *
+ * **API Migration Status (v1.0 → v2.0):**
+ * - ✅ **MAINTAINED**: list/get operations continue using `/api/v1/quality`
+ * - ⚠️ **DEPRECATED**: execution operations moved to Quality Workflow API
+ *
+ * **For new implementations, use Quality Workflow API:**
+ * - Execution: POST `/api/v1/workflows/quality/{spec_name}/run`
+ * - Control: POST `/api/v1/workflows/quality/{spec_name}/{pause|unpause}`
+ * - Management: POST/DELETE `/api/v1/workflows/quality/register` or `/{spec_name}`
+ * - Monitoring: GET `/api/v1/workflows/quality/runs/{run_id}` or `/history`
  */
 @RestController
 @RequestMapping("${CommonConstants.Api.V1_PATH}/quality")
@@ -55,7 +65,13 @@ class QualityController(
      */
     @Operation(
         summary = "List quality specifications",
-        description = "List quality specifications with optional filtering by resourceType or tag",
+        description = """
+        List quality specifications with optional filtering by resourceType or tag.
+
+        **💡 For workflow operations on these specs, use Quality Workflow API:**
+        - Execute: POST /api/v1/workflows/quality/{spec_name}/run
+        - Monitor: GET /api/v1/workflows/quality/runs/{run_id} or /history
+        """,
     )
     @SwaggerApiResponse(responseCode = "200", description = "Success")
     @GetMapping
@@ -90,7 +106,14 @@ class QualityController(
      */
     @Operation(
         summary = "Get quality specification details",
-        description = "Get quality specification details by name including tests and recent runs",
+        description = """
+        Get quality specification details by name including tests and recent runs.
+
+        **💡 For workflow operations on this spec, use Quality Workflow API:**
+        - Execute: POST /api/v1/workflows/quality/{spec_name}/run
+        - Control: POST /api/v1/workflows/quality/{spec_name}/{pause|unpause}
+        - Monitor: GET /api/v1/workflows/quality/runs/{run_id}
+        """,
     )
     @SwaggerApiResponse(responseCode = "200", description = "Success")
     @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
@@ -116,14 +139,24 @@ class QualityController(
      *
      * POST /api/v1/quality/test/{resource_name}
      * CLI: dli quality run <resource_name>
+     *
+     * @deprecated Use Quality Workflow API instead: POST /api/v1/workflows/quality/{spec_name}/run
      */
+    @Deprecated("Use Quality Workflow API: POST /api/v1/workflows/quality/{spec_name}/run")
     @Operation(
-        summary = "Execute quality tests",
-        description = "Execute quality tests for a specific resource with optional filtering",
+        summary = "[DEPRECATED] Execute quality tests",
+        description = """
+        Execute quality tests for a specific resource with optional filtering.
+
+        **DEPRECATED**: This endpoint is deprecated in favor of the Quality Workflow API.
+        Please use POST /api/v1/workflows/quality/{spec_name}/run for new implementations.
+        """,
+        deprecated = true,
     )
     @SwaggerApiResponse(responseCode = "200", description = "Test execution started successfully")
     @SwaggerApiResponse(responseCode = "404", description = "Quality specification or resource not found")
     @SwaggerApiResponse(responseCode = "408", description = "Test execution timeout")
+    @SwaggerApiResponse(responseCode = "410", description = "[DEPRECATED] Use Quality Workflow API instead")
     @PostMapping("/test/{resource_name}")
     fun executeQualityTests(
         @Parameter(description = "Fully qualified resource name (catalog.schema.table)")

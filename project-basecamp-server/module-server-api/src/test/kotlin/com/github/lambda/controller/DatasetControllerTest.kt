@@ -2,7 +2,7 @@ package com.github.lambda.controller
 
 import com.github.lambda.common.exception.DatasetAlreadyExistsException
 import com.github.lambda.config.SecurityConfig
-import com.github.lambda.domain.model.dataset.DatasetEntity
+import com.github.lambda.domain.entity.dataset.DatasetEntity
 import com.github.lambda.domain.service.DatasetService
 import com.github.lambda.dto.dataset.*
 import com.github.lambda.exception.GlobalExceptionHandler

@@ -2,9 +2,9 @@ package com.github.lambda.controller
 
 import com.github.lambda.common.exception.QualitySpecNotFoundException
 import com.github.lambda.config.SecurityConfig
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
-import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualityTestEntity
 import com.github.lambda.domain.model.quality.ResourceType
 import com.github.lambda.domain.model.quality.RunStatus
 import com.github.lambda.domain.model.quality.Severity

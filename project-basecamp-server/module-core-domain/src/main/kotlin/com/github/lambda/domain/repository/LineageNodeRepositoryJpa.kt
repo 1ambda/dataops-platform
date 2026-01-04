@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.lineage.LineageNodeEntity
+import com.github.lambda.domain.entity.lineage.LineageNodeEntity
 import com.github.lambda.domain.model.lineage.LineageNodeType
 import java.util.*
 

@@ -4,9 +4,9 @@ import com.github.lambda.common.exception.AdHocExecutionException
 import com.github.lambda.common.exception.InvalidSqlException
 import com.github.lambda.common.exception.QueryExecutionTimeoutException
 import com.github.lambda.common.exception.ResultSizeLimitExceededException
+import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
+import com.github.lambda.domain.entity.adhoc.ExecutionStatus
 import com.github.lambda.domain.external.QueryEngineClient
-import com.github.lambda.domain.model.adhoc.AdHocExecutionEntity
-import com.github.lambda.domain.model.adhoc.ExecutionStatus
 import com.github.lambda.domain.model.adhoc.RunExecutionConfig
 import com.github.lambda.domain.repository.AdHocExecutionRepositoryJpa
 import org.slf4j.LoggerFactory

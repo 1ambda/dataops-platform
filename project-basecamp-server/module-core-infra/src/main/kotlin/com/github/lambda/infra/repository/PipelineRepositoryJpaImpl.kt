@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.pipeline.PipelineEntity
+import com.github.lambda.domain.entity.pipeline.PipelineEntity
 import com.github.lambda.domain.model.pipeline.PipelineStatus
 import com.github.lambda.domain.repository.PipelineRepositoryJpa
 import org.springframework.data.domain.Page

@@ -1,7 +1,7 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.metric.MetricEntity
-import com.github.lambda.domain.service.MetricExecutionResult
+import com.github.lambda.domain.entity.metric.MetricEntity
+import com.github.lambda.domain.projection.metric.MetricExecutionProjection
 import com.github.lambda.dto.metric.CreateMetricRequest
 import com.github.lambda.dto.metric.MetricExecutionResultDto
 import com.github.lambda.dto.metric.MetricResponse
@@ -57,9 +57,9 @@ class MetricMapper {
         )
 
     /**
-     * Convert MetricExecutionResult to MetricExecutionResultDto
+     * Convert MetricExecutionProjection to MetricExecutionResultDto
      */
-    fun toExecutionResultDto(result: MetricExecutionResult): MetricExecutionResultDto =
+    fun toExecutionResultDto(result: MetricExecutionProjection): MetricExecutionResultDto =
         MetricExecutionResultDto(
             rows = result.rows,
             rowCount = result.rowCount,

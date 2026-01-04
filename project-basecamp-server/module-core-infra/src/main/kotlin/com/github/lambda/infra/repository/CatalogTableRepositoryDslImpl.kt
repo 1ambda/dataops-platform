@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
+import com.github.lambda.domain.entity.catalog.CatalogTableEntity
 import com.github.lambda.domain.model.catalog.CatalogFilters
-import com.github.lambda.domain.model.catalog.CatalogTableEntity
 import com.github.lambda.domain.repository.CatalogTableRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

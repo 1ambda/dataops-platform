@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
+import com.github.lambda.domain.entity.transpile.TranspileRuleEntity
 import com.github.lambda.domain.model.transpile.SqlDialect
-import com.github.lambda.domain.model.transpile.TranspileRuleEntity
 import com.github.lambda.domain.repository.TranspileRuleRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

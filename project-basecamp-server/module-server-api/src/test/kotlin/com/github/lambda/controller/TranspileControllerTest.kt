@@ -1,10 +1,10 @@
 package com.github.lambda.controller
 
-import com.github.lambda.api.dto.transpile.TranspileResultDto
-import com.github.lambda.api.dto.transpile.TranspileRulesDto
 import com.github.lambda.config.SecurityConfig
 import com.github.lambda.domain.model.transpile.SqlDialect
 import com.github.lambda.domain.service.*
+import com.github.lambda.dto.transpile.TranspileResultDto
+import com.github.lambda.dto.transpile.TranspileRulesDto
 import com.github.lambda.exception.GlobalExceptionHandler
 import com.github.lambda.mapper.TranspileMapper
 import com.ninjasquad.springmockk.MockkBean
@@ -95,7 +95,7 @@ class TranspileControllerTest {
                 version = "1.0.0",
                 rules = emptyList(),
                 metadata =
-                    com.github.lambda.api.dto.transpile.TranspileMetadataDto(
+                    com.github.lambda.dto.transpile.TranspileMetadataDto(
                         createdAt = Instant.parse("2024-01-01T09:00:00Z"),
                         createdBy = "system",
                         totalRules = 0,

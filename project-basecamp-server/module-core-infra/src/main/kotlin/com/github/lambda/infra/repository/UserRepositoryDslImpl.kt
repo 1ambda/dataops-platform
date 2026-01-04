@@ -1,8 +1,8 @@
 package com.github.lambda.infra.repository
 
+import com.github.lambda.domain.entity.user.UserAuthorityEntity
+import com.github.lambda.domain.entity.user.UserEntity
 import com.github.lambda.domain.model.user.UserAggregate
-import com.github.lambda.domain.model.user.UserAuthorityEntity
-import com.github.lambda.domain.model.user.UserEntity
 import com.github.lambda.domain.repository.UserRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

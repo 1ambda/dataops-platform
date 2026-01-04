@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.metric.MetricEntity
+import com.github.lambda.domain.entity.metric.MetricEntity
 import com.github.lambda.domain.repository.MetricRepositoryDsl
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext

@@ -1,11 +1,11 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.catalog.CatalogColumnEntity
-import com.github.lambda.domain.model.catalog.CatalogTableEntity
+import com.github.lambda.domain.entity.catalog.CatalogColumnEntity
+import com.github.lambda.domain.entity.catalog.CatalogTableEntity
+import com.github.lambda.domain.entity.catalog.SampleQueryEntity
 import com.github.lambda.domain.model.catalog.ColumnInfo
 import com.github.lambda.domain.model.catalog.QualityTestResult
 import com.github.lambda.domain.model.catalog.SampleQuery
-import com.github.lambda.domain.model.catalog.SampleQueryEntity
 import com.github.lambda.domain.model.catalog.TableDetail
 import com.github.lambda.domain.model.catalog.TableFreshness
 import com.github.lambda.domain.model.catalog.TableInfo

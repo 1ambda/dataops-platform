@@ -1,10 +1,10 @@
 package com.github.lambda.mapper
 
+import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
 import com.github.lambda.domain.model.github.BranchComparison
 import com.github.lambda.domain.model.github.CommitSummary
 import com.github.lambda.domain.model.github.GitHubBranch
 import com.github.lambda.domain.model.github.GitHubPullRequest
-import com.github.lambda.domain.model.github.GitHubRepositoryEntity
 import com.github.lambda.dto.github.BranchComparisonResponse
 import com.github.lambda.dto.github.CommitSummaryResponse
 import com.github.lambda.dto.github.GitHubBranchResponse

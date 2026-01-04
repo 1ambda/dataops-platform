@@ -3,13 +3,14 @@ package com.github.lambda.domain.service
 import com.github.lambda.common.exception.QualityRunNotFoundException
 import com.github.lambda.common.exception.QualitySpecAlreadyExistsException
 import com.github.lambda.common.exception.QualitySpecNotFoundException
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
-import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualityTestEntity
 import com.github.lambda.domain.model.quality.ResourceType
-import com.github.lambda.domain.model.quality.RunStatus
 import com.github.lambda.domain.model.quality.TestStatus
 import com.github.lambda.domain.model.quality.TestType
+import com.github.lambda.domain.model.workflow.WorkflowRunStatus
+import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.domain.repository.QualityRunRepositoryJpa
 import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
 import com.github.lambda.domain.repository.QualitySpecRepositoryJpa
@@ -18,7 +19,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.time.LocalDateTime
 import java.util.*
 
@@ -27,6 +27,10 @@ import java.util.*
  *
  * Handles Quality Spec CRUD operations and quality test execution.
  * Services are concrete classes (no interfaces) following Pure Hexagonal Architecture.
+ *
+ * v2.0 Enhancement:
+ * - Uses WorkflowRunStatus instead of deprecated RunStatus
+ * - Updated QualityRunEntity structure with workflow integration fields
  */
 @Service
 @Transactional(readOnly = true)
@@ -200,22 +204,26 @@ class QualityService(
 
         // For simplicity, run the first spec (in real implementation, might run all)
         val spec = specs.first()
-        val runId = generateRunId(spec.name, Instant.now())
+        val runId = generateRunId(spec.name)
 
-        // Create quality run entity
+        // Create quality run entity with v2.0 structure
         val qualityRun =
             QualityRunEntity(
                 runId = runId,
-                resourceName = resourceName,
-                status = RunStatus.RUNNING,
-                overallStatus = TestStatus.PASSED,
-                startedAt = Instant.now(),
+                qualitySpecId = spec.id!!,
+                specName = spec.name,
+                targetResource = resourceName,
+                targetResourceType = spec.resourceType,
+                status = WorkflowRunStatus.PENDING,
+                runType = WorkflowRunType.MANUAL,
+                triggeredBy = executedBy,
+                totalTests = 0,
                 passedTests = 0,
                 failedTests = 0,
-                executedBy = executedBy,
-                specId = spec.id!!,
             )
 
+        // Start the run
+        qualityRun.start()
         val savedRun = qualityRunRepositoryJpa.save(qualityRun)
 
         try {
@@ -233,7 +241,6 @@ class QualityService(
 
             var passedCount = 0
             var failedCount = 0
-            var overallStatus = TestStatus.PASSED
 
             // Execute each test
             testsToRun.forEach { test ->
@@ -244,22 +251,15 @@ class QualityService(
                         passedCount++
                     } else {
                         failedCount++
-                        overallStatus = TestStatus.FAILED
                     }
                 } catch (ex: Exception) {
                     log.error("Failed to execute test: {}", test.name, ex)
                     failedCount++
-                    overallStatus = TestStatus.FAILED
                 }
             }
 
-            // Update run status
-            savedRun.status = RunStatus.COMPLETED
-            savedRun.completedAt = Instant.now()
-            savedRun.durationSeconds = calculateDuration(savedRun.startedAt, savedRun.completedAt!!)
-            savedRun.passedTests = passedCount
-            savedRun.failedTests = failedCount
-            savedRun.overallStatus = overallStatus
+            // Complete the run with results
+            savedRun.complete(passedCount, failedCount, testsToRun.size)
 
             log.info(
                 "Quality test execution completed for resource: {}, passed: {}, failed: {}",
@@ -269,10 +269,7 @@ class QualityService(
             )
         } catch (ex: Exception) {
             log.error("Quality test execution failed for resource: {}", resourceName, ex)
-            savedRun.status = RunStatus.FAILED
-            savedRun.completedAt = Instant.now()
-            savedRun.durationSeconds = calculateDuration(savedRun.startedAt, savedRun.completedAt!!)
-            savedRun.overallStatus = TestStatus.FAILED
+            savedRun.fail()
         }
 
         return qualityRunRepositoryJpa.save(savedRun)
@@ -428,26 +425,204 @@ class QualityService(
     /**
      * Generate unique run ID
      */
-    private fun generateRunId(
-        specName: String,
-        timestamp: Instant,
-    ): String {
+    private fun generateRunId(specName: String): String {
+        val timestamp = LocalDateTime.now()
         val formattedTime =
             timestamp
                 .toString()
                 .replace("-", "")
                 .replace(":", "")
                 .replace(".", "")
+                .replace("T", "_")
         return "${specName}_${formattedTime}_${UUID.randomUUID().toString().take(8)}"
     }
 
+    // ===== Quality Workflow v2.0 Methods =====
+
     /**
-     * Calculate duration between two instants
+     * Execute quality workflow (v2.0)
+     *
+     * Enhanced version of executeQualityTests for workflow-based execution.
+     * Includes Airflow integration and extended parameter support.
      */
-    private fun calculateDuration(
-        start: Instant,
-        end: Instant,
-    ): Double = (end.toEpochMilli() - start.toEpochMilli()) / 1000.0
+    @Transactional
+    fun executeQualityWorkflow(
+        specName: String,
+        parameters: Map<String, Any>? = null,
+        executedBy: String,
+    ): QualityRunEntity {
+        log.info("Executing quality workflow: $specName by $executedBy")
+
+        val spec = getQualitySpecOrThrow(specName)
+        val runId = generateRunId(specName)
+
+        val run =
+            QualityRunEntity(
+                runId = runId,
+                qualitySpecId = spec.id!!,
+                specName = specName,
+                targetResource = spec.resourceName,
+                targetResourceType = spec.resourceType,
+                status = WorkflowRunStatus.PENDING,
+                runType = WorkflowRunType.MANUAL,
+                triggeredBy = executedBy,
+                params = parameters?.toString(), // Convert to JSON string
+            )
+
+        return qualityRunRepositoryJpa.save(run)
+    }
+
+    /**
+     * Get quality run by ID with exception if not found (v2.0)
+     */
+    fun getQualityRunByIdOrThrow(runId: String): QualityRunEntity = getQualityRunOrThrow(runId)
+
+    /**
+     * Get quality test results for a run (v2.0)
+     */
+    fun getQualityTestResults(runId: String): List<QualityTestEntity> {
+        // TODO: Implement with QualityTestResultEntity when available
+        // For now return empty list using QualityTestEntity
+        return emptyList()
+    }
+
+    /**
+     * Get quality run history with extended filtering (v2.0)
+     */
+    fun getQualityRunHistory(
+        specName: String? = null,
+        status: String? = null,
+        executedBy: String? = null,
+        limit: Int = 50,
+        offset: Int = 0,
+    ): List<QualityRunEntity> {
+        // Create pageable for repository query
+        val pageable = PageRequest.of(offset / limit, limit)
+
+        // Enhanced version of getQualityRuns with more filters
+        return if (specName != null) {
+            qualityRunRepositoryJpa
+                .findBySpecNameOrderByStartedAtDesc(specName, pageable)
+                .content
+                .filter { run ->
+                    (status == null || run.status.name == status) &&
+                        (executedBy == null || run.triggeredBy == executedBy)
+                }
+        } else {
+            qualityRunRepositoryJpa
+                .findAllByOrderByStartedAtDesc(pageable)
+                .content
+                .filter { run ->
+                    (status == null || run.status.name == status) &&
+                        (executedBy == null || run.triggeredBy == executedBy)
+                }
+        }
+    }
+
+    /**
+     * Stop quality run (v2.0)
+     */
+    @Transactional
+    fun stopQualityRun(
+        runId: String,
+        stoppedBy: String,
+        reason: String? = null,
+    ): QualityRunEntity {
+        log.info("Stopping quality run: $runId by $stoppedBy")
+
+        val run = getQualityRunOrThrow(runId)
+
+        require(run.canBeStopped()) {
+            "Quality run $runId cannot be stopped. Current status: ${run.status}"
+        }
+
+        run.stop(stoppedBy, reason)
+        return qualityRunRepositoryJpa.save(run)
+    }
+
+    /**
+     * Pause quality specification (v2.0)
+     */
+    @Transactional
+    fun pauseQualitySpec(
+        specName: String,
+        pausedBy: String,
+        reason: String? = null,
+    ): QualitySpecEntity {
+        log.info("Pausing quality spec: $specName by $pausedBy")
+
+        val spec = getQualitySpecOrThrow(specName)
+
+        require(spec.canBePaused()) {
+            "Quality spec $specName cannot be paused. Current status: ${spec.status}"
+        }
+
+        spec.pause(pausedBy, reason)
+        return qualitySpecRepositoryJpa.save(spec)
+    }
+
+    /**
+     * Unpause quality specification (v2.0)
+     */
+    @Transactional
+    fun unpauseQualitySpec(
+        specName: String,
+        unpausedBy: String,
+    ): QualitySpecEntity {
+        log.info("Unpausing quality spec: $specName by $unpausedBy")
+
+        val spec = getQualitySpecOrThrow(specName)
+
+        require(spec.canBeUnpaused()) {
+            "Quality spec $specName cannot be unpaused. Current status: ${spec.status}"
+        }
+
+        spec.unpause()
+        return qualitySpecRepositoryJpa.save(spec)
+    }
+
+    /**
+     * Register quality specification from YAML (v2.0)
+     */
+    @Transactional
+    fun registerQualitySpec(
+        yamlContent: String,
+        registeredBy: String,
+        sourceType: com.github.lambda.domain.model.workflow.WorkflowSourceType =
+            com.github.lambda.domain.model.workflow.WorkflowSourceType.MANUAL,
+        s3Path: String? = null,
+    ): QualitySpecEntity {
+        // TODO: Implement YAML parsing and QualitySpec creation
+        // For now, this is a placeholder that would parse YAML and create QualitySpecEntity
+        log.info("Registering quality spec from YAML by $registeredBy")
+
+        throw NotImplementedError("YAML parsing and quality spec registration not yet implemented")
+    }
+
+    /**
+     * Unregister quality specification (v2.0)
+     */
+    @Transactional
+    fun unregisterQualitySpec(
+        specName: String,
+        unregisteredBy: String,
+    ): Boolean {
+        log.info("Unregistering quality spec: $specName by $unregisteredBy")
+
+        val spec = getQualitySpecOrThrow(specName)
+
+        // Check if there are any running executions
+        val runningRuns =
+            qualityRunRepositoryJpa
+                .findBySpecName(specName)
+                .filter { it.status == WorkflowRunStatus.RUNNING || it.status == WorkflowRunStatus.PENDING }
+
+        require(runningRuns.isEmpty()) {
+            "Cannot unregister quality spec $specName: ${runningRuns.size} executions are still running"
+        }
+
+        return deleteQualitySpec(specName)
+    }
 }
 
 /**

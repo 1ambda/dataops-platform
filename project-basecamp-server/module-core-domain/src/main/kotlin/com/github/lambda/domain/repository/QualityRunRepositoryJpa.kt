@@ -1,20 +1,23 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.quality.QualityRunEntity
-import com.github.lambda.domain.model.quality.RunStatus
-import com.github.lambda.domain.model.quality.TestStatus
+import com.github.lambda.domain.entity.quality.QualityRunEntity
+import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
-import java.time.Instant
+import java.time.LocalDateTime
 
 /**
  * Quality Run Repository JPA 인터페이스 (순수 도메인 추상화)
  *
  * QualityRun에 대한 기본 CRUD 작업과 도메인 특화 쿼리 작업을 정의합니다.
- * JpaRepository와 동일한 시그니처를 사용하여 충돌을 방지합니다.
+ *
+ * v2.0 Enhancement:
+ * - Uses WorkflowRunStatus instead of deprecated RunStatus
+ * - Uses LocalDateTime instead of Instant
+ * - Updated field names to match v2.0 entity
  */
 interface QualityRunRepositoryJpa {
-    // 기본 CRUD 작업 (JpaRepository와 충돌하지 않는 메서드들)
+    // 기본 CRUD 작업
     fun save(qualityRun: QualityRunEntity): QualityRunEntity
 
     // 도메인 특화 조회 메서드 - runId 기반
@@ -33,118 +36,85 @@ interface QualityRunRepositoryJpa {
     ): Page<QualityRunEntity>
 
     // 리소스별 실행 이력 조회
-    fun findByResourceName(resourceName: String): List<QualityRunEntity>
+    fun findByTargetResource(targetResource: String): List<QualityRunEntity>
 
-    fun findByResourceNameOrderByStartedAtDesc(
-        resourceName: String,
+    fun findByTargetResourceOrderByStartedAtDesc(
+        targetResource: String,
         pageable: Pageable,
     ): Page<QualityRunEntity>
 
     // 실행자별 조회
-    fun findByExecutedBy(executedBy: String): List<QualityRunEntity>
+    fun findByTriggeredBy(triggeredBy: String): List<QualityRunEntity>
 
-    fun findByExecutedByOrderByStartedAtDesc(
-        executedBy: String,
+    fun findByTriggeredByOrderByStartedAtDesc(
+        triggeredBy: String,
         pageable: Pageable,
     ): Page<QualityRunEntity>
 
     // 상태별 조회
-    fun findByStatus(status: RunStatus): List<QualityRunEntity>
+    fun findByStatus(status: WorkflowRunStatus): List<QualityRunEntity>
 
     fun findByStatusOrderByStartedAtDesc(
-        status: RunStatus,
-        pageable: Pageable,
-    ): Page<QualityRunEntity>
-
-    fun findByOverallStatus(overallStatus: TestStatus): List<QualityRunEntity>
-
-    fun findByOverallStatusOrderByStartedAtDesc(
-        overallStatus: TestStatus,
+        status: WorkflowRunStatus,
         pageable: Pageable,
     ): Page<QualityRunEntity>
 
     // 시간 범위별 조회
     fun findByStartedAtBetween(
-        startTime: Instant,
-        endTime: Instant,
+        startTime: LocalDateTime,
+        endTime: LocalDateTime,
     ): List<QualityRunEntity>
 
     fun findByStartedAtBetweenOrderByStartedAtDesc(
-        startTime: Instant,
-        endTime: Instant,
+        startTime: LocalDateTime,
+        endTime: LocalDateTime,
         pageable: Pageable,
     ): Page<QualityRunEntity>
 
-    fun findByStartedAtAfter(startTime: Instant): List<QualityRunEntity>
+    fun findByStartedAtAfter(startTime: LocalDateTime): List<QualityRunEntity>
 
-    fun findByStartedAtBefore(endTime: Instant): List<QualityRunEntity>
+    fun findByStartedAtBefore(endTime: LocalDateTime): List<QualityRunEntity>
 
     // 전체 목록 조회 (페이지네이션)
     fun findAllByOrderByStartedAtDesc(pageable: Pageable): Page<QualityRunEntity>
 
     // 통계 및 집계
-    fun countByStatus(status: RunStatus): Long
+    fun countByStatus(status: WorkflowRunStatus): Long
 
-    fun countByOverallStatus(overallStatus: TestStatus): Long
-
-    fun countByExecutedBy(executedBy: String): Long
+    fun countByTriggeredBy(triggeredBy: String): Long
 
     fun countBySpecName(specName: String): Long
 
-    fun countByResourceName(resourceName: String): Long
+    fun countByTargetResource(targetResource: String): Long
 
     fun count(): Long
 
     // 실행 중인 작업 조회
     fun findByStatusAndStartedAtBefore(
-        status: RunStatus,
-        threshold: Instant,
+        status: WorkflowRunStatus,
+        threshold: LocalDateTime,
     ): List<QualityRunEntity>
 
     // 최근 완료된 실행 조회
-    fun findByStatusInAndCompletedAtIsNotNullOrderByCompletedAtDesc(
-        statuses: List<RunStatus>,
+    fun findByStatusInAndEndedAtIsNotNullOrderByEndedAtDesc(
+        statuses: List<WorkflowRunStatus>,
         pageable: Pageable,
     ): Page<QualityRunEntity>
-
-    // 실행 시간 기반 조회
-    fun findByDurationSecondsGreaterThan(durationSeconds: Double): List<QualityRunEntity>
-
-    fun findByDurationSecondsBetween(
-        minDuration: Double,
-        maxDuration: Double,
-    ): List<QualityRunEntity>
-
-    // 커스텀 업데이트 쿼리
-    fun updateStatusByRunId(
-        runId: String,
-        status: RunStatus,
-        completedAt: Instant,
-    ): Int
-
-    // 복잡한 검색 쿼리
-    fun findByComplexFilters(
-        resourceName: String?,
-        status: RunStatus?,
-        overallStatus: TestStatus?,
-        executedBy: String?,
-        startTime: Instant?,
-        endTime: Instant?,
-        pageable: Pageable,
-    ): Page<QualityRunEntity>
-
-    fun countByComplexFilters(
-        resourceName: String?,
-        status: RunStatus?,
-        overallStatus: TestStatus?,
-        executedBy: String?,
-        startTime: Instant?,
-        endTime: Instant?,
-    ): Long
 
     // 장시간 실행 중인 작업 조회
-    fun findLongRunningTasks(threshold: Instant): List<QualityRunEntity>
+    fun findLongRunningTasks(threshold: LocalDateTime): List<QualityRunEntity>
 
-    // 실행 통계 조회
-    fun getRunStatistics(since: Instant): List<Map<String, Any>>
+    // Airflow sync 대상 조회
+    fun findByStatusInAndLastSyncedAtBefore(
+        statuses: List<WorkflowRunStatus>,
+        threshold: LocalDateTime,
+    ): List<QualityRunEntity>
+
+    // Quality Spec ID별 조회
+    fun findByQualitySpecId(qualitySpecId: Long): List<QualityRunEntity>
+
+    fun findByQualitySpecIdOrderByStartedAtDesc(
+        qualitySpecId: Long,
+        pageable: Pageable,
+    ): Page<QualityRunEntity>
 }

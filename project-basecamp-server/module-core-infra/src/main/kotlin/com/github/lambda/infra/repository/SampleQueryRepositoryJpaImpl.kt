@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.catalog.SampleQueryEntity
+import com.github.lambda.domain.entity.catalog.SampleQueryEntity
 import com.github.lambda.domain.repository.SampleQueryRepositoryJpa
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable

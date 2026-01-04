@@ -29,14 +29,14 @@ class MockBasecampParserClientTest {
         @DisplayName("should parse simple SELECT query successfully")
         fun shouldParseSimpleSelectQuerySuccessfully() {
             // Given
-            val sql = "SELECT id, name FROM users"
+            val sql = "SELECT id, name FROM schema.users"
 
             // When
-            val result = client.parseSQL(sql)
+            val result = client.parseSQL(sql, "trino")
 
             // Then
             assertThat(result.success).isTrue()
-            assertThat(result.sourceTables).contains("users")
+            assertThat(result.sourceTables).contains("schema.users")
             assertThat(result.targetTables).isEmpty()
             assertThat(result.errorMessage).isNull()
         }
@@ -45,28 +45,28 @@ class MockBasecampParserClientTest {
         @DisplayName("should parse INSERT query successfully")
         fun shouldParseInsertQuerySuccessfully() {
             // Given
-            val sql = "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')"
+            val sql = "INSERT INTO schema.users (name, email) VALUES ('John', 'john@example.com')"
 
             // When
-            val result = client.parseSQL(sql)
+            val result = client.parseSQL(sql, "trino")
 
             // Then
             assertThat(result.success).isTrue()
-            assertThat(result.targetTables).contains("users")
+            assertThat(result.targetTables).contains("schema.users")
         }
 
         @Test
         @DisplayName("should extract multiple source tables from JOIN query")
         fun shouldExtractMultipleSourceTablesFromJoinQuery() {
             // Given
-            val sql = "SELECT u.name, p.title FROM users u JOIN profiles p ON u.id = p.user_id"
+            val sql = "SELECT u.name, p.title FROM schema.users u JOIN schema.profiles p ON u.id = p.user_id"
 
             // When
-            val result = client.parseSQL(sql)
+            val result = client.parseSQL(sql, "trino")
 
             // Then
             assertThat(result.success).isTrue()
-            assertThat(result.sourceTables).containsExactlyInAnyOrder("users", "profiles")
+            assertThat(result.sourceTables).containsExactlyInAnyOrder("schema.users", "schema.profiles")
         }
     }
 
@@ -109,7 +109,7 @@ class MockBasecampParserClientTest {
         @DisplayName("should transpile SQL successfully")
         fun shouldTranspileSQLSuccessfully() {
             // Given
-            val sql = "SELECT * FROM users"
+            val sql = "SELECT * FROM schema.users"
             val sourceDialect = "bigquery"
             val targetDialect = "trino"
 
@@ -126,7 +126,7 @@ class MockBasecampParserClientTest {
         @DisplayName("should transpile with custom rules")
         fun shouldTranspileWithCustomRules() {
             // Given
-            val sql = "SELECT DATETIME('2023-01-01') FROM users"
+            val sql = "SELECT DATETIME('2023-01-01') FROM schema.users"
             val sourceDialect = "bigquery"
             val targetDialect = "trino"
             val rules =

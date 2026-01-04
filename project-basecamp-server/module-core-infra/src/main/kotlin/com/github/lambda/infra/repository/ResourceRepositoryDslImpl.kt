@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.resource.QResourceEntity
-import com.github.lambda.domain.model.resource.ResourceEntity
+import com.github.lambda.domain.entity.resource.QResourceEntity
+import com.github.lambda.domain.entity.resource.ResourceEntity
 import com.github.lambda.domain.repository.ResourceRepositoryDsl
 import com.querydsl.jpa.impl.JPAQueryFactory
 import jakarta.persistence.EntityManager

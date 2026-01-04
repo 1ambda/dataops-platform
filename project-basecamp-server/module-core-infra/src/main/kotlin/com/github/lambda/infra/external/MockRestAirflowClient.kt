@@ -1,6 +1,7 @@
 package com.github.lambda.infra.external
 
 import com.github.lambda.common.exception.AirflowConnectionException
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.external.AirflowClient
 import com.github.lambda.domain.external.AirflowDAGRunState
 import com.github.lambda.domain.external.AirflowDAGRunStatus
@@ -11,7 +12,6 @@ import com.github.lambda.domain.external.AirflowTaskState
 import com.github.lambda.domain.external.BackfillResponse
 import com.github.lambda.domain.external.BackfillState
 import com.github.lambda.domain.external.BackfillStatus
-import com.github.lambda.domain.model.workflow.AirflowClusterEntity
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa
 import org.slf4j.LoggerFactory

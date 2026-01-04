@@ -4,9 +4,9 @@ import com.github.lambda.common.exception.WorkflowAlreadyExistsException
 import com.github.lambda.common.exception.WorkflowNotFoundException
 import com.github.lambda.common.exception.WorkflowRunNotFoundException
 import com.github.lambda.config.SecurityConfig
+import com.github.lambda.domain.entity.workflow.WorkflowEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.ScheduleInfo
-import com.github.lambda.domain.model.workflow.WorkflowEntity
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.domain.model.workflow.WorkflowSourceType

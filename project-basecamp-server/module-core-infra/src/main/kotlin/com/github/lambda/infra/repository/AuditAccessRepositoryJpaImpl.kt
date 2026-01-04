@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.audit.AuditAccessEntity
+import com.github.lambda.domain.entity.audit.AuditAccessEntity
 import com.github.lambda.domain.repository.AuditAccessRepositoryJpa
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest

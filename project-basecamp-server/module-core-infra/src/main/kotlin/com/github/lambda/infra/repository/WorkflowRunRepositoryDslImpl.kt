@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.workflow.QWorkflowRunEntity
-import com.github.lambda.domain.model.workflow.WorkflowRunEntity
+import com.github.lambda.domain.entity.workflow.QWorkflowRunEntity
+import com.github.lambda.domain.entity.workflow.WorkflowRunEntity
 import com.github.lambda.domain.model.workflow.WorkflowRunStatus
 import com.github.lambda.domain.model.workflow.WorkflowRunType
 import com.github.lambda.domain.repository.WorkflowRunRepositoryDsl

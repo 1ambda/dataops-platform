@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.query.QueryExecutionEntity
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
 import com.github.lambda.domain.repository.QueryExecutionRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

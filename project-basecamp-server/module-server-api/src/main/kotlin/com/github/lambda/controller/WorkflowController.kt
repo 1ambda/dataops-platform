@@ -3,7 +3,10 @@ package com.github.lambda.controller
 import com.github.lambda.common.constant.CommonConstants
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.model.workflow.WorkflowSourceType
+import com.github.lambda.domain.service.QualityService
 import com.github.lambda.domain.service.WorkflowService
+import com.github.lambda.dto.quality.QualityRunResultDto
+import com.github.lambda.dto.quality.QualityRunSummaryDto
 import com.github.lambda.dto.workflow.BackfillRequest
 import com.github.lambda.dto.workflow.BackfillResponseDto
 import com.github.lambda.dto.workflow.PauseWorkflowRequest
@@ -14,7 +17,9 @@ import com.github.lambda.dto.workflow.WorkflowDetailDto
 import com.github.lambda.dto.workflow.WorkflowRunDetailDto
 import com.github.lambda.dto.workflow.WorkflowRunSummaryDto
 import com.github.lambda.dto.workflow.WorkflowSummaryDto
+import com.github.lambda.mapper.QualityMapper
 import com.github.lambda.mapper.WorkflowMapper
+import com.github.lambda.util.SecurityContext
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -42,17 +47,21 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
  * Workflow Management REST API Controller
  *
  * Provides endpoints for workflow management and execution.
- * Supports CLI commands: dli workflow list/run/backfill/stop/status/history/pause/unpause/register/unregister
+ * Supports CLI commands:
+ * - Dataset workflows: dli workflow list/run/backfill/stop/status/history/pause/unpause/register/unregister
+ * - Quality workflows: dli quality run/status/stop/history/pause/unpause/register/unregister
  */
 @RestController
 @RequestMapping("${CommonConstants.Api.V1_PATH}/workflows")
 @CrossOrigin
 @Validated
-@Tag(name = "Workflow", description = "Workflow management API")
+@Tag(name = "Workflow", description = "Dataset and Quality workflow management API")
 @PreAuthorize("hasRole('ROLE_USER')")
 class WorkflowController(
     private val workflowService: WorkflowService,
     private val workflowMapper: WorkflowMapper,
+    private val qualityService: QualityService,
+    private val qualityMapper: QualityMapper,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -384,5 +393,286 @@ class WorkflowController(
         workflowService.unregisterWorkflow(datasetName, force)
 
         return ResponseEntity.noContent().build()
+    }
+
+    // ========================================
+    // Quality Workflow Endpoints
+    // ========================================
+
+    /**
+     * Execute quality tests for a specification
+     *
+     * POST /api/v1/workflows/quality/{spec_name}/run
+     * CLI: dli quality run <spec_name>
+     */
+    @Operation(
+        summary = "Execute quality tests",
+        description = "Execute quality tests for a specific quality specification via workflow",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Quality run started successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
+    @PostMapping("/quality/{spec_name}/run")
+    fun runQualitySpec(
+        @Parameter(description = "Quality specification name")
+        @PathVariable("spec_name")
+        @NotBlank specName: String,
+        @Valid @RequestBody request: TriggerRunRequest,
+    ): ResponseEntity<QualityRunResultDto> {
+        logger.info {
+            "POST /api/v1/workflows/quality/$specName/run - params: ${request.parameters}"
+        }
+
+        val executedBy = SecurityContext.getCurrentUsername()
+
+        val run =
+            qualityService.executeQualityWorkflow(
+                specName = specName,
+                parameters = request.parameters,
+                executedBy = executedBy,
+            )
+
+        val response = qualityMapper.toRunResultDto(run)
+
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * Get quality run status by run ID
+     *
+     * GET /api/v1/workflows/quality/runs/{run_id}
+     * CLI: dli quality status <run_id>
+     */
+    @Operation(
+        summary = "Get quality run status",
+        description = "Get quality run status and details by run ID",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Success")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality run not found")
+    @GetMapping("/quality/runs/{run_id}")
+    fun getQualityRunStatus(
+        @Parameter(description = "Quality run ID")
+        @PathVariable("run_id")
+        @NotBlank runId: String,
+    ): ResponseEntity<QualityRunResultDto> {
+        logger.info { "GET /api/v1/workflows/quality/runs/$runId" }
+
+        val run = qualityService.getQualityRunByIdOrThrow(runId)
+        // TODO: Convert QualityTestEntity list to TestResultSummaryDto list when needed
+        val response = qualityMapper.toRunResultDto(run, emptyList())
+
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * Stop quality run by run ID
+     *
+     * POST /api/v1/workflows/quality/runs/{run_id}/stop
+     * CLI: dli quality stop <run_id>
+     */
+    @Operation(
+        summary = "Stop quality run",
+        description = "Stop a running quality test execution by run ID",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Quality run stopped successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality run not found")
+    @SwaggerApiResponse(responseCode = "409", description = "Quality run cannot be stopped (already finished)")
+    @PostMapping("/quality/runs/{run_id}/stop")
+    fun stopQualityRun(
+        @Parameter(description = "Quality run ID")
+        @PathVariable("run_id")
+        @NotBlank runId: String,
+        @Valid @RequestBody request: StopRunRequest,
+    ): ResponseEntity<QualityRunResultDto> {
+        logger.info { "POST /api/v1/workflows/quality/runs/$runId/stop - reason: ${request.reason}" }
+
+        val stoppedBy = SecurityContext.getCurrentUsername()
+
+        val run =
+            qualityService.stopQualityRun(
+                runId = runId,
+                stoppedBy = stoppedBy,
+                reason = request.reason,
+            )
+
+        val response = qualityMapper.toRunResultDto(run)
+
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * Get quality run history
+     *
+     * GET /api/v1/workflows/quality/history
+     * CLI: dli quality history
+     */
+    @Operation(
+        summary = "Get quality run history",
+        description = "Get paginated quality run history with optional filtering",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Success")
+    @GetMapping("/quality/history")
+    fun getQualityRunHistory(
+        @Parameter(description = "Filter by quality specification name")
+        @RequestParam(required = false) specName: String?,
+        @Parameter(description = "Filter by run status (PENDING, RUNNING, SUCCESS, FAILED)")
+        @RequestParam(required = false) status: String?,
+        @Parameter(description = "Filter by executor (user email)")
+        @RequestParam(required = false) executedBy: String?,
+        @Parameter(description = "Maximum results (1-500)")
+        @RequestParam(defaultValue = "50")
+        @Min(1)
+        @Max(500) limit: Int,
+        @Parameter(description = "Pagination offset")
+        @RequestParam(defaultValue = "0")
+        @Min(0) offset: Int,
+    ): ResponseEntity<List<QualityRunSummaryDto>> {
+        logger.info {
+            "GET /api/v1/workflows/quality/history - specName: $specName, status: $status, " +
+                "executedBy: $executedBy, limit: $limit, offset: $offset"
+        }
+
+        val runs =
+            qualityService.getQualityRunHistory(
+                specName = specName,
+                status = status,
+                executedBy = executedBy,
+                limit = limit,
+                offset = offset,
+            )
+
+        val response = runs.map { qualityMapper.toRunSummaryDto(it) }
+
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * Pause quality specification
+     *
+     * POST /api/v1/workflows/quality/{spec_name}/pause
+     * CLI: dli quality pause <spec_name>
+     */
+    @Operation(
+        summary = "Pause quality specification",
+        description = "Pause scheduled execution of a quality specification",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Quality specification paused successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
+    @SwaggerApiResponse(responseCode = "409", description = "Quality specification is already paused or disabled")
+    @PostMapping("/quality/{spec_name}/pause")
+    fun pauseQualitySpec(
+        @Parameter(description = "Quality specification name")
+        @PathVariable("spec_name")
+        @NotBlank specName: String,
+        @Valid @RequestBody request: PauseWorkflowRequest,
+    ): ResponseEntity<Void> {
+        logger.info { "POST /api/v1/workflows/quality/$specName/pause - reason: ${request.reason}" }
+
+        val pausedBy = SecurityContext.getCurrentUsername()
+
+        qualityService.pauseQualitySpec(
+            specName = specName,
+            pausedBy = pausedBy,
+            reason = request.reason,
+        )
+
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * Unpause quality specification
+     *
+     * POST /api/v1/workflows/quality/{spec_name}/unpause
+     * CLI: dli quality unpause <spec_name>
+     */
+    @Operation(
+        summary = "Unpause quality specification",
+        description = "Resume scheduled execution of a quality specification",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Quality specification unpaused successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
+    @SwaggerApiResponse(responseCode = "409", description = "Quality specification is not paused")
+    @PostMapping("/quality/{spec_name}/unpause")
+    fun unpauseQualitySpec(
+        @Parameter(description = "Quality specification name")
+        @PathVariable("spec_name")
+        @NotBlank specName: String,
+    ): ResponseEntity<Void> {
+        logger.info { "POST /api/v1/workflows/quality/$specName/unpause" }
+
+        val unpausedBy = SecurityContext.getCurrentUsername()
+
+        qualityService.unpauseQualitySpec(
+            specName = specName,
+            unpausedBy = unpausedBy,
+        )
+
+        return ResponseEntity.ok().build()
+    }
+
+    /**
+     * Register quality specification
+     *
+     * POST /api/v1/workflows/quality/register
+     * CLI: dli quality register <file>
+     */
+    @Operation(
+        summary = "Register quality specification",
+        description = "Register a new quality specification from YAML definition",
+    )
+    @SwaggerApiResponse(responseCode = "201", description = "Quality specification registered successfully")
+    @SwaggerApiResponse(responseCode = "400", description = "Invalid YAML content or specification")
+    @SwaggerApiResponse(responseCode = "409", description = "Quality specification with same name already exists")
+    @PostMapping("/quality/register")
+    fun registerQualitySpec(
+        @Valid @RequestBody request: RegisterWorkflowRequest,
+    ): ResponseEntity<Void> {
+        logger.info { "POST /api/v1/workflows/quality/register - datasetName: ${request.datasetName}" }
+
+        val registeredBy = SecurityContext.getCurrentUsername()
+
+        qualityService.registerQualitySpec(
+            yamlContent = request.yamlContent,
+            registeredBy = registeredBy,
+            sourceType =
+                com.github.lambda.domain.model.workflow.WorkflowSourceType
+                    .valueOf(request.sourceType),
+            s3Path = null, // s3Path not available in RegisterWorkflowRequest
+        )
+
+        return ResponseEntity.status(HttpStatus.CREATED).build()
+    }
+
+    /**
+     * Unregister quality specification
+     *
+     * DELETE /api/v1/workflows/quality/{spec_name}
+     * CLI: dli quality unregister <spec_name>
+     */
+    @Operation(
+        summary = "Unregister quality specification",
+        description = "Remove quality specification and stop all related executions",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "Quality specification unregistered successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
+    @SwaggerApiResponse(
+        responseCode = "409",
+        description = "Quality specification cannot be unregistered (has running executions)",
+    )
+    @DeleteMapping("/quality/{spec_name}")
+    fun unregisterQualitySpec(
+        @Parameter(description = "Quality specification name")
+        @PathVariable("spec_name")
+        @NotBlank specName: String,
+    ): ResponseEntity<Void> {
+        logger.info { "DELETE /api/v1/workflows/quality/$specName" }
+
+        val unregisteredBy = SecurityContext.getCurrentUsername()
+
+        qualityService.unregisterQualitySpec(
+            specName = specName,
+            unregisteredBy = unregisteredBy,
+        )
+
+        return ResponseEntity.ok().build()
     }
 }

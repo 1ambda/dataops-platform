@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.quality.QualityTestEntity
+import com.github.lambda.domain.entity.quality.QualityTestEntity
 import com.github.lambda.domain.model.quality.Severity
 import com.github.lambda.domain.model.quality.TestType
 import com.github.lambda.domain.repository.QualityTestRepositoryJpa

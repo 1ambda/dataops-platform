@@ -1,7 +1,7 @@
 package com.github.lambda.infra.external
 
 import com.github.lambda.common.exception.AirflowConnectionException
-import com.github.lambda.domain.model.workflow.AirflowClusterEntity
+import com.github.lambda.domain.entity.workflow.AirflowClusterEntity
 import com.github.lambda.domain.model.workflow.AirflowEnvironment
 import com.github.lambda.domain.model.workflow.ScheduleInfo
 import com.github.lambda.domain.repository.AirflowClusterRepositoryJpa

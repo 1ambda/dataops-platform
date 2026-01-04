@@ -1,8 +1,8 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.domain.command.pipeline.*
+import com.github.lambda.domain.entity.pipeline.PipelineEntity
 import com.github.lambda.domain.model.pipeline.OwnerStatistics
-import com.github.lambda.domain.model.pipeline.PipelineEntity
 import com.github.lambda.domain.model.pipeline.PipelineExecution
 import com.github.lambda.domain.model.pipeline.PipelineStatistics
 import com.github.lambda.domain.model.pipeline.PipelineStatus

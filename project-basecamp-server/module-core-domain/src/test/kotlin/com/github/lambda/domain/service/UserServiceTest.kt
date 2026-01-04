@@ -1,8 +1,8 @@
 package com.github.lambda.domain.service
 
 import com.github.lambda.common.exception.BusinessRuleViolationException
+import com.github.lambda.domain.entity.user.UserEntity
 import com.github.lambda.domain.model.user.UserAggregate
-import com.github.lambda.domain.model.user.UserEntity
 import com.github.lambda.domain.model.user.UserRole
 import com.github.lambda.domain.repository.UserAuthorityRepositoryJpa
 import com.github.lambda.domain.repository.UserRepositoryDsl

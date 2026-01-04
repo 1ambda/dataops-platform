@@ -1,6 +1,6 @@
 package com.github.lambda.domain.fixtures
 
-import com.github.lambda.domain.model.metric.MetricEntity
+import com.github.lambda.domain.entity.metric.MetricEntity
 import java.time.LocalDateTime
 
 /**

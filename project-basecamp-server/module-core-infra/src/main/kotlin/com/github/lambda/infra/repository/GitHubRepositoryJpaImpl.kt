@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.github.GitHubRepositoryEntity
+import com.github.lambda.domain.entity.github.GitHubRepositoryEntity
 import com.github.lambda.domain.repository.GitHubRepositoryJpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

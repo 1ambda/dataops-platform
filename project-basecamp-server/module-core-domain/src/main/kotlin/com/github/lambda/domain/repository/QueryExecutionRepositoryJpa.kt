@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.query.QueryExecutionEntity
+import com.github.lambda.domain.entity.query.QueryExecutionEntity
 import java.util.*
 
 /**

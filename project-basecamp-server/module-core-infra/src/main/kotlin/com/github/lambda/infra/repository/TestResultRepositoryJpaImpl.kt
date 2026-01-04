@@ -1,6 +1,6 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.quality.TestResultEntity
+import com.github.lambda.domain.entity.quality.TestResultEntity
 import com.github.lambda.domain.model.quality.TestStatus
 import com.github.lambda.domain.repository.TestResultRepositoryJpa
 import org.springframework.data.domain.Page

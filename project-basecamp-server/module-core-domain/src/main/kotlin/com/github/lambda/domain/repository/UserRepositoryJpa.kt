@@ -1,6 +1,6 @@
 package com.github.lambda.domain.repository
 
-import com.github.lambda.domain.model.user.UserEntity
+import com.github.lambda.domain.entity.user.UserEntity
 import java.util.*
 
 /**

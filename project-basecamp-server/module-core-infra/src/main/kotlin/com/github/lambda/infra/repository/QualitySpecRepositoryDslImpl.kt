@@ -1,7 +1,7 @@
 package com.github.lambda.infra.repository
 
-import com.github.lambda.domain.model.quality.QQualitySpecEntity
-import com.github.lambda.domain.model.quality.QualitySpecEntity
+import com.github.lambda.domain.entity.quality.QQualitySpecEntity
+import com.github.lambda.domain.entity.quality.QualitySpecEntity
 import com.github.lambda.domain.model.quality.ResourceType
 import com.github.lambda.domain.repository.QualitySpecRepositoryDsl
 import com.querydsl.core.BooleanBuilder

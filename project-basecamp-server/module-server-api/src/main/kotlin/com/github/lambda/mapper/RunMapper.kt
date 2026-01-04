@@ -1,10 +1,10 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.domain.model.adhoc.AdHocExecutionEntity
+import com.github.lambda.domain.entity.adhoc.AdHocExecutionEntity
 import com.github.lambda.domain.service.AdHocExecutionResult
-import com.github.lambda.domain.service.CurrentUsageDto
-import com.github.lambda.domain.service.ExecutionPolicyDto
-import com.github.lambda.domain.service.RateLimitsDto
+import com.github.lambda.domain.projection.execution.CurrentUsageProjection
+import com.github.lambda.domain.projection.execution.ExecutionPolicyProjection
+import com.github.lambda.domain.projection.execution.RateLimitsProjection
 import com.github.lambda.dto.run.CurrentUsageResponseDto
 import com.github.lambda.dto.run.ExecutionDetailDto
 import com.github.lambda.dto.run.ExecutionHistoryItemDto
@@ -22,9 +22,9 @@ object RunMapper {
     private val isoFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
 
     /**
-     * ExecutionPolicyDto -> ExecutionPolicyResponseDto 변환
+     * ExecutionPolicyProjection -> ExecutionPolicyResponseDto 변환
      */
-    fun toResponseDto(policy: ExecutionPolicyDto): ExecutionPolicyResponseDto =
+    fun toResponseDto(policy: ExecutionPolicyProjection): ExecutionPolicyResponseDto =
         ExecutionPolicyResponseDto(
             maxQueryDurationSeconds = policy.maxQueryDurationSeconds,
             maxResultRows = policy.maxResultRows,
@@ -37,18 +37,18 @@ object RunMapper {
         )
 
     /**
-     * RateLimitsDto -> RateLimitsResponseDto 변환
+     * RateLimitsProjection -> RateLimitsResponseDto 변환
      */
-    fun toResponseDto(rateLimits: RateLimitsDto): RateLimitsResponseDto =
+    fun toResponseDto(rateLimits: RateLimitsProjection): RateLimitsResponseDto =
         RateLimitsResponseDto(
             queriesPerHour = rateLimits.queriesPerHour,
             queriesPerDay = rateLimits.queriesPerDay,
         )
 
     /**
-     * CurrentUsageDto -> CurrentUsageResponseDto 변환
+     * CurrentUsageProjection -> CurrentUsageResponseDto 변환
      */
-    fun toResponseDto(currentUsage: CurrentUsageDto): CurrentUsageResponseDto =
+    fun toResponseDto(currentUsage: CurrentUsageProjection): CurrentUsageResponseDto =
         CurrentUsageResponseDto(
             queriesToday = currentUsage.queriesToday,
             queriesThisHour = currentUsage.queriesThisHour,

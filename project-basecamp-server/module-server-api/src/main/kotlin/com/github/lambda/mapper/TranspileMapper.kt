@@ -1,7 +1,7 @@
 package com.github.lambda.mapper
 
-import com.github.lambda.api.dto.transpile.*
-import com.github.lambda.domain.service.*
+import com.github.lambda.domain.projection.transpile.*
+import com.github.lambda.dto.transpile.*
 import org.springframework.stereotype.Component
 
 /**
@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component
 @Component
 class TranspileMapper {
     /**
-     * Convert TranspileRulesResult to TranspileRulesDto
+     * Convert TranspileRulesProjection to TranspileRulesDto
      *
      * Used for GET /api/v1/transpile/rules
      */
-    fun toTranspileRulesDto(result: TranspileRulesResult): TranspileRulesDto =
+    fun toTranspileRulesDto(result: TranspileRulesProjection): TranspileRulesDto =
         TranspileRulesDto(
             version = result.version,
             rules =
@@ -43,11 +43,11 @@ class TranspileMapper {
         )
 
     /**
-     * Convert MetricTranspileResult to TranspileResultDto
+     * Convert MetricTranspileProjection to TranspileResultDto
      *
      * Used for GET /api/v1/transpile/metrics/{name}
      */
-    fun toTranspileResultDto(result: MetricTranspileResult): TranspileResultDto =
+    fun toTranspileResultDto(result: MetricTranspileProjection): TranspileResultDto =
         TranspileResultDto(
             metricName = result.metricName,
             sourceDialect = result.sourceDialect,
@@ -76,11 +76,11 @@ class TranspileMapper {
         )
 
     /**
-     * Convert DatasetTranspileResult to TranspileResultDto
+     * Convert DatasetTranspileProjection to TranspileResultDto
      *
      * Used for GET /api/v1/transpile/datasets/{name}
      */
-    fun toTranspileResultDto(result: DatasetTranspileResult): TranspileResultDto =
+    fun toTranspileResultDto(result: DatasetTranspileProjection): TranspileResultDto =
         TranspileResultDto(
             datasetName = result.datasetName,
             sourceDialect = result.sourceDialect,
