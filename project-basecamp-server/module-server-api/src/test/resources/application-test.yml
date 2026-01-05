@@ -84,7 +84,7 @@ flyway:
 logging:
   level:
     root: INFO
-    com.github.lambda: DEBUG
+    com.dataops.basecamp: DEBUG
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     org.springframework.transaction: DEBUG

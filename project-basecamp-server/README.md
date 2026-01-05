@@ -111,7 +111,7 @@ For detailed policy specifications, see [docs/architecture.md](../../docs/archit
 **Purpose:** Shared utilities and cross-cutting concerns
 
 ```
-module-core-common/src/main/kotlin/com/github/lambda/common/
+module-core-common/src/main/kotlin/com/dataops/basecamp/common/
 ├── annotation/               # Kotlin annotations
 ├── constant/                 # Common constants
 ├── exception/                # Exception handling framework
@@ -130,7 +130,7 @@ module-core-common/src/main/kotlin/com/github/lambda/common/
 **Purpose:** Business domain models, services, and repository interfaces (ports)
 
 ```
-module-core-domain/src/main/kotlin/com/github/lambda/domain/
+module-core-domain/src/main/kotlin/com/dataops/basecamp/domain/
 ├── command/
 │   └── pipeline/             # Command pattern (CQRS)
 ├── dto/
@@ -167,7 +167,7 @@ module-core-domain/src/main/kotlin/com/github/lambda/domain/
 **Purpose:** Infrastructure implementations that adapt to domain interfaces
 
 ```
-module-core-infra/src/main/kotlin/com/github/lambda/infra/
+module-core-infra/src/main/kotlin/com/dataops/basecamp/infra/
 ├── config/
 │   ├── DatabaseConfig.kt           # MySQL database configuration
 │   ├── CacheConfig.kt              # Redis cache configuration
@@ -190,7 +190,7 @@ module-core-infra/src/main/kotlin/com/github/lambda/infra/
 **Purpose:** REST API endpoints and web layer
 
 ```
-module-server-api/src/main/kotlin/com/github/lambda/
+module-server-api/src/main/kotlin/com/dataops/basecamp/
 ├── BasecampServerApplication.kt    # Main application class
 ├── api/
 │   ├── controller/                 # REST controllers

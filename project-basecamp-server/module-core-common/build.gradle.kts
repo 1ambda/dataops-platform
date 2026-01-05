@@ -32,7 +32,7 @@ dependencies {
 }
 
 allOpen {
-    annotation("com.github.lambda.common.annotation.OpenClass")
+    annotation("com.dataops.basecamp.common.annotation.OpenClass")
 }
 
 tasks.test {

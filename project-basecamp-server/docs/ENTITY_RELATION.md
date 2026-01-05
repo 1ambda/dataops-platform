@@ -50,9 +50,6 @@ erDiagram
     UserEntity ||--o{ AuditAccessEntity : "access history"
     UserEntity ||--o{ AuditResourceEntity : "resource changes"
 
-    %% Pipeline Domain
-    PipelineEntity ||--o{ JobEntity : "contains jobs"
-
     %% Catalog Domain
     CatalogTableEntity ||--o{ CatalogColumnEntity : "has columns"
     CatalogTableEntity ||--o{ SampleQueryEntity : "has sample queries"
@@ -102,21 +99,6 @@ erDiagram
         Long resourceId
         String resourceType
         String action
-    }
-
-    PipelineEntity {
-        Long id PK
-        String name
-        PipelineStatus status
-        String owner
-    }
-
-    JobEntity {
-        Long id PK
-        Long pipelineId FK
-        String name
-        JobStatus status
-        Int executionOrder
     }
 
     CatalogTableEntity {
@@ -233,11 +215,6 @@ erDiagram
 | `AuditAccessEntity` | `userId` | `UserEntity` | N:1 | Access audit trail |
 | `AuditResourceEntity` | `userId` | `UserEntity` | N:1 | Resource change audit |
 
-### Pipeline Domain
-
-| Entity | FK Field | References | Cardinality | Notes |
-|--------|----------|------------|-------------|-------|
-| `JobEntity` | `pipelineId` | `PipelineEntity` | N:1 | Jobs belong to a pipeline |
 
 ### Catalog Domain
 
@@ -271,7 +248,6 @@ erDiagram
 
 | Entity | Notes |
 |--------|-------|
-| `PipelineEntity` | Root aggregate |
 | `CatalogTableEntity` | Root aggregate |
 | `WorkflowEntity` | Root aggregate (natural key: datasetName) |
 | `QualitySpecEntity` | Root aggregate |
@@ -292,13 +268,6 @@ UserEntity (root)
   +-- ResourceEntity (userId FK)
   +-- AuditAccessEntity (userId FK)
   +-- AuditResourceEntity (userId FK, resourceId)
-```
-
-### Pipeline Orchestration
-
-```
-PipelineEntity (root)
-  +-- JobEntity (pipelineId FK)
 ```
 
 ### Data Catalog
@@ -376,37 +345,6 @@ class QualitySpecRepositoryDslImpl(
 
         // 3. Build aggregation
         return QualitySpecWithTests(spec = specEntity, tests = tests)
-    }
-}
-```
-
-### Pattern: Pipeline with Jobs (Ordered)
-
-```kotlin
-data class PipelineWithJobs(
-    val pipeline: PipelineEntity,
-    val jobs: List<JobEntity>,
-)
-
-@Repository("pipelineRepositoryDsl")
-class PipelineRepositoryDslImpl(...) : PipelineRepositoryDsl {
-
-    override fun findPipelineWithJobs(pipelineId: Long): PipelineWithJobs? {
-        val pipeline = QPipelineEntity.pipelineEntity
-        val job = QJobEntity.jobEntity
-
-        val pipelineEntity = queryFactory
-            .selectFrom(pipeline)
-            .where(pipeline.id.eq(pipelineId))
-            .fetchOne() ?: return null
-
-        val jobs = queryFactory
-            .selectFrom(job)
-            .where(job.pipelineId.eq(pipelineId))
-            .orderBy(job.executionOrder.asc())
-            .fetch()
-
-        return PipelineWithJobs(pipeline = pipelineEntity, jobs = jobs)
     }
 }
 ```

@@ -15,17 +15,19 @@
 ## Table of Contents
 
 1. [Custom Rules](#custom-rules-critical)
-2. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
-3. [Module Placement Guidelines](#module-placement-guidelines)
-4. [External System Integration Patterns](#external-system-integration-patterns)
-5. [Entity Relationship Rules](#entity-relationship-rules-critical)
-6. [Projection Pattern](#projection-pattern)
-7. [Service Implementation Patterns](#service-implementation-patterns)
-8. [Repository Layer Patterns](#repository-layer-patterns)
-9. [Controller Patterns](#controller-patterns)
-10. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
-11. [Entity Patterns](#entity-patterns)
-12. [Implementation Order](#implementation-order)
+2. [Entity Organization Rules](#entity-organization-rules-critical)
+3. [Hexagonal Architecture Patterns](#hexagonal-architecture-patterns)
+4. [Module Placement Guidelines](#module-placement-guidelines)
+5. [External System Integration Patterns](#external-system-integration-patterns)
+6. [Entity Relationship Rules](#entity-relationship-rules-critical)
+7. [Projection Pattern](#projection-pattern)
+8. [Command Pattern](#command-pattern)
+9. [Service Implementation Patterns](#service-implementation-patterns)
+10. [Repository Layer Patterns](#repository-layer-patterns)
+11. [Controller Patterns](#controller-patterns)
+12. [DTO and Mapper Patterns](#dto-and-mapper-patterns)
+13. [Entity Patterns](#entity-patterns)
+14. [Implementation Order](#implementation-order)
 
 ---
 
@@ -50,6 +52,94 @@ Before implementing any feature, understand these project-specific rules:
 
 ---
 
+## Entity Organization Rules (Critical)
+
+> **⚠️ MANDATORY for AI agents:** ALL Entity classes must follow this package organization
+
+### Directory Structure
+
+**BEFORE (Old Structure - REMOVED):**
+```
+❌ REMOVED: domain/model/ (split into command/, projection/, external/, internal/)
+```
+
+**AFTER (New Structure - MANDATORY):**
+```
+module-core-domain/src/main/kotlin/com/github/lambda/domain/
+└── entity/                           # ✅ ALL Entity classes here
+    ├── BaseEntity.kt                # Base entities at root
+    ├── BaseAuditableEntity.kt
+    ├── adhoc/                       # Domain-specific entities
+    │   ├── AdHocExecutionEntity.kt
+    │   └── UserExecutionQuotaEntity.kt
+    ├── audit/
+    ├── catalog/
+    ├── dataset/
+    ├── github/
+    ├── lineage/
+    ├── metric/
+    ├── pipeline/
+    ├── quality/
+    ├── query/
+    ├── resource/
+    ├── transpile/
+    ├── user/
+    └── workflow/
+```
+
+### Implementation Rules
+
+1. **Package Declaration:**
+   ```kotlin
+   // ✅ CORRECT: Base entities
+   package com.dataops.basecamp.domain.entity
+
+   // ✅ CORRECT: Domain-specific entities
+   package com.dataops.basecamp.domain.entity.quality
+   package com.dataops.basecamp.domain.entity.user
+   ```
+
+2. **Entity Placement:**
+   ```kotlin
+   // ✅ CORRECT: New entity creation
+   // File: module-core-domain/entity/metric/MetricEntity.kt
+   package com.dataops.basecamp.domain.entity.metric
+
+   @Entity
+   @Table(name = "metrics")
+   class MetricEntity(...)
+   ```
+
+3. **Import Statements:**
+   ```kotlin
+   // ✅ CORRECT: Import entities from entity package
+   import com.dataops.basecamp.domain.entity.BaseEntity
+   import com.dataops.basecamp.domain.entity.quality.QualitySpecEntity
+
+   // ❌ WRONG: Old model package imports (removed)
+   // import com.dataops.basecamp.domain.entity.quality.QualitySpecEntity
+   ```
+
+### AI Agent Checklist
+
+When creating new entities:
+- [ ] Create in `domain/entity/{domain}/` (NOT `domain/model/`)
+- [ ] Use package `com.dataops.basecamp.domain.entity.{domain}`
+- [ ] Import other entities from `com.dataops.basecamp.domain.entity.*`
+- [ ] Split models into command/, projection/, external/, internal/ based on usage
+
+### Verification
+
+```bash
+# Check entities are in correct location (should show 29+ entities)
+find module-core-domain/src/main/kotlin/com/github/lambda/domain/entity -name "*Entity.kt" | wc -l
+
+# Verify old locations are empty (should return 0)
+find module-core-domain/src/main/kotlin/com/github/lambda/domain/model -name "*Entity.kt" | wc -l
+```
+
+---
+
 ## Hexagonal Architecture Patterns
 
 ### Module Structure Overview
@@ -63,7 +153,7 @@ project-basecamp-server/
 │   │   └── util/                # Utility classes
 ├── module-core-domain/          # Domain models & interfaces
 │   ├── src/main/kotlin/domain/
-│   │   ├── model/               # JPA entities (domain-specific)
+│   │   ├── command/              # Incoming requests/filters
 │   │   ├── repository/          # Repository interfaces (ports)
 │   │   └── service/             # Domain services (concrete)
 ├── module-core-infra/           # Infrastructure implementations
@@ -72,11 +162,17 @@ project-basecamp-server/
 │   │   ├── external/            # External service clients (Airflow, BigQuery)
 │   │   └── exception/           # Infrastructure-specific exceptions (optional)
 └── module-server-api/           # REST API layer
-    ├── src/main/kotlin/api/
+    ├── src/main/kotlin/
     │   ├── controller/          # REST controllers
-    │   ├── dto/                 # API request/response DTOs
+    │   ├── dto/                 # API request/response DTOs (UNIFIED LOCATION)
+    │   │   ├── catalog/         # Domain-specific DTOs
+    │   │   ├── dataset/         # Domain-specific DTOs
+    │   │   ├── transpile/       # Domain-specific DTOs
+    │   │   └── workflow/        # Domain-specific DTOs
     │   └── mapper/              # DTO <-> Entity mappers
 ```
+
+> **📖 Detailed Package Organization:** See [PATTERNS.md - Domain Package Organization Rules](./PATTERNS.md#domain-package-organization-rules) for comprehensive package placement rules, including where to place commands, models, external interfaces, and utilities within the domain layer.
 
 ### Dependency Flow
 
@@ -109,10 +205,58 @@ Ask: **"What does this class depend on?"**
 
 | Module | Depends On | Contains | Examples |
 |--------|------------|----------|----------|
-| **module-core-common** | Nothing | Base exceptions, utilities, shared constants | `BusinessException`, `DateUtils` |
+| **module-core-common** | Nothing | Base exceptions, **ALL ENUMS**, utilities, shared constants | `BusinessException`, `QueryUtility`, **ALL** enums |
 | **module-core-domain** | common only | Entities, repository interfaces, domain services | `MetricEntity`, `MetricRepositoryJpa`, `MetricService` |
 | **module-core-infra** | common + domain | Repository impls, external clients | `MetricRepositoryJpaImpl`, `AirflowClient` |
 | **module-server-api** | all modules | Controllers, API DTOs, mappers | `MetricController`, `MetricRequest` |
+
+### 🔴 CRITICAL: Enum and Utility Placement Rules
+
+> **⚠️ MANDATORY:** These rules are CRITICAL for architecture compliance. See [Domain Package Organization Rules](./PATTERNS.md#domain-package-organization-rules) for complete details.
+
+**Rule 1: ALL Enums → module-core-common**
+```kotlin
+// ✅ CORRECT: ALL enums go here
+module-core-common/src/main/kotlin/com/github/lambda/common/enums/
+├── QueryEnums.kt        // QueryStatus, QueryEngine, QueryScope
+├── WorkflowEnums.kt     // WorkflowStatus, WorkflowRunStatus, etc.
+├── QualityEnums.kt      // ResourceType, TestType, Severity, etc.
+└── UserRole.kt          // Single enum files
+
+// ❌ FORBIDDEN: No enums in domain
+module-core-domain/**/*Enum*.kt        // WRONG!
+```
+
+**Rule 2: Dependency-Free Utilities → module-core-common**
+```kotlin
+// ✅ CORRECT: QueryUtility (renamed from QueryIdGenerator)
+module-core-common/src/main/kotlin/com/github/lambda/common/util/QueryUtility.kt
+
+// ❌ FORBIDDEN: No utilities in domain
+module-core-domain/src/main/kotlin/com/github/lambda/domain/util/   // WRONG!
+```
+
+**Import Pattern:**
+```kotlin
+// Entity imports
+import com.dataops.basecamp.common.enums.QueryStatus
+import com.dataops.basecamp.common.enums.WorkflowStatus
+import com.dataops.basecamp.common.util.QueryUtility
+
+// Services inject utilities from common
+class SomeService(
+    private val queryUtility: QueryUtility,  // ✅ From common module
+)
+```
+
+**Anti-Pattern Detection:**
+```bash
+# Find misplaced enums (should return empty)
+find module-core-domain -name "*Enum*.kt" -o -name "*Status.kt" -o -name "*Type.kt"
+
+# Find misplaced utilities (should return empty)
+find module-core-domain -path "*/util/*" -name "*.kt"
+```
 
 ### Exception Placement Guidelines
 
@@ -179,55 +323,234 @@ class InfrastructureConfig {
 
 ## External System Integration Patterns
 
-> **Purpose**: Step-by-step guide for implementing external system integrations using Port-Adapter pattern
+> **⚠️ CRITICAL FOR AI AGENTS:** These external communication rules are MANDATORY and must be followed exactly. Violations will break the architecture.
+> **Purpose**: Step-by-step guide for implementing external system integrations using Port-Adapter pattern with strict package organization
 
-### Step 1: Create Domain Layer (Ports)
+### MANDATORY Package Structure
 
-1. **Create Interface File**: `module-core-domain/external/{System}Client.kt`
-   ```kotlin
-   interface QueryEngineClient {
-       fun execute(...): QueryExecutionResult
-       fun getSupportedEngines(): List<String>
-   }
-   ```
+All External System integrations MUST follow this exact package structure:
 
-2. **Create Response Models File**: `module-core-domain/external/{System}Response.kt`
-   ```kotlin
-   data class QueryExecutionResult(...)
-   data class QueryValidationResult(...)
-   ```
+```
+module-core-domain/src/main/kotlin/com/github/lambda/domain/external/
+├── {system}/                        # System-specific package (MANDATORY)
+│   ├── {System}Client.kt           # Interface ONLY - NO Response models
+│   └── {System}Response.kt         # Response models ONLY - NO Interfaces
+```
 
-### Step 2: Create Infrastructure Implementation
+**Examples:**
+```
+module-core-domain/src/main/kotlin/com/github/lambda/domain/external/
+├── airflow/
+│   ├── AirflowClient.kt            # ✅ Interface only
+│   └── AirflowResponse.kt          # ✅ Response models only
+├── github/
+│   ├── GitHubClient.kt             # ✅ Interface only
+│   └── GitHubResponse.kt           # ✅ Response models only
+└── storage/
+    └── WorkflowStorage.kt          # ✅ Interface only (no response models needed)
+```
 
-**Mock Implementation**: `module-core-infra/external/Mock{System}Client.kt`
+### Step 1: Create Domain Layer (Ports) - UPDATED
+
+#### 1.1 Create System-Specific Package (MANDATORY)
+
+```bash
+# Create system-specific package directory
+mkdir -p module-core-domain/src/main/kotlin/com/github/lambda/domain/external/{system}
+```
+
+#### 1.2 Create Interface File (MANDATORY)
+
+**File**: `module-core-domain/external/{system}/{System}Client.kt`
+
 ```kotlin
-@Repository("queryEngineClient")
-@ConditionalOnProperty(name = "app.external.query-engine.enabled", havingValue = "false")
-class MockQueryEngineClient : QueryEngineClient {
-    override fun execute(...): QueryExecutionResult {
-        // Mock implementation with realistic data
+package com.dataops.basecamp.domain.external.{system}
+
+// ✅ CORRECT - Interface only, no data classes
+interface AirflowClient {
+    fun getDAGRun(dagId: String, runId: String): AirflowDAGRunStatusResponse
+    fun listRecentDagRuns(dagIdPrefix: String, limit: Int): List<AirflowDagRunResponse>
+    fun createBackfill(dagId: String, startDate: LocalDateTime): BackfillCreateResponse
+}
+```
+
+#### 1.3 Create Response Models File (MANDATORY)
+
+**File**: `module-core-domain/external/{system}/{System}Response.kt`
+
+```kotlin
+package com.dataops.basecamp.domain.external.{system}
+
+// ✅ CORRECT - Response models only, no interfaces
+data class AirflowDAGRunStatusResponse(
+    val dagRunId: String,
+    val state: AirflowDAGRunState,
+    val startDate: LocalDateTime?,
+    val endDate: LocalDateTime?,
+    val executionDate: LocalDateTime,
+    val logsUrl: String?,
+)
+
+data class AirflowDagRunResponse(
+    val dagId: String,
+    val dagRunId: String,
+    val state: AirflowDAGRunState,
+    val logicalDate: LocalDateTime,
+    val startDate: LocalDateTime?,
+    val endDate: LocalDateTime?,
+)
+
+enum class AirflowDAGRunState {
+    QUEUED, RUNNING, SUCCESS, FAILED
+}
+```
+
+### Step 2: Create Infrastructure Implementation - UPDATED
+
+#### 2.1 Mock Implementation with Correct Imports
+
+**File**: `module-core-infra/external/Mock{System}Client.kt`
+
+```kotlin
+package com.dataops.basecamp.infra.external
+
+import com.dataops.basecamp.domain.external.{system}.{System}Client  // ✅ System-specific import
+import com.dataops.basecamp.domain.external.{system}.*              // ✅ Import all response models
+
+@Repository("{system}Client")
+@ConditionalOnProperty(name = "app.external.{system}.enabled", havingValue = "false")
+class Mock{System}Client : {System}Client {
+
+    // ✅ Use Response postfix models in implementation
+    override fun getDAGRun(dagId: String, runId: String): AirflowDAGRunStatusResponse {
+        return AirflowDAGRunStatusResponse(
+            dagRunId = runId,
+            state = AirflowDAGRunState.SUCCESS,
+            startDate = LocalDateTime.now().minusMinutes(30),
+            endDate = LocalDateTime.now(),
+            executionDate = LocalDateTime.now().minusMinutes(30),
+            logsUrl = "https://airflow.example.com/logs/$dagId/$runId"
+        )
     }
 }
 ```
 
-### Step 3: Service Integration
+### Step 3: Service Integration - UPDATED
 
-**Inject Interface in Services**:
+#### 3.1 Service with System-Specific Imports
+
 ```kotlin
+package com.dataops.basecamp.domain.service
+
+import com.dataops.basecamp.domain.external.airflow.AirflowClient        // ✅ System-specific import
+import com.dataops.basecamp.domain.external.airflow.AirflowDAGRunState   // ✅ System-specific import
+import com.dataops.basecamp.domain.external.storage.WorkflowStorage      // ✅ System-specific import
+
 @Service
-class QueryService(
-    private val queryEngineClient: QueryEngineClient,  // Interface, not implementation
+@Transactional(readOnly = true)
+class WorkflowService(
+    private val airflowClient: AirflowClient,      // ✅ Interface, not implementation
+    private val workflowStorage: WorkflowStorage,  // ✅ Interface, not implementation
 ) {
-    fun executeQuery(...) = queryEngineClient.execute(...)
+    fun executeWorkflow(workflowId: String) {
+        val dagRun = airflowClient.getDAGRun(workflowId, "run_${System.currentTimeMillis()}")
+        // Use dagRun.state, dagRun.startDate, etc.
+    }
 }
 ```
 
-### Implementation Checklist
+### CRITICAL Rules for AI Agents
 
-- [ ] Create `{System}Client.kt` interface with business methods
-- [ ] Create `{System}Response.kt` with data models (if 2+ models)
-- [ ] Implement `Mock{System}Client.kt` with Spring annotations
-- [ ] Add configuration properties for enable/disable
+#### Rule 1: Never Mix Interfaces and Response Models in Same File
+
+```kotlin
+// ❌ WRONG - Mixed content in single file
+// File: domain/external/airflow/AirflowClient.kt
+interface AirflowClient { ... }
+data class AirflowDAGRunStatusResponse(...) // Should be in AirflowResponse.kt
+
+// ✅ CORRECT - Separated files
+// File: domain/external/airflow/AirflowClient.kt
+interface AirflowClient { ... }
+
+// File: domain/external/airflow/AirflowResponse.kt
+data class AirflowDAGRunStatusResponse(...)
+```
+
+#### Rule 2: Never Mix Multiple Client Interfaces in Same File
+
+```kotlin
+// ❌ WRONG - Multiple interfaces in one file
+// File: domain/external/AirflowClient.kt
+interface AirflowClient { ... }
+interface WorkflowStorage { ... }  // Should be in separate system package
+
+// ✅ CORRECT - System-specific separation
+// File: domain/external/airflow/AirflowClient.kt
+interface AirflowClient { ... }
+
+// File: domain/external/storage/WorkflowStorage.kt
+interface WorkflowStorage { ... }
+```
+
+#### Rule 3: Always Use Response Postfix for External API Models
+
+```kotlin
+// ✅ CORRECT - Response postfix naming
+data class AirflowDAGRunStatusResponse(...)
+data class GitHubPullRequestResponse(...)
+data class BackfillCreateResponse(...)
+
+// ❌ WRONG - Missing Response postfix
+data class AirflowDAGRunStatus(...)     // Should be AirflowDAGRunStatusResponse
+data class GitHubPullRequest(...)       // Should be GitHubPullRequestResponse
+data class BackfillResult(...)          // Should be BackfillCreateResponse
+```
+
+### Implementation Checklist - UPDATED
+
+When implementing external system integration:
+
+- [ ] ✅ Create system-specific package under `domain/external/{system}/`
+- [ ] ✅ Create `{System}Client.kt` interface file with ONLY interfaces
+- [ ] ✅ Create `{System}Response.kt` file with ONLY response models
+- [ ] ✅ Use Response postfix for ALL external API response models
+- [ ] ✅ Use Request postfix for external API request models (when needed)
+- [ ] ✅ Never mix interfaces and response models in same file
+- [ ] ✅ Never mix multiple client interfaces in same file
+- [ ] ✅ Implement `Mock{System}Client.kt` in module-core-infra with correct imports
+- [ ] ✅ Update service imports to use system-specific packages
+- [ ] ✅ Add Spring configuration properties for enable/disable
+- [ ] ✅ Update tests to use new Response model names
+- [ ] ✅ Verify no multiple interfaces coexist in single files
+
+### Anti-Pattern Detection Commands
+
+```bash
+# Check for mixed client/response in single file (should return empty)
+grep -l "interface.*Client" module-core-domain/src/main/kotlin/com/github/lambda/domain/external/**/*.kt | xargs grep "data class"
+
+# Check for multiple interfaces in single file (should return empty)
+grep -c "^interface " module-core-domain/src/main/kotlin/com/github/lambda/domain/external/**/*.kt | awk -F: '$2>1'
+
+# Check for missing Response postfix (should return empty)
+grep -r "data class.*" module-core-domain/src/main/kotlin/com/github/lambda/domain/external/ | grep -v "Response\|Request"
+
+# Verify system-specific packages exist
+find module-core-domain/src/main/kotlin/com/github/lambda/domain/external -mindepth 1 -maxdepth 1 -type d
+```
+
+### Migration Guide for Existing External Systems
+
+If you find existing external system code that violates these rules:
+
+1. **Identify the violation** using anti-pattern detection commands
+2. **Create system-specific package** if it doesn't exist
+3. **Separate interfaces and response models** into different files
+4. **Add Response postfix** to all external API models
+5. **Update all imports** in services, tests, and infrastructure
+6. **Update mock implementations** to use new model names
+7. **Verify with anti-pattern detection** commands
 - [ ] Inject interface (not implementation) in services
 - [ ] Write unit tests for mock implementation
 
@@ -498,28 +821,57 @@ interface UserRepositoryJpaSpringData : JpaRepository<UserEntity, Long> {
 
 ## Projection Pattern
 
-When Entity or `Page<Entity>` cannot express the response structure, use Projections.
+> **⚠️ CRITICAL:** This section defines mandatory rules for AI agents. Violations will break the architecture.
 
-### Location
+Projection classes are the standardized way to handle:
+1. **QueryDSL return values** (Repository DSL complex query results)
+2. **Service-to-Controller return values** (Service method returns)
+
+### MANDATORY Package Structure
 
 ```
-module-core-domain/
-├── model/                 # JPA Entities
-├── projection/            # Projection classes
-│   ├── {Entity}List.kt    # List with pagination metadata
-│   └── {Entity}Detail.kt  # Detail with optional relationships
-└── repository/            # Repository interfaces
+module-core-domain/src/main/kotlin/com/github/lambda/domain/
+├── entity/                          # JPA Entities
+command/                          # Incoming requests, commands, filters
+projection/                       # Outgoing read models, results
+external/                         # External system integration
+internal/                         # Domain-only value objects
+│   ├── BaseEntity.kt
+│   ├── adhoc/                      # Ad-hoc execution entities
+│   ├── workflow/                   # Workflow entities
+│   └── ...                         # Other domain entities
+├── projection/                      # Projection classes (REQUIRED)
+│   ├── execution/                  # Ad-hoc execution projections
+│   │   ├── ExecutionPolicyProjection.kt
+│   │   ├── RateLimitsProjection.kt
+│   │   └── CurrentUsageProjection.kt
+│   ├── transpile/                  # SQL transpilation projections
+│   │   ├── TranspileRulesProjection.kt
+│   │   ├── MetricTranspileProjection.kt
+│   │   └── DatasetTranspileProjection.kt
+│   ├── workflow/                   # Workflow statistics projections
+│   │   └── WorkflowStatisticsProjections.kt
+│   └── quality/                    # Quality spec projections
+│       └── QualityStatisticsProjections.kt
+├── service/                        # Domain services (NO model classes allowed)
+└── repository/                     # Repository interfaces
 ```
+
+### CRITICAL Naming Rules
+
+| Type | Pattern | Package | Example |
+|------|---------|---------|---------|
+| **QueryDSL Return Values** | `{Entity}{Purpose}Projection` | `domain.projection.{domain}` | `WorkflowRunStatisticsProjection` |
+| **Service-to-Controller** | `{Feature}Projection` | `domain.projection.{domain}` | `ExecutionPolicyProjection` |
 
 ### When to Use Projections
 
-| Scenario | Use |
-|----------|-----|
-| Simple CRUD, single entity | Entity |
-| List with only entity fields | `Page<Entity>` |
-| List with joined fields (owner name, counts) | `Page<{Entity}List>` |
-| Detail with optional child entities | `{Entity}Detail` |
-| Aggregations (count, sum, avg) | Projection |
+| Scenario | Use | Example |
+|----------|-----|---------|
+| Repository DSL aggregation results | `{Purpose}Projection` | `WorkflowRunStatisticsProjection` |
+| Service method returns for controllers | `{Feature}Projection` | `ExecutionPolicyProjection` |
+| Simple CRUD, single entity | Entity | `WorkflowRunEntity` |
+| Complex QueryDSL statistics/aggregations | Projection | `QualitySpecStatisticsProjection` |
 
 ### Projection Examples
 
@@ -643,6 +995,410 @@ class QualitySpecService(
 }
 ```
 
+### Anti-Pattern Detection
+
+> **⚠️ MANDATORY:** Run these commands to detect violations. Failures indicate architecture breaches.
+
+```bash
+# Check for wrong Map return types in Repository DSL (CRITICAL)
+grep -r "Map<String" module-core-domain/src/main/kotlin/com/github/lambda/domain/repository/
+
+# Check for DTO suffix in projections (should be Projection)
+grep -r "Dto" module-core-domain/src/main/kotlin/com/github/lambda/domain/projection/
+
+# Check for model classes in service files (FORBIDDEN)
+grep -r "data class.*\|class.*(" module-core-domain/src/main/kotlin/com/github/lambda/domain/service/
+
+# Verify projection package structure
+find module-core-domain/src/main/kotlin/com/github/lambda/domain/projection/ -name "*.kt" | grep -v "Projection.kt"
+```
+
+**Expected Results:**
+- **No Map<String** return types in Repository DSL interfaces
+- **No Dto** suffix in projection package
+- **No class** definitions in service files (only @Service classes)
+- **All files** in projection/ must end with `Projection.kt`
+
+---
+
+## Command Pattern
+
+> **⚠️ CRITICAL:** Commands represent input data for domain operations. They are separate from Projection classes and must follow strict architectural rules.
+
+### Overview
+
+Command classes encapsulate data for write operations (create, update, delete) and complex domain operations. They serve as:
+
+1. **Controller-to-Service Interface**: Structured data passed from API layer to domain services
+2. **Domain Operation Input**: Parameters for internal domain logic
+3. **Validation Container**: Business rule validation at domain boundaries
+
+### Package Structure
+
+```
+module-core-domain/
+└── domain/
+    └── command/
+        ├── metric/
+        │   └── MetricCommands.kt       # CreateMetricCommand, UpdateMetricCommand, etc.
+        ├── dataset/
+        │   └── DatasetCommands.kt      # CreateDatasetCommand, UpdateDatasetCommand, etc.
+        ├── quality/
+        │   └── QualityCommands.kt      # CreateQualitySpecCommand, ExecuteQualityCommand, etc.
+        └── workflow/
+            └── WorkflowCommands.kt     # TriggerWorkflowCommand, StopWorkflowCommand, etc.
+```
+
+### Implementation Example
+
+#### 1. Command Definition
+
+```kotlin
+// module-core-domain/domain/command/metric/MetricCommands.kt
+
+/**
+ * Command to create a new metric
+ * Used for Controller-to-Service data transfer
+ */
+data class CreateMetricCommand(
+    val name: String,
+    val owner: String,
+    val sql: String,
+    val description: String? = null,
+    val team: String? = null,
+    val sourceTable: String? = null,
+    val tags: Set<String> = emptySet(),
+) {
+    init {
+        require(name.isNotBlank()) { "Metric name cannot be blank" }
+        require(name.matches(Regex("^[a-zA-Z0-9_.-]+\\.[a-zA-Z0-9_.-]+\\.[a-zA-Z0-9_.-]+\$"))) {
+            "Metric name must follow pattern: catalog.schema.name"
+        }
+        require(owner.isNotBlank()) { "Owner cannot be blank" }
+        require(sql.isNotBlank()) { "SQL cannot be blank" }
+        description?.let {
+            require(it.length <= 1000) { "Description must not exceed 1000 characters" }
+        }
+    }
+}
+
+/**
+ * Command to update an existing metric
+ */
+data class UpdateMetricCommand(
+    val name: String,
+    val sql: String? = null,
+    val description: String? = null,
+    val team: String? = null,
+    val sourceTable: String? = null,
+    val tags: Set<String>? = null,
+) {
+    init {
+        require(name.isNotBlank()) { "Metric name cannot be blank" }
+        sql?.let { require(it.isNotBlank()) { "SQL cannot be blank if provided" } }
+    }
+}
+```
+
+#### 2. Mapper Implementation
+
+```kotlin
+// module-server-api/mapper/MetricMapper.kt
+
+@Component
+class MetricMapper {
+    /**
+     * Extract command from API request DTO
+     */
+    fun extractCreateCommand(request: CreateMetricRequest): CreateMetricCommand =
+        CreateMetricCommand(
+            name = request.name,
+            owner = request.owner,
+            team = request.team,
+            description = request.description,
+            sql = request.sql,
+            sourceTable = request.sourceTable,
+            tags = request.tags.toSet(),  // Convert List to Set as expected by Command
+        )
+
+    fun extractUpdateCommand(name: String, request: UpdateMetricRequest): UpdateMetricCommand =
+        UpdateMetricCommand(
+            name = name,
+            sql = request.sql,
+            description = request.description,
+            team = request.team,
+            sourceTable = request.sourceTable,
+            tags = request.tags?.toSet(),
+        )
+}
+```
+
+#### 3. Service Usage
+
+```kotlin
+// module-core-domain/service/MetricService.kt
+
+@Service
+@Transactional(readOnly = true)
+class MetricService(
+    private val metricRepositoryJpa: MetricRepositoryJpa,
+    private val metricRepositoryDsl: MetricRepositoryDsl,
+) {
+    @Transactional
+    fun createMetric(command: CreateMetricCommand): MetricEntity {
+        // Business logic validation
+        if (metricRepositoryJpa.existsByName(command.name)) {
+            throw MetricAlreadyExistsException(command.name)
+        }
+
+        // Create entity from command
+        val metric = MetricEntity(
+            name = command.name,
+            owner = command.owner,
+            team = command.team,
+            description = command.description,
+            sql = command.sql,
+            sourceTable = command.sourceTable,
+            tags = command.tags.toMutableSet(),
+        )
+
+        return metricRepositoryJpa.save(metric)
+    }
+
+    @Transactional
+    fun updateMetric(command: UpdateMetricCommand): MetricEntity {
+        val existingMetric = metricRepositoryJpa.findByName(command.name)
+            ?: throw MetricNotFoundException(command.name)
+
+        // Apply updates from command
+        val updatedMetric = existingMetric.copy(
+            sql = command.sql ?: existingMetric.sql,
+            description = command.description ?: existingMetric.description,
+            team = command.team ?: existingMetric.team,
+            sourceTable = command.sourceTable ?: existingMetric.sourceTable,
+            tags = command.tags?.toMutableSet() ?: existingMetric.tags,
+        )
+
+        return metricRepositoryJpa.save(updatedMetric)
+    }
+}
+```
+
+#### 4. Controller Integration
+
+```kotlin
+// module-server-api/controller/MetricController.kt
+
+@RestController
+@RequestMapping("\${CommonConstants.Api.V1_PATH}/metrics")
+class MetricController(
+    private val metricService: MetricService,
+    private val metricMapper: MetricMapper,
+) {
+    @PostMapping
+    fun createMetric(
+        @Valid @RequestBody request: CreateMetricRequest,
+    ): ResponseEntity<CreateMetricResponse> {
+        // Extract command from request DTO
+        val command = metricMapper.extractCreateCommand(request)
+
+        // Execute business logic with command
+        val metric = metricService.createMetric(command)
+
+        val response = CreateMetricResponse(
+            message = "Metric '${metric.name}' created successfully",
+            name = metric.name,
+        )
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response)
+    }
+
+    @PutMapping("/{name}")
+    fun updateMetric(
+        @PathVariable name: String,
+        @Valid @RequestBody request: UpdateMetricRequest,
+    ): ResponseEntity<UpdateMetricResponse> {
+        val command = metricMapper.extractUpdateCommand(name, request)
+        val metric = metricService.updateMetric(command)
+
+        val response = UpdateMetricResponse(
+            message = "Metric '${metric.name}' updated successfully",
+            name = metric.name,
+        )
+
+        return ResponseEntity.ok(response)
+    }
+}
+```
+
+### Design Principles
+
+#### 1. Validation at Domain Boundaries
+
+Commands should validate their data at construction time:
+
+```kotlin
+data class CreateDatasetCommand(
+    val name: String,
+    val sql: String,
+) {
+    init {
+        require(name.isNotBlank()) { "Dataset name cannot be blank" }
+        require(sql.isNotBlank()) { "SQL cannot be blank" }
+        require(sql.length <= 50000) { "SQL must not exceed 50000 characters" }
+    }
+}
+```
+
+#### 2. Immutability
+
+Commands are immutable data classes representing a single operation:
+
+```kotlin
+// ✅ CORRECT - Immutable data class
+data class ExecuteQueryCommand(
+    val sql: String,
+    val parameters: Map<String, Any> = emptyMap(),
+    val timeout: Duration = Duration.ofMinutes(5),
+)
+
+// ❌ WRONG - Mutable class
+class ExecuteQueryCommand {
+    var sql: String = ""
+    var parameters: MutableMap<String, Any> = mutableMapOf()
+}
+```
+
+#### 3. Single Responsibility
+
+Each command represents one specific operation:
+
+```kotlin
+// ✅ CORRECT - Specific operation
+data class CreateMetricCommand(...)
+data class UpdateMetricCommand(...)
+data class DeleteMetricCommand(...)
+
+// ❌ WRONG - Multiple operations
+data class MetricCommand(
+    val action: String,  // "create", "update", "delete"
+    val data: Any,       // Different data for different actions
+)
+```
+
+### Architecture Rules
+
+#### 1. No Model Classes in Service Files
+
+```kotlin
+// ❌ WRONG - Command defined inline in service
+@Service
+class MetricService {
+    fun createMetric(params: CreateMetricParams): MetricEntity { ... }
+}
+
+data class CreateMetricParams(...)  // FORBIDDEN - inline class definition
+
+// ✅ CORRECT - Command in separate package
+// File: domain/command/metric/MetricCommands.kt
+data class CreateMetricCommand(...)
+
+@Service
+class MetricService {
+    fun createMetric(command: CreateMetricCommand): MetricEntity { ... }
+}
+```
+
+#### 2. Consistent Naming Convention
+
+```kotlin
+// ✅ CORRECT - Command suffix
+data class CreateMetricCommand(...)
+data class UpdateDatasetCommand(...)
+data class ExecuteQualityCommand(...)
+
+// ❌ WRONG - Other suffixes
+data class CreateMetricParams(...)   // Wrong suffix
+data class CreateMetricDto(...)      // Wrong suffix
+data class CreateMetricRequest(...)  // This is for API layer, not domain
+```
+
+#### 3. Type-Safe Conversions
+
+```kotlin
+// ✅ CORRECT - Explicit type conversions
+fun extractCreateCommand(request: CreateMetricRequest): CreateMetricCommand =
+    CreateMetricCommand(
+        name = request.name,
+        tags = request.tags.toSet(),  // Explicit List -> Set conversion
+    )
+
+// ❌ WRONG - Implicit or unsafe conversions
+fun extractCreateParams(request: CreateMetricRequest): CreateMetricParams =
+    CreateMetricParams(
+        tags = request.tags,  // List used where Set expected
+    )
+```
+
+### Testing Commands
+
+```kotlin
+class MetricServiceTest : DescribeSpec({
+    val metricRepositoryJpa = mockk<MetricRepositoryJpa>()
+    val service = MetricService(metricRepositoryJpa, mockk())
+
+    describe("createMetric") {
+        context("when command is valid") {
+            it("should create and return metric") {
+                // Given
+                val command = CreateMetricCommand(
+                    name = "test.catalog.metric",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
+
+                every { metricRepositoryJpa.existsByName(command.name) } returns false
+                every { metricRepositoryJpa.save(any()) } returnsArgument 0
+
+                // When
+                val result = service.createMetric(command)
+
+                // Then
+                result.name shouldBe command.name
+                result.owner shouldBe command.owner
+                verify { metricRepositoryJpa.save(any()) }
+            }
+        }
+
+        context("when metric already exists") {
+            it("should throw MetricAlreadyExistsException") {
+                // Given
+                val command = CreateMetricCommand(
+                    name = "existing.catalog.metric",
+                    owner = "test@example.com",
+                    sql = "SELECT 1",
+                )
+
+                every { metricRepositoryJpa.existsByName(command.name) } returns true
+
+                // When & Then
+                shouldThrow<MetricAlreadyExistsException> {
+                    service.createMetric(command)
+                }
+            }
+        }
+    }
+})
+```
+
+### Command vs Projection vs Entity
+
+| Type | Purpose | Location | Example |
+|------|---------|----------|---------|
+| **Command** | Input for operations | `domain.command.{domain}` | `CreateMetricCommand` |
+| **Projection** | Output from operations | `domain.projection.{domain}` | `MetricExecutionProjection` |
+| **Entity** | Persistent data model | `domain.entity.{domain}` | `MetricEntity` |
+
 ---
 
 ## Service Implementation Patterns
@@ -761,6 +1517,88 @@ data class GetMetricQuery(
 ---
 
 ## Repository Layer Patterns
+
+> **⚠️ CRITICAL FOR AI AGENTS:** All repository interfaces and implementations MUST be organized in domain-specific packages.
+
+### Domain-Specific Package Organization (Mandatory)
+
+All repository files must be organized by business domain to maintain clean architecture boundaries:
+
+#### Domain Repository Package Structure
+
+```
+module-core-domain/src/main/kotlin/com/github/lambda/domain/repository/
+├── adhoc/                           # Ad-hoc execution domain
+├── airflow/                         # Airflow cluster management
+├── audit/                           # Audit logging
+├── catalog/                         # Data catalog
+├── dataset/                         # Dataset management
+├── github/                          # GitHub integration
+├── lineage/                         # Data lineage
+├── metric/                          # Metric definitions
+├── quality/                         # Data quality
+├── query/                           # Query execution
+├── resource/                        # Resource management
+├── transpile/                       # SQL transpilation
+├── user/                            # User management
+└── workflow/                        # Workflow orchestration
+```
+
+#### Infrastructure Implementation Package Structure
+
+```
+module-core-infra/src/main/kotlin/com/github/lambda/infra/repository/
+├── adhoc/
+├── airflow/
+├── audit/
+├── catalog/
+├── dataset/
+├── github/
+├── lineage/
+├── metric/
+├── quality/
+├── query/
+├── resource/
+├── transpile/
+├── user/
+└── workflow/
+```
+
+#### Package Declaration Pattern
+
+```kotlin
+// ✅ CORRECT: Domain repository interface
+package com.dataops.basecamp.domain.repository.metric
+
+interface MetricRepositoryJpa {
+    fun save(metric: MetricEntity): MetricEntity
+    fun findById(id: String): MetricEntity?
+}
+
+// ✅ CORRECT: Infrastructure implementation
+package com.dataops.basecamp.infra.repository.metric
+
+@Repository("metricRepositoryJpa")
+interface MetricRepositoryJpaImpl :
+    MetricRepositoryJpa,
+    JpaRepository<MetricEntity, String> {
+    // ...
+}
+```
+
+#### Service Injection Pattern
+
+```kotlin
+@Service
+@Transactional(readOnly = true)
+class MetricService(
+    private val metricRepositoryJpa: MetricRepositoryJpa,      // Injected from metric package
+    private val metricRepositoryDsl: MetricRepositoryDsl,      // Injected from metric package
+    private val datasetRepositoryJpa: DatasetRepositoryJpa,    // Injected from dataset package
+) {
+    // Business logic here
+}
+```
 
 ### Domain Repository Interfaces (Ports)
 
@@ -982,6 +1820,53 @@ class MetricController(
 
 ## DTO and Mapper Patterns
 
+> **⚠️ CRITICAL FOR AI AGENTS:** All DTOs MUST follow unified package structure
+
+### DTO Package Organization Rules (MANDATORY)
+
+**✅ CORRECT Package Structure:**
+```
+module-server-api/src/main/kotlin/com/github/lambda/dto/
+├── catalog/CatalogDtos.kt          # Domain-specific DTOs
+├── dataset/DatasetDtos.kt          # Domain-specific DTOs
+├── metric/MetricDtos.kt            # Domain-specific DTOs
+├── quality/QualityDtos.kt          # Domain-specific DTOs
+├── transpile/TranspileDtos.kt      # Domain-specific DTOs
+├── workflow/WorkflowDtos.kt        # Domain-specific DTOs
+└── CommonDto.kt                    # Cross-domain DTOs
+```
+
+**❌ FORBIDDEN Package Structures:**
+```
+com.dataops.basecamp.api.dto.transpile.*     # DEPRECATED - Never use
+com.dataops.basecamp.controller.dto.*        # WRONG - Controller-specific DTOs not allowed
+com.dataops.basecamp.api.dto.*               # OLD PATTERN - Deprecated
+```
+
+### DTO Import Rules
+
+```kotlin
+// ✅ CORRECT: Unified package imports
+import com.dataops.basecamp.dto.transpile.TranspileResultDto
+import com.dataops.basecamp.dto.transpile.TranspileRulesDto
+import com.dataops.basecamp.dto.workflow.*
+
+// ❌ FORBIDDEN: Old deprecated packages
+import com.dataops.basecamp.api.dto.transpile.TranspileResultDto
+import com.dataops.basecamp.controller.dto.SomeDto
+```
+
+### Pre-Implementation DTO Checklist
+
+Before creating any new DTOs:
+
+- [ ] ✅ Place DTOs in `com.dataops.basecamp.dto.{domain}` package
+- [ ] ✅ Follow `{Domain}Dtos.kt` file naming pattern
+- [ ] ✅ Use `*Dto` suffix for all DTO class names
+- [ ] ❌ Never use `api.dto.*` or controller-specific packages
+- [ ] ✅ Update import statements if refactoring existing DTOs
+- [ ] ✅ Verify compilation after DTO package changes
+
 ### Request DTOs
 
 ```kotlin
@@ -1174,7 +2059,7 @@ class MetricEntity(
 
 When implementing a new feature, follow this order:
 
-### Step 1: Domain Entity (module-core-domain/model/)
+### Step 1: Domain Entity (module-core-domain/entity/)
 
 ```kotlin
 @Entity
@@ -1242,7 +2127,28 @@ class PipelineService(
 }
 ```
 
-### Step 5: API Controller (module-server-api/controller/)
+### Step 5: API DTOs (module-server-api/dto/{domain}/)
+
+**CRITICAL: Use unified DTO package structure**
+
+```kotlin
+// module-server-api/src/main/kotlin/com/github/lambda/dto/pipeline/PipelineDtos.kt
+package com.dataops.basecamp.dto.pipeline
+
+data class CreatePipelineRequestDto(
+    @field:NotBlank val name: String,
+    val description: String?
+)
+
+data class PipelineResponseDto(
+    val id: Long,
+    val name: String,
+    val status: String,
+    val createdAt: LocalDateTime
+)
+```
+
+### Step 6: API Controller (module-server-api/controller/)
 
 ```kotlin
 @RestController
@@ -1252,7 +2158,7 @@ class PipelineController(
     private val pipelineMapper: PipelineMapper,
 ) {
     @PostMapping
-    fun createPipeline(@Valid @RequestBody request: CreatePipelineRequest): ResponseEntity<...>
+    fun createPipeline(@Valid @RequestBody request: CreatePipelineRequestDto): ResponseEntity<...>
 
     @GetMapping("/{id}")
     fun getPipeline(@PathVariable id: Long): ResponseEntity<...>

@@ -181,7 +181,7 @@ basecamp:
 
 logging:
   level:
-    com.github.lambda: INFO
+    com.dataops.basecamp: INFO
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
@@ -210,7 +210,7 @@ spring:
 
 logging:
   level:
-    com.github.lambda: DEBUG
+    com.dataops.basecamp: DEBUG
     org.springframework.web: DEBUG
 
 ---
@@ -260,7 +260,7 @@ spring:
 
 logging:
   level:
-    com.github.lambda: INFO
+    com.dataops.basecamp: INFO
 
 ---
 spring:
@@ -288,6 +288,6 @@ management:
 
 logging:
   level:
-    com.github.lambda: WARN
+    com.dataops.basecamp: WARN
     org.springframework.security: WARN
     org.hibernate.SQL: WARN

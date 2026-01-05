@@ -1,0 +1,350 @@
+package com.dataops.basecamp.mapper
+
+import com.dataops.basecamp.domain.entity.catalog.CatalogColumnEntity
+import com.dataops.basecamp.domain.entity.catalog.CatalogTableEntity
+import com.dataops.basecamp.domain.entity.catalog.SampleQueryEntity
+import com.dataops.basecamp.domain.projection.catalog.ColumnInfo
+import com.dataops.basecamp.domain.projection.catalog.QualityTestResult
+import com.dataops.basecamp.domain.projection.catalog.SampleQuery
+import com.dataops.basecamp.domain.projection.catalog.TableDetail
+import com.dataops.basecamp.domain.projection.catalog.TableFreshness
+import com.dataops.basecamp.domain.projection.catalog.TableInfo
+import com.dataops.basecamp.domain.projection.catalog.TableOwnership
+import com.dataops.basecamp.domain.projection.catalog.TableQuality
+import com.dataops.basecamp.dto.catalog.ColumnInfoResponse
+import com.dataops.basecamp.dto.catalog.CreateCatalogTableRequest
+import com.dataops.basecamp.dto.catalog.CreateColumnRequest
+import com.dataops.basecamp.dto.catalog.CreateSampleQueryRequest
+import com.dataops.basecamp.dto.catalog.QualityTestResultResponse
+import com.dataops.basecamp.dto.catalog.SampleQueryResponse
+import com.dataops.basecamp.dto.catalog.TableDetailResponse
+import com.dataops.basecamp.dto.catalog.TableFreshnessResponse
+import com.dataops.basecamp.dto.catalog.TableInfoResponse
+import com.dataops.basecamp.dto.catalog.TableOwnershipResponse
+import com.dataops.basecamp.dto.catalog.TableQualityResponse
+import org.springframework.stereotype.Component
+
+/**
+ * Catalog Mapper
+ *
+ * Handles conversions between Domain models and API DTOs.
+ */
+@Component
+class CatalogMapper {
+    /**
+     * Convert TableInfo to TableInfoResponse
+     *
+     * Used for list/search results
+     */
+    fun toTableInfoResponse(domain: TableInfo): TableInfoResponse =
+        TableInfoResponse(
+            name = domain.name,
+            engine = domain.engine,
+            owner = domain.owner,
+            team = domain.team,
+            tags = domain.tags.sorted(),
+            rowCount = domain.rowCount,
+            lastUpdated = domain.lastUpdated,
+            matchContext = domain.matchContext,
+        )
+
+    /**
+     * Convert list of TableInfo to list of TableInfoResponse
+     */
+    fun toTableInfoResponseList(domains: List<TableInfo>): List<TableInfoResponse> =
+        domains.map { toTableInfoResponse(it) }
+
+    /**
+     * Convert TableDetail to TableDetailResponse
+     *
+     * Used for detailed table view
+     */
+    fun toTableDetailResponse(domain: TableDetail): TableDetailResponse =
+        TableDetailResponse(
+            name = domain.name,
+            engine = domain.engine,
+            owner = domain.owner,
+            team = domain.team,
+            description = domain.description,
+            tags = domain.tags.sorted(),
+            rowCount = domain.rowCount,
+            lastUpdated = domain.lastUpdated,
+            basecampUrl = domain.basecampUrl,
+            columns = domain.columns.map { toColumnInfoResponse(it) },
+            ownership = domain.ownership?.let { toTableOwnershipResponse(it) },
+            freshness = domain.freshness?.let { toTableFreshnessResponse(it) },
+            quality = domain.quality?.let { toTableQualityResponse(it) },
+            sampleData = domain.sampleData.takeIf { it.isNotEmpty() },
+        )
+
+    /**
+     * Convert ColumnInfo to ColumnInfoResponse
+     */
+    fun toColumnInfoResponse(domain: ColumnInfo): ColumnInfoResponse =
+        ColumnInfoResponse(
+            name = domain.name,
+            dataType = domain.dataType,
+            description = domain.description,
+            isPii = domain.isPii,
+            fillRate = domain.fillRate,
+            distinctCount = domain.distinctCount,
+        )
+
+    /**
+     * Convert TableOwnership to TableOwnershipResponse
+     */
+    fun toTableOwnershipResponse(domain: TableOwnership): TableOwnershipResponse =
+        TableOwnershipResponse(
+            owner = domain.owner,
+            team = domain.team,
+            stewards = domain.stewards,
+            consumers = domain.consumers,
+        )
+
+    /**
+     * Convert TableFreshness to TableFreshnessResponse
+     */
+    fun toTableFreshnessResponse(domain: TableFreshness): TableFreshnessResponse =
+        TableFreshnessResponse(
+            lastUpdated = domain.lastUpdated,
+            avgUpdateLagHours = domain.avgUpdateLagHours,
+            updateFrequency = domain.updateFrequency,
+            isStale = domain.isStale,
+            staleThresholdHours = domain.staleThresholdHours,
+        )
+
+    /**
+     * Convert TableQuality to TableQualityResponse
+     */
+    fun toTableQualityResponse(domain: TableQuality): TableQualityResponse =
+        TableQualityResponse(
+            score = domain.score,
+            totalTests = domain.totalTests,
+            passedTests = domain.passedTests,
+            failedTests = domain.failedTests,
+            warnings = domain.warnings,
+            recentTests = domain.recentTests.map { toQualityTestResultResponse(it) },
+        )
+
+    /**
+     * Convert QualityTestResult to QualityTestResultResponse
+     */
+    fun toQualityTestResultResponse(domain: QualityTestResult): QualityTestResultResponse =
+        QualityTestResultResponse(
+            testName = domain.testName,
+            testType = domain.testType,
+            status = domain.status.name.lowercase(),
+            failedRows = domain.failedRows,
+        )
+
+    /**
+     * Convert SampleQuery to SampleQueryResponse
+     */
+    fun toSampleQueryResponse(domain: SampleQuery): SampleQueryResponse =
+        SampleQueryResponse(
+            title = domain.title,
+            sql = domain.sql,
+            author = domain.author,
+            runCount = domain.runCount,
+            lastRun = domain.lastRun,
+        )
+
+    /**
+     * Convert list of SampleQuery to list of SampleQueryResponse
+     */
+    fun toSampleQueryResponseList(domains: List<SampleQuery>): List<SampleQueryResponse> =
+        domains.map { toSampleQueryResponse(it) }
+
+    // === Request DTO to Entity Conversion ===
+
+    /**
+     * Convert CreateCatalogTableRequest to CatalogTableEntity
+     *
+     * Note: Columns are returned separately since addColumn method was removed.
+     * The caller should persist the table first, then save columns with the table ID.
+     */
+    fun toEntity(request: CreateCatalogTableRequest): CatalogTableEntity {
+        val parts = request.name.split(".")
+        require(parts.size == 3) { "Table name must be in format: project.dataset.table" }
+
+        return CatalogTableEntity(
+            name = request.name,
+            project = parts[0],
+            datasetName = parts[1],
+            tableName = parts[2],
+            engine = request.engine,
+            owner = request.owner,
+            team = request.team,
+            description = request.description,
+            tags = request.tags.toSet(),
+            rowCount = request.rowCount,
+            lastUpdated = request.lastUpdated,
+            basecampUrl = request.basecampUrl,
+            stewards = request.stewards?.joinToString(","),
+            consumers = request.consumers?.joinToString(","),
+            avgUpdateLagHours = request.avgUpdateLagHours,
+            updateFrequency = request.updateFrequency,
+            staleThresholdHours = request.staleThresholdHours ?: 24,
+            qualityScore = request.qualityScore,
+        )
+    }
+
+    /**
+     * Convert CreateCatalogTableRequest columns to CatalogColumnEntity list
+     *
+     * Note: catalogTableId must be set after table is persisted
+     */
+    fun toColumnEntities(
+        request: CreateCatalogTableRequest,
+        catalogTableId: Long,
+    ): List<CatalogColumnEntity> =
+        request.columns?.mapIndexed { index, columnRequest ->
+            toColumnEntity(columnRequest, index, catalogTableId)
+        } ?: emptyList()
+
+    /**
+     * Convert CreateColumnRequest to CatalogColumnEntity
+     */
+    fun toColumnEntity(
+        request: CreateColumnRequest,
+        ordinalPosition: Int,
+        catalogTableId: Long = 0L,
+    ): CatalogColumnEntity =
+        CatalogColumnEntity(
+            catalogTableId = catalogTableId,
+            name = request.name,
+            dataType = request.dataType,
+            description = request.description,
+            isPii = request.isPii ?: false,
+            fillRate = request.fillRate,
+            distinctCount = request.distinctCount,
+            ordinalPosition = ordinalPosition,
+            isNullable = request.isNullable ?: true,
+            isPrimaryKey = request.isPrimaryKey ?: false,
+            isPartitionKey = request.isPartitionKey ?: false,
+            isClusteringKey = request.isClusteringKey ?: false,
+            defaultValue = request.defaultValue,
+        )
+
+    /**
+     * Convert CreateSampleQueryRequest to SampleQueryEntity
+     */
+    fun toSampleQueryEntity(
+        tableRef: String,
+        request: CreateSampleQueryRequest,
+    ): SampleQueryEntity =
+        SampleQueryEntity(
+            tableRef = tableRef,
+            title = request.title,
+            sql = request.sql,
+            author = request.author,
+            description = request.description,
+        )
+
+    // === Entity to Domain Model Conversion ===
+
+    /**
+     * Convert CatalogTableEntity to TableInfo
+     */
+    fun toTableInfo(
+        entity: CatalogTableEntity,
+        matchContext: String? = null,
+    ): TableInfo =
+        TableInfo(
+            name = entity.name,
+            engine = entity.engine,
+            owner = entity.owner,
+            team = entity.team,
+            tags = entity.tags,
+            rowCount = entity.rowCount,
+            lastUpdated = entity.lastUpdated,
+            matchContext = matchContext,
+        )
+
+    /**
+     * Convert CatalogTableEntity to TableDetail
+     *
+     * Note: columns must be provided separately since columns relationship was removed
+     */
+    fun toTableDetail(
+        entity: CatalogTableEntity,
+        columns: List<CatalogColumnEntity> = emptyList(),
+    ): TableDetail =
+        TableDetail(
+            name = entity.name,
+            engine = entity.engine,
+            owner = entity.owner,
+            team = entity.team,
+            description = entity.description,
+            tags = entity.tags,
+            rowCount = entity.rowCount,
+            lastUpdated = entity.lastUpdated,
+            basecampUrl = entity.basecampUrl,
+            columns = columns.map { toColumnInfo(it) },
+            ownership = toTableOwnership(entity),
+            freshness = entity.lastUpdated?.let { toTableFreshness(entity) },
+            quality = entity.qualityScore?.let { toTableQualityFromEntity(entity) },
+            sampleData = emptyList(),
+        )
+
+    /**
+     * Convert CatalogColumnEntity to ColumnInfo
+     */
+    fun toColumnInfo(entity: CatalogColumnEntity): ColumnInfo =
+        ColumnInfo(
+            name = entity.name,
+            dataType = entity.dataType,
+            description = entity.description,
+            isPii = entity.isPii,
+            fillRate = entity.fillRate,
+            distinctCount = entity.distinctCount,
+        )
+
+    /**
+     * Convert CatalogTableEntity to TableOwnership
+     */
+    fun toTableOwnership(entity: CatalogTableEntity): TableOwnership =
+        TableOwnership(
+            owner = entity.owner,
+            team = entity.team,
+            stewards = entity.getStewardsList(),
+            consumers = entity.getConsumersList(),
+        )
+
+    /**
+     * Convert CatalogTableEntity to TableFreshness
+     */
+    fun toTableFreshness(entity: CatalogTableEntity): TableFreshness =
+        TableFreshness(
+            lastUpdated = entity.lastUpdated!!,
+            avgUpdateLagHours = entity.avgUpdateLagHours,
+            updateFrequency = entity.updateFrequency,
+            isStale = entity.isStale(),
+            staleThresholdHours = entity.staleThresholdHours,
+        )
+
+    /**
+     * Convert CatalogTableEntity to TableQuality
+     */
+    fun toTableQualityFromEntity(entity: CatalogTableEntity): TableQuality =
+        TableQuality(
+            score = entity.qualityScore ?: 0,
+            totalTests = 0,
+            passedTests = 0,
+            failedTests = 0,
+            warnings = 0,
+            recentTests = emptyList(),
+        )
+
+    /**
+     * Convert SampleQueryEntity to SampleQuery domain model
+     */
+    fun toSampleQuery(entity: SampleQueryEntity): SampleQuery =
+        SampleQuery(
+            title = entity.title,
+            sql = entity.sql,
+            author = entity.author,
+            runCount = entity.runCount,
+            lastRun = entity.lastRun,
+        )
+}

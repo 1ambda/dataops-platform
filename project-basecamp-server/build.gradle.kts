@@ -28,7 +28,7 @@ ext {
     set("wiremockVersion", "2.35.1")
 }
 
-group = "com.github.lambda"
+group = "com.dataops.basecamp"
 version = "0.0.1-SNAPSHOT"
 description = "DataOps Platform - Basecamp Server"
 

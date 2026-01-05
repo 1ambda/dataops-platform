@@ -179,7 +179,7 @@ ext {
 - JPA mappings (verified in Repository tests)
 
 ```kotlin
-package com.github.lambda.domain.model
+package com.dataops.basecamp.domain.model
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -235,7 +235,7 @@ class PipelineEntityTest {
 **CRITICAL:** Do NOT use `@MockkBean` - it requires Spring context. Use pure `mockk()`.
 
 ```kotlin
-package com.github.lambda.domain.service
+package com.dataops.basecamp.domain.service
 
 import io.mockk.every
 import io.mockk.mockk
@@ -303,7 +303,7 @@ class PipelineServiceTest {
 **CRITICAL:** Use `@Mock` + constructor injection, NOT `@MockBean`.
 
 ```kotlin
-package com.github.lambda.infra.external
+package com.dataops.basecamp.infra.external
 
 import io.mockk.every
 import io.mockk.mockk
@@ -376,7 +376,7 @@ class AirflowClientImplTest {
 - JSON serialization (response field names)
 
 ```kotlin
-package com.github.lambda.api.controller
+package com.dataops.basecamp.api.controller
 
 import tools.jackson.databind.json.JsonMapper
 import com.ninjasquad.springmockk.MockkBean
@@ -485,7 +485,7 @@ class PipelineControllerTest {
 **WARNING:** Expensive to run - minimize count, prefer slice tests!
 
 ```kotlin
-package com.github.lambda.api.controller
+package com.dataops.basecamp.api.controller
 
 import tools.jackson.databind.json.JsonMapper
 import org.assertj.core.api.Assertions.assertThat
@@ -558,7 +558,7 @@ class PipelineControllerIntegrationTest {
 **Class Name Pattern:** `*RepositoryJpaImplTest`
 
 ```kotlin
-package com.github.lambda.infra.repository
+package com.dataops.basecamp.infra.repository
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
@@ -650,9 +650,9 @@ class PipelineRepositoryJpaImplTest {
 **Class Name Pattern:** `*RepositoryDslImplTest`
 
 ```kotlin
-package com.github.lambda.infra.repository
+package com.dataops.basecamp.infra.repository
 
-import com.github.lambda.config.QueryDslConfig
+import com.dataops.basecamp.config.QueryDslConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -799,10 +799,10 @@ In your `@SpringBootApplication` class:
 ```kotlin
 @SpringBootApplication(
     scanBasePackages = [
-        "com.github.lambda.api",
-        "com.github.lambda.domain",
-        "com.github.lambda.infra",
-        "com.github.lambda.common"
+        "com.dataops.basecamp.api",
+        "com.dataops.basecamp.domain",
+        "com.dataops.basecamp.infra",
+        "com.dataops.basecamp.common"
     ]
 )
 class BasecampServerApplication
@@ -1137,7 +1137,7 @@ When writing a new test file:
 ./gradlew test --parallel
 
 # Run single test class
-./gradlew test --tests "com.github.lambda.controller.PipelineControllerTest"
+./gradlew test --tests "com.dataops.basecamp.controller.PipelineControllerTest"
 
 # Run tests matching pattern
 ./gradlew test --tests "*Controller*"
