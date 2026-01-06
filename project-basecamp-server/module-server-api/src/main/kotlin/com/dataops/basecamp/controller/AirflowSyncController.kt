@@ -2,7 +2,7 @@ package com.dataops.basecamp.controller
 
 import com.dataops.basecamp.common.constant.CommonConstants
 import com.dataops.basecamp.domain.service.AirflowRunSyncService
-import com.dataops.basecamp.domain.service.WorkflowSpecSyncService
+import com.dataops.basecamp.domain.service.WorkflowService
 import com.dataops.basecamp.dto.airflow.ClusterSyncResultDto
 import com.dataops.basecamp.dto.airflow.RunSyncResultDto
 import com.dataops.basecamp.dto.airflow.SpecSyncResultDto
@@ -37,7 +37,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 @Tag(name = "Airflow Sync", description = "Manual Airflow sync API")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 class AirflowSyncController(
-    private val specSyncService: WorkflowSpecSyncService,
+    private val workflowService: WorkflowService,
     private val runSyncService: AirflowRunSyncService,
     private val mapper: AirflowSyncMapper,
 ) {
@@ -61,7 +61,7 @@ class AirflowSyncController(
     fun triggerSpecSync(): ResponseEntity<SpecSyncResultDto> {
         logger.info { "POST /api/v1/airflow/sync/manual/specs - Triggering S3 spec sync" }
 
-        val result = specSyncService.syncFromStorage()
+        val result = workflowService.syncFromStorage()
         val response = mapper.toSpecSyncResultDto(result)
 
         logger.info { "S3 spec sync completed: ${result.summary()}" }

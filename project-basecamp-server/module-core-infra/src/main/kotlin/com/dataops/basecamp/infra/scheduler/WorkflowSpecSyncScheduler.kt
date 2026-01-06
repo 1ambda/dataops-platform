@@ -1,6 +1,6 @@
 package com.dataops.basecamp.infra.scheduler
 
-import com.dataops.basecamp.domain.service.WorkflowSpecSyncService
+import com.dataops.basecamp.domain.service.WorkflowService
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component
     matchIfMissing = true,
 )
 class WorkflowSpecSyncScheduler(
-    private val syncService: WorkflowSpecSyncService,
+    private val workflowService: WorkflowService,
 ) {
     private val log = LoggerFactory.getLogger(WorkflowSpecSyncScheduler::class.java)
 
@@ -37,7 +37,7 @@ class WorkflowSpecSyncScheduler(
         log.info("Starting scheduled workflow spec sync")
 
         try {
-            val result = syncService.syncFromStorage()
+            val result = workflowService.syncFromStorage()
 
             if (result.isSuccess()) {
                 log.info(

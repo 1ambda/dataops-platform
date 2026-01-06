@@ -8,9 +8,13 @@ import com.dataops.basecamp.common.enums.WorkflowRunType
 import com.dataops.basecamp.common.exception.QualityRunNotFoundException
 import com.dataops.basecamp.common.exception.QualitySpecAlreadyExistsException
 import com.dataops.basecamp.common.exception.QualitySpecNotFoundException
+import com.dataops.basecamp.domain.command.execution.QualityTestParams
 import com.dataops.basecamp.domain.entity.quality.QualityRunEntity
 import com.dataops.basecamp.domain.entity.quality.QualitySpecEntity
 import com.dataops.basecamp.domain.entity.quality.QualityTestEntity
+import com.dataops.basecamp.domain.external.quality.GenerateSqlRequest
+import com.dataops.basecamp.domain.external.quality.QualityRuleEngineClient
+import com.dataops.basecamp.domain.projection.execution.QualityExecutionResult
 import com.dataops.basecamp.domain.projection.quality.MockTestResultProjection
 import com.dataops.basecamp.domain.repository.quality.QualityRunRepositoryJpa
 import com.dataops.basecamp.domain.repository.quality.QualitySpecRepositoryDsl
@@ -40,7 +44,8 @@ class QualityService(
     private val qualitySpecRepositoryDsl: QualitySpecRepositoryDsl,
     private val qualityRunRepositoryJpa: QualityRunRepositoryJpa,
     private val qualityTestRepositoryJpa: QualityTestRepositoryJpa,
-    private val qualityRuleEngineService: QualityRuleEngineService,
+    private val qualityRuleEngineClient: QualityRuleEngineClient,
+    private val executionService: ExecutionService,
 ) {
     private val log = LoggerFactory.getLogger(QualityService::class.java)
 
@@ -164,6 +169,29 @@ class QualityService(
         entity.deletedAt = LocalDateTime.now()
         qualitySpecRepositoryJpa.save(entity)
         return true
+    }
+
+    /**
+     * Run quality tests using ExecutionService
+     *
+     * @param resourceName Resource name to test
+     * @param params Quality test execution parameters
+     * @return Quality execution result
+     * @throws QualitySpecNotFoundException if quality spec not found for resource
+     */
+    @Transactional
+    fun runQuality(
+        resourceName: String,
+        params: QualityTestParams,
+    ): QualityExecutionResult {
+        // Verify quality spec exists for resource
+        val specs = qualitySpecRepositoryDsl.findQualitySpecsByResource(resourceName, ResourceType.DATASET)
+        if (specs.isEmpty()) {
+            throw QualitySpecNotFoundException("No quality specs found for resource: $resourceName")
+        }
+
+        // ExecutionService에 위임
+        return executionService.executeQuality(resourceName, params)
     }
 
     /**
@@ -331,43 +359,74 @@ class QualityService(
         log.debug("Executing test: {} for resource: {}", test.name, resourceName)
 
         try {
-            // Generate SQL using QualityRuleEngineService
-            val sqlResponse =
+            // Generate SQL using QualityRuleEngineClient
+            val request =
                 when (test.testType) {
                     TestType.NOT_NULL ->
-                        qualityRuleEngineService.generateNotNullTestSql(resourceName, test.getPrimaryColumn()!!)
+                        GenerateSqlRequest(
+                            testType = TestType.NOT_NULL,
+                            resourceName = resourceName,
+                            column = test.getPrimaryColumn(),
+                        )
                     TestType.UNIQUE ->
-                        qualityRuleEngineService.generateUniqueTestSql(resourceName, test.getPrimaryColumn()!!)
+                        GenerateSqlRequest(
+                            testType = TestType.UNIQUE,
+                            resourceName = resourceName,
+                            column = test.getPrimaryColumn(),
+                        )
                     TestType.ACCEPTED_VALUES -> {
                         val values = test.config?.get("values")?.map { it.asText() } ?: emptyList()
-                        qualityRuleEngineService.generateAcceptedValuesTestSql(
-                            resourceName,
-                            test.getPrimaryColumn()!!,
-                            values,
+                        GenerateSqlRequest(
+                            testType = TestType.ACCEPTED_VALUES,
+                            resourceName = resourceName,
+                            column = test.getPrimaryColumn(),
+                            config = mapOf("values" to values),
                         )
                     }
                     TestType.RELATIONSHIPS -> {
                         val toTable = test.config?.get("to_table")?.asText() ?: ""
                         val toColumn = test.config?.get("to_column")?.asText() ?: ""
-                        qualityRuleEngineService.generateRelationshipsTestSql(
-                            resourceName,
-                            test.getPrimaryColumn()!!,
-                            toTable,
-                            toColumn,
+                        GenerateSqlRequest(
+                            testType = TestType.RELATIONSHIPS,
+                            resourceName = resourceName,
+                            column = test.getPrimaryColumn(),
+                            config =
+                                mapOf(
+                                    "to_table" to toTable,
+                                    "to_column" to toColumn,
+                                ),
                         )
                     }
                     TestType.EXPRESSION -> {
                         val expression = test.config?.get("expression")?.asText() ?: ""
-                        qualityRuleEngineService.generateExpressionTestSql(resourceName, expression)
+                        GenerateSqlRequest(
+                            testType = TestType.EXPRESSION,
+                            resourceName = resourceName,
+                            config = mapOf("expression" to expression),
+                        )
                     }
                     TestType.ROW_COUNT -> {
                         val minRows = test.config?.get("min")?.asLong()
                         val maxRows = test.config?.get("max")?.asLong()
-                        qualityRuleEngineService.generateRowCountTestSql(resourceName, minRows, maxRows)
+                        val config =
+                            buildMap {
+                                minRows?.let { put("min", it) }
+                                maxRows?.let { put("max", it) }
+                            }
+                        GenerateSqlRequest(
+                            testType = TestType.ROW_COUNT,
+                            resourceName = resourceName,
+                            config = config,
+                        )
                     }
                     TestType.SINGULAR ->
-                        qualityRuleEngineService.generateSingularTestSql(resourceName)
+                        GenerateSqlRequest(
+                            testType = TestType.SINGULAR,
+                            resourceName = resourceName,
+                        )
                 }
+
+            val sqlResponse = qualityRuleEngineClient.generateSql(request)
 
             val generatedSql = sqlResponse.sql
 

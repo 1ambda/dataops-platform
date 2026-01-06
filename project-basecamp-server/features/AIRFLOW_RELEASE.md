@@ -13,7 +13,7 @@
 | Phase | Feature | Status | Description |
 |-------|---------|--------|-------------|
 | **Phase 1** | S3 Storage | Complete | MockS3WorkflowStorage, file-system based S3 simulation |
-| **Phase 2** | Spec Sync Service | Complete | WorkflowSpecSyncService, WorkflowSpecSyncScheduler, WorkflowYamlParser |
+| **Phase 2** | Spec Sync Service | Complete | WorkflowService integration (spec sync + YAML parsing), WorkflowSpecSyncScheduler |
 | **Phase 3** | AirflowCluster Entity | Complete | AirflowClusterEntity with team-based cluster management |
 | **Phase 4** | AirflowClient Extension | Complete | MockRestAirflowClient with Airflow 3 DTOs |
 | **Phase 5** | Run Sync Service | Complete | AirflowRunSyncService, WorkflowRunEntity extension |
@@ -24,9 +24,8 @@
 | File | Lines | Purpose |
 |------|-------|---------|
 | `module-core-infra/.../external/MockS3WorkflowStorage.kt` | 373 | File-system based S3 mock for local development |
-| `module-core-domain/.../service/WorkflowYamlParser.kt` | 154 | YAML parsing and validation for workflow specs |
 | `module-core-domain/.../model/workflow/WorkflowSpec.kt` | 172 | Domain models for workflow specifications |
-| `module-core-domain/.../service/WorkflowSpecSyncService.kt` | 247 | S3 spec synchronization service |
+| `module-core-domain/.../service/WorkflowService.kt` | +401 | Extended with S3 spec synchronization and YAML parsing logic |
 | `module-core-infra/.../scheduler/WorkflowSpecSyncScheduler.kt` | 63 | Scheduled S3 spec sync execution |
 | `module-core-domain/.../model/workflow/AirflowClusterEntity.kt` | 99 | Team-based Airflow cluster entity |
 | `module-core-domain/.../model/workflow/AirflowEnvironment.kt` | ~20 | Environment enum (DEVELOPMENT, PRODUCTION) |
@@ -43,8 +42,7 @@
 | `module-server-api/.../dto/airflow/AirflowSyncDtos.kt` | 104 | API DTOs for sync requests/responses |
 | `module-server-api/.../mapper/AirflowSyncMapper.kt` | 86 | Entity to DTO mapping |
 | **Test Files** | | |
-| `module-core-domain/test/.../service/WorkflowYamlParserTest.kt` | 498 | YAML parser unit tests |
-| `module-core-domain/test/.../service/WorkflowSpecSyncServiceTest.kt` | 315 | Spec sync service tests |
+| `module-core-domain/test/.../service/WorkflowServiceTest.kt` | +813 | Extended with YAML parser and spec sync tests |
 | `module-core-domain/test/.../service/AirflowRunSyncServiceTest.kt` | 388 | Run sync service tests |
 | `module-core-domain/test/.../model/workflow/AirflowClusterEntityTest.kt` | 233 | Entity validation tests |
 | `module-core-infra/test/.../external/MockS3WorkflowStorageTest.kt` | 369 | S3 storage mock tests |
@@ -159,9 +157,8 @@ graph TB
     end
 
     subgraph "Domain Layer (module-core-domain)"
-        WSS[WorkflowSpecSyncService]
+        WS[WorkflowService - Integrated Spec Sync & YAML Parsing]
         ARS[AirflowRunSyncService]
-        WS[WorkflowService]
         ACE[AirflowClusterEntity]
         WRE[WorkflowRunEntity]
         AC[AirflowClient]
@@ -183,14 +180,13 @@ graph TB
         DB[(MySQL)]
     end
 
-    ASC --> WSS
+    ASC --> WS
     ASC --> ARS
     ASC --> ASM
-    WSS --> WS3
-    WSS --> WS
+    WS --> WS3
     ARS --> AC
     ARS --> ACR
-    WSSS --> WSS
+    WSSS --> WS
     ARSS --> ARS
     MS3 -.-> S3
     MRC -.-> AF
@@ -314,19 +310,9 @@ basecamp:
 
 ### 5.2 Test Categories
 
-**WorkflowYamlParser Tests (498 lines):**
-- Valid YAML parsing
-- Invalid YAML handling
-- Missing required fields
-- Schedule validation
-- Parameter parsing
-
-**WorkflowSpecSyncService Tests (315 lines):**
-- Full sync workflow
-- Create new workflows
-- Update existing workflows
-- Error handling and recovery
-- S3 우선 덮어쓰기 정책
+**WorkflowService Tests (+813 lines):**
+- YAML parsing (valid/invalid, missing fields, schedule validation, parameter parsing)
+- Spec sync workflow (full sync, create new, update existing, error handling, S3 우선 덮어쓰기 정책)
 
 **AirflowRunSyncService Tests (388 lines):**
 - All cluster sync

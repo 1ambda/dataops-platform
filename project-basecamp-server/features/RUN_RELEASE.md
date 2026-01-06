@@ -24,8 +24,7 @@
 | `module-core-domain/.../model/adhoc/AdHocExecutionEntity.kt` | ~120 | Ad-hoc execution tracking with lifecycle methods |
 | `module-core-domain/.../model/adhoc/UserExecutionQuotaEntity.kt` | ~100 | User rate limit quota with sliding window logic |
 | `module-core-domain/.../model/adhoc/RunExecutionConfig.kt` | ~35 | Configuration data class for execution policies |
-| `module-core-domain/.../service/AdHocExecutionService.kt` | ~275 | Core execution service with parameter substitution |
-| `module-core-domain/.../service/ExecutionPolicyService.kt` | ~175 | Rate limiting and policy validation |
+| `module-core-domain/.../service/ExecutionService.kt` | ~450 | Integrated execution service with parameter substitution, rate limiting, and policy validation |
 | `module-core-domain/.../service/ResultStorageService.kt` | ~150 | In-memory result storage with CSV conversion |
 | `module-core-domain/.../service/QueryIdGenerator.kt` | ~25 | Deterministic query ID generation for testability |
 | `module-core-domain/.../external/QueryEngineClient.kt` | ~35 | Domain interface for BigQuery/Trino integration |
@@ -42,8 +41,7 @@
 | `module-server-api/.../dto/run/RunDtos.kt` | ~140 | Request/Response DTOs |
 | `module-server-api/.../mapper/RunMapper.kt` | ~50 | Entity to DTO mapping |
 | **Test Files** | | |
-| `module-core-domain/test/.../service/AdHocExecutionServiceTest.kt` | ~567 | Service unit tests (18 scenarios) |
-| `module-core-domain/test/.../service/ExecutionPolicyServiceTest.kt` | ~390 | Policy service tests (14 scenarios) |
+| `module-core-domain/test/.../service/ExecutionServiceTest.kt` | ~957 | Integrated service unit tests (32 scenarios: execution, rate limiting, policy validation) |
 | `module-server-api/test/.../controller/RunControllerTest.kt` | ~622 | Controller tests (12 scenarios) |
 
 **Total Lines Added:** ~3,181 lines (1,605 implementation + 1,579 tests)
@@ -171,17 +169,14 @@
 ┌─────────────────────────▼───────────────────────────────────────┐
 │                    module-core-domain                            │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ AdHocExecutionService                                        ││
+│  │ ExecutionService (Integrated)                                ││
 │  │   - executeSQL()                                             ││
 │  │   - executeDryRun()                                          ││
 │  │   - renderSqlWithParameters()                                ││
-│  └──────────────────────┬──────────────────────────────────────┘│
-│  ┌──────────────────────▼──────────────────────────────────────┐│
-│  │ ExecutionPolicyService                                       ││
 │  │   - getPolicy()                                              ││
 │  │   - validateExecution()                                      ││
 │  │   - incrementUsage()                                         ││
-│  └─────────────────────────────────────────────────────────────┘│
+│  └──────────────────────┬──────────────────────────────────────┘│
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │ ResultStorageService                                         ││
 │  │   - storeResults()                                           ││
@@ -326,8 +321,7 @@ class UserExecutionQuotaEntity(
 
 | Test Class | Tests | Coverage |
 |------------|-------|----------|
-| `AdHocExecutionServiceTest` | 18 | SQL execution, parameter substitution, error handling |
-| `ExecutionPolicyServiceTest` | 14 | Rate limiting, policy validation, quota management |
+| `ExecutionServiceTest` | 32 | SQL execution, parameter substitution, rate limiting, policy validation, quota management, error handling |
 | `RunControllerTest` | 12 | HTTP endpoints, request validation, response formatting |
 | **Total** | **44** | All scenarios covered |
 
@@ -351,15 +345,15 @@ class UserExecutionQuotaEntity(
 
 **MockK-Based Unit Tests:**
 ```kotlin
-@DisplayName("AdHocExecutionService Unit Tests")
-class AdHocExecutionServiceTest {
+@DisplayName("ExecutionService Unit Tests")
+class ExecutionServiceTest {
     private val clock = Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC"))
     private val queryIdGenerator: QueryIdGenerator = mockk()
 
     @Test
     fun `should return COMPLETED status for successful execution`() {
         every { queryIdGenerator.generate() } returns testQueryId
-        every { executionPolicyService.validateExecution(...) } just runs
+        // ExecutionService now includes policy validation internally
         // ...
     }
 }
@@ -371,11 +365,11 @@ class AdHocExecutionServiceTest {
 @Import(SecurityConfig::class, GlobalExceptionHandler::class)
 class RunControllerTest {
     @MockkBean(relaxed = true)
-    private lateinit var adHocExecutionService: AdHocExecutionService
+    private lateinit var executionService: ExecutionService
 
     @Test
     fun `should return 429 for rate limit exceeded`() {
-        every { adHocExecutionService.executeSQL(...) } throws
+        every { executionService.executeSQL(...) } throws
             RateLimitExceededException(limitType = "queries_per_hour", ...)
 
         mockMvc.perform(post("/api/v1/run/execute")...)

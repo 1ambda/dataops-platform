@@ -1,7 +1,6 @@
 package com.dataops.basecamp.controller
 
 import com.dataops.basecamp.common.constant.CommonConstants
-import com.dataops.basecamp.domain.service.MetricExecutionService
 import com.dataops.basecamp.domain.service.MetricService
 import com.dataops.basecamp.dto.metric.CreateMetricRequest
 import com.dataops.basecamp.dto.metric.CreateMetricResponse
@@ -43,7 +42,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 @Tag(name = "Metric", description = "Metric management API")
 class MetricController(
     private val metricService: MetricService,
-    private val metricExecutionService: MetricExecutionService,
     private val metricMapper: MetricMapper,
 ) {
     private val logger = KotlinLogging.logger {}
@@ -175,7 +173,7 @@ class MetricController(
         logger.info { "POST /api/v1/metrics/$name/run" }
 
         val result =
-            metricExecutionService.executeMetric(
+            metricService.executeMetric(
                 metricName = name,
                 parameters = request.parameters,
                 limit = request.limit,

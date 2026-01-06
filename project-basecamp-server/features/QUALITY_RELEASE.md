@@ -25,8 +25,7 @@
 | `module-core-domain/.../model/quality/QualityTestEntity.kt` | 95 | Individual quality test configuration within specs |
 | `module-core-domain/.../model/quality/QualityRunEntity.kt` | 112 | Quality test execution tracking and lifecycle management |
 | `module-core-domain/.../model/quality/TestResultEntity.kt` | 118 | Detailed test result metrics and sample failures |
-| `module-core-domain/.../service/QualityService.kt` | 449 | Core business logic (CRUD, validation, test orchestration) |
-| `module-core-domain/.../service/QualityRuleEngineService.kt` | 156 | SQL generation and rule evaluation logic |
+| `module-core-domain/.../service/QualityService.kt` | 605 | Core business logic (CRUD, validation, test orchestration, SQL generation, rule evaluation) |
 | `module-core-domain/.../client/QualityRuleEngineClient.kt` | 45 | Interface for project-basecamp-parser API integration |
 | `module-core-domain/.../client/MockQualityRuleEngineClient.kt` | 89 | Mock implementation for development and testing |
 | `module-core-domain/.../repository/QualitySpecRepositoryJpa.kt` | 42 | Domain interface for quality spec CRUD operations |
@@ -40,8 +39,7 @@
 | `module-server-api/.../controller/QualityController.kt` | 134 | REST endpoints for quality operations |
 | `module-server-api/.../dto/quality/QualityDtos.kt` | 198 | API DTOs for requests and responses |
 | `module-server-api/.../mapper/QualityMapper.kt` | 87 | Entity to DTO mapping layer |
-| `module-core-domain/test/.../service/QualityServiceTest.kt` | 756 | Service unit tests (26 test scenarios) |
-| `module-core-domain/test/.../service/QualityRuleEngineServiceTest.kt` | 453 | Rule engine service tests (15 test scenarios) |
+| `module-core-domain/test/.../service/QualityServiceTest.kt` | 1209 | Service unit tests (41 test scenarios including rule engine tests) |
 | `module-core-infra/test/.../repository/QualitySpecRepositoryJpaImplTest.kt` | 445 | JPA repository integration tests |
 | `module-core-infra/test/.../repository/QualitySpecRepositoryDslImplTest.kt` | 512 | QueryDSL repository integration tests |
 | `module-core-infra/test/.../repository/QualityRunRepositoryJpaImplTest.kt` | 398 | Quality run repository integration tests |
@@ -127,7 +125,7 @@
 | Layer | Component | Implementation |
 |-------|-----------|----------------|
 | **Domain** | Entities | `QualitySpecEntity`, `QualityTestEntity`, `QualityRunEntity`, `TestResultEntity` |
-| **Domain** | Services | `QualityService`, `QualityRuleEngineService` (concrete classes) |
+| **Domain** | Services | `QualityService` (integrated with SQL generation and rule evaluation logic) |
 | **Domain** | Repository Interfaces | `QualitySpecRepositoryJpa`, `QualitySpecRepositoryDsl` |
 | **Domain** | Clients | `QualityRuleEngineClient` interface, `MockQualityRuleEngineClient` |
 | **Infrastructure** | Repository Impls | `QualitySpecRepositoryJpaImpl`, `QualitySpecRepositoryDslImpl` |
@@ -242,8 +240,7 @@ dli quality run user_events --test-types NOT_NULL,UNIQUE --timeout 600
 | Test Class | Tests | Status |
 |------------|-------|--------|
 | `QualityControllerTest` | 22 | ✅ All Passed |
-| `QualityServiceTest` | 26 | ✅ All Passed |
-| `QualityRuleEngineServiceTest` | 15 | ✅ All Passed |
+| `QualityServiceTest` | 41 | ✅ All Passed (now includes rule engine tests) |
 | `QualitySpecRepositoryJpaImplTest` | 12 | ✅ All Passed |
 | `QualitySpecRepositoryDslImplTest` | 13 | ✅ All Passed |
 | `QualityRunRepositoryJpaImplTest` | 11 | ✅ All Passed |

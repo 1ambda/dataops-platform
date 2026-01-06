@@ -671,17 +671,18 @@ class MetricService(
 }
 ```
 
-### 5.4 Execution Service
+### 5.4 Execution Methods (Integrated into MetricService)
 
 ```kotlin
 @Service
-class MetricExecutionService(
-    private val metricService: MetricService,
-    private val queryEngineClient: QueryEngineClient,
+class MetricService(
+    // ... other dependencies ...
 ) {
     companion object {
-        private val logger = LoggerFactory.getLogger(MetricExecutionService::class.java)
+        private val logger = LoggerFactory.getLogger(MetricService::class.java)
     }
+
+    // ... CRUD methods ...
 
     fun executeMetric(
         metricName: String,
@@ -740,7 +741,6 @@ class MetricExecutionService(
 @Validated
 class MetricController(
     private val metricService: MetricService,
-    private val metricExecutionService: MetricExecutionService,
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(MetricController::class.java)

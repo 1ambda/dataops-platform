@@ -1,7 +1,8 @@
 package com.dataops.basecamp.controller
 
-import com.dataops.basecamp.domain.service.AdHocExecutionService
-import com.dataops.basecamp.domain.service.ExecutionPolicyService
+import com.dataops.basecamp.common.enums.SqlDialect
+import com.dataops.basecamp.domain.command.execution.SqlExecutionParams
+import com.dataops.basecamp.domain.service.ExecutionService
 import com.dataops.basecamp.domain.service.ResultStorageService
 import com.dataops.basecamp.dto.run.ExecuteSqlRequest
 import com.dataops.basecamp.dto.run.ExecutionPolicyResponseDto
@@ -33,8 +34,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/run")
 @Validated
 class RunController(
-    private val adHocExecutionService: AdHocExecutionService,
-    private val executionPolicyService: ExecutionPolicyService,
+    private val executionService: ExecutionService,
     private val resultStorageService: ResultStorageService,
 ) {
     /**
@@ -49,7 +49,7 @@ class RunController(
     @GetMapping("/policy")
     fun getPolicy(authentication: Authentication?): ResponseEntity<ExecutionPolicyResponseDto> {
         val userId = authentication?.name ?: "anonymous"
-        val policy = executionPolicyService.getPolicy(userId)
+        val policy = executionService.getExecutionPolicy(userId)
         val responseDto = RunMapper.toResponseDto(policy)
 
         return ResponseEntity.ok(responseDto)
@@ -72,24 +72,28 @@ class RunController(
     ): ResponseEntity<ExecutionResultResponseDto> {
         val userId = authentication?.name ?: "anonymous"
 
-        // Execute SQL
-        val result =
-            adHocExecutionService.executeSQL(
-                userId = userId,
+        // Convert to SqlExecutionParams
+        val params =
+            SqlExecutionParams(
                 sql = request.sql,
-                engine = request.engine,
+                dialect = SqlDialect.valueOf(request.engine.uppercase()),
                 parameters = request.parameters,
-                downloadFormat = request.downloadFormat,
                 dryRun = request.dryRun,
+                userId = userId.toLongOrNull() ?: 0L, // TODO: Use actual user ID from authentication
+                reason = "Ad-hoc SQL execution from API",
             )
 
+        // Execute SQL via ExecutionService
+        val result = executionService.executeRawSql(params)
+
         // Store results and get download URLs (if not dry run and has rows)
-        val queryId = result.queryId
+        val executionId = result.executionId
         val downloadUrls =
-            if (!request.dryRun && queryId != null && result.rows.isNotEmpty()) {
+            if (!request.dryRun && executionId.isNotEmpty() && !result.rows.isNullOrEmpty()) {
+                val rows = result.rows ?: emptyList()
                 resultStorageService.storeResults(
-                    queryId = queryId,
-                    rows = result.rows,
+                    queryId = executionId,
+                    rows = rows,
                     downloadFormat = request.downloadFormat,
                 )
             } else {

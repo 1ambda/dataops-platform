@@ -18,6 +18,16 @@ enum class SqlDialect {
     BIGQUERY,
 
     /**
+     * Apache Spark SQL dialect
+     */
+    SPARK,
+
+    /**
+     * DuckDB dialect
+     */
+    DUCKDB,
+
+    /**
      * Universal dialect matcher (matches any dialect)
      */
     ANY,

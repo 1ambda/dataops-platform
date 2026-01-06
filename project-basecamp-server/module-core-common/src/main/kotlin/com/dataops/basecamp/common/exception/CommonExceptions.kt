@@ -773,3 +773,16 @@ class AirflowClusterAlreadyExistsException(
         errorCode = "AIRFLOW_CLUSTER_ALREADY_EXISTS",
         cause = cause,
     )
+
+// ============= Execution Exceptions =============
+
+/**
+ * Execution Exception
+ *
+ * 실행 관련 예외
+ */
+class ExecutionException(
+    errorCode: String,
+    message: String,
+    cause: Throwable? = null,
+) : BusinessException(message, errorCode, cause)

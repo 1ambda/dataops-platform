@@ -4,6 +4,7 @@ import com.dataops.basecamp.domain.entity.adhoc.AdHocExecutionEntity
 import com.dataops.basecamp.domain.projection.adhoc.AdHocExecutionResultProjection
 import com.dataops.basecamp.domain.projection.execution.CurrentUsageProjection
 import com.dataops.basecamp.domain.projection.execution.ExecutionPolicyProjection
+import com.dataops.basecamp.domain.projection.execution.QueryExecutionResult
 import com.dataops.basecamp.domain.projection.execution.RateLimitsProjection
 import com.dataops.basecamp.dto.run.CurrentUsageResponseDto
 import com.dataops.basecamp.dto.run.ExecutionDetailDto
@@ -71,6 +72,25 @@ object RunMapper {
             downloadUrls = downloadUrls,
             expiresAt = result.expiresAt?.format(isoFormatter),
             renderedSql = result.renderedSql,
+        )
+
+    /**
+     * QueryExecutionResult -> ExecutionResultResponseDto 변환
+     */
+    fun toResponseDto(
+        result: QueryExecutionResult,
+        downloadUrls: Map<String, String>,
+    ): ExecutionResultResponseDto =
+        ExecutionResultResponseDto(
+            queryId = result.executionId.ifEmpty { null },
+            status = result.status.name,
+            executionTimeSeconds = result.executionTimeMs / 1000.0,
+            rowsReturned = result.rowCount ?: 0,
+            bytesScanned = null, // Not available in QueryExecutionResult
+            costUsd = null, // Not available in QueryExecutionResult
+            downloadUrls = downloadUrls,
+            expiresAt = null, // Not available in QueryExecutionResult
+            renderedSql = result.transpiledSql ?: "",
         )
 
     /**

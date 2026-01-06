@@ -23,8 +23,7 @@
 | File | Lines | Purpose |
 |------|-------|---------|
 | `module-core-domain/.../model/metric/MetricEntity.kt` | 100 | Domain model with tags, dependencies, soft delete |
-| `module-core-domain/.../service/MetricService.kt` | 169 | Business logic (CRUD, validation) |
-| `module-core-domain/.../service/MetricExecutionService.kt` | 134 | Query execution (mock implementation) |
+| `module-core-domain/.../service/MetricService.kt` | 303 | Business logic (CRUD, validation, execution with mock implementation) |
 | `module-core-domain/.../repository/MetricRepositoryJpa.kt` | 32 | Domain interface for CRUD operations |
 | `module-core-domain/.../repository/MetricRepositoryDsl.kt` | 34 | Domain interface for complex queries |
 | `module-core-domain/.../command/metric/MetricCommands.kt` | 75 | Command objects for write operations |
@@ -36,8 +35,7 @@
 | `module-server-api/.../dto/metric/MetricDtos.kt` | 108 | API DTOs |
 | `module-server-api/.../mapper/MetricMapper.kt` | 96 | Entity to DTO mapping |
 | `module-core-domain/test/.../fixtures/MetricTestFixtures.kt` | 142 | Test fixtures |
-| `module-core-domain/test/.../service/MetricServiceTest.kt` | 629 | Service unit tests |
-| `module-core-domain/test/.../service/MetricExecutionServiceTest.kt` | 274 | Execution service tests |
+| `module-core-domain/test/.../service/MetricServiceTest.kt` | 903 | Service unit tests (includes execution tests) |
 | `module-server-api/test/.../controller/MetricControllerTest.kt` | 833 | Controller tests (23 tests) |
 
 **Total Lines Added:** ~3,181 lines
@@ -256,8 +254,7 @@ dli metric run iceberg.reporting.user_summary --param date=2026-01-01 --limit 10
 | Test Class | Tests | Status |
 |------------|-------|--------|
 | `MetricControllerTest` | 23 | ✅ All Passed |
-| `MetricServiceTest` | (included in controller tests) | ✅ All Passed |
-| `MetricExecutionServiceTest` | (included in controller tests) | ✅ All Passed |
+| `MetricServiceTest` | (included in controller tests, now includes execution tests) | ✅ All Passed |
 
 **Total: 23 tests**
 
@@ -346,7 +343,7 @@ Following existing `ResourceRepositoryJpaImpl` pattern:
 
 ### 8.2 Why Mock Query Execution?
 
-Current `MetricExecutionService` uses mock implementation:
+`MetricService` now includes integrated mock execution implementation:
 - Enables controller testing without BigQuery/Trino infrastructure
 - Query engine integration planned for Phase 2
 - Mock returns consistent data for validation

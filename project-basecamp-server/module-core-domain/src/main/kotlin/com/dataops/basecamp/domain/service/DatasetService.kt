@@ -1,7 +1,9 @@
 package com.dataops.basecamp.domain.service
 
 import com.dataops.basecamp.common.exception.*
+import com.dataops.basecamp.domain.command.execution.DatasetRunParams
 import com.dataops.basecamp.domain.entity.dataset.DatasetEntity
+import com.dataops.basecamp.domain.projection.execution.QueryExecutionResult
 import com.dataops.basecamp.domain.repository.dataset.DatasetRepositoryDsl
 import com.dataops.basecamp.domain.repository.dataset.DatasetRepositoryJpa
 import org.springframework.data.domain.Page
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional
 class DatasetService(
     private val datasetRepositoryJpa: DatasetRepositoryJpa,
     private val datasetRepositoryDsl: DatasetRepositoryDsl,
+    private val executionService: ExecutionService,
 ) {
     // === 명령(Command) 처리 ===
 
@@ -99,6 +102,28 @@ class DatasetService(
         }
 
         datasetRepositoryJpa.deleteByName(name)
+    }
+
+    /**
+     * Dataset 실행 명령 처리
+     *
+     * @param name Dataset 이름
+     * @param params 실행 파라미터
+     * @return 실행 결과
+     * @throws DatasetNotFoundException Dataset을 찾을 수 없는 경우
+     */
+    @Transactional
+    fun runDataset(
+        name: String,
+        params: DatasetRunParams,
+    ): QueryExecutionResult {
+        // Dataset 존재 여부 확인
+        if (!datasetRepositoryJpa.existsByName(name)) {
+            throw DatasetNotFoundException(name)
+        }
+
+        // ExecutionService에 위임
+        return executionService.executeDataset(name, params)
     }
 
     // === 조회(Query) 처리 ===
