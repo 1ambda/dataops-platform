@@ -25,14 +25,14 @@ import java.time.LocalDateTime
  */
 @Service
 @Transactional(readOnly = true)
-class AirflowRunSyncService(
+class AirflowService(
     private val airflowClient: AirflowClient,
     private val clusterRepository: AirflowClusterRepositoryJpa,
     private val workflowRunRepositoryJpa: WorkflowRunRepositoryJpa,
     private val workflowRunRepositoryDsl: WorkflowRunRepositoryDsl,
     private val objectMapper: ObjectMapper,
 ) {
-    private val logger = LoggerFactory.getLogger(AirflowRunSyncService::class.java)
+    private val logger = LoggerFactory.getLogger(AirflowService::class.java)
 
     /**
      * 모든 활성 클러스터에서 Run 동기화 실행

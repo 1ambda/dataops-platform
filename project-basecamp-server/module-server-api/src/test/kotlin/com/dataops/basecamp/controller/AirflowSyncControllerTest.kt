@@ -3,7 +3,7 @@ package com.dataops.basecamp.controller
 import com.dataops.basecamp.domain.projection.workflow.ClusterSyncProjection
 import com.dataops.basecamp.domain.projection.workflow.RunSyncProjection
 import com.dataops.basecamp.domain.projection.workflow.SpecSyncProjection
-import com.dataops.basecamp.domain.service.AirflowRunSyncService
+import com.dataops.basecamp.domain.service.AirflowService
 import com.dataops.basecamp.domain.service.WorkflowSpecSyncService
 import com.dataops.basecamp.dto.airflow.ClusterSyncResultDto
 import com.dataops.basecamp.dto.airflow.RunSyncResultDto
@@ -56,7 +56,7 @@ class AirflowSyncControllerTest {
     private lateinit var specSyncService: WorkflowSpecSyncService
 
     @MockkBean(relaxed = true)
-    private lateinit var runSyncService: AirflowRunSyncService
+    private lateinit var runSyncService: AirflowService
 
     @MockkBean(relaxed = true)
     private lateinit var mapper: AirflowSyncMapper

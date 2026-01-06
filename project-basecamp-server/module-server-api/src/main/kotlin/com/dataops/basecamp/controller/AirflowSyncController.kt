@@ -1,7 +1,7 @@
 package com.dataops.basecamp.controller
 
 import com.dataops.basecamp.common.constant.CommonConstants
-import com.dataops.basecamp.domain.service.AirflowRunSyncService
+import com.dataops.basecamp.domain.service.AirflowService
 import com.dataops.basecamp.domain.service.WorkflowService
 import com.dataops.basecamp.dto.airflow.ClusterSyncResultDto
 import com.dataops.basecamp.dto.airflow.RunSyncResultDto
@@ -38,7 +38,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 class AirflowSyncController(
     private val workflowService: WorkflowService,
-    private val runSyncService: AirflowRunSyncService,
+    private val runSyncService: AirflowService,
     private val mapper: AirflowSyncMapper,
 ) {
     private val logger = KotlinLogging.logger {}

@@ -22,10 +22,10 @@ import org.springframework.stereotype.Component
     havingValue = "true",
     matchIfMissing = true,
 )
-class WorkflowSpecSyncScheduler(
+class WorkflowSyncScheduler(
     private val workflowService: WorkflowService,
 ) {
-    private val log = LoggerFactory.getLogger(WorkflowSpecSyncScheduler::class.java)
+    private val log = LoggerFactory.getLogger(WorkflowSyncScheduler::class.java)
 
     /**
      * 주기적인 Spec 동기화 실행

@@ -26,26 +26,26 @@ import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 
 /**
- * AirflowRunSyncService Unit Tests
+ * AirflowService Unit Tests
  *
  * Tests for Airflow DAG run synchronization service.
  */
-@DisplayName("AirflowRunSyncService Unit Tests")
-class AirflowRunSyncServiceTest {
+@DisplayName("AirflowService Unit Tests")
+class AirflowServiceTest {
     private val airflowClient: AirflowClient = mockk()
     private val clusterRepository: AirflowClusterRepositoryJpa = mockk()
     private val workflowRunRepositoryJpa: WorkflowRunRepositoryJpa = mockk()
     private val workflowRunRepositoryDsl: WorkflowRunRepositoryDsl = mockk()
     private val objectMapper = ObjectMapper()
 
-    private lateinit var service: AirflowRunSyncService
+    private lateinit var service: AirflowService
     private lateinit var testCluster: AirflowClusterEntity
     private lateinit var testWorkflowRun: WorkflowRunEntity
 
     @BeforeEach
     fun setUp() {
         service =
-            AirflowRunSyncService(
+            AirflowService(
                 airflowClient = airflowClient,
                 clusterRepository = clusterRepository,
                 workflowRunRepositoryJpa = workflowRunRepositoryJpa,

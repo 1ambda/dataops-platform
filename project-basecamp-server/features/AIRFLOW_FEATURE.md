@@ -561,11 +561,11 @@ interface WorkflowRunRepositoryDsl {
 }
 ```
 
-### 5.5 AirflowRunSyncService
+### 5.5 AirflowService
 
 ```kotlin
 @Service
-class AirflowRunSyncService(
+class AirflowService(
     private val airflowClient: AirflowClient,
     private val clusterRepository: AirflowClusterRepositoryJpa,
     private val workflowRunRepositoryJpa: WorkflowRunRepositoryJpa,
@@ -714,13 +714,13 @@ data class TaskProgress(
 )
 ```
 
-### 5.6 AirflowRunSyncScheduler
+### 5.6 AirflowSyncScheduler
 
 ```kotlin
 @Component
 @ConditionalOnProperty("basecamp.workflow.run-sync.enabled", havingValue = "true")
-class AirflowRunSyncScheduler(
-    private val syncService: AirflowRunSyncService,
+class AirflowSyncScheduler(
+    private val syncService: AirflowService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -785,7 +785,7 @@ data class AirflowTaskInstance(
 @RequestMapping("/api/v1/admin/sync")
 class SyncController(
     private val workflowSyncService: WorkflowSyncService,
-    private val runSyncService: AirflowRunSyncService,  // 추가
+    private val runSyncService: AirflowService,  // 추가
 ) {
     /**
      * 수동 S3 Spec Sync 트리거
@@ -1398,8 +1398,8 @@ class InMemoryWorkflowStorage : WorkflowStorage {
 |------|--------|-----------|
 | [ ] `WorkflowRunEntity` 확장 (Airflow 연동 필드 추가) | - | 0.5일 |
 | [ ] Database Migration (workflow_runs 테이블 확장) | Entity 수정 | 0.5일 |
-| [ ] `AirflowRunSyncService` 구현 | Phase 4 완료 | 1.5일 |
-| [ ] `AirflowRunSyncScheduler` 구현 | SyncService | 0.5일 |
+| [ ] `AirflowService` 구현 | Phase 4 완료 | 1.5일 |
+| [ ] `AirflowSyncScheduler` 구현 | SyncService | 0.5일 |
 | [ ] 수동 Run Sync API 구현 | SyncService | 0.5일 |
 | [ ] `AirflowClient` 확장 (listRecentDagRuns, getTaskInstances) | Client 기본 | 1일 |
 | [ ] Unit Tests (SyncService) | 구현 완료 | 1일 |
@@ -1534,7 +1534,7 @@ All phases (1-6) have been implemented:
 | **Phase 2** | S3 Spec Sync Service | ✅ Complete | WorkflowSpecSyncService (247 lines) + WorkflowYamlParser (154 lines) |
 | **Phase 3** | AirflowClusterEntity | ✅ Complete | Entity + Repositories (~200 lines total) |
 | **Phase 4** | AirflowClient Extension (Mock) | ✅ Complete | MockRestAirflowClient (573 lines) + DTOs (166 lines) |
-| **Phase 5** | DAG Run Sync Service | ✅ Complete | AirflowRunSyncService (340 lines) + Scheduler (120 lines) |
+| **Phase 5** | DAG Run Sync Service | ✅ Complete | AirflowService (340 lines) + Scheduler (120 lines) |
 | **Phase 6** | WorkflowService Integration | ✅ Complete | AirflowSyncController (183 lines) + DTOs/Mapper (~190 lines) |
 
 **API Endpoints Implemented:**

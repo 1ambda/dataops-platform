@@ -1,6 +1,6 @@
 package com.dataops.basecamp.infra.scheduler
 
-import com.dataops.basecamp.domain.service.AirflowRunSyncService
+import com.dataops.basecamp.domain.service.AirflowService
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -26,8 +26,8 @@ import org.springframework.stereotype.Component
     havingValue = "true",
     matchIfMissing = false, // 기본값: 비활성화
 )
-class AirflowRunSyncScheduler(
-    private val syncService: AirflowRunSyncService,
+class AirflowSyncScheduler(
+    private val syncService: AirflowService,
     @Value("\${basecamp.workflow.run-sync.lookback-hours:24}")
     private val lookbackHours: Long,
     @Value("\${basecamp.workflow.run-sync.batch-size:100}")
@@ -35,7 +35,7 @@ class AirflowRunSyncScheduler(
     @Value("\${basecamp.workflow.run-sync.stale-threshold-hours:1}")
     private val staleThresholdHours: Long,
 ) {
-    private val log = LoggerFactory.getLogger(AirflowRunSyncScheduler::class.java)
+    private val log = LoggerFactory.getLogger(AirflowSyncScheduler::class.java)
 
     /**
      * 주기적인 Run 동기화 실행

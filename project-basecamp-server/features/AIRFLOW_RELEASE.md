@@ -13,10 +13,10 @@
 | Phase | Feature | Status | Description |
 |-------|---------|--------|-------------|
 | **Phase 1** | S3 Storage | Complete | MockS3WorkflowStorage, file-system based S3 simulation |
-| **Phase 2** | Spec Sync Service | Complete | WorkflowService integration (spec sync + YAML parsing), WorkflowSpecSyncScheduler |
+| **Phase 2** | Spec Sync Service | Complete | WorkflowService integration (spec sync + YAML parsing), WorkflowSyncScheduler |
 | **Phase 3** | AirflowCluster Entity | Complete | AirflowClusterEntity with team-based cluster management |
 | **Phase 4** | AirflowClient Extension | Complete | MockRestAirflowClient with Airflow 3 DTOs |
-| **Phase 5** | Run Sync Service | Complete | AirflowRunSyncService, WorkflowRunEntity extension |
+| **Phase 5** | Run Sync Service | Complete | AirflowService, WorkflowRunEntity extension |
 | **Phase 6** | WorkflowService Integration | Complete | AirflowSyncController, manual sync endpoints |
 
 ### 1.2 Files Created
@@ -26,7 +26,7 @@
 | `module-core-infra/.../external/MockS3WorkflowStorage.kt` | 373 | File-system based S3 mock for local development |
 | `module-core-domain/.../model/workflow/WorkflowSpec.kt` | 172 | Domain models for workflow specifications |
 | `module-core-domain/.../service/WorkflowService.kt` | +401 | Extended with S3 spec synchronization and YAML parsing logic |
-| `module-core-infra/.../scheduler/WorkflowSpecSyncScheduler.kt` | 63 | Scheduled S3 spec sync execution |
+| `module-core-infra/.../scheduler/WorkflowSyncScheduler.kt` | 63 | Scheduled S3 spec sync execution |
 | `module-core-domain/.../model/workflow/AirflowClusterEntity.kt` | 99 | Team-based Airflow cluster entity |
 | `module-core-domain/.../model/workflow/AirflowEnvironment.kt` | ~20 | Environment enum (DEVELOPMENT, PRODUCTION) |
 | `module-core-domain/.../repository/AirflowClusterRepositoryJpa.kt` | 46 | Domain interface for cluster CRUD |
@@ -36,14 +36,14 @@
 | `module-core-domain/.../external/AirflowClient.kt` | 262 | Extended AirflowClient interface with sync methods |
 | `module-core-domain/.../external/AirflowResponse.kt` | 166 | Airflow 3 API response DTOs |
 | `module-core-infra/.../external/MockRestAirflowClient.kt` | 573 | Mock implementation with Airflow 3 API simulation |
-| `module-core-domain/.../service/AirflowRunSyncService.kt` | 340 | DAG Run synchronization service |
-| `module-core-infra/.../scheduler/AirflowRunSyncScheduler.kt` | 120 | Scheduled DAG run sync execution |
+| `module-core-domain/.../service/AirflowService.kt` | 340 | DAG Run synchronization service |
+| `module-core-infra/.../scheduler/AirflowSyncScheduler.kt` | 120 | Scheduled DAG run sync execution |
 | `module-server-api/.../controller/AirflowSyncController.kt` | 183 | REST endpoints for manual sync operations |
 | `module-server-api/.../dto/airflow/AirflowSyncDtos.kt` | 104 | API DTOs for sync requests/responses |
 | `module-server-api/.../mapper/AirflowSyncMapper.kt` | 86 | Entity to DTO mapping |
 | **Test Files** | | |
 | `module-core-domain/test/.../service/WorkflowServiceTest.kt` | +813 | Extended with YAML parser and spec sync tests |
-| `module-core-domain/test/.../service/AirflowRunSyncServiceTest.kt` | 388 | Run sync service tests |
+| `module-core-domain/test/.../service/AirflowServiceTest.kt` | 388 | Run sync service tests |
 | `module-core-domain/test/.../model/workflow/AirflowClusterEntityTest.kt` | 233 | Entity validation tests |
 | `module-core-infra/test/.../external/MockS3WorkflowStorageTest.kt` | 369 | S3 storage mock tests |
 | `module-core-infra/test/.../external/MockRestAirflowClientTest.kt` | 431 | Airflow client mock tests |
@@ -158,7 +158,7 @@ graph TB
 
     subgraph "Domain Layer (module-core-domain)"
         WS[WorkflowService - Integrated Spec Sync & YAML Parsing]
-        ARS[AirflowRunSyncService]
+        ARS[AirflowService]
         ACE[AirflowClusterEntity]
         WRE[WorkflowRunEntity]
         AC[AirflowClient]
@@ -167,8 +167,8 @@ graph TB
     end
 
     subgraph "Infrastructure Layer (module-core-infra)"
-        WSSS[WorkflowSpecSyncScheduler]
-        ARSS[AirflowRunSyncScheduler]
+        WSSS[WorkflowSyncScheduler]
+        ARSS[AirflowSyncScheduler]
         MS3[MockS3WorkflowStorage]
         MRC[MockRestAirflowClient]
         ACRI[AirflowClusterRepositoryJpaImpl]
@@ -314,7 +314,7 @@ basecamp:
 - YAML parsing (valid/invalid, missing fields, schedule validation, parameter parsing)
 - Spec sync workflow (full sync, create new, update existing, error handling, S3 우선 덮어쓰기 정책)
 
-**AirflowRunSyncService Tests (388 lines):**
+**AirflowService Tests (388 lines):**
 - All cluster sync
 - Single cluster sync
 - State mapping validation
@@ -341,7 +341,7 @@ basecamp:
 
 | Priority | Improvement | Description |
 |----------|-------------|-------------|
-| High | Clock Injection | Add `Clock` injection to AirflowRunSyncService for testability |
+| High | Clock Injection | Add `Clock` injection to AirflowService for testability |
 | Medium | Exception Organization | Move exception classes to dedicated file |
 | Low | State Mapping Tests | Add more state mapping tests (DEFERRED, SENSING) |
 
