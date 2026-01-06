@@ -29,7 +29,8 @@ import java.time.LocalDateTime
 class DatasetServiceTest {
     private val datasetRepositoryJpa: DatasetRepositoryJpa = mockk()
     private val datasetRepositoryDsl: DatasetRepositoryDsl = mockk()
-    private val datasetService = DatasetService(datasetRepositoryJpa, datasetRepositoryDsl)
+    private val executionService: ExecutionService = mockk()
+    private val datasetService = DatasetService(datasetRepositoryJpa, datasetRepositoryDsl, executionService)
 
     private lateinit var testDataset: DatasetEntity
 

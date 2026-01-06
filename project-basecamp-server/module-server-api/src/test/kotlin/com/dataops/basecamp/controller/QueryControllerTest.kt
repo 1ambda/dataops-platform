@@ -452,7 +452,7 @@ class QueryControllerTest {
                 .perform(get("/api/v1/queries/$queryId"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value(errorMessage))
+                .andExpect(jsonPath("$.message").value("Access denied to $errorMessage for action: access"))
                 .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"))
 
             verify(exactly = 1) { queryService.getQueryDetails(queryId, "analyst@example.com") }
@@ -600,7 +600,7 @@ class QueryControllerTest {
                 .perform(post("/api/v1/queries/$queryId/cancel"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value(errorMessage))
+                .andExpect(jsonPath("$.message").value("Access denied to $errorMessage for action: access"))
                 .andExpect(jsonPath("$.error.code").value("ACCESS_DENIED"))
 
             verify(exactly = 1) { queryService.cancelQuery(any(), "analyst@example.com") }

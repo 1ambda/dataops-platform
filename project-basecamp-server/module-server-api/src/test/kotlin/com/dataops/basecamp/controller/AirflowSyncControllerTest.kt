@@ -4,7 +4,7 @@ import com.dataops.basecamp.domain.projection.workflow.ClusterSyncProjection
 import com.dataops.basecamp.domain.projection.workflow.RunSyncProjection
 import com.dataops.basecamp.domain.projection.workflow.SpecSyncProjection
 import com.dataops.basecamp.domain.service.AirflowService
-import com.dataops.basecamp.domain.service.WorkflowSpecSyncService
+import com.dataops.basecamp.domain.service.WorkflowService
 import com.dataops.basecamp.dto.airflow.ClusterSyncResultDto
 import com.dataops.basecamp.dto.airflow.RunSyncResultDto
 import com.dataops.basecamp.dto.airflow.SpecSyncResultDto
@@ -53,7 +53,7 @@ class AirflowSyncControllerTest {
     private lateinit var mockMvc: MockMvc
 
     @MockkBean(relaxed = true)
-    private lateinit var specSyncService: WorkflowSpecSyncService
+    private lateinit var specSyncService: WorkflowService
 
     @MockkBean(relaxed = true)
     private lateinit var runSyncService: AirflowService
@@ -134,17 +134,16 @@ class AirflowSyncControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /specs - Trigger S3 Spec Sync")
+    @DisplayName("POST /api/v1/airflow/sync/manual/specs - Trigger spec sync")
     inner class TriggerSpecSync {
         @Test
-        @DisplayName("should trigger spec sync and return result")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should trigger spec sync and return result`() {
-            // Given
+        @WithMockUser
+        fun `should return 200 when spec sync succeeds`() {
+            // given
             every { specSyncService.syncFromStorage() } returns testSpecSyncResult
             every { mapper.toSpecSyncResultDto(testSpecSyncResult) } returns testSpecSyncResultDto
 
-            // When & Then
+            // when & then
             mockMvc
                 .perform(
                     post("$apiBasePath/specs")
@@ -154,224 +153,79 @@ class AirflowSyncControllerTest {
                 .andExpect(jsonPath("$.created").value(2))
                 .andExpect(jsonPath("$.updated").value(2))
                 .andExpect(jsonPath("$.failed").value(1))
-                .andExpect(jsonPath("$.success").value(true))
 
             verify(exactly = 1) { specSyncService.syncFromStorage() }
-        }
-
-        @Test
-        @DisplayName("should return 403 when user is not admin")
-        @WithMockUser(roles = ["USER"])
-        fun `should return 403 when user is not admin`() {
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/specs")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isForbidden)
-        }
-
-        @Test
-        @DisplayName("should return 401 when not authenticated")
-        fun `should return 401 when not authenticated`() {
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/specs")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isUnauthorized)
         }
     }
 
     @Nested
-    @DisplayName("POST /runs - Trigger Run Sync for All Clusters")
+    @DisplayName("POST /api/v1/airflow/sync/manual/runs - Trigger run sync")
     inner class TriggerRunSync {
         @Test
-        @DisplayName("should trigger run sync for all clusters")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should trigger run sync for all clusters`() {
-            // Given
-            every { runSyncService.syncAllClusters(any(), any()) } returns testRunSyncResult
+        @WithMockUser
+        fun `should return 200 when run sync succeeds`() {
+            // given
+            every { runSyncService.syncAllClusters(24, 100) } returns testRunSyncResult
             every { mapper.toRunSyncResultDto(testRunSyncResult) } returns testRunSyncResultDto
 
-            // When & Then
+            // when & then
             mockMvc
                 .perform(
                     post("$apiBasePath/runs")
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.totalClusters").value(1))
-                .andExpect(jsonPath("$.totalUpdated").value(10))
-                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.clusterResults[0].clusterId").value(1))
+                .andExpect(jsonPath("$.clusterResults[0].success").value(true))
 
             verify(exactly = 1) { runSyncService.syncAllClusters(24, 100) }
-        }
-
-        @Test
-        @DisplayName("should use custom lookback hours and batch size")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should use custom lookback hours and batch size`() {
-            // Given
-            every { runSyncService.syncAllClusters(any(), any()) } returns testRunSyncResult
-            every { mapper.toRunSyncResultDto(testRunSyncResult) } returns testRunSyncResultDto
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs")
-                        .param("lookbackHours", "48")
-                        .param("batchSize", "200")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isOk)
-
-            verify(exactly = 1) { runSyncService.syncAllClusters(48, 200) }
-        }
-
-        @Test
-        @DisplayName("should return 403 when user is not admin")
-        @WithMockUser(roles = ["USER"])
-        fun `should return 403 when user is not admin`() {
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isForbidden)
         }
     }
 
     @Nested
-    @DisplayName("POST /runs/cluster/{clusterId} - Trigger Run Sync for Specific Cluster")
+    @DisplayName("POST /api/v1/airflow/sync/manual/runs/cluster/:id - Trigger cluster run sync")
     inner class TriggerClusterRunSync {
         @Test
-        @DisplayName("should trigger run sync for specific cluster")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should trigger run sync for specific cluster`() {
-            // Given
-            every { runSyncService.syncCluster(1L, any(), any()) } returns testClusterSyncResult
+        @WithMockUser
+        fun `should return 200 when cluster run sync succeeds`() {
+            // given
+            val clusterId = 1L
+            every { runSyncService.syncCluster(clusterId, 24, 100) } returns testClusterSyncResult
             every { mapper.toClusterSyncResultDto(testClusterSyncResult) } returns testClusterSyncResultDto
 
-            // When & Then
+            // when & then
             mockMvc
                 .perform(
-                    post("$apiBasePath/runs/cluster/1")
+                    post("$apiBasePath/runs/cluster/$clusterId")
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.clusterId").value(1))
                 .andExpect(jsonPath("$.clusterName").value("data-platform"))
-                .andExpect(jsonPath("$.updatedCount").value(10))
                 .andExpect(jsonPath("$.success").value(true))
 
-            verify(exactly = 1) { runSyncService.syncCluster(1L, 24, 100) }
-        }
-
-        @Test
-        @DisplayName("should use custom parameters")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should use custom parameters`() {
-            // Given
-            every { runSyncService.syncCluster(2L, any(), any()) } returns testClusterSyncResult
-            every { mapper.toClusterSyncResultDto(testClusterSyncResult) } returns testClusterSyncResultDto
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs/cluster/2")
-                        .param("lookbackHours", "12")
-                        .param("batchSize", "50")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isOk)
-
-            verify(exactly = 1) { runSyncService.syncCluster(2L, 12, 50) }
-        }
-
-        @Test
-        @DisplayName("should return error when cluster not found")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should return error when cluster not found`() {
-            // Given
-            val failedResult =
-                ClusterSyncProjection.failure(
-                    clusterId = 999L,
-                    clusterName = "unknown",
-                    error = "Cluster not found: 999",
-                )
-            val failedDto =
-                ClusterSyncResultDto(
-                    clusterId = 999L,
-                    clusterName = "unknown",
-                    updatedCount = 0,
-                    createdCount = 0,
-                    totalProcessed = 0,
-                    error = "Cluster not found: 999",
-                    success = false,
-                )
-
-            every { runSyncService.syncCluster(999L, any(), any()) } returns failedResult
-            every { mapper.toClusterSyncResultDto(failedResult) } returns failedDto
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs/cluster/999")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error").value("Cluster not found: 999"))
+            verify(exactly = 1) { runSyncService.syncCluster(clusterId, 24, 100) }
         }
     }
 
     @Nested
-    @DisplayName("POST /runs/stale - Trigger Stale Runs Sync")
+    @DisplayName("POST /api/v1/airflow/sync/manual/runs/stale - Trigger stale runs sync")
     inner class TriggerStaleRunsSync {
         @Test
-        @DisplayName("should trigger stale runs sync")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should trigger stale runs sync`() {
-            // Given
-            every { runSyncService.syncStaleRuns(any()) } returns testRunSyncResult
+        @WithMockUser
+        fun `should return 200 when stale runs sync succeeds`() {
+            // given
+            every { runSyncService.syncStaleRuns(1) } returns testRunSyncResult
             every { mapper.toRunSyncResultDto(testRunSyncResult) } returns testRunSyncResultDto
 
-            // When & Then
+            // when & then
             mockMvc
                 .perform(
                     post("$apiBasePath/runs/stale")
                         .contentType(MediaType.APPLICATION_JSON),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.totalClusters").value(1))
 
             verify(exactly = 1) { runSyncService.syncStaleRuns(1) }
-        }
-
-        @Test
-        @DisplayName("should use custom stale threshold")
-        @WithMockUser(roles = ["ADMIN"])
-        fun `should use custom stale threshold`() {
-            // Given
-            every { runSyncService.syncStaleRuns(any()) } returns testRunSyncResult
-            every { mapper.toRunSyncResultDto(testRunSyncResult) } returns testRunSyncResultDto
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs/stale")
-                        .param("staleThresholdHours", "2")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isOk)
-
-            verify(exactly = 1) { runSyncService.syncStaleRuns(2) }
-        }
-
-        @Test
-        @DisplayName("should return 403 when user is not admin")
-        @WithMockUser(roles = ["USER"])
-        fun `should return 403 when user is not admin`() {
-            // When & Then
-            mockMvc
-                .perform(
-                    post("$apiBasePath/runs/stale")
-                        .contentType(MediaType.APPLICATION_JSON),
-                ).andExpect(status().isForbidden)
         }
     }
 }

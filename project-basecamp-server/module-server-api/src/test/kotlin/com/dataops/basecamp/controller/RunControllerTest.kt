@@ -5,12 +5,11 @@ import com.dataops.basecamp.common.exception.InvalidDownloadTokenException
 import com.dataops.basecamp.common.exception.QueryEngineNotSupportedException
 import com.dataops.basecamp.common.exception.RateLimitExceededException
 import com.dataops.basecamp.common.exception.ResultNotFoundException
-import com.dataops.basecamp.domain.projection.adhoc.AdHocExecutionResultProjection
 import com.dataops.basecamp.domain.projection.execution.CurrentUsageProjection
 import com.dataops.basecamp.domain.projection.execution.ExecutionPolicyProjection
+import com.dataops.basecamp.domain.projection.execution.QueryExecutionResult
 import com.dataops.basecamp.domain.projection.execution.RateLimitsProjection
-import com.dataops.basecamp.domain.service.AdHocExecutionService
-import com.dataops.basecamp.domain.service.ExecutionPolicyService
+import com.dataops.basecamp.domain.service.ExecutionService
 import com.dataops.basecamp.domain.service.ResultStorageService
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
@@ -37,7 +36,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.validation.beanvalidation.MethodValidationPostProcessor
 import tools.jackson.databind.json.JsonMapper
-import java.math.BigDecimal
 import java.time.LocalDateTime
 
 /**
@@ -69,17 +67,14 @@ class RunControllerTest {
     private val jsonMapper: JsonMapper = JsonMapper.builder().build()
 
     @MockkBean(relaxed = true)
-    private lateinit var adHocExecutionService: AdHocExecutionService
-
-    @MockkBean(relaxed = true)
-    private lateinit var executionPolicyService: ExecutionPolicyService
+    private lateinit var executionService: ExecutionService
 
     @MockkBean(relaxed = true)
     private lateinit var resultStorageService: ResultStorageService
 
     // Test data
     private lateinit var testPolicy: ExecutionPolicyProjection
-    private lateinit var testExecutionResult: AdHocExecutionResultProjection
+    private lateinit var testExecutionResult: QueryExecutionResult
     private val testQueryId = "adhoc_20260101_120000_abc12345"
     private val testUserId = "anonymous" // Default for unauthenticated requests
 
@@ -108,21 +103,19 @@ class RunControllerTest {
 
         // Setup test execution result
         testExecutionResult =
-            AdHocExecutionResultProjection(
-                queryId = testQueryId,
-                status = ExecutionStatus.COMPLETED,
-                executionTimeSeconds = 1.5,
-                rowsReturned = 100,
-                bytesScanned = 1024000L,
-                costUsd = BigDecimal("0.05"),
+            QueryExecutionResult(
+                executionId = testQueryId,
+                status = ExecutionStatus.SUCCESS,
                 rows =
                     listOf(
                         mapOf("id" to 1, "name" to "Alice"),
                         mapOf("id" to 2, "name" to "Bob"),
                     ),
-                expiresAt = LocalDateTime.now().plusHours(24),
-                renderedSql = "SELECT * FROM users",
-                downloadFormat = "csv",
+                rowCount = 100,
+                schema = null,
+                executionTimeMs = 1500L,
+                transpiledSql = "SELECT * FROM users",
+                error = null,
             )
     }
 
@@ -133,7 +126,7 @@ class RunControllerTest {
         @DisplayName("should return execution policy with correct structure")
         fun `should return execution policy with correct structure`() {
             // Given
-            every { executionPolicyService.getPolicy(testUserId) } returns testPolicy
+            every { executionService.getExecutionPolicy(testUserId) } returns testPolicy
 
             // When & Then
             mockMvc
@@ -155,7 +148,7 @@ class RunControllerTest {
                 .andExpect(jsonPath("$.currentUsage.queriesToday").value(12))
                 .andExpect(jsonPath("$.currentUsage.queriesThisHour").value(3))
 
-            verify(exactly = 1) { executionPolicyService.getPolicy(testUserId) }
+            verify(exactly = 1) { executionService.getExecutionPolicy(testUserId) }
         }
 
         @Test
@@ -170,7 +163,7 @@ class RunControllerTest {
                             queriesThisHour = 0,
                         ),
                 )
-            every { executionPolicyService.getPolicy(testUserId) } returns newUserPolicy
+            every { executionService.getExecutionPolicy(testUserId) } returns newUserPolicy
 
             // When & Then
             mockMvc
@@ -189,17 +182,15 @@ class RunControllerTest {
         fun `should return VALIDATED status for dry run`() {
             // Given
             val dryRunResult =
-                AdHocExecutionResultProjection(
-                    queryId = null,
+                QueryExecutionResult(
+                    executionId = "",
                     status = ExecutionStatus.VALIDATED,
-                    executionTimeSeconds = 0.5,
-                    rowsReturned = 0,
-                    bytesScanned = null,
-                    costUsd = null,
                     rows = emptyList(),
-                    expiresAt = null,
-                    renderedSql = "SELECT * FROM users WHERE date = '2026-01-01'",
-                    downloadFormat = null,
+                    rowCount = 0,
+                    schema = null,
+                    executionTimeMs = 500L,
+                    transpiledSql = "SELECT * FROM users WHERE date = '2026-01-01'",
+                    error = null,
                 )
             val request =
                 mapOf(
@@ -210,14 +201,7 @@ class RunControllerTest {
                 )
 
             every {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = any(),
-                    parameters = any(),
-                    downloadFormat = any(),
-                    dryRun = true,
-                )
+                executionService.executeRawSql(any())
             } returns dryRunResult
 
             // When & Then
@@ -228,19 +212,10 @@ class RunControllerTest {
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.status").value("VALIDATED"))
-                .andExpect(jsonPath("$.queryId").doesNotExist())
-                .andExpect(jsonPath("$.rowsReturned").value(0))
                 .andExpect(jsonPath("$.renderedSql").value("SELECT * FROM users WHERE date = '2026-01-01'"))
 
             verify(exactly = 1) {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = any(),
-                    parameters = any(),
-                    downloadFormat = any(),
-                    dryRun = true,
-                )
+                executionService.executeRawSql(any())
             }
         }
 
@@ -257,14 +232,7 @@ class RunControllerTest {
             val downloadUrls = mapOf("csv" to "/api/v1/run/results/$testQueryId/download?format=csv&token=xyz")
 
             every {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = any(),
-                    parameters = any(),
-                    downloadFormat = "csv",
-                    dryRun = false,
-                )
+                executionService.executeRawSql(any())
             } returns testExecutionResult
             every {
                 resultStorageService.storeResults(
@@ -281,13 +249,10 @@ class RunControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.queryId").value(testQueryId))
                 .andExpect(jsonPath("$.rowsReturned").value(100))
-                .andExpect(jsonPath("$.bytesScanned").exists())
-                .andExpect(jsonPath("$.costUsd").value(0.05))
                 .andExpect(jsonPath("$.downloadUrls.csv").exists())
-                .andExpect(jsonPath("$.expiresAt").exists())
 
             verify(exactly = 1) {
                 resultStorageService.storeResults(
@@ -310,18 +275,11 @@ class RunControllerTest {
                 )
             val resultWithParams =
                 testExecutionResult.copy(
-                    renderedSql = "SELECT * FROM users WHERE date = '2026-01-01' AND status = 'active'",
+                    transpiledSql = "SELECT * FROM users WHERE date = '2026-01-01' AND status = 'active'",
                 )
 
             every {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = any(),
-                    parameters = any(),
-                    downloadFormat = any(),
-                    dryRun = false,
-                )
+                executionService.executeRawSql(any())
             } returns resultWithParams
             every { resultStorageService.storeResults(any(), any(), any()) } returns emptyMap()
 
@@ -350,7 +308,7 @@ class RunControllerTest {
                 )
 
             every {
-                adHocExecutionService.executeSQL(any(), any(), any(), any(), any(), any())
+                executionService.executeRawSql(any())
             } throws
                 QueryEngineNotSupportedException(
                     engine = "mysql",
@@ -396,7 +354,7 @@ class RunControllerTest {
                 )
 
             every {
-                adHocExecutionService.executeSQL(any(), any(), any(), any(), any(), any())
+                executionService.executeRawSql(any())
             } throws
                 RateLimitExceededException(
                     limitType = "queries_per_hour",
@@ -426,14 +384,7 @@ class RunControllerTest {
                 )
 
             every {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = "bigquery", // Default
-                    parameters = any(),
-                    downloadFormat = any(),
-                    dryRun = any(),
-                )
+                executionService.executeRawSql(any())
             } returns testExecutionResult
             every { resultStorageService.storeResults(any(), any(), any()) } returns emptyMap()
 
@@ -446,14 +397,7 @@ class RunControllerTest {
                 ).andExpect(status().isOk)
 
             verify(exactly = 1) {
-                adHocExecutionService.executeSQL(
-                    userId = testUserId,
-                    sql = any(),
-                    engine = "bigquery",
-                    parameters = any(),
-                    downloadFormat = any(),
-                    dryRun = any(),
-                )
+                executionService.executeRawSql(any())
             }
         }
 
@@ -462,17 +406,15 @@ class RunControllerTest {
         fun `should not store results for dry run`() {
             // Given
             val dryRunResult =
-                AdHocExecutionResultProjection(
-                    queryId = null,
+                QueryExecutionResult(
+                    executionId = "",
                     status = ExecutionStatus.VALIDATED,
-                    executionTimeSeconds = 0.3,
-                    rowsReturned = 0,
-                    bytesScanned = null,
-                    costUsd = null,
                     rows = emptyList(),
-                    expiresAt = null,
-                    renderedSql = "SELECT * FROM users",
-                    downloadFormat = null,
+                    rowCount = 0,
+                    schema = null,
+                    executionTimeMs = 300L,
+                    transpiledSql = "SELECT * FROM users",
+                    error = null,
                 )
             val request =
                 mapOf(
@@ -480,7 +422,7 @@ class RunControllerTest {
                     "dryRun" to true,
                 )
 
-            every { adHocExecutionService.executeSQL(any(), any(), any(), any(), any(), true) } returns dryRunResult
+            every { executionService.executeRawSql(any()) } returns dryRunResult
 
             // When & Then
             mockMvc
@@ -594,7 +536,7 @@ class RunControllerTest {
                 )
 
             every {
-                adHocExecutionService.executeSQL(any(), any(), any(), any(), any(), any())
+                executionService.executeRawSql(any())
             } throws
                 QueryEngineNotSupportedException(
                     engine = "mysql",

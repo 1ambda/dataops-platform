@@ -11,6 +11,8 @@ import com.dataops.basecamp.common.exception.QualitySpecNotFoundException
 import com.dataops.basecamp.domain.entity.quality.QualityRunEntity
 import com.dataops.basecamp.domain.entity.quality.QualitySpecEntity
 import com.dataops.basecamp.domain.entity.quality.QualityTestEntity
+import com.dataops.basecamp.domain.external.quality.GenerateSqlResponse
+import com.dataops.basecamp.domain.external.quality.QualityRuleEngineClient
 import com.dataops.basecamp.domain.repository.quality.QualityRunRepositoryJpa
 import com.dataops.basecamp.domain.repository.quality.QualitySpecRepositoryDsl
 import com.dataops.basecamp.domain.repository.quality.QualitySpecRepositoryJpa
@@ -41,7 +43,8 @@ class QualityServiceTest {
     private val qualitySpecRepositoryDsl: QualitySpecRepositoryDsl = mockk()
     private val qualityRunRepositoryJpa: QualityRunRepositoryJpa = mockk()
     private val qualityTestRepositoryJpa: QualityTestRepositoryJpa = mockk()
-    private val qualityRuleEngineService: QualityRuleEngineService = mockk()
+    private val qualityRuleEngineClient: QualityRuleEngineClient = mockk()
+    private val executionService: ExecutionService = mockk()
 
     private val qualityService =
         QualityService(
@@ -49,7 +52,8 @@ class QualityServiceTest {
             qualitySpecRepositoryDsl,
             qualityRunRepositoryJpa,
             qualityTestRepositoryJpa,
-            qualityRuleEngineService,
+            qualityRuleEngineClient,
+            executionService,
         )
 
     private lateinit var testQualitySpec: QualitySpecEntity
@@ -574,13 +578,13 @@ class QualityServiceTest {
             val enabledTests = listOf(testQualityTest)
             every { qualityTestRepositoryJpa.findBySpecNameAndEnabled(qualitySpecName, true) } returns enabledTests
 
-            // Mock rule engine service
+            // Mock rule engine client
             every {
-                qualityRuleEngineService.generateNotNullTestSql(resourceName, "user_id")
+                qualityRuleEngineClient.generateSql(any())
             } returns
-                mockk {
-                    every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
-                }
+                GenerateSqlResponse(
+                    sql = "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows",
+                )
 
             // When
             val result =
@@ -621,11 +625,11 @@ class QualityServiceTest {
             } returns enabledTests
 
             every {
-                qualityRuleEngineService.generateNotNullTestSql(resourceName, "user_id")
+                qualityRuleEngineClient.generateSql(any())
             } returns
-                mockk {
-                    every { sql } returns "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows"
-                }
+                GenerateSqlResponse(
+                    sql = "SELECT COUNT(*) FILTER (WHERE user_id IS NULL) as failed_rows",
+                )
 
             // When
             val result =

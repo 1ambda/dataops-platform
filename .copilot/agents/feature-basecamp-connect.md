@@ -1,0 +1,378 @@
+---
+name: feature-basecamp-connect
+description: Feature development agent for project-basecamp-connect. Flask 3+ with SQLAlchemy for GitHub/Jira/Slack integration. Use PROACTIVELY when building integration features, webhooks, or service connectors. Triggers on integration requests, webhook handlers, and cross-service synchronization work.
+model: inherit
+skills:
+  - mcp-efficiency         # Read connect_patterns memory before file reads
+  - pytest-fixtures        # Fixture design for integration tests
+  - testing                # TDD workflow for webhook handlers
+  - performance            # Async handling, API call optimization
+  - completion-gate             # 완료 선언 Gate + 코드 존재 검증
+  - implementation-checklist    # FEATURE → 체크리스트 자동 생성
+  - gap-analysis                # FEATURE vs RELEASE 체계적 비교
+  - phase-tracking              # 다단계 기능 관리 (Phase 1/2)
+  - dependency-coordination     # 크로스 Agent 의존성 추적
+  - docs-synchronize            # 문서 동기화 검증
+  - integration-finder          # 기존 모듈 연동점 탐색
+---
+
+## Single Source of Truth (CRITICAL)
+
+> **패턴은 Serena Memory에 통합되어 있습니다. 구현 전 먼저 읽으세요.**
+
+### 1순위: Serena Memory (토큰 최소)
+
+```
+mcp__serena__read_memory("connect_patterns")    # 핵심 패턴 요약
+```
+
+### 2순위: MCP 탐색 (기존 코드 확인)
+
+```
+serena.get_symbols_overview("project-basecamp-connect/src/connect/...")
+serena.find_symbol("IntegrationService")
+context7.get-library-docs("/sqlalchemy/sqlalchemy")
+```
+
+### CRITICAL: search_for_pattern Limits
+
+> **WARNING: 잘못된 search_for_pattern 사용은 20k+ 토큰 응답 발생!**
+
+```python
+# BAD - 20k+ 토큰:
+search_for_pattern(substring_pattern=r"import.*sqlalchemy")
+
+# GOOD - 제한된 응답:
+search_for_pattern(
+    substring_pattern=r"@app.route",
+    relative_path="project-basecamp-connect/src/",
+    context_lines_after=1,
+    max_answer_chars=3000
+)
+```
+
+**파일 검색은 find_file 사용:** `find_file(file_mask="*.py", relative_path="...")`
+
+---
+
+## When to Use Skills
+
+- **code-search**: Explore existing integration patterns
+- **testing**: Write tests for webhook handlers and API clients
+- **refactoring**: Improve service structure
+- **debugging**: Trace integration errors
+
+## Core Work Principles
+
+1. **Clarify**: Understand requirements fully. Ask if ambiguous. No over-engineering.
+2. **Design**: Verify approach against patterns (MCP/docs). Check API docs for external services.
+3. **TDD**: Write test → implement → refine. `uv run pytest` must pass.
+4. **Document**: Update relevant docs (README, API specs) when behavior changes.
+5. **Self-Review**: Critique your own work. Iterate 1-4 if issues found.
+
+---
+
+## Project Structure
+
+```
+project-basecamp-connect/
+├── src/connect/
+│   ├── __init__.py          # Package initialization
+│   ├── config.py            # ServerConfig, DatabaseConfig, IntegrationConfig
+│   ├── database.py          # SQLAlchemy models (IntegrationLog, ServiceMapping)
+│   ├── exceptions.py        # ConnectError, IntegrationError, ValidationError
+│   └── logging_config.py    # Logging setup
+├── tests/
+│   ├── conftest.py          # Test fixtures (app, client, db_session)
+│   ├── test_api.py          # API integration tests
+│   └── test_database.py     # Database model tests
+├── main.py                  # Flask application entry point
+└── pyproject.toml           # Project configuration (uv)
+```
+
+## Technology Stack
+
+| Category | Technology |
+|----------|------------|
+| Runtime | Python 3.12+ |
+| Web Framework | Flask 3.1+ |
+| ORM | SQLAlchemy 2.0+ |
+| HTTP Client | httpx |
+| Package Manager | uv |
+| Testing | pytest + coverage |
+| Linting | Ruff, Pyright |
+
+---
+
+## Database Models
+
+```python
+from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+    pass
+
+class IntegrationLog(Base):
+    """Log of integration events between services."""
+    __tablename__ = "integration_logs"
+    id = Column(Integer, primary_key=True)
+    source_service = Column(String(50), nullable=False)
+    target_service = Column(String(50), nullable=False)
+    event_type = Column(String(100), nullable=False)
+    status = Column(String(50), default="pending")
+
+class ServiceMapping(Base):
+    """Mapping between service IDs (e.g., Jira ticket <-> Slack thread)."""
+    __tablename__ = "service_mappings"
+    id = Column(Integer, primary_key=True)
+    source_service = Column(String(50), nullable=False)
+    source_id = Column(String(255), nullable=False)
+    target_service = Column(String(50), nullable=False)
+    target_id = Column(String(255), nullable=False)
+```
+
+---
+
+## Flask API Patterns
+
+```python
+from flask import Flask, request, jsonify
+from src.connect.database import init_db
+
+app = Flask(__name__)
+init_db()
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy", "service": "connect"})
+
+@app.route('/api/v1/integrations', methods=['POST'])
+def create_integration():
+    data = request.get_json()
+    # Validate and process integration request
+    return jsonify({"success": True}), 202
+
+@app.route('/api/v1/mappings', methods=['GET'])
+def list_mappings():
+    # Query service mappings
+    return jsonify({"mappings": [], "total": 0})
+```
+
+---
+
+## Configuration
+
+```python
+from pydantic import BaseModel
+import os
+
+class ServerConfig(BaseModel):
+    host: str = "0.0.0.0"
+    port: int = 5001
+    debug: bool = False
+
+class DatabaseConfig(BaseModel):
+    url: str = "sqlite:///./connect.db"  # SQLite for dev
+    # url: str = "mysql+pymysql://..."   # MySQL for prod
+
+class IntegrationConfig(BaseModel):
+    github_token: str | None = None
+    jira_api_token: str | None = None
+    jira_base_url: str | None = None
+    slack_bot_token: str | None = None
+```
+
+## Implementation Order
+
+1. **Configuration** (src/connect/config.py) - `ServerConfig`, `DatabaseConfig`
+2. **Database Models** (src/connect/database.py) - SQLAlchemy models
+3. **Exceptions** (src/connect/exceptions.py) - Custom errors
+4. **API Endpoints** (main.py) - Flask routes
+5. **Service Clients** - GitHub, Jira, Slack API clients (future)
+
+## Naming Conventions
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Service Classes | `*Service` | `SlackService`, `JiraService` |
+| Data Classes | `*Model` | `IntegrationLog` |
+| Exceptions | `*Error` | `IntegrationError` |
+| API Routes | kebab-case | `/api/v1/integrations` |
+| Module Files | snake_case | `database.py` |
+
+## Integration Patterns
+
+### Slack → Jira
+1. Receive Slack workflow/message
+2. Extract relevant data
+3. Create Jira ticket via API
+4. Store mapping (Slack message → Jira ticket)
+5. Post Jira link back to Slack
+
+### Jira → Slack
+1. Receive Jira webhook
+2. Find linked Slack thread via ServiceMapping
+3. Post update to Slack thread
+4. Log integration event
+
+### GitHub → Slack
+1. Receive GitHub webhook (PR, Issue, etc.)
+2. Format notification message
+3. Post to designated Slack channel
+
+## Anti-Patterns to Avoid
+
+- Exposing API tokens in logs or responses
+- Hardcoding external service URLs
+- Missing webhook signature verification
+- Synchronous calls to slow external APIs (use async/background tasks)
+
+## Quality Checklist
+
+- [ ] `uv run pytest` - all tests pass
+- [ ] `uv run pyright src/` - no type errors
+- [ ] `uv run ruff check` - no linting issues
+- [ ] Input validation on all endpoints
+- [ ] API tokens stored in environment variables only
+- [ ] Webhook signatures verified for Slack/GitHub
+
+## Essential Commands
+
+```bash
+uv sync                                    # Install dependencies
+uv run python main.py                      # Run server (port 5001)
+uv run pytest                              # Run tests
+uv run pytest --cov=src --cov-report=html  # Tests with coverage
+uv run ruff format && uv run ruff check --fix  # Format and lint
+```
+
+## External APIs
+
+| Service | Docs |
+|---------|------|
+| GitHub REST API | https://docs.github.com/en/rest |
+| Jira REST API | https://developer.atlassian.com/cloud/jira/platform/rest/v3 |
+| Slack Web API | https://api.slack.com/methods |
+
+---
+
+## Implementation Verification (CRITICAL)
+
+> **Protocol**: `completion-gate` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### Project Commands
+
+| Action | Command |
+|--------|---------|
+| Test | `uv run pytest` |
+| Type Check | `uv run pyright src/` |
+| Lint | `uv run ruff check --fix` |
+| Run | `uv run python main.py` |
+
+### Project Paths
+
+| Category | Path |
+|----------|------|
+| DB Models | `src/connect/database.py` |
+| Service | `src/connect/{feature}_service.py` |
+| Config | `src/connect/config.py` |
+| Exceptions | `src/connect/exceptions.py` |
+| API | `main.py` |
+| Tests | `tests/test_*.py` |
+
+### Post-Implementation
+
+```
+□ Serena memory 업데이트 (connect_patterns)
+□ README.md 변경사항 반영
+```
+
+---
+
+## FEATURE → Implementation Workflow (CRITICAL)
+
+> **Workflow**: `implementation-checklist` skill 참조
+> **Gate**: `completion-gate` skill 참조
+
+### 구현 순서
+
+```
+Config → DB Models → Service → Endpoint → Tests
+```
+
+### FEATURE 섹션별 검증
+
+| FEATURE 섹션 | 필수 구현 | 검증 방법 |
+|--------------|-----------|-----------|
+| DB Models | SQLAlchemy 모델 | `grep -r "class.*(Base)" src/connect/database.py` |
+| Service | `*Service` | `grep -r "class.*Service" src/connect/` |
+| API Endpoints | `@app.route` | `grep -r "@app.route" main.py` |
+| Exceptions | `*Error` | `grep -r "class.*Error" src/connect/exceptions.py` |
+| Tests | 테스트 파일 | `ls tests/test_*.py` |
+
+---
+
+## MCP 활용 (Token Efficiency CRITICAL)
+
+> **상세 가이드**: `mcp-efficiency` skill 참조
+
+### MCP Query Anti-Patterns (AVOID)
+
+```python
+# BAD: Returns 10k+ tokens (entire file bodies)
+search_for_pattern("@app.route.*", context_lines_after=10)
+
+# BAD: Broad search without scope
+search_for_pattern("class.*Service", restrict_search_to_code_files=True)
+
+# BAD: Reading files before understanding structure
+Read("src/connect/database.py")  # 3000+ tokens wasted
+```
+
+### Token-Efficient Patterns (USE)
+
+```python
+# GOOD: List files first (~200 tokens)
+list_dir("src/connect", recursive=False)
+
+# GOOD: Get structure without bodies (~300 tokens)
+get_symbols_overview("src/connect/database.py")
+
+# GOOD: Signatures only (~400 tokens)
+find_symbol("IntegrationLog", depth=1, include_body=False)
+
+# GOOD: Specific method body only when needed (~500 tokens)
+find_symbol("IntegrationLog/save", include_body=True)
+
+# GOOD: Minimal context for pattern search
+search_for_pattern(
+    "@app.route",
+    context_lines_before=0,
+    context_lines_after=1,
+    relative_path="project-basecamp-connect/",
+    max_answer_chars=3000
+)
+```
+
+### Decision Tree
+
+```
+Need file list?       → list_dir()
+Need class structure? → get_symbols_overview()
+Need method list?     → find_symbol(depth=1, include_body=False)
+Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
+Need to find pattern? → search_for_pattern with context=0
+LAST RESORT          → Read() full file
+```
+
+### Quick Reference
+
+| 도구 | 용도 |
+|------|------|
+| `serena.read_memory("connect_patterns")` | Connect 패턴 로드 |
+| `serena.get_symbols_overview("src/connect/")` | 모듈 구조 파악 |
+| `serena.find_symbol("IntegrationLog")` | 모델 상세 조회 |
+| `claude-mem.search("webhook")` | 과거 구현 참조 |
+| `jetbrains.search_in_files_by_text("@app.route")` | API 검색 |

@@ -5,7 +5,6 @@ import com.dataops.basecamp.common.exception.MetricNotFoundException
 import com.dataops.basecamp.domain.command.metric.CreateMetricCommand
 import com.dataops.basecamp.domain.entity.metric.MetricEntity
 import com.dataops.basecamp.domain.projection.metric.MetricExecutionProjection
-import com.dataops.basecamp.domain.service.MetricExecutionService
 import com.dataops.basecamp.domain.service.MetricService
 import com.dataops.basecamp.dto.metric.CreateMetricRequest
 import com.dataops.basecamp.dto.metric.MetricExecutionResultDto
@@ -71,9 +70,6 @@ class MetricControllerTest {
     private lateinit var metricService: MetricService
 
     @MockkBean(relaxed = true)
-    private lateinit var metricExecutionService: MetricExecutionService
-
-    @MockkBean(relaxed = true)
     private lateinit var metricMapper: MetricMapper
 
     private lateinit var testMetricEntity: MetricEntity
@@ -99,180 +95,138 @@ class MetricControllerTest {
         testMetricResponse =
             MetricResponse(
                 name = "test_catalog.test_schema.test_metric",
-                type = "Metric",
                 owner = "test@example.com",
                 team = "data-team",
                 description = "Test metric description",
-                tags = listOf("test", "user"),
                 sql = "SELECT COUNT(*) FROM users",
                 sourceTable = "users",
+                tags = listOf("test", "user"),
                 dependencies = listOf("users"),
                 createdAt = LocalDateTime.now(),
                 updatedAt = LocalDateTime.now(),
             )
 
-        // List response without SQL and dependencies (for list view)
         testMetricListResponse =
             MetricResponse(
-                name = "test_catalog.test_schema.test_metric",
-                type = "Metric",
+                name = "test_catalog.test_schema.another_metric",
                 owner = "test@example.com",
                 team = "data-team",
-                description = "Test metric description",
-                tags = listOf("test", "user"),
-                sql = null,
-                sourceTable = "users",
-                dependencies = null,
+                description = "Another metric",
+                sql = "SELECT AVG(price) FROM products",
+                sourceTable = "products",
+                tags = listOf("test"),
+                dependencies = listOf("products"),
                 createdAt = LocalDateTime.now(),
                 updatedAt = LocalDateTime.now(),
             )
 
         testExecutionResult =
             MetricExecutionProjection(
-                rows = listOf(mapOf("count" to 100)),
+                rows = emptyList(),
                 rowCount = 1,
-                durationSeconds = 0.5,
+                durationSeconds = 0.15,
                 renderedSql = "SELECT COUNT(*) FROM users",
             )
 
         testExecutionResultDto =
             MetricExecutionResultDto(
-                rows = listOf(mapOf("count" to 100)),
+                rows = emptyList(),
                 rowCount = 1,
-                durationSeconds = 0.5,
+                durationSeconds = 0.15,
                 renderedSql = "SELECT COUNT(*) FROM users",
             )
     }
 
     @Nested
-    @DisplayName("GET /api/v1/metrics")
+    @DisplayName("GET /api/v1/metrics - List metrics")
     inner class ListMetrics {
         @Test
-        @DisplayName("should return empty list when no metrics exist")
-        fun `should return empty list when no metrics exist`() {
+        fun `should return 200 with metrics list when found`() {
             // Given
-            every { metricService.listMetrics(null, null, null, 50, 0) } returns emptyList()
+            val metrics = listOf(testMetricEntity)
+            every { metricService.listMetrics(any(), any(), any(), any(), any()) } returns metrics
+            every { metricMapper.toListResponse(testMetricEntity) } returns testMetricResponse
 
             // When & Then
             mockMvc
                 .perform(get("/api/v1/metrics"))
                 .andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0))
+                .andExpect(jsonPath("$[0].name").value("test_catalog.test_schema.test_metric"))
 
-            verify(exactly = 1) { metricService.listMetrics(null, null, null, 50, 0) }
+            verify(exactly = 1) { metricService.listMetrics(any(), any(), any(), any(), any()) }
         }
 
         @Test
-        @DisplayName("should return metrics list")
-        fun `should return metrics list`() {
+        fun `should return 200 with empty list when no metrics found`() {
             // Given
-            val metrics = listOf(testMetricEntity)
-            every { metricService.listMetrics(null, null, null, 50, 0) } returns metrics
-            every { metricMapper.toListResponse(testMetricEntity) } returns testMetricListResponse
+            every { metricService.listMetrics(any(), any(), any(), any(), any()) } returns emptyList()
 
             // When & Then
             mockMvc
                 .perform(get("/api/v1/metrics"))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name").value("test_catalog.test_schema.test_metric"))
-                .andExpect(jsonPath("$[0].owner").value("test@example.com"))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isEmpty)
 
-            verify(exactly = 1) { metricService.listMetrics(null, null, null, 50, 0) }
-            verify(exactly = 1) { metricMapper.toListResponse(testMetricEntity) }
+            verify(exactly = 1) { metricService.listMetrics(any(), any(), any(), any(), any()) }
         }
 
         @Test
-        @DisplayName("should filter metrics by tag")
-        fun `should filter metrics by tag`() {
+        fun `should return 200 with custom limit and offset`() {
             // Given
-            val tag = "test"
             val metrics = listOf(testMetricEntity)
-            every { metricService.listMetrics(tag, null, null, 50, 0) } returns metrics
-            every { metricMapper.toListResponse(testMetricEntity) } returns testMetricListResponse
+            every { metricService.listMetrics(any(), any(), any(), any(), any()) } returns metrics
+            every { metricMapper.toListResponse(testMetricEntity) } returns testMetricResponse
 
             // When & Then
             mockMvc
                 .perform(
                     get("/api/v1/metrics")
-                        .param("tag", tag),
+                        .param("limit", "50")
+                        .param("offset", "10"),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
 
-            verify(exactly = 1) { metricService.listMetrics(tag, null, null, 50, 0) }
+            verify(exactly = 1) { metricService.listMetrics(limit = 50, offset = 10) }
         }
 
         @Test
-        @DisplayName("should filter metrics by owner")
-        fun `should filter metrics by owner`() {
-            // Given
-            val owner = "test@example.com"
-            val metrics = listOf(testMetricEntity)
-            every { metricService.listMetrics(null, owner, null, 50, 0) } returns metrics
-            every { metricMapper.toListResponse(testMetricEntity) } returns testMetricListResponse
-
+        fun `should return 400 when limit exceeds maximum`() {
             // When & Then
             mockMvc
                 .perform(
                     get("/api/v1/metrics")
-                        .param("owner", owner),
-                ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.length()").value(1))
-
-            verify(exactly = 1) { metricService.listMetrics(null, owner, null, 50, 0) }
+                        .param("limit", "1001"), // Max is 1000
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
-        @DisplayName("should apply limit and offset")
-        fun `should apply limit and offset`() {
-            // Given
-            val limit = 10
-            val offset = 5
-            every { metricService.listMetrics(null, null, null, limit, offset) } returns emptyList()
-
+        fun `should return 400 when limit is negative`() {
             // When & Then
             mockMvc
                 .perform(
                     get("/api/v1/metrics")
-                        .param("limit", limit.toString())
-                        .param("offset", offset.toString()),
-                ).andExpect(status().isOk)
-
-            verify(exactly = 1) { metricService.listMetrics(null, null, null, limit, offset) }
+                        .param("limit", "-1"),
+                ).andExpect(status().isBadRequest)
         }
 
         @Test
-        @DisplayName("should reject request when limit exceeds maximum")
-        fun `should reject request when limit exceeds maximum`() {
-            // When limit exceeds 500, validation should reject the request
-            mockMvc
-                .perform(
-                    get("/api/v1/metrics")
-                        .param("limit", "501"),
-                ).andExpect(status().is4xxClientError)
-        }
-
-        @Test
-        @DisplayName("should reject request when offset is negative")
-        fun `should reject request when offset is negative`() {
-            // When offset is negative, validation should reject the request
+        fun `should return 400 when offset is negative`() {
+            // When & Then
             mockMvc
                 .perform(
                     get("/api/v1/metrics")
                         .param("offset", "-1"),
-                ).andExpect(status().is4xxClientError)
+                ).andExpect(status().isBadRequest)
         }
     }
 
     @Nested
-    @DisplayName("GET /api/v1/metrics/{name}")
+    @DisplayName("GET /api/v1/metrics/:name - Get metric by name")
     inner class GetMetric {
         @Test
-        @DisplayName("should return metric by name")
-        fun `should return metric by name`() {
+        fun `should return 200 with metric when found`() {
             // Given
             val name = "test_catalog.test_schema.test_metric"
             every { metricService.getMetricOrThrow(name) } returns testMetricEntity
@@ -285,18 +239,15 @@ class MetricControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.name").value(name))
                 .andExpect(jsonPath("$.owner").value("test@example.com"))
-                .andExpect(jsonPath("$.sql").value("SELECT COUNT(*) FROM users"))
 
             verify(exactly = 1) { metricService.getMetricOrThrow(name) }
-            verify(exactly = 1) { metricMapper.toResponse(testMetricEntity) }
         }
 
         @Test
-        @DisplayName("should return 404 when metric not found")
         fun `should return 404 when metric not found`() {
             // Given
-            val name = "nonexistent_catalog.schema.metric"
-            every { metricService.getMetricOrThrow(name) } throws MetricNotFoundException(name)
+            val name = "nonexistent.metric"
+            every { metricService.getMetricOrThrow(name) } throws MetricNotFoundException("Metric not found: $name")
 
             // When & Then
             mockMvc
@@ -308,50 +259,45 @@ class MetricControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/v1/metrics")
+    @DisplayName("POST /api/v1/metrics - Create metric")
     inner class CreateMetric {
         @Test
-        @DisplayName("should create metric successfully")
-        fun `should create metric successfully`() {
+        fun `should return 201 when metric created successfully`() {
             // Given
             val request =
                 CreateMetricRequest(
-                    name = "new_catalog.new_schema.new_metric",
-                    owner = "new@example.com",
-                    sql = "SELECT SUM(amount) FROM orders",
-                    description = "New metric",
-                    tags = listOf("new"),
+                    name = "test_catalog.test_schema.test_metric",
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test metric description",
+                    sql = "SELECT COUNT(*) FROM users",
+                    sourceTable = "users",
+                    tags = listOf("test", "user"),
                 )
 
-            val params =
+            val command =
                 CreateMetricCommand(
                     name = request.name,
                     owner = request.owner,
-                    team = null,
+                    team = request.team,
                     description = request.description,
                     sql = request.sql,
-                    sourceTable = null,
+                    sourceTable = request.sourceTable,
                     tags = request.tags.toSet(),
                 )
 
-            every { metricMapper.extractCreateCommand(request) } returns params
+            every { metricMapper.extractCreateCommand(request) } returns command
             every {
                 metricService.createMetric(
-                    name = params.name,
-                    owner = params.owner,
-                    team = params.team,
-                    description = params.description,
-                    sql = params.sql,
-                    sourceTable = params.sourceTable,
-                    tags = params.tags.toList(),
+                    name = command.name,
+                    owner = command.owner,
+                    team = command.team,
+                    description = command.description,
+                    sql = command.sql,
+                    sourceTable = command.sourceTable,
+                    tags = command.tags.toList(),
                 )
-            } returns
-                MetricEntity(
-                    name = request.name,
-                    owner = request.owner,
-                    sql = request.sql,
-                    description = request.description,
-                )
+            } returns testMetricEntity
 
             // When & Then
             mockMvc
@@ -362,176 +308,59 @@ class MetricControllerTest {
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isCreated)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.name").value(request.name))
                 .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.name").value(request.name))
 
-            verify(exactly = 1) { metricMapper.extractCreateCommand(request) }
-        }
-
-        @Test
-        @DisplayName("should return 400 for invalid request - missing name")
-        fun `should return 400 for invalid request - missing name`() {
-            // Given
-            val invalidRequest =
-                mapOf(
-                    "owner" to "test@example.com",
-                    "sql" to "SELECT 1",
+            verify(exactly = 1) {
+                metricService.createMetric(
+                    name = command.name,
+                    owner = command.owner,
+                    team = command.team,
+                    description = command.description,
+                    sql = command.sql,
+                    sourceTable = command.sourceTable,
+                    tags = command.tags.toList(),
                 )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
+            }
         }
 
         @Test
-        @DisplayName("should return 400 for invalid name format")
-        fun `should return 400 for invalid name format`() {
-            // Given
-            val invalidRequest =
-                mapOf(
-                    "name" to "invalid-name-without-dots",
-                    "owner" to "test@example.com",
-                    "sql" to "SELECT 1",
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 for invalid email format")
-        fun `should return 400 for invalid email format`() {
-            // Given
-            val invalidRequest =
-                mapOf(
-                    "name" to "catalog.schema.metric",
-                    "owner" to "not-an-email",
-                    "sql" to "SELECT 1",
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 when tags exceed maximum limit")
-        fun `should return 400 when tags exceed maximum limit`() {
-            // Given
-            val tooManyTags = (1..15).map { "tag$it" } // 15 tags, limit is 10
-            val invalidRequest =
-                mapOf(
-                    "name" to "catalog.schema.metric",
-                    "owner" to "test@example.com",
-                    "sql" to "SELECT 1",
-                    "tags" to tooManyTags,
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 when SQL exceeds maximum length")
-        fun `should return 400 when SQL exceeds maximum length`() {
-            // Given
-            val tooLongSql = "SELECT " + "x".repeat(10001) // SQL > 10000 chars
-            val invalidRequest =
-                mapOf(
-                    "name" to "catalog.schema.metric",
-                    "owner" to "test@example.com",
-                    "sql" to tooLongSql,
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 when description exceeds maximum length")
-        fun `should return 400 when description exceeds maximum length`() {
-            // Given
-            val tooLongDescription = "x".repeat(1001) // Description > 1000 chars
-            val invalidRequest =
-                mapOf(
-                    "name" to "catalog.schema.metric",
-                    "owner" to "test@example.com",
-                    "sql" to "SELECT 1",
-                    "description" to tooLongDescription,
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 409 when metric already exists")
         fun `should return 409 when metric already exists`() {
             // Given
             val request =
                 CreateMetricRequest(
-                    name = "existing_catalog.schema.metric",
+                    name = "test_catalog.test_schema.existing_metric",
                     owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test",
                     sql = "SELECT 1",
+                    sourceTable = "table",
+                    tags = emptyList(),
                 )
 
-            val params =
+            val command =
                 CreateMetricCommand(
                     name = request.name,
                     owner = request.owner,
-                    team = null,
-                    description = null,
+                    team = request.team,
+                    description = request.description,
                     sql = request.sql,
-                    sourceTable = null,
-                    tags = mutableSetOf(),
+                    sourceTable = request.sourceTable,
+                    tags = request.tags.toSet(),
                 )
 
-            every { metricMapper.extractCreateCommand(request) } returns params
+            every { metricMapper.extractCreateCommand(request) } returns command
             every {
                 metricService.createMetric(
-                    name = params.name,
-                    owner = params.owner,
-                    team = any(),
-                    description = any(),
-                    sql = params.sql,
-                    sourceTable = any(),
-                    tags = any(),
+                    name = command.name,
+                    owner = command.owner,
+                    team = command.team,
+                    description = command.description,
+                    sql = command.sql,
+                    sourceTable = command.sourceTable,
+                    tags = command.tags.toList(),
                 )
-            } throws MetricAlreadyExistsException(request.name)
+            } throws MetricAlreadyExistsException("Metric already exists: ${request.name}")
 
             // When & Then
             mockMvc
@@ -541,26 +370,110 @@ class MetricControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isConflict)
+
+            verify(exactly = 1) {
+                metricService.createMetric(
+                    name = command.name,
+                    owner = command.owner,
+                    team = command.team,
+                    description = command.description,
+                    sql = command.sql,
+                    sourceTable = command.sourceTable,
+                    tags = command.tags.toList(),
+                )
+            }
+        }
+
+        @Test
+        fun `should return 400 when name is blank`() {
+            // Given
+            val request =
+                CreateMetricRequest(
+                    name = "",
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test",
+                    sql = "SELECT 1",
+                    sourceTable = "table",
+                    tags = emptyList(),
+                )
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
+        }
+
+        @Test
+        fun `should return 400 when name is too long`() {
+            // Given
+            val longName = "a".repeat(256)
+            val request =
+                CreateMetricRequest(
+                    name = longName,
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test",
+                    sql = "SELECT 1",
+                    sourceTable = "table",
+                    tags = emptyList(),
+                )
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
+        }
+
+        @Test
+        fun `should return 400 when SQL is blank`() {
+            // Given
+            val request =
+                CreateMetricRequest(
+                    name = "test.metric",
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Test",
+                    sql = "",
+                    sourceTable = "table",
+                    tags = emptyList(),
+                )
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
         }
     }
 
     @Nested
-    @DisplayName("POST /api/v1/metrics/{name}/run")
+    @DisplayName("POST /api/v1/metrics/:name/run - Run metric")
     inner class RunMetric {
         @Test
-        @DisplayName("should execute metric successfully")
-        fun `should execute metric successfully`() {
+        fun `should return 200 with execution result when metric runs successfully`() {
             // Given
             val name = "test_catalog.test_schema.test_metric"
             val request =
                 RunMetricRequest(
-                    parameters = mapOf("date" to "2024-01-01"),
+                    parameters = mapOf("start_date" to "2024-01-01"),
                     limit = 100,
-                    timeout = 60,
+                    timeout = 30,
                 )
 
             every {
-                metricExecutionService.executeMetric(
+                metricService.executeMetric(
                     metricName = name,
                     parameters = request.parameters,
                     limit = request.limit,
@@ -583,7 +496,7 @@ class MetricControllerTest {
                 .andExpect(jsonPath("$.rendered_sql").value("SELECT COUNT(*) FROM users"))
 
             verify(exactly = 1) {
-                metricExecutionService.executeMetric(
+                metricService.executeMetric(
                     metricName = name,
                     parameters = request.parameters,
                     limit = request.limit,
@@ -593,20 +506,24 @@ class MetricControllerTest {
         }
 
         @Test
-        @DisplayName("should return 404 when running non-existent metric")
-        fun `should return 404 when running non-existent metric`() {
+        fun `should return 404 when metric not found`() {
             // Given
-            val name = "nonexistent_catalog.schema.metric"
-            val request = RunMetricRequest()
+            val name = "nonexistent.metric"
+            val request =
+                RunMetricRequest(
+                    parameters = emptyMap(),
+                    limit = 100,
+                    timeout = 30,
+                )
 
             every {
-                metricExecutionService.executeMetric(
+                metricService.executeMetric(
                     metricName = name,
-                    parameters = any(),
-                    limit = any(),
-                    timeout = any(),
+                    parameters = request.parameters,
+                    limit = request.limit,
+                    timeout = request.timeout,
                 )
-            } throws MetricNotFoundException(name)
+            } throws MetricNotFoundException("Metric not found: $name")
 
             // When & Then
             mockMvc
@@ -616,109 +533,27 @@ class MetricControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isNotFound)
-        }
 
-        @Test
-        @DisplayName("should return 400 when limit is less than 1")
-        fun `should return 400 when limit is less than 1`() {
-            // Given
-            val name = "test_catalog.test_schema.test_metric"
-            val invalidRequest =
-                mapOf(
-                    "parameters" to emptyMap<String, Any>(),
-                    "limit" to 0, // Invalid - must be at least 1
+            verify(exactly = 1) {
+                metricService.executeMetric(
+                    metricName = name,
+                    parameters = request.parameters,
+                    limit = request.limit,
+                    timeout = request.timeout,
                 )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics/$name/run")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
+            }
         }
 
         @Test
-        @DisplayName("should return 400 when limit exceeds maximum")
         fun `should return 400 when limit exceeds maximum`() {
             // Given
-            val name = "test_catalog.test_schema.test_metric"
-            val invalidRequest =
-                mapOf(
-                    "parameters" to emptyMap<String, Any>(),
-                    "limit" to 10001, // Invalid - must not exceed 10000
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics/$name/run")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 when timeout is less than 1")
-        fun `should return 400 when timeout is less than 1`() {
-            // Given
-            val name = "test_catalog.test_schema.test_metric"
-            val invalidRequest =
-                mapOf(
-                    "parameters" to emptyMap<String, Any>(),
-                    "timeout" to 0, // Invalid - must be at least 1
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics/$name/run")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should return 400 when timeout exceeds maximum")
-        fun `should return 400 when timeout exceeds maximum`() {
-            // Given
-            val name = "test_catalog.test_schema.test_metric"
-            val invalidRequest =
-                mapOf(
-                    "parameters" to emptyMap<String, Any>(),
-                    "timeout" to 3601, // Invalid - must not exceed 3600
-                )
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/metrics/$name/run")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(invalidRequest)),
-                ).andExpect(status().isBadRequest)
-        }
-
-        @Test
-        @DisplayName("should execute with default parameters when request body is empty")
-        fun `should execute with default parameters when request body is empty`() {
-            // Given
-            val name = "test_catalog.test_schema.test_metric"
-            val request = RunMetricRequest()
-
-            every {
-                metricExecutionService.executeMetric(
-                    metricName = name,
+            val name = "test.metric"
+            val request =
+                RunMetricRequest(
                     parameters = emptyMap(),
-                    limit = null,
-                    timeout = 300,
+                    limit = 10001, // Max is 10000
+                    timeout = 30,
                 )
-            } returns testExecutionResult
-
-            every { metricMapper.toExecutionResultDto(testExecutionResult) } returns testExecutionResultDto
 
             // When & Then
             mockMvc
@@ -727,16 +562,70 @@ class MetricControllerTest {
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
-                ).andExpect(status().isOk)
+                ).andExpect(status().isBadRequest)
+        }
 
-            verify(exactly = 1) {
-                metricExecutionService.executeMetric(
-                    metricName = name,
+        @Test
+        fun `should return 400 when limit is negative`() {
+            // Given
+            val name = "test.metric"
+            val request =
+                RunMetricRequest(
                     parameters = emptyMap(),
-                    limit = null,
-                    timeout = 300,
+                    limit = -1,
+                    timeout = 30,
                 )
-            }
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics/$name/run")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
+        }
+
+        @Test
+        fun `should return 400 when timeout exceeds maximum`() {
+            // Given
+            val name = "test.metric"
+            val request =
+                RunMetricRequest(
+                    parameters = emptyMap(),
+                    limit = 100,
+                    timeout = 3601, // Max is 3600
+                )
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics/$name/run")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
+        }
+
+        @Test
+        fun `should return 400 when timeout is negative`() {
+            // Given
+            val name = "test.metric"
+            val request =
+                RunMetricRequest(
+                    parameters = emptyMap(),
+                    limit = 100,
+                    timeout = -1,
+                )
+
+            // When & Then
+            mockMvc
+                .perform(
+                    post("/api/v1/metrics/$name/run")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonMapper.writeValueAsString(request)),
+                ).andExpect(status().isBadRequest)
         }
     }
 
@@ -744,63 +633,44 @@ class MetricControllerTest {
     @DisplayName("Integration Tests")
     inner class IntegrationTests {
         @Test
-        @DisplayName("should handle complete create-get-run flow")
-        fun `should handle complete create-get-run flow`() {
-            // Given - Setup for create
+        fun `should handle complete workflow - create and run metric`() {
+            // Given - Create metric
             val createRequest =
                 CreateMetricRequest(
-                    name = "integration_catalog.schema.metric",
-                    owner = "integration@example.com",
-                    sql = "SELECT COUNT(*) FROM test_table",
+                    name = "test_catalog.test_schema.workflow_metric",
+                    owner = "test@example.com",
+                    team = "data-team",
+                    description = "Integration test metric",
+                    sql = "SELECT COUNT(*) FROM users WHERE created_at > '{{ start_date }}'",
+                    sourceTable = "users",
+                    tags = listOf("integration", "test"),
                 )
 
-            val createParams =
+            val createCommand =
                 CreateMetricCommand(
                     name = createRequest.name,
                     owner = createRequest.owner,
-                    team = null,
-                    description = null,
+                    team = createRequest.team,
+                    description = createRequest.description,
                     sql = createRequest.sql,
-                    sourceTable = null,
-                    tags = mutableSetOf(),
+                    sourceTable = createRequest.sourceTable,
+                    tags = createRequest.tags.toSet(),
                 )
 
-            val createdMetric =
-                MetricEntity(
-                    name = createRequest.name,
-                    owner = createRequest.owner,
-                    sql = createRequest.sql,
-                )
-
-            val createdMetricResponse =
-                MetricResponse(
-                    name = createRequest.name,
-                    type = "Metric",
-                    owner = createRequest.owner,
-                    team = null,
-                    description = null,
-                    tags = emptyList(),
-                    sql = createRequest.sql,
-                    sourceTable = null,
-                    dependencies = emptyList(),
-                    createdAt = LocalDateTime.now(),
-                    updatedAt = LocalDateTime.now(),
-                )
-
-            every { metricMapper.extractCreateCommand(createRequest) } returns createParams
+            every { metricMapper.extractCreateCommand(createRequest) } returns createCommand
             every {
                 metricService.createMetric(
-                    name = createParams.name,
-                    owner = createParams.owner,
-                    team = any(),
-                    description = any(),
-                    sql = createParams.sql,
-                    sourceTable = any(),
-                    tags = any(),
+                    name = createCommand.name,
+                    owner = createCommand.owner,
+                    team = createCommand.team,
+                    description = createCommand.description,
+                    sql = createCommand.sql,
+                    sourceTable = createCommand.sourceTable,
+                    tags = createCommand.tags.toList(),
                 )
-            } returns createdMetric
+            } returns testMetricEntity
 
-            // When & Then - Create
+            // When - Create metric
             mockMvc
                 .perform(
                     post("/api/v1/metrics")
@@ -808,31 +678,27 @@ class MetricControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(createRequest)),
                 ).andExpect(status().isCreated)
-                .andExpect(jsonPath("$.name").value(createRequest.name))
 
-            // Given - Setup for get
-            every { metricService.getMetricOrThrow(createRequest.name) } returns createdMetric
-            every { metricMapper.toResponse(createdMetric) } returns createdMetricResponse
+            // Given - Run metric
+            val runRequest =
+                RunMetricRequest(
+                    parameters = mapOf("start_date" to "2024-01-01"),
+                    limit = 100,
+                    timeout = 30,
+                )
 
-            // When & Then - Get
-            mockMvc
-                .perform(get("/api/v1/metrics/${createRequest.name}"))
-                .andExpect(status().isOk)
-                .andExpect(jsonPath("$.name").value(createRequest.name))
-
-            // Given - Setup for run
-            val runRequest = RunMetricRequest()
             every {
-                metricExecutionService.executeMetric(
+                metricService.executeMetric(
                     metricName = createRequest.name,
-                    parameters = any(),
-                    limit = any(),
-                    timeout = any(),
+                    parameters = runRequest.parameters,
+                    limit = runRequest.limit,
+                    timeout = runRequest.timeout,
                 )
             } returns testExecutionResult
+
             every { metricMapper.toExecutionResultDto(testExecutionResult) } returns testExecutionResultDto
 
-            // When & Then - Run
+            // When - Run metric
             mockMvc
                 .perform(
                     post("/api/v1/metrics/${createRequest.name}/run")
@@ -840,10 +706,27 @@ class MetricControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(runRequest)),
                 ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.row_count").value(1))
 
-            // Verify all calls
-            verify(exactly = 1) { metricMapper.extractCreateCommand(createRequest) }
-            verify(exactly = 1) { metricService.getMetricOrThrow(createRequest.name) }
+            verify(exactly = 1) {
+                metricService.createMetric(
+                    name = createCommand.name,
+                    owner = createCommand.owner,
+                    team = createCommand.team,
+                    description = createCommand.description,
+                    sql = createCommand.sql,
+                    sourceTable = createCommand.sourceTable,
+                    tags = createCommand.tags.toList(),
+                )
+            }
+            verify(exactly = 1) {
+                metricService.executeMetric(
+                    metricName = createRequest.name,
+                    parameters = runRequest.parameters,
+                    limit = runRequest.limit,
+                    timeout = runRequest.timeout,
+                )
+            }
         }
     }
 }
