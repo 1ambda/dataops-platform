@@ -1,8 +1,9 @@
 # RELEASE: Quality API Implementation
 
-> **Version:** 1.0.0
-> **Status:** ✅ Implemented (100% - 3/3 endpoints)
+> **Version:** 1.1.0
+> **Status:** Implemented (100% - 3/3 endpoints)
 > **Release Date:** 2026-01-02
+> **Updated:** 2026-01-08 (v1.1.0 - API endpoint change)
 
 ---
 
@@ -63,11 +64,29 @@
 
 | Endpoint | Method | Status | Controller Method | CLI Command |
 |----------|--------|--------|-------------------|-------------|
-| `/api/v1/quality` | GET | ✅ Complete | `getQualitySpecs()` | `dli quality list` |
-| `/api/v1/quality/{name}` | GET | ✅ Complete | `getQualitySpec()` | `dli quality get <name>` |
-| `/api/v1/quality/test/{resource_name}` | POST | ✅ Complete | `executeQualityTests()` | `dli quality run <resource>` |
+| `/api/v1/quality` | GET | Completed | `listQualitySpecs()` | `dli quality list` |
+| `/api/v1/quality/{name}` | GET | Completed | `getQualitySpec()` | `dli quality get <name>` |
+| `/api/v1/quality/{name}/run` | POST | Completed | `runQualitySpec()` | `dli quality run <name>` |
 
-### 2.2 List Quality Specs
+### 2.2 API Change Notice (v1.1.0)
+
+> **IMPORTANT:** The test execution endpoint has been changed for consistency with Dataset/Metric APIs.
+
+| Previous (v1.0.0) | Current (v1.1.0) | Reason |
+|-------------------|------------------|--------|
+| `POST /api/v1/quality/test/{resource_name}` | `POST /api/v1/quality/{name}/run` | Consistency with `/{name}/run` pattern |
+
+**Pattern Alignment:**
+- Dataset: `POST /api/v1/datasets/{name}/run`
+- Metric: `POST /api/v1/metrics/{name}/run`
+- Quality: `POST /api/v1/quality/{name}/run`
+
+**Migration Notes:**
+- The `{name}` parameter now refers to the **quality spec name** (not resource name)
+- The target resource is determined from the spec's `resourceName` field
+- Request/Response structure remains unchanged
+
+### 2.3 List Quality Specs
 
 **Endpoint:** `GET /api/v1/quality`
 
@@ -84,7 +103,7 @@
 
 **Response:** Array of `QualitySpecSummaryDto` objects (without detailed test configurations)
 
-### 2.3 Get Quality Spec
+### 2.4 Get Quality Spec
 
 **Endpoint:** `GET /api/v1/quality/{name}`
 
@@ -93,17 +112,21 @@
 **Error Codes:**
 - `QUALITY_SPEC_NOT_FOUND` (404): Quality spec with specified name does not exist
 
-### 2.4 Execute Quality Tests
+### 2.5 Execute Quality Tests
 
-**Endpoint:** `POST /api/v1/quality/test/{resource_name}`
+**Endpoint:** `POST /api/v1/quality/{name}/run`
+
+> **Note:** Changed from `/api/v1/quality/test/{resource_name}` in v1.1.0. See [API Change Notice](#22-api-change-notice-v110).
 
 **Request Body:** `ExecuteQualityTestRequest`
-- `test_types` (optional): Array of specific test types to run (NOT_NULL, UNIQUE, etc.)
+- `test_names` (optional): Array of specific test names to run
 - `timeout` (optional): Execution timeout in seconds (default: 300)
+- `executed_by` (optional): User identifier for audit
 
-**Response:** `ExecuteQualityTestResponse`
+**Response:** `QualityRunResultDto`
 - `run_id`: Unique identifier for the test execution
-- `resource_name`: Target resource name
+- `spec_name`: Quality specification name
+- `resource_name`: Target resource name (from spec)
 - `total_tests`: Number of tests executed
 - `passed_tests`: Number of passed tests
 - `failed_tests`: Number of failed tests
@@ -112,7 +135,7 @@
 - `duration_seconds`: Execution duration (null if still running)
 
 **Error Codes:**
-- `QUALITY_SPEC_NOT_FOUND` (404): No quality spec found for resource
+- `QUALITY_SPEC_NOT_FOUND` (404): Quality spec not found
 - `QUALITY_EXECUTION_TIMEOUT` (408): Test execution timed out
 - `QUALITY_EXECUTION_ERROR` (500): Test execution failed
 

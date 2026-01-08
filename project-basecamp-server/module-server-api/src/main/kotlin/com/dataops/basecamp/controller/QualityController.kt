@@ -135,45 +135,49 @@ class QualityController(
     }
 
     /**
-     * Execute quality tests for a resource
+     * Execute quality tests for a registered quality spec
      *
-     * POST /api/v1/quality/test/{resource_name}
-     * CLI: dli quality run <resource_name>
+     * POST /api/v1/quality/{name}/run
+     * CLI: dli quality run <name>
      *
-     * @deprecated Use Quality Workflow API instead: POST /api/v1/workflows/quality/{spec_name}/run
+     * Consistent with Dataset/Metric pattern:
+     * - Dataset: POST /api/v1/datasets/{name}/run
+     * - Metric: POST /api/v1/metrics/{name}/run
+     * - Quality: POST /api/v1/quality/{name}/run
      */
-    @Deprecated("Use Quality Workflow API: POST /api/v1/workflows/quality/{spec_name}/run")
     @Operation(
-        summary = "[DEPRECATED] Execute quality tests",
+        summary = "Execute quality tests",
         description = """
-        Execute quality tests for a specific resource with optional filtering.
+        Execute quality tests for a registered quality specification.
 
-        **DEPRECATED**: This endpoint is deprecated in favor of the Quality Workflow API.
-        Please use POST /api/v1/workflows/quality/{spec_name}/run for new implementations.
+        The quality spec name in the path identifies which spec to run.
+        The target resource is determined from the spec's resourceName field.
+
+        Optionally filter which tests to run using test_names in the request body.
         """,
-        deprecated = true,
     )
-    @SwaggerApiResponse(responseCode = "200", description = "Test execution started successfully")
-    @SwaggerApiResponse(responseCode = "404", description = "Quality specification or resource not found")
+    @SwaggerApiResponse(responseCode = "200", description = "Test execution completed successfully")
+    @SwaggerApiResponse(responseCode = "404", description = "Quality specification not found")
     @SwaggerApiResponse(responseCode = "408", description = "Test execution timeout")
-    @SwaggerApiResponse(responseCode = "410", description = "[DEPRECATED] Use Quality Workflow API instead")
-    @PostMapping("/test/{resource_name}")
-    fun executeQualityTests(
-        @Parameter(description = "Fully qualified resource name (catalog.schema.table)")
-        @PathVariable("resource_name")
-        @NotBlank resourceName: String,
+    @PostMapping("/{name}/run")
+    fun runQualitySpec(
+        @Parameter(description = "Quality specification name")
+        @PathVariable
+        @NotBlank name: String,
         @Valid @RequestBody request: ExecuteQualityTestRequest,
     ): ResponseEntity<QualityRunResultDto> {
         logger.info {
-            "POST /api/v1/quality/test/$resourceName - spec: ${request.qualitySpecName}, tests: ${request.testNames}"
+            "POST /api/v1/quality/$name/run - tests: ${request.testNames}"
         }
 
+        // Get the spec to retrieve the target resource name
+        val spec = qualityService.getQualitySpecOrThrow(name)
         val executedBy = request.executedBy ?: SecurityContext.getCurrentUsername()
 
         val run =
             qualityService.executeQualityTests(
-                resourceName = resourceName,
-                qualitySpecName = request.qualitySpecName,
+                resourceName = spec.resourceName,
+                qualitySpecName = name,
                 testNames = request.testNames.takeIf { it.isNotEmpty() },
                 timeout = request.timeout,
                 executedBy = executedBy,

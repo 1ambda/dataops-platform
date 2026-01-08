@@ -72,7 +72,7 @@
 |-------------|-------------|--------------|----------------------|
 | `dli quality list` | GET | `/api/v1/quality` | ✅ P3 Week 10 |
 | `dli quality get <name>` | GET | `/api/v1/quality/{name}` | ✅ P3 Week 10 |
-| `dli quality run <name>` | POST | `/api/v1/quality/test/{resource_name}` | ✅ P3 Week 10 |
+| `dli quality run <name>` | POST | `/api/v1/quality/{name}/run` | ✅ **Updated** |
 | `dli query list` | GET | `/api/v1/queries` | ✅ **Migrated** |
 | `dli query show <id>` | GET | `/api/v1/queries/{query_id}` | ✅ **Migrated** |
 | `dli query cancel <id>` | POST | `/api/v1/queries/{query_id}/cancel` | ✅ **Migrated** |
@@ -83,7 +83,64 @@
 
 **Total: 10 endpoints enabling advanced features**
 
-### 1.5 Summary
+### 1.5 Execution APIs (CLI-Rendered SQL Execution)
+
+> **Updated in v2.0.0** - These APIs accept pre-rendered SQL from CLI with `--local/--server/--remote` execution mode options.
+
+| CLI Command | HTTP Method | API Endpoint | Description |
+|-------------|-------------|--------------|-------------|
+| `dli dataset run --local/--server/--remote` | POST | `/api/v1/execution/datasets/run` | Execute CLI-rendered Dataset SQL |
+| `dli metric run --local/--server/--remote` | POST | `/api/v1/execution/metrics/run` | Execute CLI-rendered Metric SQL |
+| `dli quality run --local/--server/--remote` | POST | `/api/v1/execution/quality/run` | Execute CLI-rendered Quality SQL |
+| `dli run <file> --local/--server/--remote` | POST | `/api/v1/execution/sql/run` | Execute Ad-hoc SQL |
+
+**CLI Execution Mode Options (v2.0.0):**
+
+| Option | Description | Behavior |
+|--------|-------------|----------|
+| `--local` | Local execution | CLI connects directly to Query Engine (BigQuery/Trino) |
+| `--server` | Server execution | Server executes pre-rendered SQL via Basecamp API |
+| `--remote` | Remote execution | Server-mediated execution to remote Query Engine |
+| (none) | Default | Uses server policy or config YAML `execution.mode` |
+
+**Architecture:**
+```
+CLI (Local SQL Rendering)          Server (Execution)
+┌─────────────────────┐           ┌─────────────────────┐
+│ 1. Load Spec YAML   │           │                     │
+│ 2. Jinja Template   │    POST   │ Execute rendered    │
+│ 3. SQLGlot Transpile│ ───────►  │ SQL directly        │
+│ 4. Send rendered SQL│           │                     │
+└─────────────────────┘           └─────────────────────┘
+```
+
+**Request Format (Flat + Prefix style):**
+```json
+{
+  "rendered_sql": "SELECT * FROM users WHERE date = '2025-01-01'",
+  "parameters": {},
+  "execution_timeout": 300,
+  "execution_limit": 1000,
+  "execution_mode": "server",
+  "transpile_source_dialect": "bigquery",
+  "transpile_target_dialect": "trino",
+  "transpile_used_server_policy": false,
+  "resource_name": "iceberg.analytics.users",
+  "original_spec": {}
+}
+```
+
+**Supported Query Engines:**
+
+| Dialect | Executor | Status |
+|---------|----------|--------|
+| `bigquery` | BigQueryExecutor | ✅ v1.0.0 |
+| `trino` | TrinoExecutor | ✅ v2.0.0 (OIDC auth) |
+| `snowflake` | SnowflakeExecutor | 🔜 Planned |
+
+**Total: 4 endpoints supporting 3 execution modes**
+
+### 1.6 Summary
 
 | Priority | CLI Commands | Unique Endpoints | Implementation Timeline |
 |----------|-------------|------------------|----------------------|
@@ -91,7 +148,8 @@
 | **P1 High** | 7 commands | 5 endpoints | Week 3-5 |
 | **P2 Medium** | 10 commands | 9 endpoints | Week 6-9 |
 | **P3 Low** | 10 commands | 10 endpoints | Week 10-12.5 |
-| **TOTAL** | **36 commands** | **33 endpoints** | **12.5 weeks** |
+| **Execution** | 4 commands | 4 endpoints | v1.1.0 |
+| **TOTAL** | **40 commands** | **37 endpoints** | - |
 
 ---
 

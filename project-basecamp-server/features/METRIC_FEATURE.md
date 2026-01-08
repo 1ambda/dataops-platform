@@ -1,6 +1,6 @@
 # Metric API Feature Specification
 
-> **Version:** 0.1.0 | **Status:** Draft | **Priority:** P0 Critical
+> **Version:** 0.2.0 | **Status:** Draft | **Priority:** P0 Critical
 > **CLI Commands:** `dli metric list/get/register/run` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Time:** Week 1 of P0 Phase | **Cross-Reference:** [`INTEGRATION_PATTERNS.md`](./INTEGRATION_PATTERNS.md)
 
@@ -824,7 +824,226 @@ class MetricExecutionTimeoutException(name: String, timeout: Int) : BasecampExce
 
 ---
 
-## 6. Testing Requirements
+## 6. CLI SQL Rendering Integration (v0.2.0) ✅ IMPLEMENTED
+
+> **Added in v0.2.0** - Support for CLI-side SQL rendering with Execution Modes
+> **Implementation Status:** ✅ **COMPLETED** - See [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) for implementation details
+
+### 6.1 Execution Modes
+
+CLI는 Metric 실행 시 3가지 Execution Mode를 지원합니다:
+
+| Mode | Description | Flow |
+|------|-------------|------|
+| **LOCAL** | CLI가 직접 QueryEngine(BigQuery/Trino)에 연결하여 실행 | CLI → QueryEngine |
+| **SERVER** | CLI가 렌더링된 SQL을 Server로 전송, Server가 실행 | CLI → Server → QueryEngine |
+| **REMOTE** | CLI → Server → Redis/Kafka → Worker 비동기 실행 | CLI → Server → Queue → Worker |
+
+### 6.2 CLI Rendering Flow
+
+SERVER/REMOTE 모드에서 CLI가 SQL을 100% 렌더링한 후 Server로 전송합니다:
+
+```
+[CLI]                                     [Server]
+  │                                           │
+  ├─ 1. Spec YML 로드                         │
+  ├─ 2. Jinja 변수 치환 ({{ param }})         │
+  ├─ 3. Transpile 정책 적용 (optional)        │
+  ├─ 4. SQLGlot으로 최종 SQL 생성              │
+  │                                           │
+  └───────────────────────────────────────────┤
+             rendered_sql +                   │
+             original_spec +                  ├─ 5. Query 실행
+             dependencies +          ──────►  ├─ 6. 결과 반환
+             parameters +                     │
+             transpile_info                   │
+```
+
+### 6.3 New Execution API (v2)
+
+SERVER/REMOTE 모드를 위한 새 API 엔드포인트:
+
+#### `POST /api/v1/execution/metrics/run`
+
+**Purpose**: CLI로부터 pre-rendered SQL을 받아 실행
+
+**Request:**
+```http
+POST /api/v1/execution/metrics/run
+Content-Type: application/json
+Authorization: Bearer <oauth2-token>
+
+{
+  "resource_name": "iceberg.reporting.user_summary",
+  "execution_mode": "SERVER",
+
+  "rendered_sql": "SELECT user_id, COUNT(*) as click_count FROM \"iceberg.analytics.events\" WHERE created_at >= '2025-01-15' GROUP BY 1",
+
+  "original_spec": {
+    "apiVersion": "v1",
+    "kind": "Metric",
+    "metadata": {
+      "name": "iceberg.reporting.user_summary",
+      "owner": "analyst@example.com"
+    },
+    "spec": {
+      "sql": "metrics/iceberg/reporting/user_summary.sql",
+      "parameters": [
+        {"name": "date", "type": "date", "required": true}
+      ]
+    }
+  },
+
+  "dependencies": [
+    "iceberg.analytics.events",
+    "iceberg.dim.users"
+  ],
+
+  "parameters": {
+    "date": "2025-01-15"
+  },
+
+  "transpile_info": {
+    "source_dialect": "bigquery",
+    "target_dialect": "trino",
+    "used_server_policy": false,
+    "applied_rules": []
+  },
+
+  "options": {
+    "limit": 1000,
+    "timeout": 300,
+    "dry_run": false
+  }
+}
+```
+
+**Response (200 OK) - SERVER mode:**
+```json
+{
+  "execution_id": "exec-12345",
+  "status": "COMPLETED",
+  "rows": [
+    {"user_id": "user_001", "click_count": 150},
+    {"user_id": "user_002", "click_count": 89}
+  ],
+  "row_count": 2,
+  "duration_seconds": 1.2,
+  "started_at": "2025-01-15T10:00:00Z",
+  "completed_at": "2025-01-15T10:00:01Z"
+}
+```
+
+**Response (202 Accepted) - REMOTE mode:**
+```json
+{
+  "execution_id": "exec-12345",
+  "status": "PENDING",
+  "message": "Execution queued for async processing",
+  "poll_url": "/api/v1/execution/status/exec-12345"
+}
+```
+
+### 6.4 Request/Response DTOs
+
+```kotlin
+// Request DTO
+data class MetricExecutionV2Request(
+    val resourceName: String,
+    val executionMode: ExecutionMode,
+    val renderedSql: String,
+    val originalSpec: Map<String, Any>,
+    val dependencies: List<String>,
+    val parameters: Map<String, Any>,
+    val transpileInfo: TranspileInfoDto,
+    val options: ExecutionOptionsDto,
+)
+
+// Shared DTOs (same as Dataset - see DATASET_FEATURE.md Section 6.4)
+// - TranspileInfoDto
+// - ExecutionOptionsDto
+// - ExecutionMode enum
+// - MetricExecutionV2Response (same structure as DatasetExecutionV2Response)
+```
+
+### 6.5 Service Implementation
+
+```kotlin
+@Service
+class MetricExecutionV2Service(
+    private val queryEngineClient: QueryEngineClient,
+    private val executionRepository: ExecutionRepositoryJpa,
+    private val asyncExecutionService: AsyncExecutionService,
+) {
+    fun executeMetric(request: MetricExecutionV2Request): MetricExecutionV2Response {
+        return when (request.executionMode) {
+            ExecutionMode.SERVER -> executeSync(request)
+            ExecutionMode.REMOTE -> executeAsync(request)
+            ExecutionMode.LOCAL -> throw IllegalArgumentException("LOCAL mode should not reach server")
+        }
+    }
+
+    private fun executeSync(request: MetricExecutionV2Request): MetricExecutionV2Response {
+        val executionId = generateExecutionId()
+        val startTime = Instant.now()
+
+        // Execute pre-rendered SQL (no server-side rendering needed)
+        val rows = queryEngineClient.execute(
+            sql = request.renderedSql,
+            limit = request.options.limit,
+            timeoutSeconds = request.options.timeout,
+        )
+
+        val endTime = Instant.now()
+
+        // Log execution for audit
+        logExecution(executionId, request, rows.size, startTime, endTime)
+
+        return MetricExecutionV2Response(
+            executionId = executionId,
+            status = ExecutionStatus.COMPLETED,
+            rows = rows,
+            rowCount = rows.size,
+            durationSeconds = Duration.between(startTime, endTime).toMillis() / 1000.0,
+            startedAt = startTime,
+            completedAt = endTime,
+        )
+    }
+}
+```
+
+### 6.6 Backward Compatibility
+
+기존 `POST /api/v1/metrics/{name}/run` API는 유지됩니다:
+- Server-side rendering이 필요한 레거시 클라이언트 지원
+- Admin UI에서의 직접 실행
+- 디버깅 및 테스트 용도
+
+**Migration Path:**
+1. 새 CLI (v0.2.0+)는 `/api/v1/execution/metrics/run` 사용
+2. 기존 CLI는 `/api/v1/metrics/{name}/run` 계속 사용
+3. Server는 양쪽 API 모두 지원
+
+### 6.7 Metric vs Dataset Execution Differences
+
+| Aspect | Metric | Dataset |
+|--------|--------|---------|
+| Query Type | SELECT (READ) | DML (WRITE) |
+| Result | 결과 데이터 반환 | 영향받은 행 수 반환 |
+| Typical Use | 분석, 리포팅 | 데이터 변환, ETL |
+| REMOTE mode | 드물게 사용 | 자주 사용 |
+
+### 6.8 Related Documents
+
+| Document | Description |
+|----------|-------------|
+| [`TRANSPILE_FEATURE.md`](./TRANSPILE_FEATURE.md) | Transpile API 및 CLI SQL Rendering Flow |
+| [`DATASET_FEATURE.md`](./DATASET_FEATURE.md) | Dataset API 및 Execution Mode (v0.2.0) |
+| [`CLI MODEL_FEATURE.md`](../../project-interface-cli/features/MODEL_FEATURE.md) | CLI MODEL 추상화 (Dataset/Metric) |
+
+---
+
+## 7. Testing Requirements
 
 ### 6.1 Unit Tests
 

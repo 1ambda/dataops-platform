@@ -1,6 +1,6 @@
 # Dataset API Feature Specification
 
-> **Version:** 0.1.0 | **Status:** Draft | **Priority:** P0 Critical
+> **Version:** 0.2.0 | **Status:** Draft | **Priority:** P0 Critical
 > **CLI Commands:** `dli dataset list/get/register/run` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Week:** Week 2 | **Estimated Effort:** 3-4 days
 
@@ -797,7 +797,267 @@ data class ErrorBody(
 
 ---
 
-## 6. Testing Requirements
+## 6. CLI SQL Rendering Integration (v0.2.0) ✅ IMPLEMENTED
+
+> **Added in v0.2.0** - Support for CLI-side SQL rendering with Execution Modes
+> **Implementation Status:** ✅ **COMPLETED** - See [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) for implementation details
+
+### 6.1 Execution Modes
+
+CLI는 Dataset 실행 시 3가지 Execution Mode를 지원합니다:
+
+| Mode | Description | Flow |
+|------|-------------|------|
+| **LOCAL** | CLI가 직접 QueryEngine(BigQuery/Trino)에 연결하여 실행 | CLI → QueryEngine |
+| **SERVER** | CLI가 렌더링된 SQL을 Server로 전송, Server가 실행 | CLI → Server → QueryEngine |
+| **REMOTE** | CLI → Server → Redis/Kafka → Worker 비동기 실행 | CLI → Server → Queue → Worker |
+
+### 6.2 CLI Rendering Flow
+
+SERVER/REMOTE 모드에서 CLI가 SQL을 100% 렌더링한 후 Server로 전송합니다:
+
+```
+[CLI]                                     [Server]
+  │                                           │
+  ├─ 1. Spec YML 로드                         │
+  ├─ 2. Jinja 변수 치환 ({{ param }})         │
+  ├─ 3. Transpile 정책 적용 (optional)        │
+  ├─ 4. SQLGlot으로 최종 SQL 생성              │
+  │                                           │
+  └───────────────────────────────────────────┤
+             rendered_sql +                   │
+             original_spec +                  ├─ 5. Query 실행
+             dependencies +          ──────►  ├─ 6. 결과 반환
+             parameters +                     │
+             transpile_info                   │
+```
+
+### 6.3 New Execution API (v2)
+
+SERVER/REMOTE 모드를 위한 새 API 엔드포인트:
+
+#### `POST /api/v1/execution/datasets/run`
+
+**Purpose**: CLI로부터 pre-rendered SQL을 받아 실행
+
+**Request:**
+```http
+POST /api/v1/execution/datasets/run
+Content-Type: application/json
+Authorization: Bearer <oauth2-token>
+
+{
+  "resource_name": "iceberg.analytics.daily_clicks",
+  "execution_mode": "SERVER",
+
+  "rendered_sql": "SELECT user_id, COUNT(*) FROM \"iceberg.analytics.users\" WHERE created_at >= '2025-01-15' GROUP BY 1",
+
+  "original_spec": {
+    "apiVersion": "v1",
+    "kind": "Dataset",
+    "metadata": {
+      "name": "iceberg.analytics.daily_clicks",
+      "owner": "data-team"
+    },
+    "spec": {
+      "sql": "datasets/iceberg/analytics/daily_clicks.sql",
+      "parameters": [
+        {"name": "execution_date", "type": "date", "required": true}
+      ]
+    }
+  },
+
+  "dependencies": [
+    "iceberg.raw.events",
+    "iceberg.dim.users"
+  ],
+
+  "parameters": {
+    "execution_date": "2025-01-15"
+  },
+
+  "transpile_info": {
+    "source_dialect": "bigquery",
+    "target_dialect": "trino",
+    "used_server_policy": false,
+    "applied_rules": []
+  },
+
+  "options": {
+    "limit": 1000,
+    "timeout": 600,
+    "dry_run": false
+  }
+}
+```
+
+**Response (200 OK) - SERVER mode:**
+```json
+{
+  "execution_id": "exec-12345",
+  "status": "COMPLETED",
+  "rows": [
+    {"user_id": 1, "count": 150},
+    {"user_id": 2, "count": 89}
+  ],
+  "row_count": 2,
+  "duration_seconds": 3.5,
+  "started_at": "2025-01-15T10:00:00Z",
+  "completed_at": "2025-01-15T10:00:03Z"
+}
+```
+
+**Response (202 Accepted) - REMOTE mode:**
+```json
+{
+  "execution_id": "exec-12345",
+  "status": "PENDING",
+  "message": "Execution queued for async processing",
+  "poll_url": "/api/v1/execution/status/exec-12345"
+}
+```
+
+### 6.4 Request/Response DTOs
+
+```kotlin
+// Request DTO
+data class DatasetExecutionV2Request(
+    val resourceName: String,
+    val executionMode: ExecutionMode,
+    val renderedSql: String,
+    val originalSpec: Map<String, Any>,
+    val dependencies: List<String>,
+    val parameters: Map<String, Any>,
+    val transpileInfo: TranspileInfoDto,
+    val options: ExecutionOptionsDto,
+)
+
+data class TranspileInfoDto(
+    val sourceDialect: String,
+    val targetDialect: String,
+    val usedServerPolicy: Boolean,
+    val appliedRules: List<String>,
+)
+
+data class ExecutionOptionsDto(
+    val limit: Int = 1000,
+    val timeout: Int = 600,
+    val dryRun: Boolean = false,
+)
+
+enum class ExecutionMode {
+    LOCAL,   // CLI에서만 사용 (Server로 전송하지 않음)
+    SERVER,  // 동기 실행
+    REMOTE,  // 비동기 실행 (Queue 전송)
+}
+
+// Response DTO
+data class DatasetExecutionV2Response(
+    val executionId: String,
+    val status: ExecutionStatus,
+    val rows: List<Map<String, Any>>? = null,  // SERVER mode only
+    val rowCount: Int? = null,
+    val durationSeconds: Double? = null,
+    val message: String? = null,               // REMOTE mode only
+    val pollUrl: String? = null,               // REMOTE mode only
+    val startedAt: Instant,
+    val completedAt: Instant? = null,
+)
+
+enum class ExecutionStatus {
+    PENDING,    // REMOTE mode - queued
+    RUNNING,    // In progress
+    COMPLETED,  // Success
+    FAILED,     // Error
+    CANCELLED,  // User cancelled
+}
+```
+
+### 6.5 Service Implementation
+
+```kotlin
+@Service
+class DatasetExecutionV2Service(
+    private val queryEngineClient: QueryEngineClient,
+    private val executionRepository: ExecutionRepositoryJpa,
+    private val asyncExecutionService: AsyncExecutionService,  // For REMOTE mode
+) {
+    fun executeDataset(request: DatasetExecutionV2Request): DatasetExecutionV2Response {
+        return when (request.executionMode) {
+            ExecutionMode.SERVER -> executeSync(request)
+            ExecutionMode.REMOTE -> executeAsync(request)
+            ExecutionMode.LOCAL -> throw IllegalArgumentException("LOCAL mode should not reach server")
+        }
+    }
+
+    private fun executeSync(request: DatasetExecutionV2Request): DatasetExecutionV2Response {
+        val executionId = generateExecutionId()
+        val startTime = Instant.now()
+
+        // Execute pre-rendered SQL (no server-side rendering needed)
+        val rows = queryEngineClient.execute(
+            sql = request.renderedSql,
+            limit = request.options.limit,
+            timeoutSeconds = request.options.timeout,
+        )
+
+        val endTime = Instant.now()
+
+        // Log execution for audit
+        logExecution(executionId, request, rows.size, startTime, endTime)
+
+        return DatasetExecutionV2Response(
+            executionId = executionId,
+            status = ExecutionStatus.COMPLETED,
+            rows = rows,
+            rowCount = rows.size,
+            durationSeconds = Duration.between(startTime, endTime).toMillis() / 1000.0,
+            startedAt = startTime,
+            completedAt = endTime,
+        )
+    }
+
+    private fun executeAsync(request: DatasetExecutionV2Request): DatasetExecutionV2Response {
+        val executionId = generateExecutionId()
+        val startTime = Instant.now()
+
+        // Queue execution for async processing
+        asyncExecutionService.queue(executionId, request)
+
+        return DatasetExecutionV2Response(
+            executionId = executionId,
+            status = ExecutionStatus.PENDING,
+            message = "Execution queued for async processing",
+            pollUrl = "/api/v1/execution/status/$executionId",
+            startedAt = startTime,
+        )
+    }
+}
+```
+
+### 6.6 Backward Compatibility
+
+기존 `POST /api/v1/datasets/{name}/run` API는 유지됩니다:
+- Server-side rendering이 필요한 레거시 클라이언트 지원
+- Admin UI에서의 직접 실행
+- 디버깅 및 테스트 용도
+
+**Migration Path:**
+1. 새 CLI (v0.2.0+)는 `/api/v1/execution/datasets/run` 사용
+2. 기존 CLI는 `/api/v1/datasets/{name}/run` 계속 사용
+3. Server는 양쪽 API 모두 지원
+
+### 6.7 Related Documents
+
+| Document | Description |
+|----------|-------------|
+| [`TRANSPILE_FEATURE.md`](./TRANSPILE_FEATURE.md) | Transpile API 및 CLI SQL Rendering Flow |
+| [`CLI MODEL_FEATURE.md`](../../project-interface-cli/features/MODEL_FEATURE.md) | CLI MODEL 추상화 (Dataset/Metric) |
+| [`EXECUTION_FEATURE.md`](./EXECUTION_FEATURE.md) | 공통 실행 API 명세 (TBD) |
+
+---
+
+## 7. Testing Requirements
 
 ### 6.1 Unit Tests
 

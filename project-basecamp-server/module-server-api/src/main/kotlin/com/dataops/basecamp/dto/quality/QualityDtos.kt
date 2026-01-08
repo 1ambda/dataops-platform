@@ -12,12 +12,11 @@ import java.time.LocalDateTime
 /**
  * Execute Quality Test Request DTO
  *
- * Used for POST /api/v1/quality/test/{resource_name}
+ * Used for POST /api/v1/quality/{name}/run
+ * The quality spec name is provided in the URL path.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class ExecuteQualityTestRequest(
-    @JsonProperty("quality_spec_name")
-    val qualitySpecName: String? = null,
     @JsonProperty("test_names")
     @field:Size(max = 50, message = "Maximum 50 test names allowed")
     val testNames: List<String> = emptyList(),
@@ -144,7 +143,7 @@ data class QualityRunSummaryDto(
 /**
  * Quality Run Result DTO
  *
- * Used for POST /api/v1/quality/test/{resource_name} response
+ * Used for POST /api/v1/quality/{name}/run response
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class QualityRunResultDto(

@@ -475,24 +475,24 @@ class QualityControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/v1/quality/test/{resource_name}")
-    inner class ExecuteQualityTests {
+    @DisplayName("POST /api/v1/quality/{name}/run")
+    inner class RunQualitySpec {
         @Test
         @DisplayName("should execute quality tests successfully")
         fun `should execute quality tests successfully`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     testNames = listOf("user_id_not_null"),
                     timeout = 300,
                     executedBy = "test-user",
                 )
+            every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
             every {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "dataset_users_quality",
+                    resourceName = "analytics.users",
+                    qualitySpecName = specName,
                     testNames = listOf("user_id_not_null"),
                     timeout = 300,
                     executedBy = "test-user",
@@ -503,7 +503,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
@@ -518,9 +518,12 @@ class QualityControllerTest {
                 .andExpect(jsonPath("$.test_results").isArray())
 
             verify(exactly = 1) {
+                qualityService.getQualitySpecOrThrow(specName)
+            }
+            verify(exactly = 1) {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "dataset_users_quality",
+                    resourceName = "analytics.users",
+                    qualitySpecName = specName,
                     testNames = listOf("user_id_not_null"),
                     timeout = 300,
                     executedBy = "test-user",
@@ -532,18 +535,18 @@ class QualityControllerTest {
         @DisplayName("should execute all tests when no test names specified")
         fun `should execute all tests when no test names specified`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     testNames = emptyList(),
                     timeout = 300,
                     executedBy = "test-user",
                 )
+            every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
             every {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "dataset_users_quality",
+                    resourceName = "analytics.users",
+                    qualitySpecName = specName,
                     testNames = null, // empty list is converted to null
                     timeout = 300,
                     executedBy = "test-user",
@@ -554,7 +557,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
@@ -562,8 +565,8 @@ class QualityControllerTest {
 
             verify(exactly = 1) {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "dataset_users_quality",
+                    resourceName = "analytics.users",
+                    qualitySpecName = specName,
                     testNames = null,
                     timeout = 300,
                     executedBy = "test-user",
@@ -575,16 +578,16 @@ class QualityControllerTest {
         @DisplayName("should use default timeout when not specified")
         fun `should use default timeout when not specified`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     executedBy = "test-user",
                 )
+            every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
             every {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "dataset_users_quality",
+                    resourceName = "analytics.users",
+                    qualitySpecName = specName,
                     testNames = null,
                     timeout = 300, // default timeout
                     executedBy = "test-user",
@@ -595,7 +598,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
@@ -605,26 +608,19 @@ class QualityControllerTest {
         @DisplayName("should return 404 when quality spec not found")
         fun `should return 404 when quality spec not found`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "nonexistent_spec"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "nonexistent_spec",
                     executedBy = "test-user",
                 )
             every {
-                qualityService.executeQualityTests(
-                    resourceName = resourceName,
-                    qualitySpecName = "nonexistent_spec",
-                    testNames = null,
-                    timeout = 300,
-                    executedBy = "test-user",
-                )
-            } throws QualitySpecNotFoundException("nonexistent_spec")
+                qualityService.getQualitySpecOrThrow(specName)
+            } throws QualitySpecNotFoundException(specName)
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isNotFound)
@@ -634,15 +630,15 @@ class QualityControllerTest {
         @DisplayName("should return test results with details")
         fun `should return test results with details`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     executedBy = "test-user",
                 )
+            every { qualityService.getQualitySpecOrThrow(specName) } returns testQualitySpec
             every {
                 qualityService.executeQualityTests(
-                    resourceName = resourceName,
+                    resourceName = any(),
                     qualitySpecName = any(),
                     testNames = any(),
                     timeout = any(),
@@ -654,7 +650,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
@@ -671,10 +667,9 @@ class QualityControllerTest {
         @DisplayName("should reject request when timeout is too small")
         fun `should reject request when timeout is too small`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     timeout = 0, // below minimum of 1
                     executedBy = "test-user",
                 )
@@ -682,7 +677,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().is4xxClientError)
@@ -692,10 +687,9 @@ class QualityControllerTest {
         @DisplayName("should reject request when timeout exceeds maximum")
         fun `should reject request when timeout exceeds maximum`() {
             // Given
-            val resourceName = "analytics.users"
+            val specName = "dataset_users_quality"
             val request =
                 ExecuteQualityTestRequest(
-                    qualitySpecName = "dataset_users_quality",
                     timeout = 3601, // above maximum of 3600
                     executedBy = "test-user",
                 )
@@ -703,7 +697,7 @@ class QualityControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/quality/test/$resourceName")
+                    post("/api/v1/quality/$specName/run")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().is4xxClientError)

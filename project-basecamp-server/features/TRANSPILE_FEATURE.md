@@ -1,6 +1,6 @@
 # Transpile API Feature Specification
 
-> **Version:** 1.0.0 | **Status:** ✅ **IMPLEMENTED** | **Priority:** P3 Low
+> **Version:** 1.1.0 | **Status:** ✅ **IMPLEMENTED** | **Priority:** P3 Low
 > **CLI Commands:** `dli metric transpile`, `dli dataset transpile` | **Target:** Spring Boot 4 + Kotlin 2
 > **Implementation Timeline:** Week 11-12 (P3 Phase)
 > **Cross-Reference:** [`archive/P3_LOW_APIS.md`](./archive/P3_LOW_APIS.md) Section 4
@@ -945,6 +945,251 @@ echo "All transpile tests passed"
 ---
 
 *This document provides implementation-ready specifications for the Transpile API, enabling cross-dialect SQL transformation between BigQuery and Trino.*
+
+---
+
+## 9. CLI SQL Rendering Architecture (v1.1.0) ✅ IMPLEMENTED
+
+> **Added in v1.1.0** - CLI performs 100% self-contained SQL transpilation and sends rendered SQL to server
+> **Implementation Status:** ✅ **COMPLETED** - See [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) for implementation details
+
+### 9.1 Execution Flow Overview
+
+CLI는 Dataset, Metric, Quality 실행/검증 시 **자체적으로 SQL 렌더링을 100% 완료**한 후 Server로 전달합니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLI SQL Rendering Flow                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  [1] Spec YML 로드                                                           │
+│      spec.iceberg.analytics.daily_clicks.yaml                               │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [2] Jinja 변수 치환 (기본 변수 치환만)                                        │
+│      {{ execution_date }} → 2025-01-15                                       │
+│      {{ param_name }} → value                                                │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [3] Transpile 정책 적용 (Optional)                                          │
+│      ├── Bypass Mode (Default): SQLGlot만 사용                               │
+│      └── Server Policy Mode: Server에서 규칙 다운로드 후 적용                  │
+│          (--use-server-policy 또는 config.transpile.use_server_policy)       │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [4] SQLGlot으로 최종 SQL 생성                                                │
+│      BigQuery → Trino 또는 Trino → BigQuery 변환                             │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [5] Execution Mode에 따른 실행                                               │
+│      ┌─────────────────────────────────────────────────────────────────┐    │
+│      │  LOCAL:  CLI → BigQuery/Trino 직접 실행                          │    │
+│      │  SERVER: CLI → Basecamp Server (SQL + Spec + Deps 전송)         │    │
+│      │  REMOTE: CLI → Basecamp Server → Redis/Kafka → Worker          │    │
+│      └─────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 Execution Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **LOCAL** | CLI가 QueryEngine(BigQuery/Trino)에 직접 연결하여 실행 | 로컬 개발, 즉시 결과 확인 |
+| **SERVER** | CLI가 렌더링된 SQL을 Server로 전송, Server가 실행 | 프로덕션 환경, 감사 추적 필요 |
+| **REMOTE** | CLI → Server → Redis/Kafka → Worker 비동기 실행 | 장시간 실행 쿼리, 배치 작업 |
+
+### 9.3 Server Transmission Payload
+
+SERVER/REMOTE 모드에서 CLI가 Server로 전송하는 데이터:
+
+```json
+{
+  "execution_request": {
+    "resource_name": "iceberg.analytics.daily_clicks",
+    "resource_type": "DATASET",
+    "execution_mode": "SERVER",
+
+    "rendered_sql": "SELECT user_id, COUNT(*) FROM \"iceberg.analytics.users\" WHERE created_at >= '2025-01-15' GROUP BY 1",
+
+    "original_spec": {
+      "apiVersion": "v1",
+      "kind": "Dataset",
+      "metadata": {
+        "name": "iceberg.analytics.daily_clicks",
+        "owner": "data-team"
+      },
+      "spec": {
+        "sql": "datasets/iceberg/analytics/daily_clicks.sql",
+        "parameters": [
+          {"name": "execution_date", "type": "date", "required": true}
+        ]
+      }
+    },
+
+    "dependencies": [
+      "iceberg.raw.events",
+      "iceberg.dim.users"
+    ],
+
+    "parameters": {
+      "execution_date": "2025-01-15"
+    },
+
+    "transpile_info": {
+      "source_dialect": "bigquery",
+      "target_dialect": "trino",
+      "used_server_policy": false,
+      "applied_rules": []
+    }
+  }
+}
+```
+
+### 9.4 Transpile Policy Options
+
+CLI에서 Server Transpile Policy를 사용하는 두 가지 방법:
+
+#### Option 1: CLI Flag
+```bash
+# Server에서 transpile 규칙 다운로드 후 적용
+dli dataset run iceberg.analytics.daily_clicks --use-server-policy
+
+dli metric transpile iceberg.reporting.user_summary --use-server-policy
+```
+
+#### Option 2: Config Setting
+```yaml
+# dli.yaml 또는 ~/.dli/config.yaml
+transpile:
+  use_server_policy: true   # 항상 Server 정책 사용
+  cache_policy: true        # 정책 로컬 캐싱 (ETag 기반)
+  cache_ttl_seconds: 3600   # 캐시 TTL
+```
+
+#### Policy 적용 우선순위
+```
+CLI Flag > Config Setting > Default (Bypass)
+
+--use-server-policy  → Server Policy 사용
+--no-server-policy   → Bypass Mode 강제
+(없음)               → Config 설정 또는 Bypass Mode
+```
+
+### 9.5 Jinja Template Level
+
+CLI는 **기본 변수 치환만** 지원합니다 (dbt와 유사한 고급 기능 제외):
+
+| 지원 | 미지원 |
+|------|--------|
+| `{{ param_name }}` | `{% if %}...{% endif %}` |
+| `{{ param_name \| default('value') }}` | `{% for %}...{% endfor %}` |
+| `{{ param_name \| upper }}` | `{% macro %}...{% endmacro %}` |
+| 기본 필터 (upper, lower, trim) | ref(), source() 함수 |
+
+**예시:**
+```sql
+-- datasets/iceberg/analytics/daily_clicks.sql
+SELECT
+    user_id,
+    COUNT(*) as click_count
+FROM {{ source_table }}
+WHERE
+    created_at >= '{{ execution_date }}'
+    AND created_at < DATE_ADD('{{ execution_date }}', INTERVAL 1 DAY)
+GROUP BY 1
+```
+
+### 9.6 Server-Side Changes
+
+Server는 CLI로부터 **이미 렌더링된 SQL**을 받습니다. 기존 Server-side 렌더링 로직은 backward compatibility를 위해 유지하되, 새로운 API는 pre-rendered SQL을 수용합니다.
+
+#### New Execution API (v2)
+
+```http
+POST /api/v1/execution/run
+Content-Type: application/json
+
+{
+  "resource_name": "iceberg.analytics.daily_clicks",
+  "resource_type": "DATASET",
+  "execution_mode": "SERVER",
+  "rendered_sql": "SELECT ...",
+  "original_spec": { ... },
+  "dependencies": [ ... ],
+  "parameters": { ... },
+  "transpile_info": { ... }
+}
+```
+
+**Response:**
+```json
+{
+  "execution_id": "exec-12345",
+  "status": "RUNNING",
+  "submitted_at": "2025-01-15T10:00:00Z",
+  "estimated_completion": null
+}
+```
+
+#### Backward Compatibility
+
+기존 API(`GET /api/v1/transpile/metrics/{name}`, `GET /api/v1/transpile/datasets/{name}`)는 유지됩니다:
+- Server-side 렌더링이 필요한 레거시 클라이언트 지원
+- Admin UI에서의 직접 실행
+- 디버깅 및 테스트 용도
+
+### 9.7 Quality Rule SQL Generation
+
+Quality Built-in Rules는 **CLI에서 SQL로 변환**됩니다:
+
+| Rule Type | SQL Pattern |
+|-----------|-------------|
+| `not_null` | `SELECT COUNT(*) as failed_count FROM {{ table_name }} WHERE {{ column }} IS NULL` |
+| `unique` | `SELECT {{ column }}, COUNT(*) as cnt FROM {{ table_name }} GROUP BY {{ column }} HAVING COUNT(*) > 1` |
+| `row_count > 0` | `SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed FROM {{ table_name }}` |
+
+**Spec 예시:**
+```yaml
+tests:
+  - name: user_id_not_null
+    type: not_null
+    column: user_id
+  - name: email_unique
+    type: unique
+    column: email
+  - name: table_has_rows
+    type: row_count
+    operator: ">"
+    value: 0
+```
+
+**CLI 생성 SQL:**
+```sql
+-- not_null test
+SELECT COUNT(*) as failed_count
+FROM iceberg.analytics.users
+WHERE user_id IS NULL;
+
+-- unique test
+SELECT email, COUNT(*) as cnt
+FROM iceberg.analytics.users
+GROUP BY email
+HAVING COUNT(*) > 1;
+
+-- row_count test
+SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed
+FROM iceberg.analytics.users;
+```
+
+### 9.8 Related CLI Documents
+
+| Document | Description |
+|----------|-------------|
+| [`CLI MODEL_FEATURE.md`](../../project-interface-cli/features/MODEL_FEATURE.md) | MODEL 추상화 및 CLI 구조 |
+| [`CLI QUALITY_FEATURE.md`](../../project-interface-cli/features/QUALITY_FEATURE.md) | CLI Quality 테스트 기능 |
+| [`CLI DATASET_FEATURE.md`](../../project-interface-cli/features/DATASET_FEATURE.md) | CLI Dataset 기능 (TBD) |
+| [`CLI METRIC_FEATURE.md`](../../project-interface-cli/features/METRIC_FEATURE.md) | CLI Metric 기능 (TBD) |
 
 ---
 

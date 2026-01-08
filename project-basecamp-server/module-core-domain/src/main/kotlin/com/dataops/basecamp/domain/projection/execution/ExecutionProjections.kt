@@ -59,3 +59,42 @@ data class TestFailure(
     val message: String,
     val rowsAffected: Int?,
 )
+
+// === CLI-Rendered Execution Projections ===
+
+/**
+ * CLI 렌더링된 실행 결과 (Dataset/Metric/SQL)
+ */
+data class RenderedExecutionResultProjection(
+    val executionId: String,
+    val status: ExecutionStatus,
+    val rows: List<Map<String, Any?>>?,
+    val rowCount: Int?,
+    val durationSeconds: Double?,
+    val renderedSql: String,
+    val error: String?,
+)
+
+/**
+ * CLI 렌더링된 Quality 실행 결과
+ */
+data class RenderedQualityExecutionResultProjection(
+    val executionId: String,
+    val status: ExecutionStatus,
+    val results: List<QualityTestResultProjection>,
+    val totalTests: Int,
+    val passedTests: Int,
+    val failedTests: Int,
+    val totalDurationMs: Long,
+)
+
+/**
+ * Quality 테스트 결과 Projection
+ */
+data class QualityTestResultProjection(
+    val testName: String,
+    val passed: Boolean,
+    val failedCount: Int,
+    val failedRows: List<Map<String, Any>>?,
+    val durationMs: Long,
+)

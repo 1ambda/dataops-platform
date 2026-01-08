@@ -12,6 +12,11 @@ enum class ExecutionType {
     DATASET,
 
     /**
+     * Metric 실행
+     */
+    METRIC,
+
+    /**
      * Quality Spec 실행
      */
     QUALITY,

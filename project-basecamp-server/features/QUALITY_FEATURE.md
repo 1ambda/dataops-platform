@@ -1,6 +1,6 @@
 # Quality API Feature Specification
 
-> **Version:** 1.0.0 | **Status:** ✅ **COMPLETED** | **Priority:** P3 Low
+> **Version:** 1.1.0 | **Status:** ✅ **COMPLETED** | **Priority:** P3 Low
 > **CLI Commands:** `dli quality list/get/run` | **Target:** Spring Boot 4 + Kotlin 2
 > **Completed:** 2026-01-02 | **Endpoints:** 3/3 (100%)
 >
@@ -80,9 +80,205 @@ All planned test types have been implemented with SQL generation support:
 
 ---
 
-## 3. Cross-Review Findings & Improvement Opportunities
+## 3. CLI-Side SQL Generation for Built-in Rules (v1.1.0) ✅ IMPLEMENTED
 
-### 3.1 Expert-Spring-Kotlin Agent Review Results
+> **Added in v1.1.0** - CLI generates SQL for Built-in Quality Test Rules
+> **Implementation Status:** ✅ **COMPLETED** - See [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) for implementation details
+
+### 3.1 Architecture Change
+
+기존에는 Server에서 Quality Test SQL을 생성했으나, v1.1.0부터 **CLI가 Built-in Rule에 대한 SQL을 직접 생성**합니다:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Before v1.1.0 (Server-side Generation)          │
+├─────────────────────────────────────────────────────────────────┤
+│  CLI ─────────────────► Server ─────────────────► QueryEngine   │
+│       Quality Spec         │                                     │
+│                            │ Server generates SQL                │
+│                            ├─────────────────────►               │
+│                            │      SELECT COUNT(*) ...            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  After v1.1.0 (CLI-side Generation)              │
+├─────────────────────────────────────────────────────────────────┤
+│  CLI ─────────────────────────────────────────────► Server      │
+│    │ 1. Load Quality Spec                              │        │
+│    │ 2. Generate SQL for Built-in Rules               │        │
+│    │ 3. Send rendered_sql + spec                      │        │
+│    │                                                   ▼        │
+│    │                                           Execute SQL      │
+│    └──────────────────────────────────────────────────►         │
+│                    rendered_sql                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3.2 CLI Built-in Test Rules
+
+CLI는 다음 3가지 Built-in Rule에 대해 SQL을 생성합니다:
+
+| Rule Type | Description | CLI Generated SQL |
+|-----------|-------------|-------------------|
+| `not_null` | Column null check | `SELECT COUNT(*) as failed_count FROM {{ table }} WHERE {{ column }} IS NULL` |
+| `unique` | Column uniqueness | `SELECT {{ column }}, COUNT(*) as cnt FROM {{ table }} GROUP BY {{ column }} HAVING COUNT(*) > 1` |
+| `row_count` | Table row validation | `SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed FROM {{ table }}` |
+
+### 3.3 Quality Test Spec Format
+
+```yaml
+# quality/iceberg.analytics.users.yaml
+apiVersion: v1
+kind: QualitySpec
+metadata:
+  name: iceberg.analytics.users
+  target_table: iceberg.analytics.users
+spec:
+  tests:
+    # Built-in Rule - CLI generates SQL
+    - name: user_id_not_null
+      type: not_null
+      column: user_id
+
+    # Built-in Rule - CLI generates SQL
+    - name: email_unique
+      type: unique
+      column: email
+
+    # Built-in Rule - CLI generates SQL
+    - name: table_has_rows
+      type: row_count
+      operator: ">"
+      value: 0
+
+    # Custom Rule - Uses provided SQL expression
+    - name: valid_status
+      type: expression
+      sql: "status IN ('active', 'inactive', 'pending')"
+```
+
+### 3.4 CLI-Generated SQL Examples
+
+**not_null test:**
+```sql
+-- Test: user_id_not_null
+-- Type: not_null
+-- Column: user_id
+SELECT COUNT(*) as failed_count
+FROM iceberg.analytics.users
+WHERE user_id IS NULL
+```
+
+**unique test:**
+```sql
+-- Test: email_unique
+-- Type: unique
+-- Column: email
+SELECT email, COUNT(*) as cnt
+FROM iceberg.analytics.users
+GROUP BY email
+HAVING COUNT(*) > 1
+```
+
+**row_count test:**
+```sql
+-- Test: table_has_rows
+-- Type: row_count
+-- Condition: COUNT(*) > 0
+SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed
+FROM iceberg.analytics.users
+```
+
+### 3.5 Server API for Pre-rendered SQL
+
+CLI가 생성한 SQL을 Server로 전송하는 새 API:
+
+#### `POST /api/v1/execution/quality/run`
+
+**Request:**
+```http
+POST /api/v1/execution/quality/run
+Content-Type: application/json
+Authorization: Bearer <oauth2-token>
+
+{
+  "resource_name": "iceberg.analytics.users",
+  "execution_mode": "SERVER",
+
+  "tests": [
+    {
+      "name": "user_id_not_null",
+      "type": "not_null",
+      "rendered_sql": "SELECT COUNT(*) as failed_count FROM iceberg.analytics.users WHERE user_id IS NULL"
+    },
+    {
+      "name": "email_unique",
+      "type": "unique",
+      "rendered_sql": "SELECT email, COUNT(*) as cnt FROM iceberg.analytics.users GROUP BY email HAVING COUNT(*) > 1"
+    }
+  ],
+
+  "original_spec": { ... },
+
+  "transpile_info": {
+    "source_dialect": "bigquery",
+    "target_dialect": "trino",
+    "used_server_policy": false
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "execution_id": "qe-12345",
+  "status": "COMPLETED",
+  "results": [
+    {
+      "test_name": "user_id_not_null",
+      "passed": true,
+      "failed_count": 0,
+      "duration_ms": 150
+    },
+    {
+      "test_name": "email_unique",
+      "passed": false,
+      "failed_count": 3,
+      "failed_rows": [
+        {"email": "dup@example.com", "cnt": 2}
+      ],
+      "duration_ms": 230
+    }
+  ],
+  "total_tests": 2,
+  "passed_tests": 1,
+  "failed_tests": 1,
+  "total_duration_ms": 380
+}
+```
+
+### 3.6 Backward Compatibility
+
+기존 Server-side SQL 생성 API는 유지됩니다:
+
+| API | Usage |
+|-----|-------|
+| `POST /api/v1/quality/test/{resource_name}` | 기존 API - Server가 SQL 생성 |
+| `POST /api/v1/execution/quality/run` | 새 API - CLI가 SQL 생성 후 전송 |
+
+### 3.7 Related Documents
+
+| Document | Description |
+|----------|-------------|
+| [`TRANSPILE_FEATURE.md`](./TRANSPILE_FEATURE.md) | CLI SQL Rendering Flow (Section 9) |
+| [`CLI QUALITY_FEATURE.md`](../../project-interface-cli/features/QUALITY_FEATURE.md) | CLI Quality 구현 상세 |
+| [`QUALITY_RELEASE.md`](./QUALITY_RELEASE.md) | Server-side 구현 상세 |
+
+---
+
+## 4. Cross-Review Findings & Improvement Opportunities
+
+### 4.1 Expert-Spring-Kotlin Agent Review Results
 
 > **Status:** ⚠️ **Review Completed - Issues Identified for Future Improvement**
 
@@ -118,7 +314,7 @@ All planned test types have been implemented with SQL generation support:
    ) : QualitySpecRepositoryJpa
    ```
 
-### 3.2 Feature-Basecamp-Server Agent Review Results
+### 4.2 Feature-Basecamp-Server Agent Review Results
 
 **Missing Domain Validation Scenarios Identified:**
 
@@ -131,7 +327,7 @@ All planned test types have been implemented with SQL generation support:
 - Consistent error handling patterns
 - Well-structured domain relationships
 
-### 3.3 Current Implementation Status
+### 4.3 Current Implementation Status
 
 **✅ Production Ready Features:**
 - All 3 API endpoints fully functional

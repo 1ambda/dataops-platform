@@ -22,8 +22,11 @@ import com.dataops.basecamp.domain.projection.execution.ColumnInfo
 import com.dataops.basecamp.domain.projection.execution.CurrentUsageProjection
 import com.dataops.basecamp.domain.projection.execution.ExecutionPolicyProjection
 import com.dataops.basecamp.domain.projection.execution.QualityExecutionResult
+import com.dataops.basecamp.domain.projection.execution.QualityTestResultProjection
 import com.dataops.basecamp.domain.projection.execution.QueryExecutionResult
 import com.dataops.basecamp.domain.projection.execution.RateLimitsProjection
+import com.dataops.basecamp.domain.projection.execution.RenderedExecutionResultProjection
+import com.dataops.basecamp.domain.projection.execution.RenderedQualityExecutionResultProjection
 import com.dataops.basecamp.domain.repository.adhoc.UserExecutionQuotaRepositoryJpa
 import com.dataops.basecamp.domain.repository.dataset.DatasetRepositoryJpa
 import com.dataops.basecamp.domain.repository.execution.ExecutionHistoryRepositoryJpa
@@ -643,4 +646,445 @@ class ExecutionService(
     private fun getOrCreateQuota(userId: String): UserExecutionQuotaEntity =
         quotaRepositoryJpa.findByUserId(userId)
             ?: quotaRepositoryJpa.save(UserExecutionQuotaEntity.create(userId, clock))
+
+    // === CLI-Rendered Execution Methods ===
+
+    /**
+     * CLI에서 렌더링된 Dataset SQL 실행
+     *
+     * @param params 렌더링된 Dataset 실행 파라미터
+     * @return 실행 결과
+     */
+    @Transactional
+    fun executeRenderedDatasetSql(
+        params: com.dataops.basecamp.domain.command.execution.RenderedDatasetExecutionParams,
+    ): RenderedExecutionResultProjection {
+        val executionId = generateExecutionId()
+        val startedAt = LocalDateTime.now(clock)
+        val startTime = clock.millis()
+
+        try {
+            // 1. Validate execution policy
+            val targetDialect = params.transpileTargetDialect ?: "bigquery"
+            validateExecution(
+                params.userId.toString(),
+                params.renderedSql,
+                targetDialect,
+            )
+
+            // 2. Execute query
+            val queryResponse =
+                queryEngineClient.execute(
+                    sql = params.renderedSql,
+                    engine = targetDialect,
+                    timeoutSeconds = params.executionTimeout,
+                    maxRows = params.executionLimit ?: runExecutionConfig.maxResultRows,
+                )
+
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+            val durationSeconds = durationMs / 1000.0
+
+            // 3. Save history
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.DATASET,
+                resourceName = params.resourceName,
+                status = ExecutionStatus.SUCCESS,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = params.renderedSql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI-rendered Dataset execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect
+                        .valueOf(targetDialect.uppercase()),
+            )
+
+            // 4. Save result
+            if (queryResponse.rows.isNotEmpty()) {
+                saveResult(executionId, queryResponse.rows, extractSchema(queryResponse.rows))
+            }
+
+            // 5. Increment usage
+            incrementUsage(params.userId.toString())
+
+            logger.info(
+                "Rendered Dataset SQL execution completed: executionId=$executionId, rows=${queryResponse.rows.size}, time=${durationMs}ms",
+            )
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.SUCCESS,
+                rows = queryResponse.rows,
+                rowCount = queryResponse.rows.size,
+                durationSeconds = durationSeconds,
+                renderedSql = params.renderedSql,
+                error = null,
+            )
+        } catch (e: Exception) {
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.DATASET,
+                resourceName = params.resourceName,
+                status = ExecutionStatus.FAILED,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = params.renderedSql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI-rendered Dataset execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect.valueOf(
+                        (params.transpileTargetDialect ?: "bigquery").uppercase(),
+                    ),
+                errorCode = "EXEC-003",
+                errorMessage = e.message,
+            )
+
+            logger.error("Rendered Dataset SQL execution failed: executionId=$executionId", e)
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.FAILED,
+                rows = null,
+                rowCount = null,
+                durationSeconds = durationMs / 1000.0,
+                renderedSql = params.renderedSql,
+                error = e.message,
+            )
+        }
+    }
+
+    /**
+     * CLI에서 렌더링된 Metric SQL 실행
+     *
+     * @param params 렌더링된 Metric 실행 파라미터
+     * @return 실행 결과
+     */
+    @Transactional
+    fun executeRenderedMetricSql(
+        params: com.dataops.basecamp.domain.command.execution.RenderedMetricExecutionParams,
+    ): RenderedExecutionResultProjection {
+        val executionId = generateExecutionId()
+        val startedAt = LocalDateTime.now(clock)
+        val startTime = clock.millis()
+
+        try {
+            // 1. Validate execution policy
+            val targetDialect = params.transpileTargetDialect ?: "bigquery"
+            validateExecution(
+                params.userId.toString(),
+                params.renderedSql,
+                targetDialect,
+            )
+
+            // 2. Execute query
+            val queryResponse =
+                queryEngineClient.execute(
+                    sql = params.renderedSql,
+                    engine = targetDialect,
+                    timeoutSeconds = params.executionTimeout,
+                    maxRows = params.executionLimit ?: runExecutionConfig.maxResultRows,
+                )
+
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+            val durationSeconds = durationMs / 1000.0
+
+            // 3. Save history
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.METRIC,
+                resourceName = params.resourceName,
+                status = ExecutionStatus.SUCCESS,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = params.renderedSql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI-rendered Metric execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect
+                        .valueOf(targetDialect.uppercase()),
+            )
+
+            // 4. Save result
+            if (queryResponse.rows.isNotEmpty()) {
+                saveResult(executionId, queryResponse.rows, extractSchema(queryResponse.rows))
+            }
+
+            // 5. Increment usage
+            incrementUsage(params.userId.toString())
+
+            logger.info(
+                "Rendered Metric SQL execution completed: executionId=$executionId, rows=${queryResponse.rows.size}, time=${durationMs}ms",
+            )
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.SUCCESS,
+                rows = queryResponse.rows,
+                rowCount = queryResponse.rows.size,
+                durationSeconds = durationSeconds,
+                renderedSql = params.renderedSql,
+                error = null,
+            )
+        } catch (e: Exception) {
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.METRIC,
+                resourceName = params.resourceName,
+                status = ExecutionStatus.FAILED,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = params.renderedSql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI-rendered Metric execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect.valueOf(
+                        (params.transpileTargetDialect ?: "bigquery").uppercase(),
+                    ),
+                errorCode = "EXEC-003",
+                errorMessage = e.message,
+            )
+
+            logger.error("Rendered Metric SQL execution failed: executionId=$executionId", e)
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.FAILED,
+                rows = null,
+                rowCount = null,
+                durationSeconds = durationMs / 1000.0,
+                renderedSql = params.renderedSql,
+                error = e.message,
+            )
+        }
+    }
+
+    /**
+     * CLI에서 렌더링된 Quality SQL 실행
+     *
+     * @param params 렌더링된 Quality 실행 파라미터
+     * @return 실행 결과
+     */
+    @Transactional
+    fun executeRenderedQualitySql(
+        params: com.dataops.basecamp.domain.command.execution.RenderedQualityExecutionParams,
+    ): RenderedQualityExecutionResultProjection {
+        val executionId = generateExecutionId()
+        val startTime = clock.millis()
+        val targetDialect = params.transpileTargetDialect ?: "bigquery"
+
+        val testResults = mutableListOf<QualityTestResultProjection>()
+        var totalPassed = 0
+        var totalFailed = 0
+
+        // Execute each test
+        for (test in params.tests) {
+            val testStartTime = clock.millis()
+            try {
+                val queryResponse =
+                    queryEngineClient.execute(
+                        sql = test.renderedSql,
+                        engine = targetDialect,
+                        timeoutSeconds = params.executionTimeout,
+                        maxRows = 100, // Limit failed rows to 100
+                    )
+
+                val testDurationMs = clock.millis() - testStartTime
+                val failedCount = queryResponse.rows.size
+
+                // Quality test passes if no rows are returned (no violations)
+                val passed = failedCount == 0
+                if (passed) {
+                    totalPassed++
+                } else {
+                    totalFailed++
+                }
+
+                @Suppress("UNCHECKED_CAST")
+                testResults.add(
+                    QualityTestResultProjection(
+                        testName = test.name,
+                        passed = passed,
+                        failedCount = failedCount,
+                        failedRows = if (passed) null else queryResponse.rows as List<Map<String, Any>>,
+                        durationMs = testDurationMs,
+                    ),
+                )
+            } catch (e: Exception) {
+                val testDurationMs = clock.millis() - testStartTime
+                totalFailed++
+
+                testResults.add(
+                    QualityTestResultProjection(
+                        testName = test.name,
+                        passed = false,
+                        failedCount = -1, // Indicates error
+                        failedRows = null,
+                        durationMs = testDurationMs,
+                    ),
+                )
+
+                logger.warn("Quality test '${test.name}' failed with error: ${e.message}")
+            }
+        }
+
+        val totalDurationMs = clock.millis() - startTime
+        val overallStatus = if (totalFailed == 0) ExecutionStatus.SUCCESS else ExecutionStatus.FAILED
+
+        logger.info(
+            "Rendered Quality execution completed: executionId=$executionId, " +
+                "passed=$totalPassed, failed=$totalFailed, time=${totalDurationMs}ms",
+        )
+
+        return RenderedQualityExecutionResultProjection(
+            executionId = executionId,
+            status = overallStatus,
+            results = testResults,
+            totalTests = params.tests.size,
+            passedTests = totalPassed,
+            failedTests = totalFailed,
+            totalDurationMs = totalDurationMs,
+        )
+    }
+
+    /**
+     * CLI에서 전달받은 Ad-hoc SQL 실행
+     *
+     * @param params 렌더링된 SQL 실행 파라미터
+     * @return 실행 결과
+     */
+    @Transactional
+    fun executeRenderedAdHocSql(
+        params: com.dataops.basecamp.domain.command.execution.RenderedSqlExecutionParams,
+    ): RenderedExecutionResultProjection {
+        val executionId = generateExecutionId()
+        val startedAt = LocalDateTime.now(clock)
+        val startTime = clock.millis()
+
+        try {
+            // 1. Validate execution policy
+            val targetDialect = params.targetDialect ?: "bigquery"
+            validateExecution(
+                params.userId.toString(),
+                params.sql,
+                targetDialect,
+            )
+
+            // 2. Apply parameters to SQL
+            val renderedSql = renderSqlWithParameters(params.sql, params.parameters)
+
+            // 3. Execute query
+            val queryResponse =
+                queryEngineClient.execute(
+                    sql = renderedSql,
+                    engine = targetDialect,
+                    timeoutSeconds = params.executionTimeout,
+                    maxRows = params.executionLimit ?: runExecutionConfig.maxResultRows,
+                )
+
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+            val durationSeconds = durationMs / 1000.0
+
+            // 4. Validate result size
+            val resultSizeMb = estimateResultSizeMb(queryResponse.rows)
+            if (resultSizeMb > runExecutionConfig.maxResultSizeMb) {
+                throw ResultSizeLimitExceededException(
+                    resultSizeMb = resultSizeMb,
+                    limitMb = runExecutionConfig.maxResultSizeMb,
+                )
+            }
+
+            // 5. Save history
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.RAW_SQL,
+                resourceName = null,
+                status = ExecutionStatus.SUCCESS,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = renderedSql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI Ad-hoc SQL execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect
+                        .valueOf(targetDialect.uppercase()),
+            )
+
+            // 6. Save result
+            if (queryResponse.rows.isNotEmpty()) {
+                saveResult(executionId, queryResponse.rows, extractSchema(queryResponse.rows))
+            }
+
+            // 7. Increment usage
+            incrementUsage(params.userId.toString())
+
+            logger.info(
+                "Rendered Ad-hoc SQL execution completed: executionId=$executionId, rows=${queryResponse.rows.size}, time=${durationMs}ms",
+            )
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.SUCCESS,
+                rows = queryResponse.rows,
+                rowCount = queryResponse.rows.size,
+                durationSeconds = durationSeconds,
+                renderedSql = renderedSql,
+                error = null,
+            )
+        } catch (e: Exception) {
+            val completedAt = LocalDateTime.now(clock)
+            val durationMs = clock.millis() - startTime
+
+            saveHistory(
+                executionId = executionId,
+                type = ExecutionType.RAW_SQL,
+                resourceName = null,
+                status = ExecutionStatus.FAILED,
+                startedAt = startedAt,
+                completedAt = completedAt,
+                durationMs = durationMs,
+                userId = params.userId,
+                transpiledSql = params.sql,
+                parameters = objectMapper.writeValueAsString(params.parameters),
+                reason = "CLI Ad-hoc SQL execution",
+                dialect =
+                    com.dataops.basecamp.common.enums.SqlDialect.valueOf(
+                        (params.targetDialect ?: "bigquery").uppercase(),
+                    ),
+                errorCode = "EXEC-003",
+                errorMessage = e.message,
+            )
+
+            logger.error("Rendered Ad-hoc SQL execution failed: executionId=$executionId", e)
+
+            return RenderedExecutionResultProjection(
+                executionId = executionId,
+                status = ExecutionStatus.FAILED,
+                rows = null,
+                rowCount = null,
+                durationSeconds = durationMs / 1000.0,
+                renderedSql = params.sql,
+                error = e.message,
+            )
+        }
+    }
 }

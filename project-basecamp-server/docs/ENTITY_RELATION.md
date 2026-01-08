@@ -494,4 +494,25 @@ interface UserRepositoryDsl {
 
 ---
 
-*Last Updated: 2026-01-04 (Added AirflowClusterEntity)*
+### Execution Domain (v1.1.0)
+
+> The Execution APIs (`/api/v1/execution/*`) use projections and commands rather than new entities.
+> They coordinate execution across Dataset, Metric, and Quality domains.
+
+```
+Execution Domain (service-layer coordination)
+  +-- RenderedDatasetExecutionParams (command)
+  +-- RenderedMetricExecutionParams (command)
+  +-- RenderedQualityExecutionParams (command)
+  +-- RenderedSqlExecutionParams (command)
+  +-- RenderedExecutionResultProjection (projection)
+  +-- RenderedQualityExecutionResultProjection (projection)
+
+  Uses existing entities:
+  +-- ExecutionHistoryEntity (logs execution)
+  +-- QualityRunEntity (for quality execution tracking)
+```
+
+---
+
+*Last Updated: 2026-01-08 (Added Execution Domain v1.1.0)*
