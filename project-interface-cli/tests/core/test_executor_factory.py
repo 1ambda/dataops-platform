@@ -57,16 +57,13 @@ class TestServerExecutor:
         assert executor.server_url == "https://example.com"
         assert executor.api_token == "secret-token"
 
-    def test_execute_raises_not_implemented(self) -> None:
-        """Test that execute raises NotImplementedError (stub)."""
+    def test_execute_returns_failed_result_without_server(self) -> None:
+        """Test that execute returns failed result when no server is configured."""
         executor = ServerExecutor()
-        with pytest.raises(NotImplementedError, match="Server execution not yet"):
-            executor.execute("SELECT 1")
-
-    def test_test_connection_returns_true_when_url_set(self) -> None:
-        """Test test_connection returns True when server_url is set."""
-        executor = ServerExecutor(server_url="https://example.com")
-        assert executor.test_connection() is True
+        result = executor.execute("SELECT 1")
+        # Without server_url, execute should return a failed result
+        assert result.success is False
+        assert "server" in result.error_message.lower() or "connection" in result.error_message.lower()
 
     def test_test_connection_returns_false_when_no_url(self) -> None:
         """Test test_connection returns False when server_url is not set."""
@@ -101,11 +98,31 @@ class TestExecutorFactory:
         """Test that unsupported engine raises ValueError for LOCAL mode."""
         ctx = ExecutionContext(
             execution_mode=ExecutionMode.LOCAL,
-            dialect="trino",  # Not implemented yet
+            dialect="snowflake",  # Not implemented
         )
 
         with pytest.raises(ValueError, match="Unsupported engine for LOCAL mode"):
             ExecutorFactory.create(ExecutionMode.LOCAL, ctx)
+
+    def test_create_local_trino_executor(self) -> None:
+        """Test creating TrinoExecutor for LOCAL mode with trino dialect."""
+        ctx = ExecutionContext(
+            execution_mode=ExecutionMode.LOCAL,
+            dialect="trino",
+            parameters={"host": "trino.example.com", "port": 8080},
+        )
+
+        # This will fail if trino package is not installed, which is expected
+        # in CI environments. We just verify the factory logic.
+        try:
+            from dli.adapters.trino import TRINO_AVAILABLE
+            if not TRINO_AVAILABLE:
+                pytest.skip("trino package not installed")
+            executor = ExecutorFactory.create(ExecutionMode.LOCAL, ctx)
+            from dli.adapters.trino import TrinoExecutor
+            assert isinstance(executor, TrinoExecutor)
+        except ImportError:
+            pytest.skip("trino package not installed")
 
     def test_create_unknown_mode_raises(self) -> None:
         """Test that unknown mode raises ValueError."""

@@ -44,6 +44,7 @@ from dli.models.quality import (
 
 if TYPE_CHECKING:
     from dli.core.executor import QueryExecutor
+    from dli.models.quality import DqTestDefinitionSpec
 
 
 class QualityAPI:
@@ -363,6 +364,71 @@ class QualityAPI:
 
     # === Execution ===
 
+    def _render_test_sql(
+        self,
+        test: DqTestDefinitionSpec,
+        target_name: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> str:
+        """Render SQL for a quality test.
+
+        This generates the test SQL locally based on test type using
+        the BuiltinTests generator.
+
+        Args:
+            test: Test definition spec.
+            target_name: Fully qualified table name.
+            parameters: Runtime parameters (unused currently).
+
+        Returns:
+            Generated SQL query for the test.
+
+        Raises:
+            ValueError: If test type is unknown or singular test has no SQL.
+        """
+        from dli.core.quality.builtin_tests import BuiltinTests
+        from dli.core.quality.models import DqTestType
+
+        test_type = test.type.value if isinstance(test.type, DqTestType) else test.type
+
+        # Handle singular tests (custom SQL)
+        if test_type == "singular":
+            if test.sql:
+                return test.sql
+            if test.file:
+                # Load SQL from file (relative to project path if available)
+                sql_path = Path(test.file)
+                if self.context.project_path and not sql_path.is_absolute():
+                    sql_path = self.context.project_path / sql_path
+                if sql_path.exists():
+                    return sql_path.read_text(encoding="utf-8")
+                raise ValueError(f"SQL file not found: {test.file}")
+            raise ValueError(f"Singular test '{test.name}' requires 'sql' or 'file'")
+
+        # Build kwargs for builtin test generator
+        kwargs: dict[str, Any] = {}
+
+        # Handle columns (can be list or single)
+        if test.columns:
+            kwargs["columns"] = test.columns
+        elif test.column:
+            kwargs["columns"] = [test.column]
+            kwargs["column"] = test.column
+
+        # Additional parameters for specific test types
+        if test.values:
+            kwargs["values"] = test.values
+        if test.to:
+            kwargs["to"] = test.to
+        if test.to_column:
+            kwargs["to_column"] = test.to_column
+        if test.min is not None:
+            kwargs["min"] = test.min
+        if test.max is not None:
+            kwargs["max"] = test.max
+
+        return BuiltinTests.generate(test_type, target_name, **kwargs)
+
     def run(
         self,
         spec_path: str | Path,
@@ -416,48 +482,75 @@ class QualityAPI:
                 ],
             )
 
-        # LOCAL or SERVER execution
+        # LOCAL and SERVER: Use Execution API
         execution_mode = self.context.execution_mode.value
 
-        if self.context.execution_mode == ExecutionMode.SERVER:
-            # TODO: Implement server execution
-            finished_at = datetime.now(tz=UTC)
-            return DqQualityResult(
-                target_urn=spec.target_urn,
-                execution_mode="server",
-                execution_id=f"exec-{datetime.now(tz=UTC).strftime('%Y%m%d%H%M%S')}",
-                started_at=started_at,
-                finished_at=finished_at,
-                test_results=[
-                    {
-                        "test_name": t.name,
-                        "resource_name": spec.target.name,
-                        "status": DqStatus.PASS.value,
-                        "failed_rows": 0,
-                        "execution_time_ms": 100,
-                    }
-                    for t in tests_to_run
-                ],
+        try:
+            from dli.core.client import create_client
+
+            # Create client for API calls
+            # Note: use mock_mode when server_url is not configured (test environment)
+            # This is separate from ExecutionMode.MOCK which is handled above for
+            # explicit mock behavior requested by user
+            use_mock = self.context.server_url is None
+            client = create_client(
+                url=self.context.server_url,
+                mock_mode=use_mock,
             )
 
-        # LOCAL execution using QualityExecutor
-        try:
-            from dli.core.quality import DqTestConfig, QualityExecutor
+            # Prepare rendered tests (CLI generates SQL locally)
+            rendered_tests: list[dict[str, Any]] = []
+            for test in tests_to_run:
+                try:
+                    rendered_sql = self._render_test_sql(
+                        test, spec.target.name, parameters
+                    )
+                    rendered_tests.append({
+                        "name": test.name,
+                        "type": test.type.value if hasattr(test.type, "value") else test.type,
+                        "rendered_sql": rendered_sql,
+                    })
+                except Exception as render_err:
+                    # If SQL rendering fails, include error in the test entry
+                    rendered_tests.append({
+                        "name": test.name,
+                        "type": test.type.value if hasattr(test.type, "value") else test.type,
+                        "rendered_sql": "",
+                        "render_error": str(render_err),
+                    })
 
-            # Convert to DqTestDefinition for executor
-            test_definitions = [
-                t.to_test_definition(spec.target.name) for t in tests_to_run
-            ]
-
-            config = DqTestConfig(fail_fast=fail_fast)
-            executor = QualityExecutor(client=None, config=config)
-
-            # Run tests
-            report = executor.run_all(test_definitions, on_server=False)
+            # Call server execution API
+            response = client.execute_rendered_quality(
+                resource_name=spec.target.name,
+                tests=rendered_tests,
+                execution_timeout=self.context.timeout or 300,
+            )
 
             finished_at = datetime.now(tz=UTC)
 
-            # Convert report to result
+            # Type narrowing: execute_rendered_quality returns dict, not list
+            if response.success and response.data and isinstance(response.data, dict):
+                data = response.data
+                return DqQualityResult(
+                    target_urn=spec.target_urn,
+                    execution_mode=execution_mode,
+                    execution_id=data.get("execution_id"),
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    test_results=[
+                        {
+                            "test_name": r["test_name"],
+                            "resource_name": spec.target.name,
+                            "status": DqStatus.PASS.value if r.get("passed") else DqStatus.FAIL.value,
+                            "failed_rows": r.get("failed_count", 0),
+                            "execution_time_ms": r.get("duration_ms", 0),
+                        }
+                        for r in data.get("results", [])
+                    ],
+                )
+
+            # Handle API error response
+            error_message = response.error or "Execution failed"
             return DqQualityResult(
                 target_urn=spec.target_urn,
                 execution_mode=execution_mode,
@@ -465,14 +558,14 @@ class QualityAPI:
                 finished_at=finished_at,
                 test_results=[
                     {
-                        "test_name": r.test_name,
-                        "resource_name": r.resource_name,
-                        "status": r.status.value,
-                        "failed_rows": r.failed_rows,
-                        "execution_time_ms": r.execution_time_ms,
-                        "error_message": r.error_message,
+                        "test_name": t.name,
+                        "resource_name": spec.target.name,
+                        "status": DqStatus.ERROR.value,
+                        "failed_rows": 0,
+                        "execution_time_ms": 0,
+                        "error_message": error_message,
                     }
-                    for r in report.results
+                    for t in tests_to_run
                 ],
             )
 

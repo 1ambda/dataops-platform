@@ -1,17 +1,152 @@
 # FEATURE: SQL Transpile 기능
 
-> **Version:** 1.2.0
-> **Status:** Refactored to Subcommands
-> **Last Updated:** 2026-01-01
+> **Version:** 1.3.0
+> **Status:** Self-Contained Transpile with Server Policy Option
+> **Last Updated:** 2026-01-07
 
-### Recent Updates (2026-01-01)
+### Recent Updates (2026-01-07)
 
 | Item | Status | Description |
 |------|--------|-------------|
-| **Refactoring to Subcommands** | ✅ Done | `dli dataset transpile` / `dli metric transpile` |
+| **Self-Contained Transpile** | ✅ v1.3.0 | CLI performs 100% transpile locally using SQLGlot |
+| **Server Policy Option** | ✅ v1.3.0 | `--use-server-policy` and `transpile.use_server_policy` config |
+| **Execution Modes** | ✅ v1.3.0 | LOCAL/SERVER/REMOTE execution support |
+| **Refactoring to Subcommands** | ✅ v1.2.0 | `dli dataset transpile` / `dli metric transpile` |
 | **~~Top-level Command~~** | ⚠️ **Removed** | `dli transpile` removed in v1.2.0 |
-| **Jinja Integration** | ✅ Done | `TranspileEngine.transpile(sql, jinja_context=...)` 지원 |
-| **--transpile-retry CLI** | ✅ Done | `--transpile-retry [0-5]` 옵션 추가 |
+| **Jinja Integration** | ✅ v1.2.0 | `TranspileEngine.transpile(sql, jinja_context=...)` 지원 |
+| **--transpile-retry CLI** | ✅ v1.2.0 | `--transpile-retry [0-5]` 옵션 추가 |
+
+---
+
+## 0. Self-Contained Transpile Architecture (v1.3.0)
+
+> **Added in v1.3.0** - CLI performs 100% self-contained SQL transpilation
+
+### 0.1 Architecture Overview
+
+CLI는 Dataset, Metric, Quality 실행/검증 시 **자체적으로 SQL 렌더링을 100% 완료**한 후 Server로 전달합니다:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLI SQL Rendering Flow                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  [1] Spec YML 로드                                                           │
+│      spec.iceberg.analytics.daily_clicks.yaml                               │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [2] Jinja 변수 치환 (기본 변수 치환만)                                        │
+│      {{ execution_date }} → 2025-01-15                                       │
+│      {{ param_name }} → value                                                │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [3] Transpile 정책 적용 (Optional)                                          │
+│      ├── Bypass Mode (Default): SQLGlot만 사용                               │
+│      └── Server Policy Mode: Server에서 규칙 다운로드 후 적용                  │
+│          (--use-server-policy 또는 config.transpile.use_server_policy)       │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [4] SQLGlot으로 최종 SQL 생성                                                │
+│      BigQuery → Trino 또는 Trino → BigQuery 변환                             │
+│                           │                                                  │
+│                           ▼                                                  │
+│  [5] Execution Mode에 따른 실행                                               │
+│      ┌─────────────────────────────────────────────────────────────────┐    │
+│      │  LOCAL:  CLI → BigQuery/Trino 직접 실행                          │    │
+│      │  SERVER: CLI → Basecamp Server (SQL + Spec + Deps 전송)         │    │
+│      │  REMOTE: CLI → Basecamp Server → Redis/Kafka → Worker          │    │
+│      └─────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 0.2 Execution Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **LOCAL** | CLI가 QueryEngine(BigQuery/Trino)에 직접 연결하여 실행 | 로컬 개발, 즉시 결과 확인 |
+| **SERVER** | CLI가 렌더링된 SQL을 Server로 전송, Server가 실행 | 프로덕션 환경, 감사 추적 필요 |
+| **REMOTE** | CLI → Server → Redis/Kafka → Worker 비동기 실행 | 장시간 실행 쿼리, 배치 작업 |
+
+### 0.3 Server Policy Options
+
+#### Option 1: CLI Flag
+
+```bash
+# Server에서 transpile 규칙 다운로드 후 적용
+dli dataset run iceberg.analytics.daily_clicks --use-server-policy
+
+dli metric transpile iceberg.reporting.user_summary --use-server-policy
+
+# Bypass 강제 (Server Policy 사용 안 함)
+dli dataset run iceberg.analytics.daily_clicks --no-server-policy
+```
+
+#### Option 2: Config Setting
+
+```yaml
+# dli.yaml 또는 ~/.dli/config.yaml
+transpile:
+  use_server_policy: true   # 항상 Server 정책 사용
+  cache_policy: true        # 정책 로컬 캐싱 (ETag 기반)
+  cache_ttl_seconds: 3600   # 캐시 TTL
+```
+
+#### Priority Order
+
+```
+CLI Flag > Config Setting > Default (Bypass)
+
+--use-server-policy  → Server Policy 사용
+--no-server-policy   → Bypass Mode 강제
+(없음)               → Config 설정 또는 Bypass Mode
+```
+
+### 0.4 Jinja Template Support
+
+CLI는 **기본 변수 치환만** 지원합니다:
+
+| 지원 | 미지원 |
+|------|--------|
+| `{{ param_name }}` | `{% if %}...{% endif %}` |
+| `{{ param_name \| default('value') }}` | `{% for %}...{% endfor %}` |
+| `{{ param_name \| upper }}` | `{% macro %}...{% endmacro %}` |
+| 기본 필터 (upper, lower, trim) | ref(), source() 함수 |
+
+### 0.5 Server Transmission Payload
+
+SERVER/REMOTE 모드에서 CLI가 Server로 전송하는 데이터:
+
+```json
+{
+  "resource_name": "iceberg.analytics.daily_clicks",
+  "resource_type": "DATASET",
+  "execution_mode": "SERVER",
+
+  "rendered_sql": "SELECT user_id, COUNT(*) FROM ...",
+
+  "original_spec": { "apiVersion": "v1", "kind": "Dataset", ... },
+
+  "dependencies": ["iceberg.raw.events", "iceberg.dim.users"],
+
+  "parameters": { "execution_date": "2025-01-15" },
+
+  "transpile_info": {
+    "source_dialect": "bigquery",
+    "target_dialect": "trino",
+    "used_server_policy": false,
+    "applied_rules": []
+  }
+}
+```
+
+### 0.6 Related Server Documents
+
+| Document | Description |
+|----------|-------------|
+| [`Server TRANSPILE_FEATURE.md`](../../project-basecamp-server/features/TRANSPILE_FEATURE.md) | Server-side Transpile API |
+| [`Server DATASET_FEATURE.md`](../../project-basecamp-server/features/DATASET_FEATURE.md) | Dataset Execution API (v0.2.0) |
+| [`Server METRIC_FEATURE.md`](../../project-basecamp-server/features/METRIC_FEATURE.md) | Metric Execution API (v0.2.0) |
 
 ---
 

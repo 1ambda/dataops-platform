@@ -1,8 +1,8 @@
 # RELEASE: Run Feature
 
-> **Version:** 1.0.0
+> **Version:** 1.1.0
 > **Status:** Released
-> **Release Date:** 2026-01-01
+> **Release Date:** 2026-01-08
 
 ---
 
@@ -18,7 +18,7 @@
 | **ExecutionPlan** | Implemented | Dry run result model |
 | **`dli run`** | Implemented | Execute SQL file and save results |
 | **`--dry-run`** | Implemented | Validate and show execution plan |
-| **`--local/--server`** | Implemented | Execution mode preference |
+| **`--local/--server/--remote`** | Implemented | Execution mode preference (v1.1.0: --remote added) |
 | **Parameter substitution** | Implemented | Jinja-style `{{ param }}` replacement |
 | **Table/JSON Output** | Implemented | Rich table and JSON format support |
 | **Mock Mode** | Implemented | Full mock support via BasecampClient |
@@ -130,6 +130,7 @@ print(sql)
 | `dli run --sql <FILE> -o <PATH> --dry-run` | Validate and show execution plan |
 | `dli run --sql <FILE> -o <PATH> --local` | Request local execution |
 | `dli run --sql <FILE> -o <PATH> --server` | Request server execution |
+| `dli run --sql <FILE> -o <PATH> --remote` | Request remote (async) execution (v1.1.0) |
 
 ### 3.2 Options
 
@@ -140,6 +141,7 @@ print(sql)
 | `--format` | `-f` | ENUM | `csv` | Output format: csv, tsv, json |
 | `--local` | - | FLAG | `false` | Request local execution |
 | `--server` | - | FLAG | `false` | Request server execution |
+| `--remote` | - | FLAG | `false` | Request remote (async) execution (v1.1.0) |
 | `--param` | `-p` | TEXT | - | Parameter: key=value (repeatable) |
 | `--limit` | `-n` | INT | - | Maximum rows to return |
 | `--timeout` | `-t` | INT | `300` | Query timeout in seconds |
@@ -397,4 +399,22 @@ RunResult (saved to output file)
 
 ---
 
-**Last Updated:** 2026-01-01
+## 12. Changelog
+
+### v1.1.0 (2026-01-08)
+- Added `--remote` option for async execution mode
+- CLI options now consistent with other execution commands (dataset, metric, quality)
+  - `--local`: LOCAL mode - CLI connects directly to Query Engine
+  - `--server`: SERVER mode - Server API execution
+  - `--remote`: REMOTE mode - Async queue execution (new)
+
+### v1.0.0 (2026-01-01)
+- Initial release
+- RunAPI with run(), dry_run(), render_sql() methods
+- CSV, TSV, JSON output formats
+- Parameter substitution support
+- DLI-41x error codes
+
+---
+
+**Last Updated:** 2026-01-08

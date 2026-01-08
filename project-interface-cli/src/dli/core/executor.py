@@ -35,6 +35,7 @@ from dli.core.models import (
 from dli.core.types import DryRunResult
 
 if TYPE_CHECKING:
+    from dli.core.client import BasecampClient
     from dli.models.common import ExecutionContext, ExecutionMode
 
 
@@ -462,50 +463,188 @@ class ServerExecutor:
     which is useful in environments where direct database access is
     not available or not permitted.
 
-    Note: This is a stub implementation. Full implementation will be
-    added in Phase 2.
+    The executor implements the QueryExecutor protocol, allowing it to be
+    used with dependency injection in DatasetAPI and MetricAPI.
+
+    Attributes:
+        server_url: Basecamp server URL.
+        api_token: API authentication token.
+        timeout: Request timeout in seconds.
+
+    Example:
+        >>> executor = ServerExecutor(
+        ...     server_url="http://localhost:8081",
+        ...     api_token="my-token",
+        ... )
+        >>> result = executor.execute("SELECT 1")
+        >>> print(result.success)
+        True
     """
 
     def __init__(
         self,
         server_url: str | None = None,
         api_token: str | None = None,
+        timeout: int = 300,
     ) -> None:
         """Initialize the server executor.
 
         Args:
             server_url: Basecamp server URL.
             api_token: API authentication token.
+            timeout: Request timeout in seconds (default: 300).
         """
         self.server_url = server_url
         self.api_token = api_token
+        self.timeout = timeout
+        self._client: BasecampClient | None = None
+
+    @property
+    def client(self) -> BasecampClient:
+        """Get or create the Basecamp client (lazy initialization).
+
+        Returns:
+            BasecampClient instance configured with server_url and api_token.
+        """
+        if self._client is None:
+            from dli.core.client import create_client  # noqa: PLC0415
+
+            self._client = create_client(
+                url=self.server_url,
+                timeout=self.timeout,
+                api_key=self.api_token,
+                mock_mode=False,
+            )
+        return self._client
 
     def execute(
         self, sql: str, params: dict[str, Any] | None = None
     ) -> ExecutionResult:
         """Execute query via Basecamp server.
 
+        Sends the SQL query to the Basecamp server's execution API and
+        transforms the response into an ExecutionResult.
+
         Args:
             sql: SQL query to execute.
-            params: Optional parameters for the query.
+            params: Optional parameters for query template substitution.
+
+        Returns:
+            ExecutionResult with query results or error information.
+
+        Note:
+            This method does not raise exceptions for execution failures.
+            Instead, it returns an ExecutionResult with success=False and
+            an appropriate error_message. This allows callers to handle
+            errors gracefully.
+        """
+        start_time = time.time()
+
+        try:
+            response = self.client.execute_rendered_sql(
+                sql=sql,
+                parameters=params,
+                execution_timeout=self.timeout,
+            )
+
+            execution_time_ms = int((time.time() - start_time) * 1000)
+
+            if response.success and response.data:
+                data = response.data
+                # Type guard: ensure data is a dict, not a list
+                if isinstance(data, dict):
+                    rows: list[dict[str, Any]] = data.get("rows", [])
+                    columns = list(rows[0].keys()) if rows else []
+
+                    return ExecutionResult(
+                        dataset_name="",
+                        phase="main",
+                        success=True,
+                        row_count=data.get("row_count", len(rows)),
+                        columns=columns,
+                        data=rows,
+                        rendered_sql=data.get("rendered_sql", sql),
+                        execution_time_ms=execution_time_ms,
+                        error_message=None,
+                    )
+                # Unexpected response format (data is a list, not dict)
+                return ExecutionResult(
+                    dataset_name="",
+                    phase="main",
+                    success=False,
+                    row_count=0,
+                    columns=[],
+                    data=[],
+                    rendered_sql=sql,
+                    execution_time_ms=execution_time_ms,
+                    error_message="Unexpected server response format",
+                )
+            # Server returned an error
+            error_msg = response.error or "Unknown server error"
+            return ExecutionResult(
+                dataset_name="",
+                phase="main",
+                success=False,
+                row_count=0,
+                columns=[],
+                data=[],
+                rendered_sql=sql,
+                execution_time_ms=execution_time_ms,
+                error_message=f"Server execution failed: {error_msg}",
+            )
+
+        except Exception as e:
+            # Handle connection errors, timeouts, etc.
+            execution_time_ms = int((time.time() - start_time) * 1000)
+            error_msg = str(e) if str(e) else type(e).__name__
+
+            return ExecutionResult(
+                dataset_name="",
+                phase="main",
+                success=False,
+                row_count=0,
+                columns=[],
+                data=[],
+                rendered_sql=sql,
+                execution_time_ms=execution_time_ms,
+                error_message=f"Server connection error: {error_msg}",
+            )
+
+    def execute_sql(self, sql: str, timeout: int = 300) -> ExecutionResult:
+        """Execute SQL query with explicit timeout.
+
+        This method provides compatibility with the BaseExecutor interface,
+        allowing ServerExecutor to be used in contexts that expect BaseExecutor.
+
+        Args:
+            sql: SQL query to execute.
+            timeout: Execution timeout in seconds.
 
         Returns:
             ExecutionResult with query results.
-
-        Raises:
-            NotImplementedError: Server execution not yet implemented.
         """
-        # Stub implementation
-        raise NotImplementedError("Server execution not yet implemented")
+        # Temporarily override timeout for this execution
+        original_timeout = self.timeout
+        self.timeout = timeout
+        try:
+            return self.execute(sql)
+        finally:
+            self.timeout = original_timeout
 
     def test_connection(self) -> bool:
-        """Test server connection.
+        """Test server connection by performing a health check.
 
         Returns:
-            True if server is reachable.
+            True if the server is reachable and healthy, False otherwise.
         """
-        # Stub implementation
-        return self.server_url is not None
+        if not self.server_url:
+            return False
+
+        try:
+            response = self.client.health_check()
+        except Exception:
+            return False
+        return response.success
 
 
 class ExecutorFactory:
@@ -550,7 +689,22 @@ class ExecutorFactory:
                         project=context.parameters.get("project", ""),
                         location=context.parameters.get("location", "US"),
                     )
-                # Add more engines here (trino, snowflake, etc.)
+                if engine == "trino":
+                    from dli.adapters.trino import TrinoExecutor
+
+                    return TrinoExecutor(
+                        host=context.parameters.get("host", "localhost"),
+                        port=context.parameters.get("port", 8080),
+                        user=context.parameters.get("user", "trino"),
+                        catalog=context.parameters.get("catalog"),
+                        schema=context.parameters.get("schema"),
+                        ssl=context.parameters.get("ssl", True),
+                        ssl_verify=context.parameters.get("ssl_verify", True),
+                        auth_type=context.parameters.get("auth_type", "none"),
+                        auth_token=context.parameters.get("auth_token"),
+                        password=context.parameters.get("password"),
+                    )
+                # Add more engines here (snowflake, etc.)
                 raise ValueError(f"Unsupported engine for LOCAL mode: {engine}")
 
             case ExecutionMode.SERVER:

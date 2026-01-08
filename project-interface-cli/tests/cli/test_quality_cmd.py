@@ -63,7 +63,9 @@ class TestQualityHelp:
         result = runner.invoke(app, ["quality", "run", "--help"])
         assert result.exit_code == 0
         output = strip_ansi(result.stdout)
-        assert "--mode" in output
+        assert "--local" in output
+        assert "--server" in output
+        assert "--remote" in output
         assert "--test" in output
         assert "--fail-fast" in output
         assert "--param" in output
@@ -176,20 +178,20 @@ class TestQualityRun:
         # Use server mode since LOCAL requires an actual executor
         result = runner.invoke(
             app,
-            ["quality", "run", spec_path, "--mode", "server"],
+            ["quality", "run", spec_path, "--server"],
         )
 
         assert result.exit_code == 0
         output = get_output(result)
         assert "Quality Test Report" in output or "passed" in output.lower()
 
-    def test_quality_run_with_mode_server(self) -> None:
-        """Test running in server mode."""
+    def test_quality_run_with_server_flag(self) -> None:
+        """Test running with --server flag."""
         spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
         result = runner.invoke(
             app,
-            ["quality", "run", spec_path, "--mode", "server"],
+            ["quality", "run", spec_path, "--server"],
         )
 
         assert result.exit_code == 0
@@ -203,7 +205,7 @@ class TestQualityRun:
         # Use server mode since LOCAL requires an actual executor
         result = runner.invoke(
             app,
-            ["quality", "run", spec_path, "--test", "pk_unique", "--mode", "server"],
+            ["quality", "run", spec_path, "--test", "pk_unique", "--server"],
         )
 
         assert result.exit_code == 0
@@ -217,7 +219,7 @@ class TestQualityRun:
         # Use server mode since LOCAL requires an actual executor
         result = runner.invoke(
             app,
-            ["quality", "run", spec_path, "--format", "json", "--mode", "server"],
+            ["quality", "run", spec_path, "--format", "json", "--server"],
         )
 
         assert result.exit_code == 0
@@ -363,7 +365,7 @@ class TestQualityEdgeCases:
         """Test running with custom parameters."""
         spec_path = str(FIXTURES_PATH / "quality.iceberg.analytics.daily_clicks.yaml")
 
-        # Use server mode since LOCAL requires an actual executor
+        # Use --server flag since LOCAL requires an actual executor
         result = runner.invoke(
             app,
             [
@@ -372,8 +374,7 @@ class TestQualityEdgeCases:
                 spec_path,
                 "--param",
                 "date=2025-01-01",
-                "--mode",
-                "server",
+                "--server",
             ],
         )
 

@@ -661,3 +661,205 @@ class TestBasecampClientFilterOperations:
         response = client.list_datasets(tag="feed", owner="engineer")
         assert response.success is True
         assert isinstance(response.data, list)
+
+
+class TestBasecampClientExecutionAPIs:
+    """Tests for server-side execution API methods."""
+
+    @pytest.fixture
+    def mock_client(self) -> BasecampClient:
+        """Create a mock client."""
+        config = ServerConfig(url="http://localhost:8081")
+        return BasecampClient(config, mock_mode=True)
+
+    @pytest.fixture
+    def real_client(self) -> BasecampClient:
+        """Create a non-mock client."""
+        config = ServerConfig(url="http://localhost:8081")
+        return BasecampClient(config, mock_mode=False)
+
+    # execute_rendered_dataset tests
+
+    def test_execute_rendered_dataset_mock(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_dataset in mock mode."""
+        response = mock_client.execute_rendered_dataset(
+            rendered_sql="SELECT * FROM my_table LIMIT 10",
+            resource_name="my_dataset",
+        )
+        assert response.success is True
+        assert response.data is not None
+        assert response.data["execution_id"] == "exec-mock-dataset-001"
+        assert response.data["status"] == "COMPLETED"
+        assert isinstance(response.data["rows"], list)
+        assert response.data["row_count"] == 2
+        assert response.data["duration_seconds"] > 0
+        assert response.data["rendered_sql"] == "SELECT * FROM my_table LIMIT 10"
+
+    def test_execute_rendered_dataset_with_all_params(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_dataset with all parameters."""
+        response = mock_client.execute_rendered_dataset(
+            rendered_sql="SELECT id, name FROM users WHERE created_at > '2025-01-01'",
+            resource_name="user_report",
+            parameters={"date": "2025-01-01"},
+            execution_timeout=600,
+            execution_limit=1000,
+            transpile_source_dialect="trino",
+            transpile_target_dialect="bigquery",
+            transpile_used_server_policy=True,
+            original_spec={"name": "user_report", "type": "Dataset"},
+        )
+        assert response.success is True
+        assert response.data is not None
+        assert response.data["status"] == "COMPLETED"
+
+    def test_execute_rendered_dataset_non_mock(self, real_client: BasecampClient) -> None:
+        """Test execute_rendered_dataset returns 501 in non-mock mode."""
+        response = real_client.execute_rendered_dataset(
+            rendered_sql="SELECT 1",
+        )
+        assert response.success is False
+        assert response.status_code == 501
+        assert response.error == "Real API not implemented yet"
+
+    # execute_rendered_metric tests
+
+    def test_execute_rendered_metric_mock(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_metric in mock mode."""
+        response = mock_client.execute_rendered_metric(
+            rendered_sql="SELECT date, COUNT(*) as dau FROM users GROUP BY date",
+            resource_name="daily_active_users",
+        )
+        assert response.success is True
+        assert response.data is not None
+        assert response.data["execution_id"] == "exec-mock-metric-001"
+        assert response.data["status"] == "COMPLETED"
+        assert isinstance(response.data["rows"], list)
+        assert response.data["row_count"] == 2
+        assert response.data["duration_seconds"] > 0
+
+    def test_execute_rendered_metric_with_all_params(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_metric with all parameters."""
+        response = mock_client.execute_rendered_metric(
+            rendered_sql="SELECT SUM(revenue) FROM orders",
+            resource_name="total_revenue",
+            parameters={"start_date": "2025-01-01", "end_date": "2025-01-31"},
+            execution_timeout=300,
+            execution_limit=100,
+            transpile_source_dialect="trino",
+            transpile_target_dialect="bigquery",
+            transpile_used_server_policy=False,
+            original_spec={"name": "total_revenue", "type": "Metric"},
+        )
+        assert response.success is True
+        assert response.data["status"] == "COMPLETED"
+
+    def test_execute_rendered_metric_non_mock(self, real_client: BasecampClient) -> None:
+        """Test execute_rendered_metric returns 501 in non-mock mode."""
+        response = real_client.execute_rendered_metric(
+            rendered_sql="SELECT 1",
+        )
+        assert response.success is False
+        assert response.status_code == 501
+        assert response.error == "Real API not implemented yet"
+
+    # execute_rendered_quality tests
+
+    def test_execute_rendered_quality_mock(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_quality in mock mode."""
+        tests = [
+            {"name": "not_null_id", "type": "not_null", "rendered_sql": "SELECT COUNT(*) FROM t WHERE id IS NULL"},
+            {"name": "unique_email", "type": "unique", "rendered_sql": "SELECT email, COUNT(*) FROM t GROUP BY email HAVING COUNT(*) > 1"},
+        ]
+        response = mock_client.execute_rendered_quality(
+            resource_name="user_events",
+            tests=tests,
+        )
+        assert response.success is True
+        assert response.data is not None
+        assert response.data["execution_id"] == "exec-mock-quality-001"
+        assert response.data["status"] == "COMPLETED"
+        assert response.data["total_tests"] == 2
+        assert response.data["passed_tests"] == 2
+        assert response.data["failed_tests"] == 0
+        assert len(response.data["results"]) == 2
+
+        # Check individual test results
+        for result in response.data["results"]:
+            assert result["passed"] is True
+            assert result["failed_count"] == 0
+            assert result["duration_ms"] > 0
+
+    def test_execute_rendered_quality_with_transpile(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_quality with transpilation options."""
+        tests = [
+            {"name": "freshness_check", "type": "freshness", "rendered_sql": "SELECT MAX(updated_at) FROM events"},
+        ]
+        response = mock_client.execute_rendered_quality(
+            resource_name="events_table",
+            tests=tests,
+            execution_timeout=600,
+            transpile_source_dialect="trino",
+            transpile_target_dialect="bigquery",
+        )
+        assert response.success is True
+        assert response.data["total_tests"] == 1
+        assert response.data["results"][0]["test_name"] == "freshness_check"
+
+    def test_execute_rendered_quality_empty_tests(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_quality with empty tests list."""
+        response = mock_client.execute_rendered_quality(
+            resource_name="my_table",
+            tests=[],
+        )
+        assert response.success is True
+        assert response.data["total_tests"] == 0
+        assert response.data["passed_tests"] == 0
+        assert response.data["failed_tests"] == 0
+        assert response.data["results"] == []
+
+    def test_execute_rendered_quality_non_mock(self, real_client: BasecampClient) -> None:
+        """Test execute_rendered_quality returns 501 in non-mock mode."""
+        response = real_client.execute_rendered_quality(
+            resource_name="my_table",
+            tests=[{"name": "test1", "type": "not_null", "rendered_sql": "SELECT 1"}],
+        )
+        assert response.success is False
+        assert response.status_code == 501
+        assert response.error == "Real API not implemented yet"
+
+    # execute_rendered_sql tests
+
+    def test_execute_rendered_sql_mock(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_sql in mock mode."""
+        response = mock_client.execute_rendered_sql(
+            sql="SELECT * FROM catalog.schema.table LIMIT 100",
+        )
+        assert response.success is True
+        assert response.data is not None
+        assert response.data["execution_id"] == "exec-mock-sql-001"
+        assert response.data["status"] == "COMPLETED"
+        assert isinstance(response.data["rows"], list)
+        assert response.data["row_count"] == 2
+        assert response.data["duration_seconds"] > 0
+        assert response.data["rendered_sql"] == "SELECT * FROM catalog.schema.table LIMIT 100"
+
+    def test_execute_rendered_sql_with_all_params(self, mock_client: BasecampClient) -> None:
+        """Test execute_rendered_sql with all parameters."""
+        response = mock_client.execute_rendered_sql(
+            sql="SELECT id, name FROM users WHERE status = :status",
+            parameters={"status": "active"},
+            execution_timeout=120,
+            execution_limit=500,
+            target_dialect="bigquery",
+        )
+        assert response.success is True
+        assert response.data["status"] == "COMPLETED"
+
+    def test_execute_rendered_sql_non_mock(self, real_client: BasecampClient) -> None:
+        """Test execute_rendered_sql returns 501 in non-mock mode."""
+        response = real_client.execute_rendered_sql(
+            sql="SELECT 1",
+        )
+        assert response.success is False
+        assert response.status_code == 501
+        assert response.error == "Real API not implemented yet"

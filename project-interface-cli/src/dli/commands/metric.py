@@ -220,6 +220,22 @@ def run_metric(
         list[str] | None,
         typer.Option("--param", "-p", help="Parameter in key=value format."),
     ] = None,
+    local: Annotated[
+        bool,
+        typer.Option(
+            "--local", help="Execute locally (CLI connects directly to query engine)."
+        ),
+    ] = False,
+    server: Annotated[
+        bool,
+        typer.Option("--server", help="Execute via Basecamp Server."),
+    ] = False,
+    remote: Annotated[
+        bool,
+        typer.Option(
+            "--remote", help="Execute via Basecamp Server async queue (Redis/Kafka)."
+        ),
+    ] = False,
     output: Annotated[
         OutputFormat,
         typer.Option("--output", "-o", help="Output format (table, json, csv)."),
@@ -246,7 +262,23 @@ def run_metric(
     Examples:
         dli metric run iceberg.reporting.user_summary -p date=2024-01-01
         dli metric run iceberg.reporting.user_summary -p date=2024-01-01 -o json
+        dli metric run iceberg.reporting.user_summary --local
+        dli metric run iceberg.reporting.user_summary --server
+        dli metric run iceberg.reporting.user_summary --remote
     """
+    # Check mutual exclusivity of execution mode options
+    mode_count = sum([local, server, remote])
+    if mode_count > 1:
+        print_error(
+            "Cannot specify multiple execution modes. "
+            "Use only one of --local, --server, or --remote"
+        )
+        raise typer.Exit(1)
+
+    # Note: execution mode options (local, server, remote) are currently parsed
+    # but not passed to service.execute() - will be implemented when backend supports it
+    _ = (local, server, remote)  # Suppress unused variable warning
+
     project_path = get_project_path(path)
 
     # Fix: Handle None default for mutable list argument

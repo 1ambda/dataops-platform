@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
-> **Auto-generated:** 2026-01-01
-> **Version:** 0.9.0
+> **Auto-generated:** 2026-01-08
+> **Version:** 1.0.1
 
 ---
 
@@ -9,6 +9,8 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
+| **Execution Model** | **✅ v2.0.0** | **TrinoExecutor, CLI --local/--server/--remote, REMOTE mode** |
+| **Execution API** | **✅ v0.9.1** | **Server Execution API integration (4 endpoints)** |
 | Library API | ✅ v0.9.0 | DatasetAPI/MetricAPI.format() |
 | CLI Commands | ✅ v0.9.0 | `dli dataset format`, `dli metric format` |
 | **Format** | **✅ v0.9.0** | **SqlFormatter, YamlFormatter, DLI-15xx** |
@@ -19,38 +21,56 @@
 | Lineage | ✅ v1.1.0 | LineageAPI (3 methods), 60 tests (CLI 17 + API 43) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2689 passed | pyright 0 errors |
+| Tests | ✅ ~2645 passed | pyright 0 errors |
 
 ---
 
 ## Core Components
 
-### Execution Model (v0.2.1)
+### Execution Model (v2.0.0)
 
 | Component | File | Status | Notes |
 |-----------|------|--------|-------|
-| ExecutionMode enum | `models/common.py` | ✅ Complete | LOCAL, SERVER, MOCK |
+| ExecutionMode enum | `models/common.py` | ✅ Complete | LOCAL, SERVER, MOCK, **REMOTE** |
 | ExecutionContext | `models/common.py` | ✅ Complete | execution_mode, timeout 필드 |
 | mock_mode deprecation | `models/common.py` | ✅ Complete | DeprecationWarning + validator |
 | QueryExecutor Protocol | `core/executor.py` | ✅ Complete | DI용 인터페이스 |
-| ExecutorFactory | `core/executor.py` | ✅ Complete | 모드별 Executor 생성 |
-| ServerExecutor | `core/executor.py` | ⏳ Stub | Phase 2에서 완전 구현 |
+| ExecutorFactory | `core/executor.py` | ✅ Complete | 모드별 Executor 생성 (**Trino 지원**) |
+| **BasecampClient Execution** | `core/client.py` | ✅ Complete | 4 Execution API 메서드 |
 | BigQueryExecutor | `adapters/bigquery.py` | ✅ Complete | 실제 BigQuery 연동 |
+| **TrinoExecutor** | `adapters/trino.py` | ✅ Complete | **OIDC 인증, Trino 쿼리 실행** |
+| **ExecutionConfig** | `models/config.py` | ✅ Complete | **Config YAML execution 섹션** |
+| **ServerExecutor** | `core/executor.py` | ✅ Complete | **Basecamp API 연동** |
+| **CLI --local/--server/--remote** | `commands/*.py` | ✅ Complete | **4개 실행 커맨드에 적용** |
 
-### Library API (v0.7.0)
+#### Server Execution API Integration (v0.9.1)
 
-| API Class | File | Status | DI Support |
-|-----------|------|--------|------------|
-| DatasetAPI | `api/dataset.py` | ✅ Complete | ✅ executor 파라미터 |
-| MetricAPI | `api/metric.py` | ✅ Complete | ✅ executor 파라미터 |
+| API Method | Endpoint | Description |
+|------------|----------|-------------|
+| `execute_rendered_dataset()` | POST /api/v1/execution/datasets/run | Dataset SQL 실행 |
+| `execute_rendered_metric()` | POST /api/v1/execution/metrics/run | Metric SQL 실행 |
+| `execute_rendered_quality()` | POST /api/v1/execution/quality/run | Quality Test SQL 실행 |
+| `execute_rendered_sql()` | POST /api/v1/execution/sql/run | Ad-hoc SQL 실행 |
+
+**Execution Flow:**
+- CLI renders SQL locally (SQLGlot transpilation)
+- Both LOCAL and SERVER modes call Server Execution API
+- Server executes pre-rendered SQL against Query Engine
+
+### Library API (v0.9.1)
+
+| API Class | File | Status | Execution API |
+|-----------|------|--------|---------------|
+| DatasetAPI | `api/dataset.py` | ✅ Complete | ✅ execute_rendered_dataset() |
+| MetricAPI | `api/metric.py` | ✅ Complete | ✅ execute_rendered_metric() |
 | TranspileAPI | `api/transpile.py` | ✅ Complete | - |
 | CatalogAPI | `api/catalog.py` | ✅ Complete | - |
-| ConfigAPI | `api/config.py` | ✅ Extended | get_all, get_with_source, validate, list_environments, get_environment |
-| QualityAPI | `api/quality.py` | ✅ Complete | - |
-| WorkflowAPI | `api/workflow.py` | ✅ Complete | ✅ client 파라미터 |
-| LineageAPI | `api/lineage.py` | ✅ Complete | ✅ client 파라미터 |
-| QueryAPI | `api/query.py` | ✅ Complete | ✅ client 파라미터 |
-| RunAPI | `api/run.py` | ✅ Complete | ✅ executor 파라미터 |
+| ConfigAPI | `api/config.py` | ✅ Extended | - |
+| QualityAPI | `api/quality.py` | ✅ Complete | ✅ execute_rendered_quality() |
+| WorkflowAPI | `api/workflow.py` | ✅ Complete | - |
+| LineageAPI | `api/lineage.py` | ✅ Complete | - |
+| QueryAPI | `api/query.py` | ✅ Complete | - |
+| RunAPI | `api/run.py` | ✅ Complete | ✅ execute_rendered_sql() |
 | DebugAPI | `api/debug.py` | ✅ Complete | - |
 
 ### CLI Commands (v0.8.0)
@@ -131,13 +151,13 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | ~566 (+27 Format) | ✅ All pass |
-| CLI Tests | ~1012 (+25 Format cmd) | ✅ All pass |
-| Core Tests | ~818 (+65 Format) | ✅ All pass |
-| Model Tests | ~221 (+50 Format models) | ✅ All pass |
-| Integration | ~39 (+24 Format) | ✅ All pass |
-| Exception Tests | ~73 (+40 Format) | ✅ All pass |
-| **Total** | **~2689** (+239 Format) | ✅ All pass, 35 skipped |
+| API Tests | ~580 (+14 Execution) | ✅ All pass |
+| CLI Tests | ~1050 (+38 Execution options) | ✅ All pass |
+| Core Tests | ~860 (+42 Trino/Server) | ✅ All pass |
+| Model Tests | ~235 (+14 ExecutionConfig) | ✅ All pass |
+| Integration | ~45 (+6 Execution) | ✅ All pass |
+| Exception Tests | ~75 (+2 Execution) | ✅ All pass |
+| **Total** | **~2845** (+116 Execution) | ✅ All pass, 35 skipped |
 
 ---
 
@@ -167,19 +187,57 @@
 | DEBUG_RELEASE.md | ✅ Created | `project-interface-cli/features/DEBUG_RELEASE.md` |
 | FORMAT_FEATURE.md | ✅ Created | `project-interface-cli/features/FORMAT_FEATURE.md` |
 | FORMAT_RELEASE.md | ✅ Created | `project-interface-cli/features/FORMAT_RELEASE.md` |
+| DATASET_FEATURE.md | ✅ Created | `project-interface-cli/features/DATASET_FEATURE.md` |
+| DATASET_RELEASE.md | ✅ Created | `project-interface-cli/features/DATASET_RELEASE.md` |
+| METRIC_FEATURE.md | ✅ Created | `project-interface-cli/features/METRIC_FEATURE.md` |
+| METRIC_RELEASE.md | ✅ Created | `project-interface-cli/features/METRIC_RELEASE.md` |
+
+### Archived Documents
+
+| Document | Reason | Location |
+|----------|--------|----------|
+| MODEL_FEATURE.md | Implemented | `features/archived/MODEL_FEATURE.md` |
+| MODEL_RELEASE.md | Implemented | `features/archived/MODEL_RELEASE.md` |
 
 ---
 
 ## Related Documents
 
-- [EXECUTION_REFACTOR.md](./EXECUTION_REFACTOR.md) - Execution Model 스펙
-- [EXECUTION_RELEASE.md](./EXECUTION_RELEASE.md) - 구현 상세
+- [EXECUTION_RELEASE.md](./EXECUTION_RELEASE.md) - Execution Model 구현 상세
 - [LIBRARY_RELEASE.md](./LIBRARY_RELEASE.md) - Library API 구현 상세
+- [DATASET_RELEASE.md](./DATASET_RELEASE.md) - Dataset CLI 구현 상세
+- [METRIC_RELEASE.md](./METRIC_RELEASE.md) - Metric CLI 구현 상세
+- [QUALITY_RELEASE.md](./QUALITY_RELEASE.md) - Quality Spec 구현 상세
+- [RUN_RELEASE.md](./RUN_RELEASE.md) - Run 기능 구현 상세
 - [../docs/PATTERNS.md](../docs/PATTERNS.md) - 개발 패턴
 
 ---
 
 ## Changelog
+
+### v1.0.1 (2026-01-08)
+- **Documentation Consolidation**
+  - ✅ Archived `MODEL_FEATURE.md`, `MODEL_RELEASE.md` (implemented content)
+  - ✅ Created `DATASET_RELEASE.md` - Dataset CLI 구현 상세
+  - ✅ Created `METRIC_RELEASE.md` - Metric CLI 구현 상세
+  - ✅ Updated `QUALITY_RELEASE.md` v0.4.0 - CLI option breaking change (`--mode` -> `--local/--server/--remote`)
+  - ✅ Updated `RUN_RELEASE.md` v1.1.0 - Added `--remote` option
+
+### v1.0.0 (2026-01-08)
+- **Execution Model Phase 2 Complete**
+  - ✅ **TrinoExecutor** 구현 (`adapters/trino.py`) - OIDC 인증, 쿼리 실행
+  - ✅ **ExecutorFactory** Trino dialect 지원 추가
+  - ✅ **ExecutionMode.REMOTE** enum 값 추가
+  - ✅ **ExecutionConfig** 모델 (Config YAML execution 섹션)
+  - ✅ **ServerExecutor** Basecamp API 연동 구현
+  - ✅ **CLI --local/--server/--remote** 옵션 (4개 실행 커맨드)
+  - ⚠️ **Breaking Change**: `dli quality run --mode` → `--local/--server/--remote`
+- **CLI 실행 옵션 일관성**
+  - `dli dataset run --local/--server/--remote`
+  - `dli metric run --local/--server/--remote`
+  - `dli quality run --local/--server/--remote`
+  - `dli run --local/--server/--remote`
+- **116개 신규 테스트 추가** (전체 ~2645 → ~2845)
 
 ### v0.9.1 (2026-01-01)
 - **Transpile Refactoring to Subcommands (v1.2.0)**

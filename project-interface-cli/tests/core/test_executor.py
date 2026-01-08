@@ -1,5 +1,7 @@
 """Tests for the DLI Core Engine executor module."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from dli.core.executor import (
@@ -7,6 +9,7 @@ from dli.core.executor import (
     DatasetExecutor,
     FailingMockExecutor,
     MockExecutor,
+    ServerExecutor,
 )
 from dli.core.models import (
     DatasetSpec,
@@ -356,3 +359,273 @@ class TestDatasetExecutor:
         result = executor.execute(simple_spec, rendered_sqls)
 
         assert result.total_execution_time_ms >= 0
+
+
+class TestServerExecutor:
+    """Tests for ServerExecutor class."""
+
+    def test_init_default_values(self):
+        """Test initialization with default values."""
+        executor = ServerExecutor()
+
+        assert executor.server_url is None
+        assert executor.api_token is None
+        assert executor.timeout == 300
+        assert executor._client is None
+
+    def test_init_custom_values(self):
+        """Test initialization with custom values."""
+        executor = ServerExecutor(
+            server_url="http://localhost:8081",
+            api_token="test-token",
+            timeout=600,
+        )
+
+        assert executor.server_url == "http://localhost:8081"
+        assert executor.api_token == "test-token"
+        assert executor.timeout == 600
+
+    def test_client_lazy_initialization(self):
+        """Test that client is lazily initialized."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        # Client should not be created yet
+        assert executor._client is None
+
+        # Mock create_client to avoid actual client creation
+        with patch("dli.core.executor.ServerExecutor.client", new_callable=lambda: property(lambda self: MagicMock())):
+            pass
+
+    @patch("dli.core.client.create_client")
+    def test_client_creation(self, mock_create_client):
+        """Test that client is created with correct parameters."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
+        executor = ServerExecutor(
+            server_url="http://localhost:8081",
+            api_token="test-token",
+            timeout=600,
+        )
+
+        # Access client property to trigger creation
+        _ = executor.client
+
+        mock_create_client.assert_called_once_with(
+            url="http://localhost:8081",
+            timeout=600,
+            api_key="test-token",
+            mock_mode=False,
+        )
+
+    def test_execute_success(self):
+        """Test successful query execution."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        # Create a mock response
+        mock_response = MagicMock()
+        mock_response.success = True
+        mock_response.data = {
+            "rows": [{"id": 1, "name": "test"}, {"id": 2, "name": "test2"}],
+            "row_count": 2,
+            "rendered_sql": "SELECT * FROM users",
+        }
+
+        # Mock the client
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute("SELECT * FROM users")
+
+        assert result.success is True
+        assert result.row_count == 2
+        assert result.columns == ["id", "name"]
+        assert result.data == [{"id": 1, "name": "test"}, {"id": 2, "name": "test2"}]
+        assert result.rendered_sql == "SELECT * FROM users"
+        assert result.error_message is None
+
+    def test_execute_with_params(self):
+        """Test query execution with parameters."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = True
+        mock_response.data = {
+            "rows": [{"count": 42}],
+            "row_count": 1,
+            "rendered_sql": "SELECT COUNT(*) FROM users WHERE id = 1",
+        }
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute(
+            "SELECT COUNT(*) FROM users WHERE id = :id",
+            params={"id": 1},
+        )
+
+        assert result.success is True
+        mock_client.execute_rendered_sql.assert_called_once_with(
+            sql="SELECT COUNT(*) FROM users WHERE id = :id",
+            parameters={"id": 1},
+            execution_timeout=300,
+        )
+
+    def test_execute_server_error(self):
+        """Test handling of server error response."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = False
+        mock_response.error = "Query syntax error"
+        mock_response.data = None
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute("SELECT * FROM nonexistent_table")
+
+        assert result.success is False
+        assert result.row_count == 0
+        assert result.columns == []
+        assert result.data == []
+        assert "Server execution failed: Query syntax error" in result.error_message
+
+    def test_execute_connection_error(self):
+        """Test handling of connection error."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.side_effect = ConnectionError("Connection refused")
+        executor._client = mock_client
+
+        result = executor.execute("SELECT 1")
+
+        assert result.success is False
+        assert "Server connection error" in result.error_message
+        assert "Connection refused" in result.error_message
+
+    def test_execute_unexpected_response_format(self):
+        """Test handling of unexpected response format (list instead of dict)."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = True
+        mock_response.data = [{"id": 1}]  # List instead of dict
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute("SELECT 1")
+
+        assert result.success is False
+        assert "Unexpected server response format" in result.error_message
+
+    def test_execute_empty_rows(self):
+        """Test execution with empty result set."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = True
+        mock_response.data = {
+            "rows": [],
+            "row_count": 0,
+            "rendered_sql": "SELECT * FROM users WHERE 1=0",
+        }
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute("SELECT * FROM users WHERE 1=0")
+
+        assert result.success is True
+        assert result.row_count == 0
+        assert result.columns == []
+        assert result.data == []
+
+    def test_execute_sql_with_timeout(self):
+        """Test execute_sql method with explicit timeout."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = True
+        mock_response.data = {
+            "rows": [{"result": 1}],
+            "row_count": 1,
+            "rendered_sql": "SELECT 1",
+        }
+
+        mock_client = MagicMock()
+        mock_client.execute_rendered_sql.return_value = mock_response
+        executor._client = mock_client
+
+        result = executor.execute_sql("SELECT 1", timeout=60)
+
+        assert result.success is True
+        # Verify timeout was applied
+        mock_client.execute_rendered_sql.assert_called_once_with(
+            sql="SELECT 1",
+            parameters=None,
+            execution_timeout=60,
+        )
+        # Verify timeout is restored
+        assert executor.timeout == 300
+
+    def test_test_connection_success(self):
+        """Test successful connection test."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = True
+
+        mock_client = MagicMock()
+        mock_client.health_check.return_value = mock_response
+        executor._client = mock_client
+
+        assert executor.test_connection() is True
+        mock_client.health_check.assert_called_once()
+
+    def test_test_connection_failure(self):
+        """Test failed connection test."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_response = MagicMock()
+        mock_response.success = False
+
+        mock_client = MagicMock()
+        mock_client.health_check.return_value = mock_response
+        executor._client = mock_client
+
+        assert executor.test_connection() is False
+
+    def test_test_connection_exception(self):
+        """Test connection test with exception."""
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        mock_client = MagicMock()
+        mock_client.health_check.side_effect = Exception("Network error")
+        executor._client = mock_client
+
+        assert executor.test_connection() is False
+
+    def test_test_connection_no_url(self):
+        """Test connection test with no server URL."""
+        executor = ServerExecutor()
+
+        assert executor.test_connection() is False
+
+    def test_implements_query_executor_protocol(self):
+        """Test that ServerExecutor implements QueryExecutor protocol."""
+        from dli.core.executor import QueryExecutor
+
+        executor = ServerExecutor(server_url="http://localhost:8081")
+
+        # Check that it satisfies the protocol
+        assert isinstance(executor, QueryExecutor)
+        assert hasattr(executor, "execute")
+        assert hasattr(executor, "test_connection")

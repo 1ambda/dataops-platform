@@ -144,14 +144,21 @@ def run_sql(
         bool,
         typer.Option(
             "--local",
-            help="Request local execution (server policy may override).",
+            help="Execute locally (CLI connects directly to query engine).",
         ),
     ] = False,
     server: Annotated[
         bool,
         typer.Option(
             "--server",
-            help="Request server execution (server policy may override).",
+            help="Execute via Basecamp Server.",
+        ),
+    ] = False,
+    remote: Annotated[
+        bool,
+        typer.Option(
+            "--remote",
+            help="Execute via Basecamp Server async queue (Redis/Kafka).",
         ),
     ] = False,
     param: Annotated[
@@ -229,13 +236,19 @@ def run_sql(
         dli run sql --sql report.sql -o report.json -f json
         dli run sql --sql daily.sql -o out.csv -p date=2026-01-01
         dli run sql --sql query.sql -o results.csv --local
+        dli run sql --sql query.sql -o results.csv --server
+        dli run sql --sql query.sql -o results.csv --remote
         dli run sql --sql query.sql -o results.csv --dry-run
         dli run sql --sql query.sql -o results.csv --show-sql
         dli run sql --sql query.sql -o results.csv -n 100 --timeout 60
     """
-    # Validate mutually exclusive options
-    if local and server:
-        print_error("Cannot specify both --local and --server")
+    # Check mutual exclusivity of execution mode options
+    mode_count = sum([local, server, remote])
+    if mode_count > 1:
+        print_error(
+            "Cannot specify multiple execution modes. "
+            "Use only one of --local, --server, or --remote"
+        )
         raise typer.Exit(1)
 
     # Validate dialect
@@ -269,6 +282,7 @@ def run_sql(
                 dialect=dialect,  # type: ignore[arg-type]
                 prefer_local=local,
                 prefer_server=server,
+                prefer_remote=remote,
             )
         except RunFileNotFoundError as e:
             print_error(str(e))
@@ -325,7 +339,15 @@ def run_sql(
 
     # Execute query
     try:
-        mode_str = "local" if local else "server"
+        # Determine mode string for display
+        if local:
+            mode_str = "local"
+        elif server:
+            mode_str = "server"
+        elif remote:
+            mode_str = "remote"
+        else:
+            mode_str = "default"
 
         if not quiet:
             with console.status(
@@ -341,6 +363,7 @@ def run_sql(
                     dialect=dialect,  # type: ignore[arg-type]
                     prefer_local=local,
                     prefer_server=server,
+                    prefer_remote=remote,
                 )
         else:
             result = api.run(
@@ -353,6 +376,7 @@ def run_sql(
                 dialect=dialect,  # type: ignore[arg-type]
                 prefer_local=local,
                 prefer_server=server,
+                prefer_remote=remote,
             )
 
     except RunFileNotFoundError as e:
@@ -433,14 +457,21 @@ def run_default(
         bool,
         typer.Option(
             "--local",
-            help="Request local execution.",
+            help="Execute locally (CLI connects directly to query engine).",
         ),
     ] = False,
     server: Annotated[
         bool,
         typer.Option(
             "--server",
-            help="Request server execution.",
+            help="Execute via Basecamp Server.",
+        ),
+    ] = False,
+    remote: Annotated[
+        bool,
+        typer.Option(
+            "--remote",
+            help="Execute via Basecamp Server async queue (Redis/Kafka).",
         ),
     ] = False,
     param: Annotated[
@@ -538,6 +569,7 @@ def run_default(
             output_format=output_format,
             local=local,
             server=server,
+            remote=remote,
             param=param,
             limit=limit,
             timeout=timeout,

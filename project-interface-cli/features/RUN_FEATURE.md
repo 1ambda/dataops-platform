@@ -74,6 +74,7 @@
 |------|-------------|--------------------|
 | `LOCAL` | Direct connection to query engine | User's machine / local environment |
 | `SERVER` | Execute via Basecamp Server API | Basecamp Server infrastructure |
+| `REMOTE` | Server-mediated remote engine execution | Remote Query Engine via Server |
 | `MOCK` | Test mode with mock data | No actual execution |
 
 ### 2.2 Server Policy Enforcement
@@ -132,6 +133,7 @@ dli run --sql <FILE> --output <PATH> [options]
 | `--format` | `-f` | ENUM | `csv` | Output format: `csv`, `tsv`, `json` |
 | `--local` | - | FLAG | `false` | Request local execution |
 | `--server` | - | FLAG | `false` | Request server execution |
+| `--remote` | - | FLAG | `false` | Request remote execution via server |
 | `--param` | `-p` | TEXT | - | Parameter: `key=value` (repeatable) |
 | `--limit` | `-n` | INT | - | Maximum rows to return |
 | `--timeout` | `-t` | INT | `300` | Query timeout in seconds (1-3600) |
@@ -145,7 +147,7 @@ dli run --sql <FILE> --output <PATH> [options]
 
 | Option Group | Rule |
 |--------------|------|
-| `--local`, `--server` | Cannot use both; uses server policy default if neither specified |
+| `--local`, `--server`, `--remote` | Cannot use more than one; uses server policy default if none specified |
 
 ### 3.5 Examples
 
@@ -486,6 +488,7 @@ dli run --sql <FILE> --output <PATH> [options]
 | `--format` | `-f` | ENUM | `csv` | Output: `csv`, `tsv`, `json` |
 | `--local` | - | FLAG | `false` | Request local execution |
 | `--server` | - | FLAG | `false` | Request server execution |
+| `--remote` | - | FLAG | `false` | Request remote execution via server |
 | `--param` | `-p` | TEXT | - | Parameter: `key=value` (repeatable) |
 | `--limit` | `-n` | INT | - | Maximum rows |
 | `--timeout` | `-t` | INT | `300` | Timeout seconds |

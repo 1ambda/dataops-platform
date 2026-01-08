@@ -209,14 +209,19 @@ class MetricAPI:
         parameters: dict[str, Any] | None = None,
         dry_run: bool = False,
         show_sql: bool = False,
+        limit: int | None = None,
     ) -> MetricResult:
         """Execute a metric (SELECT query).
+
+        Both LOCAL and SERVER modes use the Execution API for consistency.
+        The Execution API handles query execution via the server.
 
         Args:
             name: Fully qualified metric name.
             parameters: Runtime parameters (merged with context.parameters).
             dry_run: If True, validate and render SQL without execution.
             show_sql: If True, include rendered SQL in result.
+            limit: Maximum number of rows to return.
 
         Returns:
             MetricResult with query results.
@@ -256,39 +261,82 @@ class MetricAPI:
             # Use dry_run from context if not explicitly set
             actual_dry_run = dry_run or self.context.dry_run
 
-            # Execute
-            result = service.execute(
-                name,
-                merged_params,
-                dry_run=actual_dry_run,
+            # Render SQL locally
+            rendered_sql = service.render_sql(name, merged_params)
+            if not rendered_sql:
+                raise ExecutionError(message="Failed to render SQL")
+
+            if actual_dry_run:
+                # Dry run: just validate and return
+                ended_at = datetime.now(tz=UTC)
+                return MetricResult(
+                    name=name,
+                    status=ResultStatus.SUCCESS,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=int((ended_at - started_at).total_seconds() * 1000),
+                    sql=rendered_sql if show_sql else None,
+                )
+
+            # Execute via Execution API (LOCAL and SERVER both use this)
+            from dli.core.client import create_client
+
+            # Create client for API calls
+            # Note: use mock_mode when server_url is not configured (test environment)
+            use_mock = self.context.server_url is None
+            client = create_client(
+                url=self.context.server_url,
+                timeout=self.context.timeout,
+                api_key=self.context.api_token,
+                mock_mode=use_mock,
+            )
+
+            response = client.execute_rendered_metric(
+                rendered_sql=rendered_sql,
+                resource_name=name,
+                parameters=merged_params,
+                execution_timeout=self.context.timeout,
+                execution_limit=limit,
+                transpile_source_dialect=self.context.dialect,
+                transpile_target_dialect=None,
             )
 
             ended_at = datetime.now(tz=UTC)
             duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
-            # Get SQL if requested
-            sql = None
-            if show_sql:
-                sql = service.render_sql(name, merged_params)
+            if response.success:
+                # Extract row_count and rows from response data
+                row_count = 0
+                rows = None
+                if response.data and isinstance(response.data, dict):
+                    row_count = response.data.get("row_count", 0)
+                    rows = response.data.get("rows")
 
-            return MetricResult(
-                name=name,
-                status=ResultStatus.SUCCESS if result.success else ResultStatus.FAILURE,
-                started_at=started_at,
-                ended_at=ended_at,
-                duration_ms=duration_ms,
-                sql=sql,
-                data=result.rows,
-                row_count=result.row_count,
-                columns=result.columns,
-                error_message=result.error_message,
-            )
+                return MetricResult(
+                    name=name,
+                    status=ResultStatus.SUCCESS,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=duration_ms,
+                    sql=rendered_sql if show_sql else None,
+                    data=rows,
+                    row_count=row_count,
+                )
+            else:
+                return MetricResult(
+                    name=name,
+                    status=ResultStatus.FAILURE,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=duration_ms,
+                    sql=rendered_sql if show_sql else None,
+                    error_message=response.error or "Execution failed",
+                )
 
         except MetricNotFoundError:
             raise
         except Exception as e:
             ended_at = datetime.now(tz=UTC)
-            duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
             raise ExecutionError(
                 message=f"Metric execution failed: {e}",

@@ -2239,6 +2239,281 @@ class BasecampClient:
             status_code=501,
         )
 
+    # =========================================================================
+    # Execution APIs (Server-side rendered SQL execution)
+    # =========================================================================
+
+    def execute_rendered_dataset(
+        self,
+        rendered_sql: str,
+        resource_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
+        execution_timeout: int = 300,
+        execution_limit: int | None = None,
+        transpile_source_dialect: str | None = None,
+        transpile_target_dialect: str | None = None,
+        transpile_used_server_policy: bool = False,
+        original_spec: dict[str, Any] | None = None,
+    ) -> ServerResponse:
+        """Execute rendered dataset SQL via server.
+
+        Args:
+            rendered_sql: Pre-rendered SQL query to execute.
+            resource_name: Optional name of the dataset resource.
+            parameters: Query parameters used for rendering.
+            execution_timeout: Timeout in seconds (default: 300).
+            execution_limit: Maximum number of rows to return.
+            transpile_source_dialect: Source SQL dialect for transpilation.
+            transpile_target_dialect: Target SQL dialect for transpilation.
+            transpile_used_server_policy: Whether to use server-side transpilation policy.
+            original_spec: Original dataset specification (for metadata).
+
+        Returns:
+            ServerResponse with execution result:
+            {
+                "execution_id": str,
+                "status": str,
+                "rows": list[dict],
+                "row_count": int,
+                "duration_seconds": float,
+                "rendered_sql": str,
+            }
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "execution_id": "exec-mock-dataset-001",
+                    "status": "COMPLETED",
+                    "rows": [
+                        {"id": 1, "name": "mock_dataset_1", "value": 100},
+                        {"id": 2, "name": "mock_dataset_2", "value": 200},
+                    ],
+                    "row_count": 2,
+                    "duration_seconds": 0.523,
+                    "rendered_sql": rendered_sql,
+                },
+            )
+
+        # TODO: Implement actual HTTP call: POST /api/v1/execution/datasets/run
+        # payload = {
+        #     "rendered_sql": rendered_sql,
+        #     "resource_name": resource_name,
+        #     "parameters": parameters or {},
+        #     "execution_timeout": execution_timeout,
+        #     "execution_limit": execution_limit,
+        #     "transpile_source_dialect": transpile_source_dialect,
+        #     "transpile_target_dialect": transpile_target_dialect,
+        #     "transpile_used_server_policy": transpile_used_server_policy,
+        #     "original_spec": original_spec,
+        # }
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def execute_rendered_metric(
+        self,
+        rendered_sql: str,
+        resource_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
+        execution_timeout: int = 300,
+        execution_limit: int | None = None,
+        transpile_source_dialect: str | None = None,
+        transpile_target_dialect: str | None = None,
+        transpile_used_server_policy: bool = False,
+        original_spec: dict[str, Any] | None = None,
+    ) -> ServerResponse:
+        """Execute rendered metric SQL via server.
+
+        Args:
+            rendered_sql: Pre-rendered SQL query to execute.
+            resource_name: Optional name of the metric resource.
+            parameters: Query parameters used for rendering.
+            execution_timeout: Timeout in seconds (default: 300).
+            execution_limit: Maximum number of rows to return.
+            transpile_source_dialect: Source SQL dialect for transpilation.
+            transpile_target_dialect: Target SQL dialect for transpilation.
+            transpile_used_server_policy: Whether to use server-side transpilation policy.
+            original_spec: Original metric specification (for metadata).
+
+        Returns:
+            ServerResponse with execution result:
+            {
+                "execution_id": str,
+                "status": str,
+                "rows": list[dict],
+                "row_count": int,
+                "duration_seconds": float,
+                "rendered_sql": str,
+            }
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "execution_id": "exec-mock-metric-001",
+                    "status": "COMPLETED",
+                    "rows": [
+                        {"metric_name": "daily_active_users", "value": 15000, "date": "2025-01-01"},
+                        {"metric_name": "daily_active_users", "value": 16500, "date": "2025-01-02"},
+                    ],
+                    "row_count": 2,
+                    "duration_seconds": 0.412,
+                    "rendered_sql": rendered_sql,
+                },
+            )
+
+        # TODO: Implement actual HTTP call: POST /api/v1/execution/metrics/run
+        # payload = {
+        #     "rendered_sql": rendered_sql,
+        #     "resource_name": resource_name,
+        #     "parameters": parameters or {},
+        #     "execution_timeout": execution_timeout,
+        #     "execution_limit": execution_limit,
+        #     "transpile_source_dialect": transpile_source_dialect,
+        #     "transpile_target_dialect": transpile_target_dialect,
+        #     "transpile_used_server_policy": transpile_used_server_policy,
+        #     "original_spec": original_spec,
+        # }
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def execute_rendered_quality(
+        self,
+        resource_name: str,
+        tests: list[dict[str, Any]],
+        execution_timeout: int = 300,
+        transpile_source_dialect: str | None = None,
+        transpile_target_dialect: str | None = None,
+    ) -> ServerResponse:
+        """Execute rendered quality tests via server.
+
+        Args:
+            resource_name: Name of the resource to test.
+            tests: List of test definitions, each containing:
+                - name: Test name
+                - type: Test type (not_null, unique, etc.)
+                - rendered_sql: Pre-rendered SQL for the test
+            execution_timeout: Timeout in seconds (default: 300).
+            transpile_source_dialect: Source SQL dialect for transpilation.
+            transpile_target_dialect: Target SQL dialect for transpilation.
+
+        Returns:
+            ServerResponse with quality test results:
+            {
+                "execution_id": str,
+                "status": str,
+                "results": list[{
+                    "test_name": str,
+                    "passed": bool,
+                    "failed_count": int,
+                    "duration_ms": int,
+                }],
+                "total_tests": int,
+                "passed_tests": int,
+                "failed_tests": int,
+                "total_duration_ms": int,
+            }
+        """
+        if self.mock_mode:
+            mock_results = []
+            for test in tests:
+                mock_results.append({
+                    "test_name": test.get("name", "unknown_test"),
+                    "passed": True,
+                    "failed_count": 0,
+                    "duration_ms": 150,
+                })
+            return ServerResponse(
+                success=True,
+                data={
+                    "execution_id": "exec-mock-quality-001",
+                    "status": "COMPLETED",
+                    "results": mock_results,
+                    "total_tests": len(tests),
+                    "passed_tests": len(tests),
+                    "failed_tests": 0,
+                    "total_duration_ms": len(tests) * 150,
+                },
+            )
+
+        # TODO: Implement actual HTTP call: POST /api/v1/execution/quality/run
+        # payload = {
+        #     "resource_name": resource_name,
+        #     "tests": tests,
+        #     "execution_timeout": execution_timeout,
+        #     "transpile_source_dialect": transpile_source_dialect,
+        #     "transpile_target_dialect": transpile_target_dialect,
+        # }
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def execute_rendered_sql(
+        self,
+        sql: str,
+        parameters: dict[str, Any] | None = None,
+        execution_timeout: int = 300,
+        execution_limit: int | None = None,
+        target_dialect: str | None = None,
+    ) -> ServerResponse:
+        """Execute ad-hoc SQL query via server.
+
+        Args:
+            sql: SQL query to execute.
+            parameters: Query parameters for template substitution.
+            execution_timeout: Timeout in seconds (default: 300).
+            execution_limit: Maximum number of rows to return.
+            target_dialect: Target SQL dialect for transpilation.
+
+        Returns:
+            ServerResponse with execution result:
+            {
+                "execution_id": str,
+                "status": str,
+                "rows": list[dict],
+                "row_count": int,
+                "duration_seconds": float,
+                "rendered_sql": str,
+            }
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "execution_id": "exec-mock-sql-001",
+                    "status": "COMPLETED",
+                    "rows": [
+                        {"id": 1, "name": "mock_row_1", "created_at": "2025-01-01T00:00:00Z"},
+                        {"id": 2, "name": "mock_row_2", "created_at": "2025-01-02T00:00:00Z"},
+                    ],
+                    "row_count": 2,
+                    "duration_seconds": 0.389,
+                    "rendered_sql": sql,
+                },
+            )
+
+        # TODO: Implement actual HTTP call: POST /api/v1/execution/sql/run
+        # payload = {
+        #     "sql": sql,
+        #     "parameters": parameters or {},
+        #     "execution_timeout": execution_timeout,
+        #     "execution_limit": execution_limit,
+        #     "target_dialect": target_dialect,
+        # }
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
 
 def create_client(
     url: str | None = None,

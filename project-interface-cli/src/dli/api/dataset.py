@@ -214,6 +214,9 @@ class DatasetAPI:
     ) -> DatasetResult:
         """Execute a dataset.
 
+        Both LOCAL and SERVER modes use the Execution API for consistency.
+        The Execution API handles query execution via the server.
+
         Args:
             name: Fully qualified dataset name.
             parameters: Runtime parameters (merged with context.parameters).
@@ -257,34 +260,82 @@ class DatasetAPI:
             # Use dry_run from context if not explicitly set
             actual_dry_run = dry_run or self.context.dry_run
 
-            # Execute
-            result = service.execute(
-                name,
-                merged_params,
-                dry_run=actual_dry_run,
+            # Render SQL locally
+            rendered_sqls = service.render_sql(name, merged_params)
+            if not rendered_sqls:
+                raise ExecutionError(message="Failed to render SQL")
+
+            # Get main SQL
+            main_sql = rendered_sqls.get("main", "")
+            if isinstance(main_sql, list):
+                main_sql = main_sql[0] if main_sql else ""
+
+            if actual_dry_run:
+                # Dry run: just validate and return
+                ended_at = datetime.now(tz=UTC)
+                return DatasetResult(
+                    name=name,
+                    status=ResultStatus.SUCCESS,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=int((ended_at - started_at).total_seconds() * 1000),
+                    sql=main_sql if show_sql else None,
+                )
+
+            # Execute via Execution API (LOCAL and SERVER both use this)
+            from dli.core.client import create_client
+
+            # Create client for API calls
+            # Note: use mock_mode when server_url is not configured (test environment)
+            use_mock = self.context.server_url is None
+            client = create_client(
+                url=self.context.server_url,
+                timeout=self.context.timeout,
+                api_key=self.context.api_token,
+                mock_mode=use_mock,
+            )
+
+            response = client.execute_rendered_dataset(
+                rendered_sql=main_sql,
+                resource_name=name,
+                parameters=merged_params,
+                execution_timeout=self.context.timeout,
+                # Transpile info (use context dialect if available)
+                transpile_source_dialect=self.context.dialect,
+                transpile_target_dialect=None,
             )
 
             ended_at = datetime.now(tz=UTC)
             duration_ms = int((ended_at - started_at).total_seconds() * 1000)
 
-            # Get SQL if requested
-            sql = None
-            if show_sql:
-                rendered = service.render_sql(name, merged_params)
-                if rendered:
-                    sql = rendered.get("main", "")
-                    if isinstance(sql, list):
-                        sql = sql[0] if sql else ""
+            if response.success:
+                # Extract row_count and rows from response data
+                row_count = 0
+                rows = None
+                if response.data and isinstance(response.data, dict):
+                    row_count = response.data.get("row_count", 0)
+                    rows = response.data.get("rows")
 
-            return DatasetResult(
-                name=name,
-                status=ResultStatus.SUCCESS if result.success else ResultStatus.FAILURE,
-                started_at=started_at,
-                ended_at=ended_at,
-                duration_ms=duration_ms,
-                sql=sql,
-                error_message=result.error_message,
-            )
+                return DatasetResult(
+                    name=name,
+                    status=ResultStatus.SUCCESS,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=duration_ms,
+                    sql=main_sql if show_sql else None,
+                    row_count=row_count,
+                    rows=rows,
+                )
+            else:
+                return DatasetResult(
+                    name=name,
+                    status=ResultStatus.FAILURE,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    duration_ms=duration_ms,
+                    sql=main_sql if show_sql else None,
+                    error_message=response.error or "Execution failed",
+                )
 
         except DatasetNotFoundError:
             raise

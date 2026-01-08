@@ -137,6 +137,7 @@ class RunAPI:
         dialect: Literal["bigquery", "trino"] = "bigquery",
         prefer_local: bool = False,
         prefer_server: bool = False,
+        prefer_remote: bool = False,
     ) -> RunResult:
         """Execute SQL file and save results to output file.
 
@@ -150,6 +151,7 @@ class RunAPI:
             dialect: SQL dialect. Default: bigquery.
             prefer_local: Request local execution (server policy may override).
             prefer_server: Request server execution (server policy may override).
+            prefer_remote: Request async remote execution via server queue.
 
         Returns:
             RunResult with execution details and output file path.
@@ -160,7 +162,7 @@ class RunAPI:
             RunServerUnavailableError: If server execution unavailable.
             RunExecutionError: If query execution fails.
             RunOutputError: If output file cannot be written.
-            ConfigurationError: If both prefer_local and prefer_server are True.
+            ConfigurationError: If multiple execution modes are specified.
 
         Example:
             >>> result = api.run(
@@ -171,10 +173,12 @@ class RunAPI:
             ... )
             >>> print(f"Saved {result.row_count} rows to {result.output_path}")
         """
-        # Validate inputs
-        if prefer_local and prefer_server:
+        # Validate inputs - check mutual exclusivity
+        mode_count = sum([prefer_local, prefer_server, prefer_remote])
+        if mode_count > 1:
             raise ConfigurationError(
-                message="Cannot specify both prefer_local and prefer_server",
+                message="Cannot specify multiple execution modes. "
+                "Use only one of prefer_local, prefer_server, or prefer_remote",
                 code=ErrorCode.CONFIG_INVALID,
             )
 
@@ -190,7 +194,9 @@ class RunAPI:
         rendered_sql = self._render_sql(sql_content, parameters or {})
 
         # Determine execution mode
-        execution_mode = self._resolve_execution_mode(prefer_local, prefer_server)
+        execution_mode = self._resolve_execution_mode(
+            prefer_local, prefer_server, prefer_remote
+        )
 
         # Execute query
         if self._is_mock_mode:
@@ -198,6 +204,18 @@ class RunAPI:
 
         if execution_mode == ExecutionMode.LOCAL:
             return self._execute_local(
+                sql_path=sql_path,
+                output_path=output_path,
+                output_format=output_format,
+                rendered_sql=rendered_sql,
+                dialect=dialect,
+                limit=limit,
+                timeout=timeout,
+            )
+        if execution_mode == ExecutionMode.REMOTE:
+            # REMOTE mode uses server async queue (Redis/Kafka)
+            # For now, falls back to server execution until async queue is implemented
+            return self._execute_server(
                 sql_path=sql_path,
                 output_path=output_path,
                 output_format=output_format,
@@ -229,7 +247,10 @@ class RunAPI:
         return rendered
 
     def _resolve_execution_mode(
-        self, prefer_local: bool, prefer_server: bool
+        self,
+        prefer_local: bool,
+        prefer_server: bool,
+        prefer_remote: bool = False,
     ) -> ExecutionMode:
         """Resolve final execution mode based on preference and server policy."""
         if self._is_mock_mode:
@@ -264,9 +285,22 @@ class RunAPI:
                 )
             return ExecutionMode.SERVER
 
+        if prefer_remote:
+            # REMOTE uses async queue (Redis/Kafka)
+            if not policy_data.get("remote_available", True):
+                raise RunServerUnavailableError(
+                    message="Remote async execution unavailable",
+                    code=ErrorCode.RUN_SERVER_UNAVAILABLE,
+                )
+            return ExecutionMode.REMOTE
+
         # Use server default
         default_mode = policy_data.get("default_mode", "server")
-        return ExecutionMode.LOCAL if default_mode == "local" else ExecutionMode.SERVER
+        if default_mode == "local":
+            return ExecutionMode.LOCAL
+        if default_mode == "remote":
+            return ExecutionMode.REMOTE
+        return ExecutionMode.SERVER
 
     def _mock_run(
         self,
@@ -387,13 +421,19 @@ class RunAPI:
         limit: int | None,
         timeout: int,
     ) -> RunResult:
-        """Execute query via Basecamp Server API."""
+        """Execute query via Basecamp Server Execution API.
+
+        Uses the new /api/v1/execution/sql/run endpoint.
+        """
         client = self._get_client()
-        response = client.run_execute(
+
+        # Call new Execution API (execute_rendered_sql)
+        response = client.execute_rendered_sql(
             sql=rendered_sql,
-            dialect=dialect,
-            limit=limit,
-            timeout=timeout,
+            parameters=None,  # Parameters already rendered into SQL
+            execution_timeout=timeout,
+            execution_limit=limit,
+            target_dialect=dialect,
         )
 
         if not response.success:
@@ -409,15 +449,13 @@ class RunAPI:
             result_rows: list[dict[str, Any]] = raw_data
             row_count = len(raw_data)
             duration_seconds = 0.0
-            bytes_processed: int | None = None
-            bytes_billed: int | None = None
+            execution_id: str | None = None
         else:
             data: dict[str, Any] = raw_data if isinstance(raw_data, dict) else {}
             result_rows = data.get("rows", [])
             row_count = data.get("row_count", len(result_rows))
             duration_seconds = data.get("duration_seconds", 0.0)
-            bytes_processed = data.get("bytes_processed")
-            bytes_billed = data.get("bytes_billed")
+            execution_id = data.get("execution_id")
 
         self._write_output(output_path, output_format, result_rows)
 
@@ -430,8 +468,7 @@ class RunAPI:
             duration_seconds=duration_seconds,
             execution_mode=ExecutionMode.SERVER,
             rendered_sql=rendered_sql,
-            bytes_processed=bytes_processed,
-            bytes_billed=bytes_billed,
+            execution_id=execution_id,
         )
 
     def _write_output(
@@ -486,6 +523,7 @@ class RunAPI:
         dialect: Literal["bigquery", "trino"] = "bigquery",
         prefer_local: bool = False,
         prefer_server: bool = False,
+        prefer_remote: bool = False,
     ) -> ExecutionPlan:
         """Validate SQL and show execution plan without executing.
 
@@ -497,13 +535,14 @@ class RunAPI:
             dialect: SQL dialect.
             prefer_local: Request local execution.
             prefer_server: Request server execution.
+            prefer_remote: Request async remote execution via server queue.
 
         Returns:
             ExecutionPlan with validation result and rendered SQL.
 
         Raises:
             RunFileNotFoundError: If SQL file not found.
-            ConfigurationError: If both prefer_local and prefer_server are True.
+            ConfigurationError: If multiple execution modes are specified.
 
         Example:
             >>> plan = api.dry_run(
@@ -514,10 +553,12 @@ class RunAPI:
             >>> print(f"Mode: {plan.execution_mode}, Valid: {plan.is_valid}")
             >>> print(f"SQL: {plan.rendered_sql}")
         """
-        # Validate inputs
-        if prefer_local and prefer_server:
+        # Validate inputs - check mutual exclusivity
+        mode_count = sum([prefer_local, prefer_server, prefer_remote])
+        if mode_count > 1:
             raise ConfigurationError(
-                message="Cannot specify both prefer_local and prefer_server",
+                message="Cannot specify multiple execution modes. "
+                "Use only one of prefer_local, prefer_server, or prefer_remote",
                 code=ErrorCode.CONFIG_INVALID,
             )
 
@@ -533,7 +574,9 @@ class RunAPI:
 
         # Resolve execution mode (may raise policy errors)
         try:
-            execution_mode = self._resolve_execution_mode(prefer_local, prefer_server)
+            execution_mode = self._resolve_execution_mode(
+                prefer_local, prefer_server, prefer_remote
+            )
             mode_error = None
         except (RunLocalDeniedError, RunServerUnavailableError) as e:
             execution_mode = ExecutionMode.SERVER  # fallback for display

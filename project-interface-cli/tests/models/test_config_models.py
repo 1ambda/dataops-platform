@@ -11,19 +11,21 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 from pydantic import ValidationError
-
-# Config models - all implemented
-from dli.models.config import (
-    ConfigSource,
-    ConfigValidationResult,
-    ConfigValueInfo,
-    EnvironmentProfile,
-)
+import pytest
 
 from dli.models.common import ConfigValue, EnvironmentInfo, ValidationResult
 
+# Config models - all implemented
+from dli.models.config import (
+    BigQueryConfig,
+    ConfigSource,
+    ConfigValueInfo,
+    EnvironmentProfile,
+    ExecutionConfig,
+    ServerModeConfig,
+    TrinoConfig,
+)
 
 # =============================================================================
 # ConfigSource Enum Tests
@@ -234,7 +236,7 @@ class TestConfigValueInfoModel:
     def test_secret_auto_detection_password(self) -> None:
         """Test is_secret default detection for password keys."""
         # If implementation auto-detects secrets based on key name
-        cv = ConfigValueInfo(
+        _ = ConfigValueInfo(
             key="database.password",
             value="secret",
             source=ConfigSource.PROJECT,
@@ -245,7 +247,7 @@ class TestConfigValueInfoModel:
 
     def test_secret_auto_detection_api_key(self) -> None:
         """Test is_secret default detection for api_key keys."""
-        cv = ConfigValueInfo(
+        _ = ConfigValueInfo(
             key="server.api_key",
             value="sk-xxx",
             source=ConfigSource.ENV_VAR,
@@ -626,3 +628,491 @@ class TestModelIntegration:
         assert "key" in cv_schema["properties"]
         assert "name" in env_schema["properties"]
         assert "valid" in vr_schema["properties"]
+
+
+# =============================================================================
+# BigQueryConfig Tests
+# =============================================================================
+
+
+class TestBigQueryConfig:
+    """Tests for BigQueryConfig model."""
+
+    def test_creation_minimal(self) -> None:
+        """Test minimal BigQueryConfig creation."""
+        config = BigQueryConfig()
+
+        assert config.project is None
+        assert config.location is None
+        assert config.credentials_path is None
+        assert config.job_timeout_ms is None
+
+    def test_creation_full(self) -> None:
+        """Test BigQueryConfig with all fields."""
+        config = BigQueryConfig(
+            project="my-gcp-project",
+            location="US",
+            credentials_path="/path/to/credentials.json",
+            job_timeout_ms=600000,
+        )
+
+        assert config.project == "my-gcp-project"
+        assert config.location == "US"
+        assert config.credentials_path == "/path/to/credentials.json"
+        assert config.job_timeout_ms == 600000
+
+    def test_frozen_model(self) -> None:
+        """Test that model is frozen (immutable)."""
+        config = BigQueryConfig(project="test")
+
+        with pytest.raises(ValidationError):
+            config.project = "modified"  # type: ignore[misc]
+
+    def test_extra_fields_allowed(self) -> None:
+        """Test that extra fields are allowed for extensibility."""
+        config = BigQueryConfig(
+            project="test",
+            custom_field="custom_value",  # Extra field
+        )
+
+        assert config.project == "test"
+
+    def test_json_roundtrip(self) -> None:
+        """Test JSON serialization roundtrip."""
+        config = BigQueryConfig(project="my-project", location="EU")
+        json_str = config.model_dump_json()
+        restored = BigQueryConfig.model_validate_json(json_str)
+
+        assert restored.project == config.project
+        assert restored.location == config.location
+
+
+# =============================================================================
+# TrinoConfig Tests
+# =============================================================================
+
+
+class TestTrinoConfig:
+    """Tests for TrinoConfig model."""
+
+    def test_creation_minimal(self) -> None:
+        """Test minimal TrinoConfig creation."""
+        config = TrinoConfig()
+
+        assert config.host is None
+        assert config.port == 8080  # default
+        assert config.user is None
+        assert config.catalog is None
+        assert config.schema_name is None
+        assert config.ssl is False  # default
+        assert config.auth_type == "none"  # default
+        assert config.auth_token is None
+        assert config.password is None
+
+    def test_creation_full(self) -> None:
+        """Test TrinoConfig with all fields."""
+        config = TrinoConfig(
+            host="trino.example.com",
+            port=8443,
+            user="analyst",
+            catalog="iceberg",
+            schema="analytics",  # Note: using alias
+            ssl=True,
+            auth_type="oidc",
+            auth_token="token123",
+        )
+
+        assert config.host == "trino.example.com"
+        assert config.port == 8443
+        assert config.user == "analyst"
+        assert config.catalog == "iceberg"
+        assert config.schema_name == "analytics"
+        assert config.ssl is True
+        assert config.auth_type == "oidc"
+        assert config.auth_token == "token123"
+
+    def test_schema_alias(self) -> None:
+        """Test that schema field uses alias."""
+        # The alias allows using 'schema' in YAML while avoiding Python keyword
+        config = TrinoConfig(schema="my_schema")
+        assert config.schema_name == "my_schema"
+
+    def test_default_port(self) -> None:
+        """Test default port is 8080."""
+        config = TrinoConfig()
+        assert config.port == 8080
+
+    def test_auth_types(self) -> None:
+        """Test various auth types."""
+        for auth in ["basic", "oidc", "jwt", "kerberos", "none"]:
+            config = TrinoConfig(auth_type=auth)  # type: ignore[arg-type]
+            assert config.auth_type == auth
+
+    def test_frozen_model(self) -> None:
+        """Test that model is frozen (immutable)."""
+        config = TrinoConfig(host="test")
+
+        with pytest.raises(ValidationError):
+            config.host = "modified"  # type: ignore[misc]
+
+    def test_json_roundtrip(self) -> None:
+        """Test JSON serialization roundtrip."""
+        config = TrinoConfig(
+            host="trino.example.com",
+            port=8443,
+            catalog="hive",
+            ssl=True,
+        )
+        json_str = config.model_dump_json()
+        restored = TrinoConfig.model_validate_json(json_str)
+
+        assert restored.host == config.host
+        assert restored.port == config.port
+        assert restored.ssl == config.ssl
+
+
+# =============================================================================
+# ServerModeConfig Tests
+# =============================================================================
+
+
+class TestServerModeConfig:
+    """Tests for ServerModeConfig model."""
+
+    def test_creation_minimal(self) -> None:
+        """Test minimal ServerModeConfig creation."""
+        config = ServerModeConfig()
+
+        assert config.url is None
+        assert config.api_token is None
+        assert config.verify_ssl is True  # default
+
+    def test_creation_full(self) -> None:
+        """Test ServerModeConfig with all fields."""
+        config = ServerModeConfig(
+            url="https://basecamp.example.com",
+            api_token="sk-12345",
+            verify_ssl=False,
+        )
+
+        assert config.url == "https://basecamp.example.com"
+        assert config.api_token == "sk-12345"
+        assert config.verify_ssl is False
+
+    def test_default_verify_ssl(self) -> None:
+        """Test verify_ssl defaults to True."""
+        config = ServerModeConfig(url="https://test.com")
+        assert config.verify_ssl is True
+
+    def test_frozen_model(self) -> None:
+        """Test that model is frozen (immutable)."""
+        config = ServerModeConfig(url="https://test.com")
+
+        with pytest.raises(ValidationError):
+            config.url = "https://modified.com"  # type: ignore[misc]
+
+    def test_json_roundtrip(self) -> None:
+        """Test JSON serialization roundtrip."""
+        config = ServerModeConfig(
+            url="https://basecamp.example.com",
+            api_token="token",
+        )
+        json_str = config.model_dump_json()
+        restored = ServerModeConfig.model_validate_json(json_str)
+
+        assert restored.url == config.url
+        assert restored.api_token == config.api_token
+
+
+# =============================================================================
+# ExecutionConfig Tests
+# =============================================================================
+
+
+class TestExecutionConfig:
+    """Tests for ExecutionConfig model."""
+
+    def test_creation_minimal(self) -> None:
+        """Test minimal ExecutionConfig creation with defaults."""
+        config = ExecutionConfig()
+
+        assert config.mode == "local"
+        assert config.dialect == "bigquery"
+        assert config.timeout == 300
+        assert config.bigquery is None
+        assert config.trino is None
+        assert config.server is None
+
+    def test_creation_full(self) -> None:
+        """Test ExecutionConfig with all fields."""
+        config = ExecutionConfig(
+            mode="server",
+            dialect="trino",
+            timeout=600,
+            bigquery=BigQueryConfig(project="my-project"),
+            trino=TrinoConfig(host="trino.example.com"),
+            server=ServerModeConfig(url="https://basecamp.example.com"),
+        )
+
+        assert config.mode == "server"
+        assert config.dialect == "trino"
+        assert config.timeout == 600
+        assert config.bigquery is not None
+        assert config.bigquery.project == "my-project"
+        assert config.trino is not None
+        assert config.trino.host == "trino.example.com"
+        assert config.server is not None
+        assert config.server.url == "https://basecamp.example.com"
+
+    def test_mode_values(self) -> None:
+        """Test valid mode values."""
+        for mode in ["local", "server", "mock"]:
+            config = ExecutionConfig(mode=mode)  # type: ignore[arg-type]
+            assert config.mode == mode
+
+    def test_dialect_values(self) -> None:
+        """Test valid dialect values."""
+        for dialect in ["trino", "bigquery", "snowflake", "duckdb", "spark"]:
+            config = ExecutionConfig(dialect=dialect)  # type: ignore[arg-type]
+            assert config.dialect == dialect
+
+    def test_timeout_bounds(self) -> None:
+        """Test timeout validation bounds."""
+        # Valid timeout
+        config = ExecutionConfig(timeout=100)
+        assert config.timeout == 100
+
+        # Below minimum
+        with pytest.raises(ValidationError):
+            ExecutionConfig(timeout=0)
+
+        # Above maximum
+        with pytest.raises(ValidationError):
+            ExecutionConfig(timeout=3601)
+
+    def test_from_dict_empty(self) -> None:
+        """Test from_dict with empty/None input."""
+        config = ExecutionConfig.from_dict(None)
+        assert config.mode == "local"
+        assert config.dialect == "bigquery"
+
+        config2 = ExecutionConfig.from_dict({})
+        assert config2.mode == "local"
+
+    def test_from_dict_basic(self) -> None:
+        """Test from_dict with basic config."""
+        data = {
+            "mode": "server",
+            "dialect": "trino",
+            "timeout": 600,
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.mode == "server"
+        assert config.dialect == "trino"
+        assert config.timeout == 600
+
+    def test_from_dict_with_nested_configs(self) -> None:
+        """Test from_dict with nested engine configs."""
+        data = {
+            "mode": "local",
+            "dialect": "bigquery",
+            "timeout": 300,
+            "bigquery": {
+                "project": "my-gcp-project",
+                "location": "US",
+            },
+            "trino": {
+                "host": "trino.example.com",
+                "port": 8443,
+                "catalog": "iceberg",
+            },
+            "server": {
+                "url": "https://basecamp.example.com",
+                "api_token": "token123",
+            },
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.mode == "local"
+        assert config.bigquery is not None
+        assert config.bigquery.project == "my-gcp-project"
+        assert config.bigquery.location == "US"
+        assert config.trino is not None
+        assert config.trino.host == "trino.example.com"
+        assert config.trino.port == 8443
+        assert config.trino.catalog == "iceberg"
+        assert config.server is not None
+        assert config.server.url == "https://basecamp.example.com"
+        assert config.server.api_token == "token123"
+
+    def test_from_dict_partial_nested(self) -> None:
+        """Test from_dict with only some nested configs."""
+        data = {
+            "mode": "local",
+            "bigquery": {"project": "test"},
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.bigquery is not None
+        assert config.bigquery.project == "test"
+        assert config.trino is None
+        assert config.server is None
+
+    def test_frozen_model(self) -> None:
+        """Test that model is frozen (immutable)."""
+        config = ExecutionConfig()
+
+        with pytest.raises(ValidationError):
+            config.mode = "server"  # type: ignore[misc]
+
+    def test_json_roundtrip(self) -> None:
+        """Test JSON serialization roundtrip."""
+        config = ExecutionConfig(
+            mode="server",
+            dialect="trino",
+            timeout=600,
+            server=ServerModeConfig(url="https://example.com"),
+        )
+        json_str = config.model_dump_json()
+        restored = ExecutionConfig.model_validate_json(json_str)
+
+        assert restored.mode == config.mode
+        assert restored.dialect == config.dialect
+        assert restored.timeout == config.timeout
+        assert restored.server is not None
+        assert restored.server.url == config.server.url
+
+    def test_model_schema_includes_all_fields(self) -> None:
+        """Test that JSON schema includes all expected fields."""
+        schema = ExecutionConfig.model_json_schema()
+
+        assert "properties" in schema
+        props = schema["properties"]
+
+        assert "mode" in props
+        assert "dialect" in props
+        assert "timeout" in props
+        assert "bigquery" in props
+        assert "trino" in props
+        assert "server" in props
+
+
+# =============================================================================
+# Execution Config Integration Tests
+# =============================================================================
+
+
+class TestExecutionConfigIntegration:
+    """Integration tests for execution config models."""
+
+    def test_typical_local_bigquery_config(self) -> None:
+        """Test typical local BigQuery configuration."""
+        data = {
+            "mode": "local",
+            "dialect": "bigquery",
+            "timeout": 300,
+            "bigquery": {
+                "project": "my-gcp-project",
+                "location": "US",
+            },
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.mode == "local"
+        assert config.dialect == "bigquery"
+        assert config.bigquery is not None
+        assert config.bigquery.project == "my-gcp-project"
+
+    def test_typical_local_trino_config(self) -> None:
+        """Test typical local Trino configuration."""
+        data = {
+            "mode": "local",
+            "dialect": "trino",
+            "timeout": 600,
+            "trino": {
+                "host": "trino.company.com",
+                "port": 8443,
+                "user": "analyst",
+                "catalog": "iceberg",
+                "schema": "analytics",
+                "ssl": True,
+                "auth_type": "oidc",
+            },
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.mode == "local"
+        assert config.dialect == "trino"
+        assert config.trino is not None
+        assert config.trino.host == "trino.company.com"
+        assert config.trino.ssl is True
+        assert config.trino.auth_type == "oidc"
+
+    def test_typical_server_mode_config(self) -> None:
+        """Test typical server mode configuration."""
+        data = {
+            "mode": "server",
+            "dialect": "bigquery",
+            "timeout": 300,
+            "server": {
+                "url": "https://basecamp.production.example.com",
+                "api_token": "sk-live-12345",
+                "verify_ssl": True,
+            },
+        }
+        config = ExecutionConfig.from_dict(data)
+
+        assert config.mode == "server"
+        assert config.server is not None
+        assert config.server.url == "https://basecamp.production.example.com"
+        assert config.server.api_token == "sk-live-12345"
+        assert config.server.verify_ssl is True
+
+    def test_backward_compatibility_empty_execution(self) -> None:
+        """Test backward compatibility when execution section is missing."""
+        # Old config without execution section
+        config = ExecutionConfig.from_dict(None)
+
+        # Should use safe defaults
+        assert config.mode == "local"
+        assert config.dialect == "bigquery"
+        assert config.timeout == 300
+
+    def test_config_yaml_structure(self) -> None:
+        """Test config matches expected YAML structure from docs."""
+        # Simulating what would come from YAML parsing
+        yaml_data: dict[str, Any] = {
+            "mode": "local",
+            "dialect": "bigquery",
+            "timeout": 300,
+            "bigquery": {
+                "project": "my-gcp-project",
+                "location": "US",
+            },
+            "trino": {
+                "host": "trino.example.com",
+                "port": 8080,
+                "user": "trino",
+                "catalog": "iceberg",
+                "schema": "analytics",
+                "ssl": True,
+                "auth_type": "oidc",
+                "auth_token": "${DLI_TRINO_TOKEN}",
+            },
+            "server": {
+                "url": "https://basecamp.example.com",
+                "api_token": "${DLI_API_TOKEN}",
+            },
+        }
+
+        config = ExecutionConfig.from_dict(yaml_data)
+
+        # Verify all nested configs are parsed correctly
+        assert config.bigquery is not None
+        assert config.trino is not None
+        assert config.server is not None
+
+        # Verify template syntax is preserved (not resolved at model level)
+        assert config.trino.auth_token == "${DLI_TRINO_TOKEN}"
+        assert config.server.api_token == "${DLI_API_TOKEN}"

@@ -10,14 +10,11 @@ Covers:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from dli.models.common import ExecutionContext, ExecutionMode
-
 
 # =============================================================================
 # Fixtures
@@ -118,7 +115,7 @@ class TestFromEnvironmentBasic:
     def test_from_environment_exists(self) -> None:
         """Test that from_environment class method exists."""
         assert hasattr(ExecutionContext, "from_environment")
-        assert callable(getattr(ExecutionContext, "from_environment"))
+        assert callable(ExecutionContext.from_environment)
 
     @pytest.mark.skipif(
         not hasattr(ExecutionContext, "from_environment"),
@@ -253,7 +250,7 @@ class TestFromEnvironmentWithEnvironment:
         self, project_with_local: Path
     ) -> None:
         """Test from_environment uses active_environment when set."""
-        ctx = ExecutionContext.from_environment(project_path=project_with_local)
+        _ = ExecutionContext.from_environment(project_path=project_with_local)
 
         # active_environment is "dev" in local config
         # Should use dev environment settings if available
@@ -563,7 +560,7 @@ class TestFromEnvironmentErrors:
 
         # Should have project_path set but use default values
         assert ctx.project_path == non_existent
-        assert ctx.dialect == "trino"  # default
+        assert ctx.dialect == "bigquery"  # built-in default
         assert ctx.timeout == 300  # default
 
 
@@ -593,7 +590,7 @@ class TestFromEnvironmentDefaults:
         """Test default dialect when not specified."""
         ctx = ExecutionContext.from_environment(project_path=project_minimal)
 
-        assert ctx.dialect == "trino"
+        assert ctx.dialect == "bigquery"  # built-in default (changed from trino)
 
     @pytest.mark.skipif(
         not hasattr(ExecutionContext, "from_environment"),
@@ -682,10 +679,368 @@ class TestFromEnvironmentIntegration:
         self, project_with_full_config: Path
     ) -> None:
         """Test context is immutable after from_environment."""
-        ctx = ExecutionContext.from_environment(
+        _ = ExecutionContext.from_environment(
             project_path=project_with_full_config,
             environment="dev",
         )
 
         # Context fields should be immutable (if using frozen model)
         # This depends on implementation
+
+
+# =============================================================================
+# Execution Section Tests
+# =============================================================================
+
+
+@pytest.fixture
+def project_with_execution_section(tmp_path: Path) -> Path:
+    """Create project with execution section in config."""
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    # Use ${VAR:-default} syntax for optional template variables
+    (project_dir / "dli.yaml").write_text(
+        """version: "1"
+
+project:
+  name: "execution-test"
+
+# New execution section
+execution:
+  mode: server
+  dialect: trino
+  timeout: 600
+
+  bigquery:
+    project: my-gcp-project
+    location: US
+
+  trino:
+    host: trino.example.com
+    port: 8443
+    user: analyst
+    catalog: iceberg
+    schema: analytics
+    ssl: true
+    auth_type: oidc
+
+  server:
+    url: https://basecamp.example.com
+    api_token: "${DLI_API_TOKEN:-}"
+
+# Legacy server section (lower priority)
+server:
+  url: https://legacy-server.example.com
+"""
+    )
+    return project_dir
+
+
+@pytest.fixture
+def project_with_execution_local_mode(tmp_path: Path) -> Path:
+    """Create project with execution section for local mode."""
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    (project_dir / "dli.yaml").write_text(
+        """version: "1"
+
+execution:
+  mode: local
+  dialect: bigquery
+  timeout: 300
+
+  bigquery:
+    project: my-analytics-project
+    location: EU
+"""
+    )
+    return project_dir
+
+
+class TestFromEnvironmentExecutionSection:
+    """Tests for from_environment with execution section."""
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_execution_mode_from_section(
+        self, project_with_execution_section: Path
+    ) -> None:
+        """Test execution mode is loaded from execution section."""
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        assert ctx.execution_mode == ExecutionMode.SERVER
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_dialect_from_execution_section(
+        self, project_with_execution_section: Path
+    ) -> None:
+        """Test dialect is loaded from execution section."""
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        assert ctx.dialect == "trino"
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_timeout_from_execution_section(
+        self, project_with_execution_section: Path
+    ) -> None:
+        """Test timeout is loaded from execution section."""
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        assert ctx.timeout == 600
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_server_url_from_execution_server_section(
+        self, project_with_execution_section: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test server URL is loaded from execution.server section."""
+        monkeypatch.setenv("DLI_API_TOKEN", "test-token")
+
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        # execution.server.url should take precedence over legacy server.url
+        assert ctx.server_url == "https://basecamp.example.com"
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_api_token_from_execution_server_section(
+        self, project_with_execution_section: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test API token is loaded from execution.server section."""
+        monkeypatch.setenv("DLI_API_TOKEN", "resolved-token")
+
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        assert ctx.api_token == "resolved-token"
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_execution_section_local_mode(
+        self, project_with_execution_local_mode: Path
+    ) -> None:
+        """Test execution section with local mode."""
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_local_mode
+        )
+
+        assert ctx.execution_mode == ExecutionMode.LOCAL
+        assert ctx.dialect == "bigquery"
+        assert ctx.timeout == 300
+
+
+class TestExecutionSectionPriority:
+    """Tests for execution section priority in config hierarchy."""
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_env_var_beats_execution_section(
+        self, project_with_execution_section: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test DLI_* env vars override execution section."""
+        monkeypatch.setenv("DLI_EXECUTION_MODE", "mock")
+        monkeypatch.setenv("DLI_DIALECT", "snowflake")
+
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section
+        )
+
+        assert ctx.execution_mode == ExecutionMode.MOCK
+        assert ctx.dialect == "snowflake"
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_overrides_beat_execution_section(
+        self, project_with_execution_section: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test overrides parameter beats execution section."""
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_execution_section,
+            overrides={
+                "execution_mode": "local",
+                "dialect": "duckdb",
+                "timeout": 999,
+            },
+        )
+
+        assert ctx.execution_mode == ExecutionMode.LOCAL
+        assert ctx.dialect == "duckdb"
+        assert ctx.timeout == 999
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_execution_section_beats_legacy_defaults(
+        self, tmp_path: Path
+    ) -> None:
+        """Test execution section beats legacy defaults section."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+
+        # Config with both execution and legacy defaults
+        (project_dir / "dli.yaml").write_text(
+            """version: "1"
+
+# New execution section (higher priority)
+execution:
+  mode: server
+  dialect: trino
+  timeout: 600
+
+# Legacy defaults section (lower priority)
+defaults:
+  dialect: bigquery
+  timeout_seconds: 300
+"""
+        )
+
+        ctx = ExecutionContext.from_environment(project_path=project_dir)
+
+        # execution section should win
+        assert ctx.dialect == "trino"
+        assert ctx.timeout == 600
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_environment_beats_execution_section(
+        self, tmp_path: Path
+    ) -> None:
+        """Test named environment config beats execution section."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+
+        # Config with execution section and named environment
+        (project_dir / "dli.yaml").write_text(
+            """version: "1"
+
+execution:
+  mode: local
+  dialect: bigquery
+  timeout: 300
+
+environments:
+  prod:
+    dialect: trino
+    timeout_seconds: 600
+    server_url: https://prod.example.com
+"""
+        )
+
+        ctx = ExecutionContext.from_environment(
+            project_path=project_dir,
+            environment="prod",
+        )
+
+        # Named environment should override execution section
+        assert ctx.dialect == "trino"
+        assert ctx.timeout == 600
+        assert ctx.server_url == "https://prod.example.com"
+
+
+class TestExecutionSectionBackwardCompatibility:
+    """Tests for backward compatibility with old config format."""
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_config_without_execution_section(
+        self, project_with_full_config: Path
+    ) -> None:
+        """Test config without execution section still works."""
+        # project_with_full_config doesn't have execution section
+        ctx = ExecutionContext.from_environment(
+            project_path=project_with_full_config
+        )
+
+        # Should use legacy defaults
+        assert ctx.dialect == "trino"  # from defaults section
+        assert ctx.timeout == 300  # from defaults section
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_empty_execution_section(
+        self, tmp_path: Path
+    ) -> None:
+        """Test empty execution section uses defaults."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+
+        (project_dir / "dli.yaml").write_text(
+            """version: "1"
+
+execution: {}
+"""
+        )
+
+        ctx = ExecutionContext.from_environment(project_path=project_dir)
+
+        # Should use ExecutionConfig defaults
+        assert ctx.execution_mode == ExecutionMode.LOCAL
+        assert ctx.dialect == "bigquery"  # ExecutionConfig default
+        assert ctx.timeout == 300
+
+    @pytest.mark.skipif(
+        not hasattr(ExecutionContext, "from_environment"),
+        reason="from_environment not yet implemented",
+    )
+    def test_partial_execution_section(
+        self, tmp_path: Path
+    ) -> None:
+        """Test partial execution section fills in defaults."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+
+        (project_dir / "dli.yaml").write_text(
+            """version: "1"
+
+execution:
+  mode: mock
+  # dialect and timeout not specified
+"""
+        )
+
+        ctx = ExecutionContext.from_environment(project_path=project_dir)
+
+        assert ctx.execution_mode == ExecutionMode.MOCK
+        # Other values should be defaults
+        assert ctx.dialect == "bigquery"  # ExecutionConfig default
+        assert ctx.timeout == 300

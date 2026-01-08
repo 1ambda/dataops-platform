@@ -42,7 +42,8 @@ class ExecutionMode(str, Enum):
 
     Determines where SQL queries are executed:
     - LOCAL: Direct execution on Query Engine (BigQuery, Trino, etc.)
-    - SERVER: Execution via Basecamp Server API
+    - SERVER: Execution via Basecamp Server API (synchronous)
+    - REMOTE: Execution via Basecamp Server async queue (Redis/Kafka)
     - MOCK: Test mode with no actual execution
 
     Note: This is different from DataSource which determines where
@@ -56,6 +57,7 @@ class ExecutionMode(str, Enum):
 
     LOCAL = "local"
     SERVER = "server"
+    REMOTE = "remote"
     MOCK = "mock"
 
 
@@ -185,11 +187,39 @@ class ExecutionContext(BaseSettings):
         *,
         environment: str | None = None,
         overrides: dict[str, Any] | None = None,
-    ) -> "ExecutionContext":
+    ) -> ExecutionContext:
         """Create context from environment configuration.
 
         Loads configuration from the layered config system and creates
         an ExecutionContext with proper defaults. Uses ConfigAPI internally.
+
+        Configuration priority (highest to lowest):
+        1. overrides parameter
+        2. Environment variables (DLI_*)
+        3. Named environment config (environments.{name})
+        4. Execution section (execution.*)
+        5. Legacy defaults section (defaults.*)
+        6. Built-in defaults
+
+        The execution section supports:
+        ```yaml
+        execution:
+          mode: local           # local, server, mock
+          dialect: bigquery     # bigquery, trino, etc.
+          timeout: 300          # seconds
+
+          bigquery:
+            project: my-gcp-project
+            location: US
+
+          trino:
+            host: trino.example.com
+            catalog: iceberg
+
+          server:
+            url: https://basecamp.example.com
+            api_token: ${DLI_API_TOKEN}
+        ```
 
         Args:
             project_path: Project directory (defaults to cwd).
@@ -215,6 +245,7 @@ class ExecutionContext(BaseSettings):
 
         from dli.api.config import ConfigAPI
         from dli.exceptions import ConfigEnvNotFoundError
+        from dli.models.config import ExecutionConfig
 
         actual_path = project_path or Path.cwd()
         api = ConfigAPI(project_path=actual_path)
@@ -224,6 +255,11 @@ class ExecutionContext(BaseSettings):
         except Exception:
             # If config loading fails, use defaults
             config = {}
+
+        # Parse execution section (None if not present, used for priority logic)
+        execution_section = config.get("execution")
+        execution_config = ExecutionConfig.from_dict(execution_section)
+        has_execution_section = execution_section is not None
 
         # Get environment-specific config if requested
         env_config: dict[str, Any] = {}
@@ -241,47 +277,84 @@ class ExecutionContext(BaseSettings):
                 pass
 
         # Build configuration with priority:
-        # overrides > env_vars > env_config > config > defaults
+        # overrides > env_vars > env_config > execution_config > legacy_config > defaults
         overrides = overrides or {}
 
-        # Server URL (check env var DLI_SERVER_URL)
+        # Server URL priority:
+        # 1. overrides
+        # 2. DLI_SERVER_URL env var
+        # 3. env_config.server_url
+        # 4. execution.server.url
+        # 5. server.url (legacy)
         server_url = (
             overrides.get("server_url")
             or os.environ.get("DLI_SERVER_URL")
             or env_config.get("server_url")
+            or (execution_config.server.url if execution_config.server else None)
             or config.get("server", {}).get("url")
         )
 
-        # API token
+        # API token priority:
+        # 1. overrides
+        # 2. DLI_API_TOKEN env var
+        # 3. env_config.api_key
+        # 4. execution.server.api_token
+        # 5. server.api_key (legacy)
         api_token = (
             overrides.get("api_token")
             or os.environ.get("DLI_API_TOKEN")
             or env_config.get("api_key")
+            or (execution_config.server.api_token if execution_config.server else None)
             or config.get("server", {}).get("api_key")
         )
 
-        # Dialect (check env var DLI_DIALECT)
-        dialect = (
+        # Dialect priority:
+        # 1. overrides
+        # 2. DLI_DIALECT env var
+        # 3. env_config.dialect
+        # 4. execution.dialect (only if execution section exists)
+        # 5. defaults.dialect (legacy)
+        # 6. "bigquery" (built-in default)
+        dialect_value = (
             overrides.get("dialect")
             or os.environ.get("DLI_DIALECT")
             or env_config.get("dialect")
-            or config.get("defaults", {}).get("dialect", "trino")
+            or (execution_config.dialect if has_execution_section else None)
+            or config.get("defaults", {}).get("dialect")
+            or "bigquery"
         )
+        # Cast to SQLDialect type (pydantic will validate the value)
+        dialect: SQLDialect = dialect_value  # type: ignore[assignment]
 
-        # Timeout (check env var DLI_TIMEOUT)
+        # Timeout priority:
+        # 1. overrides
+        # 2. DLI_TIMEOUT env var
+        # 3. env_config.timeout_seconds
+        # 4. execution.timeout (only if execution section exists)
+        # 5. defaults.timeout_seconds (legacy)
+        # 6. 300 (built-in default)
         timeout_str = os.environ.get("DLI_TIMEOUT")
         timeout = (
             overrides.get("timeout")
             or (int(timeout_str) if timeout_str else None)
             or env_config.get("timeout_seconds")
-            or config.get("defaults", {}).get("timeout_seconds", 300)
+            or (execution_config.timeout if has_execution_section else None)
+            or config.get("defaults", {}).get("timeout_seconds")
+            or 300
         )
 
-        # Execution mode
+        # Execution mode priority:
+        # 1. overrides
+        # 2. DLI_EXECUTION_MODE env var
+        # 3. env_config.execution_mode
+        # 4. execution.mode (only if execution section exists)
+        # 5. "local" (built-in default)
         execution_mode_str = (
             overrides.get("execution_mode")
+            or os.environ.get("DLI_EXECUTION_MODE")
             or env_config.get("execution_mode")
-            or os.environ.get("DLI_EXECUTION_MODE", "local")
+            or (execution_config.mode if has_execution_section else None)
+            or "local"
         )
         if isinstance(execution_mode_str, str):
             execution_mode = ExecutionMode(execution_mode_str)
@@ -403,11 +476,17 @@ class DatasetResult(BaseResult):
         name: Dataset name.
         sql: Rendered SQL (if show_sql=True).
         rows_affected: Number of rows affected.
+        row_count: Number of rows returned (from Execution API).
+        rows: Result rows (from Execution API).
     """
 
     name: str = Field(..., description="Dataset name")
     sql: str | None = Field(default=None, description="Rendered SQL")
     rows_affected: int | None = Field(default=None, description="Rows affected")
+    row_count: int | None = Field(default=None, description="Number of rows returned")
+    rows: list[dict[str, Any]] | None = Field(
+        default=None, description="Result rows from execution"
+    )
 
 
 class MetricResult(BaseResult):

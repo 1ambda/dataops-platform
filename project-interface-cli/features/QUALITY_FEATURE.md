@@ -1,8 +1,8 @@
 # FEATURE: Quality Spec 분리 및 확장
 
-> **Version:** 1.0.0
-> **Status:** ✅ Phase 1 MVP Complete (v0.3.0)
-> **Last Updated:** 2026-01-01
+> **Version:** 1.1.0
+> **Status:** ✅ Phase 1 MVP Complete (v0.3.0) + CLI SQL Generation (v1.1.0)
+> **Last Updated:** 2026-01-07
 
 ---
 
@@ -381,6 +381,182 @@ dli quality
 | P2 | Basecamp UI 연동 | Quality Spec 에디터, 결과 대시보드 |
 | P2 | Expression Test | SQL 표현식 기반 테스트 타입 추가 |
 | P2 | Row Count Test | 행 수 범위 검사 테스트 타입 추가 |
+
+---
+
+## 8. CLI-Side SQL Generation for Built-in Rules (v1.1.0)
+
+> **Added in v1.1.0** - CLI generates SQL for Built-in Quality Test Rules
+
+### 8.1 Architecture Change
+
+기존에는 Server에서 Quality Test SQL을 생성했으나, v1.1.0부터 **CLI가 Built-in Rule에 대한 SQL을 직접 생성**합니다:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Before v1.1.0 (Server-side Generation)          │
+├─────────────────────────────────────────────────────────────────┤
+│  CLI ─────────────────► Server ─────────────────► QueryEngine   │
+│       Quality Spec         │                                     │
+│                            │ Server generates SQL                │
+│                            ├─────────────────────►               │
+│                            │      SELECT COUNT(*) ...            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  After v1.1.0 (CLI-side Generation)              │
+├─────────────────────────────────────────────────────────────────┤
+│  CLI ─────────────────────────────────────────────► Server      │
+│    │ 1. Load Quality Spec                              │        │
+│    │ 2. Generate SQL for Built-in Rules               │        │
+│    │ 3. Send rendered_sql + spec                      │        │
+│    │                                                   ▼        │
+│    │                                           Execute SQL      │
+│    └──────────────────────────────────────────────────►         │
+│                    rendered_sql                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Built-in Rule SQL Generation
+
+CLI는 다음 3가지 Built-in Rule에 대해 SQL을 생성합니다:
+
+| Rule Type | Description | Generated SQL Pattern |
+|-----------|-------------|----------------------|
+| `not_null` | Column null check | `SELECT COUNT(*) as failed_count FROM {{ table }} WHERE {{ column }} IS NULL` |
+| `unique` | Column uniqueness | `SELECT {{ column }}, COUNT(*) as cnt FROM {{ table }} GROUP BY {{ column }} HAVING COUNT(*) > 1` |
+| `row_count` | Table row validation | `SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed FROM {{ table }}` |
+
+### 8.3 Generated SQL Examples
+
+**not_null test:**
+```sql
+-- Test: user_id_not_null
+-- Type: not_null
+-- Column: user_id
+SELECT COUNT(*) as failed_count
+FROM iceberg.analytics.users
+WHERE user_id IS NULL
+```
+
+**unique test:**
+```sql
+-- Test: email_unique
+-- Type: unique
+-- Column: email
+SELECT email, COUNT(*) as cnt
+FROM iceberg.analytics.users
+GROUP BY email
+HAVING COUNT(*) > 1
+```
+
+**row_count test:**
+```sql
+-- Test: table_has_rows
+-- Type: row_count
+-- Condition: COUNT(*) > 0
+SELECT CASE WHEN COUNT(*) > 0 THEN 0 ELSE 1 END as failed
+FROM iceberg.analytics.users
+```
+
+### 8.4 Quality Spec Example with Built-in Rules
+
+```yaml
+# quality/iceberg.analytics.users.yaml
+apiVersion: v1
+kind: QualitySpec
+target:
+  type: dataset
+  name: iceberg.analytics.users
+metadata:
+  owner: data-team
+spec:
+  tests:
+    # Built-in Rule - CLI generates SQL
+    - name: user_id_not_null
+      type: not_null
+      column: user_id
+
+    # Built-in Rule - CLI generates SQL
+    - name: email_unique
+      type: unique
+      column: email
+
+    # Built-in Rule - CLI generates SQL
+    - name: table_has_rows
+      type: row_count
+      operator: ">"
+      value: 0
+
+    # Custom Rule - Uses provided SQL expression
+    - name: valid_status
+      type: singular
+      sql: "SELECT * FROM iceberg.analytics.users WHERE status NOT IN ('active', 'inactive', 'pending')"
+```
+
+### 8.5 CLI Usage
+
+```bash
+# LOCAL 모드 (CLI가 SQL 생성 후 직접 실행)
+dli quality run quality.iceberg.analytics.users.yaml
+
+# SERVER 모드 (CLI가 SQL 생성 후 Server로 전송)
+dli quality run quality.iceberg.analytics.users.yaml --mode server
+
+# Dry-run (생성된 SQL 확인)
+dli quality run quality.iceberg.analytics.users.yaml --dry-run --show-sql
+```
+
+### 8.6 Server API for Pre-rendered SQL
+
+CLI가 생성한 SQL을 Server로 전송하는 API:
+
+```http
+POST /api/v1/execution/quality/run
+Content-Type: application/json
+
+{
+  "resource_name": "iceberg.analytics.users",
+  "execution_mode": "SERVER",
+
+  "tests": [
+    {
+      "name": "user_id_not_null",
+      "type": "not_null",
+      "rendered_sql": "SELECT COUNT(*) as failed_count FROM iceberg.analytics.users WHERE user_id IS NULL"
+    },
+    {
+      "name": "email_unique",
+      "type": "unique",
+      "rendered_sql": "SELECT email, COUNT(*) as cnt FROM iceberg.analytics.users GROUP BY email HAVING COUNT(*) > 1"
+    }
+  ],
+
+  "original_spec": { ... },
+
+  "transpile_info": {
+    "source_dialect": "bigquery",
+    "target_dialect": "trino",
+    "used_server_policy": false
+  }
+}
+```
+
+### 8.7 Backward Compatibility
+
+기존 Server-side SQL 생성 API는 유지됩니다:
+
+| API | Usage |
+|-----|-------|
+| `POST /api/v1/quality/test/{resource_name}` | 기존 API - Server가 SQL 생성 |
+| `POST /api/v1/execution/quality/run` | 새 API - CLI가 SQL 생성 후 전송 |
+
+### 8.8 Related Documents
+
+| Document | Description |
+|----------|-------------|
+| [`TRANSPILE_FEATURE.md`](./TRANSPILE_FEATURE.md) | CLI SQL Rendering Flow (Section 0) |
+| [`Server QUALITY_FEATURE.md`](../../project-basecamp-server/features/QUALITY_FEATURE.md) | Server-side 구현 상세 |
 
 ---
 

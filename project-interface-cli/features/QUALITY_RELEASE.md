@@ -1,8 +1,8 @@
 # RELEASE: Quality Spec Implementation
 
-> **Version:** 0.3.0
-> **Release Date:** 2026-01-01
-> **Status:** ✅ Phase 1 MVP Complete
+> **Version:** 0.4.0
+> **Release Date:** 2026-01-08
+> **Status:** ✅ Phase 2 Complete (CLI Options Update)
 
 ---
 
@@ -98,13 +98,17 @@ Arguments:
   SPEC_PATH                     Quality Spec YML 파일 경로
 
 Options:
-  --mode, -m [local|server]     실행 모드 (기본: local)
+  --local                       LOCAL 모드 (기본값) - CLI가 Query Engine에 직접 연결
+  --server                      SERVER 모드 - Server API 통해 실행
+  --remote                      REMOTE 모드 - 비동기 Queue 실행
   --test, -t TEXT               특정 테스트만 실행 (여러 개 가능)
   --fail-fast                   첫 실패 시 중단
   --format, -f [table|json]     출력 포맷 (기본: table)
   --path, -p PATH               프로젝트 경로
   --param, -P KEY=VALUE         실행 파라미터 전달 (여러 개 가능)
 ```
+
+**Breaking Change (v0.4.0):** `--mode` 옵션이 `--local/--server/--remote` 플래그로 변경됨
 
 #### `dli quality validate`
 ```bash
@@ -135,13 +139,17 @@ dli quality list --target iceberg.analytics.daily_clicks
 dli quality get pk_unique
 dli quality get pk_unique --format json
 
-# Quality Spec 실행 (LOCAL 모드)
+# Quality Spec 실행 (LOCAL 모드 - 기본값)
 dli quality run quality.iceberg.analytics.daily_clicks.yaml
 dli quality run quality.yaml --test pk_unique --test not_null_user_id
 dli quality run quality.yaml --fail-fast
+dli quality run quality.yaml --local  # 명시적 LOCAL 모드
 
 # Quality Spec 실행 (SERVER 모드)
-dli quality run quality.yaml --mode server
+dli quality run quality.yaml --server
+
+# Quality Spec 실행 (REMOTE 모드)
+dli quality run quality.yaml --remote
 
 # Spec 검증
 dli quality validate quality.iceberg.analytics.daily_clicks.yaml
@@ -454,6 +462,37 @@ quality:{target_type}:{catalog}.{schema}.{name}:{quality_name}
 
 ---
 
-**Last Updated:** 2025-12-31
+## 12. Changelog
+
+### v0.4.0 (2026-01-08)
+
+**Breaking Changes:**
+- ⚠️ **CLI 옵션 변경**: `--mode [local|server]` → `--local/--server/--remote` 플래그
+  - 이전: `dli quality run spec.yaml --mode server`
+  - 현재: `dli quality run spec.yaml --server`
+- REMOTE 모드 추가 (비동기 Queue 실행)
+
+**Migration:**
+```bash
+# Before (v0.3.x)
+dli quality run quality.yaml --mode local
+dli quality run quality.yaml --mode server
+
+# After (v0.4.0)
+dli quality run quality.yaml --local
+dli quality run quality.yaml --server
+dli quality run quality.yaml --remote  # 새로 추가
+```
+
+### v0.3.0 (2025-12-31)
+- Quality Spec YML 독립 파일 분리
+- QualityAPI Library Interface 구현
+- CLI 커맨드 구현 (list, get, run, validate)
+- DLI-6xx 에러 코드 체계 추가
+- Built-in Generic Tests 지원
+
+---
+
+**Last Updated:** 2026-01-08
 **Implemented By:** feature-interface-cli Agent
 **Reviewed By:** expert-python Agent

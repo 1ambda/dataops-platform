@@ -52,6 +52,7 @@ class RunResult(BaseModel):
         duration_seconds: Execution duration in seconds.
         execution_mode: Execution mode used (LOCAL, SERVER, MOCK).
         rendered_sql: Rendered SQL after parameter substitution.
+        execution_id: Server execution ID (if available, SERVER mode only).
         bytes_processed: Bytes processed (if available).
         bytes_billed: Bytes billed (if available).
 
@@ -73,6 +74,9 @@ class RunResult(BaseModel):
     duration_seconds: float = Field(description="Execution duration in seconds")
     execution_mode: ExecutionMode = Field(description="Execution mode used")
     rendered_sql: str = Field(description="Rendered SQL after parameter substitution")
+    execution_id: str | None = Field(
+        default=None, description="Server execution ID (SERVER mode only)"
+    )
     bytes_processed: int | None = Field(default=None, description="Bytes processed")
     bytes_billed: int | None = Field(default=None, description="Bytes billed")
 

@@ -226,6 +226,22 @@ def run_dataset(
             "--file", "-f", help="SQL file path (mutually exclusive with name)."
         ),
     ] = None,
+    local: Annotated[
+        bool,
+        typer.Option(
+            "--local", help="Execute locally (CLI connects directly to query engine)."
+        ),
+    ] = False,
+    server: Annotated[
+        bool,
+        typer.Option("--server", help="Execute via Basecamp Server."),
+    ] = False,
+    remote: Annotated[
+        bool,
+        typer.Option(
+            "--remote", help="Execute via Basecamp Server async queue (Redis/Kafka)."
+        ),
+    ] = False,
     transpile_strict: Annotated[
         bool,
         typer.Option("--transpile-strict", help="Enable strict transpile mode."),
@@ -264,11 +280,23 @@ def run_dataset(
     Examples:
         dli dataset run iceberg.analytics.daily_clicks -p execution_date=2024-01-01
         dli dataset run iceberg.analytics.daily_clicks --dry-run
+        dli dataset run iceberg.analytics.daily_clicks --local
+        dli dataset run iceberg.analytics.daily_clicks --server
+        dli dataset run iceberg.analytics.daily_clicks --remote
         dli dataset run --sql "SELECT * FROM raw.events LIMIT 10"
         dli dataset run -f query.sql
         dli dataset run --sql "SELECT * FROM t" --no-transpile
         dli dataset run --sql "SELECT * FROM t" --transpile-strict
     """
+    # Check mutual exclusivity of execution mode options
+    mode_count = sum([local, server, remote])
+    if mode_count > 1:
+        print_error(
+            "Cannot specify multiple execution modes. "
+            "Use only one of --local, --server, or --remote"
+        )
+        raise typer.Exit(1)
+
     # Validate mutual exclusivity
     has_adhoc = sql is not None or file is not None
     if name and has_adhoc:
@@ -290,6 +318,9 @@ def run_dataset(
             no_transpile=no_transpile,
             dry_run=dry_run,
             show_sql=show_sql,
+            local=local,
+            server=server,
+            remote=remote,
         )
         return
 
@@ -361,6 +392,9 @@ def _run_adhoc_sql(
     no_transpile: bool,
     dry_run: bool,
     show_sql: bool,
+    local: bool = False,
+    server: bool = False,
+    remote: bool = False,
 ) -> None:
     """Run ad-hoc SQL with optional transpilation.
 
@@ -371,7 +405,22 @@ def _run_adhoc_sql(
         no_transpile: Disable SQL transpilation.
         dry_run: Only validate, don't execute.
         show_sql: Show the final SQL.
+        local: Execute locally (CLI connects directly to query engine).
+        server: Execute via Basecamp Server.
+        remote: Execute via Basecamp Server async queue.
     """
+    from dli.models.common import ExecutionMode
+
+    # Determine execution mode
+    if local:
+        execution_mode = ExecutionMode.LOCAL
+    elif server:
+        execution_mode = ExecutionMode.SERVER
+    elif remote:
+        execution_mode = ExecutionMode.REMOTE
+    else:
+        # Use config default or LOCAL
+        execution_mode = ExecutionMode.LOCAL
     # Load SQL from option or file
     if file is not None:
         if not file.exists():
@@ -448,10 +497,12 @@ def _run_adhoc_sql(
     if dry_run:
         print_success("Dry-run completed (no execution)")
     else:
-        with console.status("[bold green]Executing SQL..."):
+        mode_str = execution_mode.value
+        with console.status(f"[bold green]Executing SQL ({mode_str} mode)..."):
             # Mock execution - in real implementation would execute via client
             pass
         print_success("Ad-hoc SQL executed successfully (mock)")
+        console.print(f"  [dim]Mode:[/dim]       {mode_str}")
         console.print(f"  [dim]SQL length:[/dim] {len(final_sql)} chars")
 
 

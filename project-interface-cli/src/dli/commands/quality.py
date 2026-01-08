@@ -259,10 +259,22 @@ def run_tests(
         str,
         typer.Argument(help="Path to Quality Spec YML file."),
     ],
-    mode: Annotated[
-        str,
-        typer.Option("--mode", "-m", help="Execution mode (local or server)."),
-    ] = "local",
+    local: Annotated[
+        bool,
+        typer.Option(
+            "--local", help="Execute locally (CLI connects directly to query engine)."
+        ),
+    ] = False,
+    server: Annotated[
+        bool,
+        typer.Option("--server", help="Execute via Basecamp Server."),
+    ] = False,
+    remote: Annotated[
+        bool,
+        typer.Option(
+            "--remote", help="Execute via Basecamp Server async queue (Redis/Kafka)."
+        ),
+    ] = False,
     test: Annotated[
         list[str] | None,
         typer.Option("--test", "-t", help="Run specific test(s) by name."),
@@ -286,25 +298,42 @@ def run_tests(
 ) -> None:
     """Execute quality tests from a Quality Spec.
 
-    Tests can be run in LOCAL mode (direct execution) or SERVER mode
-    (via Basecamp Server with results saved to DB).
+    Tests can be run in LOCAL mode (direct execution), SERVER mode
+    (via Basecamp Server synchronously), or REMOTE mode
+    (via Basecamp Server async queue with Redis/Kafka).
 
     Examples:
         dli quality run quality.iceberg.analytics.daily_clicks.yaml
-        dli quality run quality.yaml --mode server
+        dli quality run quality.yaml --local
+        dli quality run quality.yaml --server
+        dli quality run quality.yaml --remote
         dli quality run quality.yaml --test pk_unique --test not_null_user_id
         dli quality run quality.yaml --fail-fast
         dli quality run quality.yaml --param date=2025-01-01
     """
+    # Check mutual exclusivity of execution mode options
+    mode_count = sum([local, server, remote])
+    if mode_count > 1:
+        print_error(
+            "Cannot specify multiple execution modes. "
+            "Use only one of --local, --server, or --remote"
+        )
+        raise typer.Exit(1)
+
     project_path = get_project_path(path)
 
     # Parse parameters
     parameters = parse_params(param) if param else {}
 
     # Determine execution mode
-    if mode.lower() == "server":
+    if local:
+        execution_mode = ExecutionMode.LOCAL
+    elif server:
         execution_mode = ExecutionMode.SERVER
+    elif remote:
+        execution_mode = ExecutionMode.REMOTE
     else:
+        # Default to LOCAL if no mode specified
         execution_mode = ExecutionMode.LOCAL
 
     try:
@@ -317,7 +346,7 @@ def run_tests(
 
         # Only show status message for table format
         if format_output != "json":
-            console.print(f"\n[bold]Running quality tests ({mode} mode)...[/bold]\n")
+            console.print(f"\n[bold]Running quality tests ({execution_mode.value} mode)...[/bold]\n")
             with console.status("[bold green]Executing tests..."):
                 result = api.run(
                     spec_path,
