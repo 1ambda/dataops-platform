@@ -1,8 +1,8 @@
 # Basecamp Server - Implementation Status
 
-> **Last Updated:** 2026-01-08
-> **Scope:** BASECAMP API feature implementation (63 endpoints)
-> **Current Progress:** 100% (63/63 endpoints completed)
+> **Last Updated:** 2026-01-09
+> **Scope:** BASECAMP API feature implementation (77 endpoints)
+> **Current Progress:** 100% (77/77 endpoints completed)
 
 ---
 
@@ -10,15 +10,15 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total BASECAMP APIs** | 63 endpoints | Target scope |
-| **Completed** | 63 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** APIs |
+| **Total BASECAMP APIs** | 77 endpoints | Target scope |
+| **Completed** | 77 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL** APIs |
 | **In Progress** | 0 endpoints | - |
 | **Not Started** | 0 endpoints | - |
 | **Overall Progress** | **100%** | All phases complete |
 | **Infrastructure Readiness** | **98%** | Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), and **P6 (Execution)** APIs all operational with 995+ tests total. All CLI commands fully supported. **v2.1 Update:** Execution API completed with 4 endpoints for CLI-rendered SQL execution (SERVER mode support).
+**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), and **P7 (SQL Management)** APIs all operational with 1150+ tests total. All CLI commands fully supported. **v2.2 Update:** SQL (Saved Query) Management API completed with 14 endpoints for Project/Folder/Snippet management (158+ tests).
 
 ---
 
@@ -41,7 +41,8 @@
 | **P4 GitHub** | GitHub | 11 | 11 | **100%** | (Server API) |
 | **P5 Airflow** | Airflow Integration | 4 | 4 | **100%** | (Server API) |
 | **P6 Execution** | Execution | 4 | 4 | **100%** | `dli * run --mode server` |
-| **TOTAL** | **13 features** | **63** | **63** | **100%** | All CLI commands |
+| **P7 SQL** | SQL Management | 14 | 14 | **100%** | `dli sql` (planned) |
+| **TOTAL** | **14 features** | **77** | **77** | **100%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -333,6 +334,41 @@
 
 **Summary:** CLI-rendered SQL execution endpoints for SERVER mode support, enabling CLI to delegate SQL execution to Basecamp Server. Includes Dataset/Metric/Quality/Ad-hoc SQL execution with unified result format. 35 controller tests, Flat+Prefix DTO style, full hexagonal architecture compliance.
 
+### SQL (Saved Query) Management API - 100% Complete (14/14 endpoints)
+
+> **📖 Detailed Documentation:** [`SQL_RELEASE.md`](./SQL_RELEASE.md)
+
+#### Project API (5/5)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/projects` | ✅ Complete |
+| `POST /api/v1/projects` | ✅ Complete |
+| `GET /api/v1/projects/{projectId}` | ✅ Complete |
+| `PUT /api/v1/projects/{projectId}` | ✅ Complete |
+| `DELETE /api/v1/projects/{projectId}` | ✅ Complete |
+
+#### SQL Folder API (4/4)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/projects/{projectId}/sql/folders` | ✅ Complete |
+| `POST /api/v1/projects/{projectId}/sql/folders` | ✅ Complete |
+| `GET /api/v1/projects/{projectId}/sql/folders/{folderId}` | ✅ Complete |
+| `DELETE /api/v1/projects/{projectId}/sql/folders/{folderId}` | ✅ Complete |
+
+#### SQL Snippet API (5/5)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/projects/{projectId}/sql/snippets` | ✅ Complete |
+| `POST /api/v1/projects/{projectId}/sql/snippets` | ✅ Complete |
+| `GET /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
+| `PUT /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
+| `DELETE /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
+
+**Summary:** 158+ tests (75 service + 83 controller), Pure Hexagonal Architecture, ProjectEntity + SqlFolderEntity + SqlSnippetEntity, QueryDSL complex queries, soft delete pattern, unified ProjectController
+
 ---
 
 ## 🏗️ Infrastructure Status (95% Complete)
@@ -544,6 +580,7 @@ project-basecamp-server/
 | **GitHub API** | [`GITHUB_RELEASE.md`](./GITHUB_RELEASE.md) | 100% (11/11 endpoints) |
 | **Airflow API** | [`AIRFLOW_RELEASE.md`](./AIRFLOW_RELEASE.md) | 100% (4/4 endpoints) |
 | **Execution API** | [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) | 100% (4/4 endpoints) |
+| **SQL API** | [`SQL_RELEASE.md`](./SQL_RELEASE.md) | 100% (14/14 endpoints) |
 
 ### Implementation Guides
 
@@ -590,4 +627,4 @@ project-basecamp-server/
 
 ---
 
-*Last Updated: 2026-01-08 (Execution API completed - 4 CLI-rendered SQL execution endpoints, Quality API v1.1.0 endpoint change) | Next Review: Weekly*
+*Last Updated: 2026-01-09 (SQL Management API completed - 14 endpoints for Project/Folder/Snippet management with 158+ tests) | Next Review: Weekly*

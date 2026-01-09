@@ -83,6 +83,25 @@ class WorkflowControllerTest {
     @MockkBean(relaxed = true)
     private lateinit var workflowMapper: WorkflowMapper
 
+    // Mock beans for other services in ProjectController (required for ApplicationContext)
+    @MockkBean(relaxed = true)
+    private lateinit var projectService: com.dataops.basecamp.domain.service.ProjectService
+
+    @MockkBean(relaxed = true)
+    private lateinit var sqlFolderService: com.dataops.basecamp.domain.service.SqlFolderService
+
+    @MockkBean(relaxed = true)
+    private lateinit var sqlSnippetService: com.dataops.basecamp.domain.service.SqlSnippetService
+
+    @MockkBean(relaxed = true)
+    private lateinit var projectMapper: com.dataops.basecamp.mapper.ProjectMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var sqlFolderMapper: com.dataops.basecamp.mapper.SqlFolderMapper
+
+    @MockkBean(relaxed = true)
+    private lateinit var sqlSnippetMapper: com.dataops.basecamp.mapper.SqlSnippetMapper
+
     // Test data
     private lateinit var testWorkflowEntity: WorkflowEntity
     private lateinit var testWorkflowRunEntity: WorkflowRunEntity

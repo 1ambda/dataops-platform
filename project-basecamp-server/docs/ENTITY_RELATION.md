@@ -515,4 +515,57 @@ Execution Domain (service-layer coordination)
 
 ---
 
-*Last Updated: 2026-01-08 (Added Execution Domain v1.1.0)*
+### SQL Management Domain (v1.0.0)
+
+> The SQL (Saved Query) Management APIs provide storage for reusable SQL queries organized within projects.
+
+```
+SQL Domain
+  ProjectEntity (root)
+    +-- SqlFolderEntity (projectId FK)
+         +-- SqlSnippetEntity (folderId FK)
+```
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `SqlFolderEntity` | `projectId` | `ProjectEntity` | N:1 | Folders belong to a project |
+| `SqlSnippetEntity` | `folderId` | `SqlFolderEntity` | N:1 | Snippets belong to a folder |
+
+**Entity Definitions:**
+
+```mermaid
+erDiagram
+    ProjectEntity ||--o{ SqlFolderEntity : "has folders"
+    SqlFolderEntity ||--o{ SqlSnippetEntity : "has snippets"
+
+    ProjectEntity {
+        Long id PK
+        String name UK
+        String displayName
+        String description
+    }
+
+    SqlFolderEntity {
+        Long id PK
+        Long projectId FK
+        String name UK_per_project
+        String description
+        Int displayOrder
+    }
+
+    SqlSnippetEntity {
+        Long id PK
+        Long folderId FK
+        String name
+        String description
+        String sqlText
+        SqlDialect dialect
+        Long runCount
+        DateTime lastRunAt
+        Boolean isStarred
+    }
+```
+
+---
+
+*Last Updated: 2026-01-09 (Added SQL Management Domain v1.0.0)*

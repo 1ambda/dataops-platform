@@ -786,3 +786,85 @@ class ExecutionException(
     message: String,
     cause: Throwable? = null,
 ) : BusinessException(message, errorCode, cause)
+
+// ============= Project Exceptions =============
+
+/**
+ * Exception thrown when a project is not found
+ */
+class ProjectNotFoundException(
+    val projectId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Project with id '$projectId' not found",
+        errorCode = "PROJECT_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a project that already exists
+ */
+class ProjectAlreadyExistsException(
+    val projectName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Project '$projectName' already exists",
+        errorCode = "PROJECT_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+// ============= SQL Folder Exceptions =============
+
+/**
+ * Exception thrown when a SQL folder is not found
+ */
+class SqlFolderNotFoundException(
+    val folderId: Long,
+    val projectId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL folder with id '$folderId' not found in project '$projectId'",
+        errorCode = "SQL_FOLDER_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a SQL folder that already exists
+ */
+class SqlFolderAlreadyExistsException(
+    val folderName: String,
+    val projectId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL folder '$folderName' already exists in project '$projectId'",
+        errorCode = "SQL_FOLDER_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+// ============= SQL Snippet Exceptions =============
+
+/**
+ * Exception thrown when a SQL snippet is not found
+ */
+class SqlSnippetNotFoundException(
+    val snippetId: Long,
+    val folderId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL snippet with id '$snippetId' not found in folder '$folderId'",
+        errorCode = "SQL_SNIPPET_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a SQL snippet that already exists
+ */
+class SqlSnippetAlreadyExistsException(
+    val snippetName: String,
+    val folderId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "SQL snippet '$snippetName' already exists in folder '$folderId'",
+        errorCode = "SQL_SNIPPET_ALREADY_EXISTS",
+        cause = cause,
+    )

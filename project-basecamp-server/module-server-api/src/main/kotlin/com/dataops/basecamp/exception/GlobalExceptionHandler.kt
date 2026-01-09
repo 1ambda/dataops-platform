@@ -22,6 +22,8 @@ import com.dataops.basecamp.common.exception.InvalidTableReferenceException
 import com.dataops.basecamp.common.exception.MetricAlreadyExistsException
 import com.dataops.basecamp.common.exception.MetricExecutionTimeoutException
 import com.dataops.basecamp.common.exception.MetricNotFoundException
+import com.dataops.basecamp.common.exception.ProjectAlreadyExistsException
+import com.dataops.basecamp.common.exception.ProjectNotFoundException
 import com.dataops.basecamp.common.exception.QualityRunNotFoundException
 import com.dataops.basecamp.common.exception.QualitySpecAlreadyExistsException
 import com.dataops.basecamp.common.exception.QualitySpecNotFoundException
@@ -33,6 +35,10 @@ import com.dataops.basecamp.common.exception.RateLimitExceededException
 import com.dataops.basecamp.common.exception.ResourceNotFoundException
 import com.dataops.basecamp.common.exception.ResultNotFoundException
 import com.dataops.basecamp.common.exception.ResultSizeLimitExceededException
+import com.dataops.basecamp.common.exception.SqlFolderAlreadyExistsException
+import com.dataops.basecamp.common.exception.SqlFolderNotFoundException
+import com.dataops.basecamp.common.exception.SqlSnippetAlreadyExistsException
+import com.dataops.basecamp.common.exception.SqlSnippetNotFoundException
 import com.dataops.basecamp.common.exception.TableNotFoundException
 import com.dataops.basecamp.common.exception.TooManyTagsException
 import com.dataops.basecamp.common.exception.WorkflowAlreadyExistsException
@@ -391,6 +397,166 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(ApiResponse.error(ex.message ?: "Airflow cluster already exists", errorDetails))
+    }
+
+    // === Project-specific exception handlers ===
+
+    /**
+     * Project not found exception (404)
+     */
+    @ExceptionHandler(ProjectNotFoundException::class)
+    fun handleProjectNotFoundException(
+        ex: ProjectNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Project not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "project_id" to ex.projectId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Project not found", errorDetails))
+    }
+
+    /**
+     * Project already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(ProjectAlreadyExistsException::class)
+    fun handleProjectAlreadyExistsException(
+        ex: ProjectAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Project already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "project_name" to ex.projectName,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Project already exists", errorDetails))
+    }
+
+    // === SQL Folder-specific exception handlers ===
+
+    /**
+     * SQL Folder not found exception (404)
+     */
+    @ExceptionHandler(SqlFolderNotFoundException::class)
+    fun handleSqlFolderNotFoundException(
+        ex: SqlFolderNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "SQL folder not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "folder_id" to ex.folderId,
+                        "project_id" to ex.projectId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "SQL folder not found", errorDetails))
+    }
+
+    /**
+     * SQL Folder already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(SqlFolderAlreadyExistsException::class)
+    fun handleSqlFolderAlreadyExistsException(
+        ex: SqlFolderAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "SQL folder already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "folder_name" to ex.folderName,
+                        "project_id" to ex.projectId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "SQL folder already exists", errorDetails))
+    }
+
+    // === SQL Snippet-specific exception handlers ===
+
+    /**
+     * SQL Snippet not found exception (404)
+     */
+    @ExceptionHandler(SqlSnippetNotFoundException::class)
+    fun handleSqlSnippetNotFoundException(
+        ex: SqlSnippetNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "SQL snippet not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "snippet_id" to ex.snippetId,
+                        "folder_id" to ex.folderId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "SQL snippet not found", errorDetails))
+    }
+
+    /**
+     * SQL Snippet already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(SqlSnippetAlreadyExistsException::class)
+    fun handleSqlSnippetAlreadyExistsException(
+        ex: SqlSnippetAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "SQL snippet already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "snippet_name" to ex.snippetName,
+                        "folder_id" to ex.folderId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "SQL snippet already exists", errorDetails))
     }
 
     // === Dataset-specific exception handlers ===

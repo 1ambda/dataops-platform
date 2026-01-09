@@ -28,6 +28,16 @@ enum class SqlDialect {
     DUCKDB,
 
     /**
+     * MySQL dialect
+     */
+    MYSQL,
+
+    /**
+     * PostgreSQL dialect
+     */
+    POSTGRESQL,
+
+    /**
      * Universal dialect matcher (matches any dialect)
      */
     ANY,
