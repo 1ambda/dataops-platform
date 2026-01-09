@@ -66,6 +66,9 @@ erDiagram
     QualityRunEntity ||--o{ TestResultEntity : "has results"
     QualityTestEntity ||--o| TestResultEntity : "produces results"
 
+    %% Flag Domain
+    FlagEntity ||--o{ FlagTargetEntity : "has targets"
+
     %% Entity Definitions
     UserEntity {
         Long id PK
@@ -200,6 +203,24 @@ erDiagram
         String owner
         String sql
     }
+
+    FlagEntity {
+        Long id PK
+        String flagKey UK
+        String name
+        String description
+        FlagStatus status
+        TargetingType targetingType
+    }
+
+    FlagTargetEntity {
+        Long id PK
+        Long flagId FK
+        SubjectType subjectType
+        Long subjectId
+        Boolean enabled
+        String permissions
+    }
 ```
 
 ---
@@ -244,6 +265,12 @@ erDiagram
 | `TestResultEntity` | `runId` | `QualityRunEntity` | N:1 | Results belong to a run |
 | `TestResultEntity` | `testId` | `QualityTestEntity` | N:1 (nullable) | Optional link to test definition |
 
+### Flag Domain
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `FlagTargetEntity` | `flagId` | `FlagEntity` | N:1 | User/API target with override and permissions |
+
 ### Standalone Entities (No FK References)
 
 | Entity | Notes |
@@ -255,6 +282,7 @@ erDiagram
 | `MetricEntity` | Root aggregate |
 | `UserEntity` | Root aggregate |
 | `AirflowClusterEntity` | Root aggregate (team-based cluster management) |
+| `FlagEntity` | Root aggregate (feature flag definitions) |
 
 ---
 
@@ -299,6 +327,13 @@ QualitySpecEntity (root)
   +-- QualityTestEntity (specId FK)
   +-- QualityRunEntity (specId FK)
        +-- TestResultEntity (runId FK, testId FK nullable)
+```
+
+### Feature Flags
+
+```
+FlagEntity (root)
+  +-- FlagTargetEntity (flagId FK)
 ```
 
 ---
@@ -568,4 +603,4 @@ erDiagram
 
 ---
 
-*Last Updated: 2026-01-09 (Added SQL Management Domain v1.0.0)*
+*Last Updated: 2026-01-09 (Added Flag Domain v1.0.0)*

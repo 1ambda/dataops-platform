@@ -42,6 +42,10 @@ dependencies {
     // 검증
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // AOP (for @RequireFlag aspect)
+    implementation("org.springframework:spring-aop")
+    implementation("org.aspectj:aspectjweaver")
+
     // 로깅
     implementation("io.github.microutils:kotlin-logging-jvm")
 

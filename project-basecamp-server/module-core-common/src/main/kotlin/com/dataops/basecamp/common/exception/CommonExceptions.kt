@@ -868,3 +868,54 @@ class SqlSnippetAlreadyExistsException(
         errorCode = "SQL_SNIPPET_ALREADY_EXISTS",
         cause = cause,
     )
+
+// ============= Feature Flag Exceptions =============
+
+/**
+ * Exception thrown when a feature flag is disabled for the user
+ */
+class FlagDisabledException(
+    val flagKey: String,
+    override val message: String = "Feature flag '$flagKey' is not enabled",
+) : BusinessException(
+        message = message,
+        errorCode = "FLAG_DISABLED",
+    )
+
+/**
+ * Exception thrown when a feature flag is not found
+ */
+class FlagNotFoundException(
+    val flagKey: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Feature flag '$flagKey' not found",
+        errorCode = "FLAG_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a feature flag that already exists
+ */
+class FlagAlreadyExistsException(
+    val flagKey: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Feature flag '$flagKey' already exists",
+        errorCode = "FLAG_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a feature flag target is not found
+ */
+class FlagTargetNotFoundException(
+    val flagKey: String,
+    val subjectType: String,
+    val subjectId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Feature flag target not found: $flagKey for $subjectType:$subjectId",
+        errorCode = "FLAG_TARGET_NOT_FOUND",
+        cause = cause,
+    )

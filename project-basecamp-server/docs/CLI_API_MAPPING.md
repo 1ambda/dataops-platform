@@ -80,8 +80,11 @@
 | `dli transpile metric <name>` | GET | `/api/v1/transpile/metrics/{metric_name}` | ✅ P3 Week 11-12 |
 | `dli run <file>` | POST | `/api/v1/run/execute` | ✅ P3 Week 11-12 |
 | `dli run policy` | GET | `/api/v1/run/policy` | ✅ P3 Week 11-12 |
+| `dli sql list` | GET | `/api/v1/projects/{projectId}/sql/snippets` | ✅ **Completed** |
+| `dli sql get <id>` | GET | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ **Completed** |
+| `dli sql put <id>` | PUT | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ **Completed** |
 
-**Total: 10 endpoints enabling advanced features**
+**Total: 13 endpoints enabling advanced features**
 
 ### 1.5 Execution APIs (CLI-Rendered SQL Execution)
 
@@ -147,9 +150,9 @@ CLI (Local SQL Rendering)          Server (Execution)
 | **P0 Critical** | 9 commands | 9 endpoints | Week 1-2.5 |
 | **P1 High** | 7 commands | 5 endpoints | Week 3-5 |
 | **P2 Medium** | 10 commands | 9 endpoints | Week 6-9 |
-| **P3 Low** | 10 commands | 10 endpoints | Week 10-12.5 |
+| **P3 Low** | 13 commands | 13 endpoints | Week 10-12.5 |
 | **Execution** | 4 commands | 4 endpoints | v1.1.0 |
-| **TOTAL** | **40 commands** | **37 endpoints** | - |
+| **TOTAL** | **43 commands** | **40 endpoints** | - |
 
 ---
 
@@ -196,6 +199,17 @@ CLI (Local SQL Rendering)          Server (Execution)
 |----------|---------------|------|-------------|
 | `--direction <dir>` | `direction` | string | upstream/downstream/both |
 | `--depth <n>` | `depth` | int | Traversal depth (-1 = unlimited) |
+
+### 2.6 SQL Specific Parameters
+
+| CLI Flag | API Parameter | Type | Description |
+|----------|---------------|------|-------------|
+| `--project <name>` | Path param `projectId` | string | Project ID (resolved from name) |
+| `--folder <name>` | `folder` | string | Filter by folder name |
+| `--starred` | `starred` | bool | Show only starred snippets |
+| `--file <path>` | Request body `sql` | string | SQL file content to upload |
+| `--force` | N/A | N/A | Skip confirmation (CLI only) |
+| `--overwrite` | N/A | N/A | Overwrite existing file (CLI only) |
 
 ---
 
@@ -542,8 +556,9 @@ sequenceDiagram
 | **Query Operations** | 9 test cases | 3 endpoints |
 | **Run Operations** | 6 test cases | 2 endpoints |
 | **Debug Operations** | 3 test cases | 1 endpoint |
+| **SQL Operations** | 9 test cases | 3 endpoints |
 
-**Total: 85 integration test cases covering 31 unique endpoints**
+**Total: 94 integration test cases covering 34 unique endpoints**
 
 ### 6.2 Integration Test Examples
 

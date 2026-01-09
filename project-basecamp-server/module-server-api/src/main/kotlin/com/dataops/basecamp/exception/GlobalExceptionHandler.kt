@@ -10,6 +10,10 @@ import com.dataops.basecamp.common.exception.DatasetAlreadyExistsException
 import com.dataops.basecamp.common.exception.DatasetExecutionFailedException
 import com.dataops.basecamp.common.exception.DatasetExecutionTimeoutException
 import com.dataops.basecamp.common.exception.DatasetNotFoundException
+import com.dataops.basecamp.common.exception.FlagAlreadyExistsException
+import com.dataops.basecamp.common.exception.FlagDisabledException
+import com.dataops.basecamp.common.exception.FlagNotFoundException
+import com.dataops.basecamp.common.exception.FlagTargetNotFoundException
 import com.dataops.basecamp.common.exception.GitHubRepositoryAlreadyExistsException
 import com.dataops.basecamp.common.exception.GitHubRepositoryNotFoundException
 import com.dataops.basecamp.common.exception.GitHubRepositoryUrlAlreadyExistsException
@@ -397,6 +401,111 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(ApiResponse.error(ex.message ?: "Airflow cluster already exists", errorDetails))
+    }
+
+    // === Feature Flag exception handlers ===
+
+    /**
+     * Flag disabled exception (403 Forbidden)
+     * Thrown when a feature flag is not enabled for the requesting user
+     */
+    @ExceptionHandler(FlagDisabledException::class)
+    fun handleFlagDisabledException(
+        ex: FlagDisabledException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Feature flag disabled: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "flag_key" to ex.flagKey,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error(ex.message ?: "Feature is not available", errorDetails))
+    }
+
+    /**
+     * Flag not found exception (404 Not Found)
+     */
+    @ExceptionHandler(FlagNotFoundException::class)
+    fun handleFlagNotFoundException(
+        ex: FlagNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Flag not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "flag_key" to ex.flagKey,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Flag not found", errorDetails))
+    }
+
+    /**
+     * Flag already exists exception (409 Conflict)
+     */
+    @ExceptionHandler(FlagAlreadyExistsException::class)
+    fun handleFlagAlreadyExistsException(
+        ex: FlagAlreadyExistsException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Flag already exists: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "flag_key" to ex.flagKey,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(ex.message ?: "Flag already exists", errorDetails))
+    }
+
+    /**
+     * Flag target not found exception (404 Not Found)
+     */
+    @ExceptionHandler(FlagTargetNotFoundException::class)
+    fun handleFlagTargetNotFoundException(
+        ex: FlagTargetNotFoundException,
+        request: WebRequest,
+    ): ResponseEntity<ApiResponse<Nothing>> {
+        logger.warn { "Flag target not found: ${ex.message}" }
+
+        val errorDetails =
+            ErrorDetails(
+                code = ex.errorCode,
+                details =
+                    mapOf(
+                        "path" to request.getDescription(false),
+                        "flag_key" to ex.flagKey,
+                        "subject_type" to ex.subjectType,
+                        "subject_id" to ex.subjectId,
+                    ),
+            )
+
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse.error(ex.message ?: "Flag target not found", errorDetails))
     }
 
     // === Project-specific exception handlers ===
