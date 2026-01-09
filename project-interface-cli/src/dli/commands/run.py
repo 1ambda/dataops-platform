@@ -18,9 +18,10 @@ from rich.syntax import Syntax
 import typer
 
 from dli.api.run import RunAPI
-from dli.commands.base import get_project_path
+from dli.commands.base import get_project_path, with_trace
 from dli.commands.utils import (
     console,
+    get_effective_trace_mode,
     print_error,
     print_success,
 )
@@ -112,6 +113,7 @@ def _format_duration(seconds: float) -> str:
 
 
 @run_app.command(name="sql")
+@with_trace("run sql")
 def run_sql(
     sql: Annotated[
         Path,
@@ -224,6 +226,13 @@ def run_sql(
             help="Project path for config resolution.",
         ),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Execute SQL file and save results to output file.
 
@@ -241,26 +250,35 @@ def run_sql(
         dli run sql --sql query.sql -o results.csv --dry-run
         dli run sql --sql query.sql -o results.csv --show-sql
         dli run sql --sql query.sql -o results.csv -n 100 --timeout 60
+        dli run sql --sql query.sql -o results.csv --trace
+        dli run sql --sql query.sql -o results.csv --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     # Check mutual exclusivity of execution mode options
     mode_count = sum([local, server, remote])
     if mode_count > 1:
         print_error(
             "Cannot specify multiple execution modes. "
-            "Use only one of --local, --server, or --remote"
+            "Use only one of --local, --server, or --remote",
+            trace_mode=trace_mode,
         )
         raise typer.Exit(1)
 
     # Validate dialect
     if dialect not in ("bigquery", "trino"):
-        print_error(f"Invalid dialect '{dialect}'. Supported: bigquery, trino")
+        print_error(
+            f"Invalid dialect '{dialect}'. Supported: bigquery, trino",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
 
     # Parse parameters
     try:
         parameters = _parse_parameters(param)
     except typer.BadParameter as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     # Setup context and API
@@ -285,10 +303,10 @@ def run_sql(
                 prefer_remote=remote,
             )
         except RunFileNotFoundError as e:
-            print_error(str(e))
+            print_error(str(e), trace_mode=trace_mode)
             raise typer.Exit(1)
         except ConfigurationError as e:
-            print_error(str(e))
+            print_error(str(e), trace_mode=trace_mode)
             raise typer.Exit(1)
 
         console.print("[dim][DRY RUN][/dim] Would execute:")
@@ -323,7 +341,7 @@ def run_sql(
         try:
             rendered = api.render_sql(sql, parameters)
         except RunFileNotFoundError as e:
-            print_error(str(e))
+            print_error(str(e), trace_mode=trace_mode)
             raise typer.Exit(1)
 
         console.print("[bold]Rendered SQL:[/bold]")
@@ -380,23 +398,23 @@ def run_sql(
             )
 
     except RunFileNotFoundError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except RunLocalDeniedError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         console.print("[dim]Server requires: --server mode for this operation.[/dim]")
         raise typer.Exit(1)
     except RunServerUnavailableError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except RunExecutionError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except RunOutputError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except ConfigurationError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     # Display results
@@ -424,6 +442,7 @@ def run_sql(
 
 # Default command - alias for 'sql' subcommand
 @run_app.callback(invoke_without_command=True)
+@with_trace("run")
 def run_default(
     ctx: typer.Context,
     sql: Annotated[

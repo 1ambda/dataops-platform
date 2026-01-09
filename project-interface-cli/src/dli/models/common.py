@@ -61,6 +61,26 @@ class ExecutionMode(str, Enum):
     MOCK = "mock"
 
 
+class TraceMode(str, Enum):
+    """Trace ID display mode for CLI output.
+
+    Controls when trace IDs are shown in CLI output:
+    - ALWAYS: Show trace ID in all output (default)
+    - ERROR_ONLY: Show only on errors
+    - NEVER: Never show (server logs only)
+
+    Example:
+        >>> from dli.models.common import TraceMode
+        >>> trace_mode = TraceMode.ERROR_ONLY
+        >>> if trace_mode != TraceMode.NEVER:
+        ...     print(f"[trace:{trace_id}]")
+    """
+
+    ALWAYS = "always"
+    ERROR_ONLY = "error_only"
+    NEVER = "never"
+
+
 class ExecutionContext(BaseSettings):
     """Library API execution context.
 
@@ -712,6 +732,8 @@ __all__ = [
     # Type aliases
     "SQLDialect",
     "TableDetailResult",
+    # Trace
+    "TraceMode",
     "TranspileResult",
     "TranspileRule",
     "TranspileWarning",

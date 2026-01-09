@@ -7,66 +7,33 @@ The client supports:
 - Listing/searching specs on the server
 - Fetching spec details
 - Registering local specs to the server
+- Request tracing via X-Trace-Id headers
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import logging
-from typing import Any
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any
+
+# Import from extracted modules
+from dli.core.client.config import ServerConfig, ServerResponse
+from dli.core.client.enums import RunStatus, WorkflowSource
+from dli.core.client.mock_data import MockDataFactory
+
+if TYPE_CHECKING:
+    from dli.core.http import TracedHttpClient
 
 logger = logging.getLogger(__name__)
 
-
-class WorkflowSource(str, Enum):
-    """Source type for workflow runs.
-
-    Indicates how the workflow was registered:
-    - CODE: Registered via CI/CD pipeline from Git
-    - MANUAL: User registered via CLI/API
-    """
-
-    CODE = "code"
-    MANUAL = "manual"
-
-
-class RunStatus(str, Enum):
-    """Status of a workflow run.
-
-    Status values match the server API response format:
-    - PENDING: Run is queued, waiting to start
-    - RUNNING: Run is currently executing
-    - COMPLETED: Run finished successfully
-    - FAILED: Run finished with errors
-    - KILLED: Run was forcefully terminated
-    """
-
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    KILLED = "KILLED"
-
-
-@dataclass
-class ServerConfig:
-    """Server connection configuration."""
-
-    url: str
-    timeout: int = 30
-    api_key: str | None = None
-
-
-@dataclass
-class ServerResponse:
-    """Response from server API calls."""
-
-    success: bool
-    data: dict[str, Any] | list[dict[str, Any]] | None = None
-    error: str | None = None
-    status_code: int = 200
+# Re-export for backward compatibility
+__all__ = [
+    "BasecampClient",
+    "ServerConfig",
+    "ServerResponse",
+    "WorkflowSource",
+    "RunStatus",
+]
 
 
 class BasecampClient:
@@ -76,7 +43,9 @@ class BasecampClient:
     for managing metrics, datasets, and queries.
 
     In mock mode, all operations return simulated responses without
-    making actual HTTP requests.
+    making actual HTTP requests. When not in mock mode, uses TracedHttpClient
+    for all HTTP requests, automatically adding trace headers (X-Trace-Id,
+    User-Agent) from the current trace context.
 
     Attributes:
         config: Server connection configuration
@@ -88,45 +57,32 @@ class BasecampClient:
 
         Args:
             config: Server connection configuration
-            mock_mode: If True, use mock responses instead of real API calls
+            mock_mode: If True, use mock responses instead of real API calls.
+                      If False, creates TracedHttpClient for real API calls.
         """
         self.config = config
         self.mock_mode = mock_mode
         self._mock_data = self._init_mock_data()
+        self._http: TracedHttpClient | None = None
+
+        # Create HTTP client for real API calls (lazy import to avoid circular deps)
+        if not mock_mode:
+            from dli.core.http import TracedHttpClient
+
+            self._http = TracedHttpClient(config.url, config.timeout)
 
     def _init_mock_data(self) -> dict[str, list[dict[str, Any]]]:
-        """Initialize mock data for testing."""
-        now = datetime.now()
-        return {
-            "catalog_tables": self._init_mock_catalog_tables(now),
-            "queries": self._init_mock_queries(now),
-            "metrics": [
-                {
-                    "name": "iceberg.reporting.user_summary",
-                    "type": "Metric",
-                    "owner": "analyst@example.com",
-                    "team": "@analytics",
-                    "description": "User summary metrics",
-                    "tags": ["reporting", "daily"],
-                },
-                {
-                    "name": "iceberg.analytics.revenue_daily",
-                    "type": "Metric",
-                    "owner": "data@example.com",
-                    "team": "@data-eng",
-                    "description": "Daily revenue metrics",
-                    "tags": ["revenue", "kpi"],
-                },
-            ],
-            "datasets": [
-                {
-                    "name": "iceberg.analytics.daily_clicks",
-                    "type": "Dataset",
-                    "owner": "engineer@example.com",
-                    "team": "@data-eng",
-                    "description": "Daily click aggregations",
-                    "tags": ["feed", "daily"],
-                },
+        """Initialize mock data for testing.
+
+        Delegates to MockDataFactory for all mock data generation.
+        """
+        return MockDataFactory.create_all_mock_data()
+
+    # NOTE: Old mock data methods (_init_mock_catalog_tables, _init_mock_queries)
+    # have been moved to MockDataFactory in dli.core.client.mock_data
+
+    # DEPRECATED_CODE_REMOVED_START - Everything below is deprecated placeholder
+    _DEPRECATED_CODE_PLACEHOLDER_1 = '''
                 {
                     "name": "iceberg.warehouse.user_events",
                     "type": "Dataset",
@@ -218,7 +174,9 @@ class BasecampClient:
                 },
             ],
         }
+    '''
 
+    _DEPRECATED_MOCK_DATA_CODE_2 = '''
     def _init_mock_catalog_tables(self, now: datetime) -> list[dict[str, Any]]:
         """Initialize mock catalog table data for testing."""
         return [
@@ -496,12 +454,15 @@ class BasecampClient:
                 "duration_seconds": 180.0,
                 "tables_used_count": 1,
                 "tags": [],
-                "query_preview": "SELECT * FROM warehouse.events WHERE date BETWEEN...",
             },
-        ]
+    # End of deprecated placeholder
+    '''
 
     def health_check(self) -> ServerResponse:
         """Check server health status.
+
+        When not in mock mode, uses TracedHttpClient which automatically
+        adds X-Trace-Id and User-Agent headers from the current trace context.
 
         Returns:
             ServerResponse with health status
@@ -512,12 +473,34 @@ class BasecampClient:
                 data={"status": "healthy", "version": "1.0.0"},
             )
 
-        # TODO: Implement actual HTTP call
-        return ServerResponse(
-            success=False,
-            error="Real API not implemented yet",
-            status_code=501,
-        )
+        # Use traced HTTP client for real API calls
+        if self._http is None:
+            return ServerResponse(
+                success=False,
+                error="HTTP client not initialized",
+                status_code=500,
+            )
+
+        try:
+            response = self._http.get("/api/v1/health")
+            if response.status_code == 200:
+                return ServerResponse(
+                    success=True,
+                    data=response.json(),
+                    status_code=response.status_code,
+                )
+            return ServerResponse(
+                success=False,
+                error=f"Health check failed: {response.text}",
+                status_code=response.status_code,
+            )
+        except Exception as e:
+            logger.warning("Health check failed: %s", e)
+            return ServerResponse(
+                success=False,
+                error=str(e),
+                status_code=503,
+            )
 
     # Metric operations
 
@@ -2457,38 +2440,38 @@ class BasecampClient:
         )
 
     # =========================================================================
-    # SQL Snippet Operations
+    # SQL Worksheet Operations
     # =========================================================================
 
-    def sql_list_snippets(
+    def sql_list_worksheets(
         self,
-        project_id: int,
+        team_id: int,
         folder_id: int | None = None,
         starred: bool | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> ServerResponse:
-        """List SQL snippets in a project.
+        """List SQL worksheets in a team.
 
         Args:
-            project_id: Project ID to list snippets from.
+            team_id: Team ID to list worksheets from.
             folder_id: Optional folder ID to filter by.
-            starred: If True, only return starred snippets.
+            starred: If True, only return starred worksheets.
             limit: Maximum number of results (default: 20).
             offset: Pagination offset (default: 0).
 
         Returns:
-            ServerResponse with list of snippets and pagination info.
+            ServerResponse with list of worksheets and pagination info.
         """
         if self.mock_mode:
             return ServerResponse(
                 success=True,
                 data={
-                    "snippets": [
+                    "worksheets": [
                         {
                             "id": 1,
                             "name": "sample_query",
-                            "projectName": "default",
+                            "teamName": "default",
                             "folderName": "Analytics",
                             "dialect": "bigquery",
                             "isStarred": False,
@@ -2509,30 +2492,30 @@ class BasecampClient:
             params["starred"] = starred
 
         # TODO: Implement actual HTTP call
-        # return self._get(f"/api/v1/projects/{project_id}/sql/snippets", params=params)
+        # return self._get(f"/api/v1/teams/{team_id}/sql/worksheets", params=params)
         return ServerResponse(
             success=False,
             error="Real API not implemented yet",
             status_code=501,
         )
 
-    def sql_get_snippet(self, project_id: int, snippet_id: int) -> ServerResponse:
-        """Get a SQL snippet by ID.
+    def sql_get_worksheet(self, team_id: int, worksheet_id: int) -> ServerResponse:
+        """Get a SQL worksheet by ID.
 
         Args:
-            project_id: Project ID containing the snippet.
-            snippet_id: Snippet ID to retrieve.
+            team_id: Team ID containing the worksheet.
+            worksheet_id: Worksheet ID to retrieve.
 
         Returns:
-            ServerResponse with snippet details including SQL content.
+            ServerResponse with worksheet details including SQL content.
         """
         if self.mock_mode:
             return ServerResponse(
                 success=True,
                 data={
-                    "id": snippet_id,
+                    "id": worksheet_id,
                     "name": "sample_query",
-                    "projectName": "default",
+                    "teamName": "default",
                     "folderName": "Analytics",
                     "dialect": "bigquery",
                     "sqlText": "SELECT * FROM users WHERE active = true",
@@ -2545,21 +2528,21 @@ class BasecampClient:
             )
 
         # TODO: Implement actual HTTP call
-        # return self._get(f"/api/v1/projects/{project_id}/sql/snippets/{snippet_id}")
+        # return self._get(f"/api/v1/teams/{team_id}/sql/worksheets/{worksheet_id}")
         return ServerResponse(
             success=False,
             error="Real API not implemented yet",
             status_code=501,
         )
 
-    def sql_update_snippet(
-        self, project_id: int, snippet_id: int, sql: str
+    def sql_update_worksheet(
+        self, team_id: int, worksheet_id: int, sql: str
     ) -> ServerResponse:
-        """Update a SQL snippet.
+        """Update a SQL worksheet.
 
         Args:
-            project_id: Project ID containing the snippet.
-            snippet_id: Snippet ID to update.
+            team_id: Team ID containing the worksheet.
+            worksheet_id: Worksheet ID to update.
             sql: New SQL content.
 
         Returns:
@@ -2569,7 +2552,7 @@ class BasecampClient:
             return ServerResponse(
                 success=True,
                 data={
-                    "id": snippet_id,
+                    "id": worksheet_id,
                     "name": "sample_query",
                     "updatedAt": "2026-01-01T00:00:00Z",
                     "updatedBy": "user@example.com",
@@ -2578,7 +2561,7 @@ class BasecampClient:
 
         # TODO: Implement actual HTTP call
         # return self._put(
-        #     f"/api/v1/projects/{project_id}/sql/snippets/{snippet_id}",
+        #     f"/api/v1/teams/{team_id}/sql/worksheets/{worksheet_id}",
         #     json={"sqlText": sql},
         # )
         return ServerResponse(
@@ -2588,25 +2571,25 @@ class BasecampClient:
         )
 
     # =========================================================================
-    # Project Operations
+    # Team Operations
     # =========================================================================
 
-    def project_list(self, limit: int = 100, offset: int = 0) -> ServerResponse:
-        """List projects.
+    def team_list(self, limit: int = 100, offset: int = 0) -> ServerResponse:
+        """List teams.
 
         Args:
             limit: Maximum number of results (default: 100).
             offset: Pagination offset (default: 0).
 
         Returns:
-            ServerResponse with list of projects.
+            ServerResponse with list of teams.
         """
         if self.mock_mode:
             return ServerResponse(
                 success=True,
                 data={
-                    "projects": [
-                        {"id": 1, "name": "default", "displayName": "Default Project"},
+                    "teams": [
+                        {"id": 1, "name": "default", "displayName": "Default Team"},
                     ],
                     "total": 1,
                     "offset": offset,
@@ -2615,36 +2598,36 @@ class BasecampClient:
             )
 
         # TODO: Implement actual HTTP call
-        # return self._get("/api/v1/projects", params={"limit": limit, "offset": offset})
+        # return self._get("/api/v1/teams", params={"limit": limit, "offset": offset})
         return ServerResponse(
             success=False,
             error="Real API not implemented yet",
             status_code=501,
         )
 
-    def project_get_by_name(self, name: str) -> ServerResponse:
-        """Get project by name.
+    def team_get_by_name(self, name: str) -> ServerResponse:
+        """Get team by name.
 
         Args:
-            name: Project name to look up.
+            name: Team name to look up.
 
         Returns:
-            ServerResponse with project details.
+            ServerResponse with team details.
         """
         if self.mock_mode:
             return ServerResponse(
                 success=True,
-                data={"id": 1, "name": name, "displayName": f"{name.title()} Project"},
+                data={"id": 1, "name": name, "displayName": f"{name.title()} Team"},
             )
 
         # TODO: Implement actual HTTP call
-        # Search projects by name
-        # response = self._get("/api/v1/projects", params={"search": name, "limit": 1})
+        # Search teams by name
+        # response = self._get("/api/v1/teams", params={"search": name, "limit": 1})
         # if response.success and response.data:
-        #     projects = response.data.get("projects", [])
-        #     if projects:
-        #         return ServerResponse(success=True, data=projects[0])
-        # return ServerResponse(success=False, error=f"Project not found: {name}")
+        #     teams = response.data.get("teams", [])
+        #     if teams:
+        #         return ServerResponse(success=True, data=teams[0])
+        # return ServerResponse(success=False, error=f"Team not found: {name}")
         return ServerResponse(
             success=False,
             error="Real API not implemented yet",

@@ -108,12 +108,12 @@ class ErrorCode(str, Enum):
     QUERY_INVALID_FILTER = "DLI-783"
     QUERY_SERVER_ERROR = "DLI-784"
 
-    # SQL Snippet Errors (DLI-79x) - Sub-range of Catalog (DLI-7xx)
+    # SQL Worksheet Errors (DLI-79x) - Sub-range of Catalog (DLI-7xx)
     SQL_FILE_NOT_FOUND = "DLI-790"
-    SQL_SNIPPET_NOT_FOUND = "DLI-791"
+    SQL_WORKSHEET_NOT_FOUND = "DLI-791"
     SQL_ACCESS_DENIED = "DLI-792"
     SQL_UPDATE_FAILED = "DLI-793"
-    SQL_PROJECT_NOT_FOUND = "DLI-794"
+    SQL_TEAM_NOT_FOUND = "DLI-794"
 
     # Workflow Errors (DLI-8xx)
     WORKFLOW_NOT_FOUND = "DLI-800"
@@ -911,7 +911,7 @@ class QueryInvalidFilterError(DLIError):
         return f"[{self.code.value}] Invalid filter: {self.filter_name}={self.filter_value}"
 
 
-# SQL Snippet Errors (DLI-79x)
+# SQL Worksheet Errors (DLI-79x)
 
 
 @dataclass
@@ -935,65 +935,65 @@ class SqlFileNotFoundError(DLIError):
 
 
 @dataclass
-class SqlSnippetNotFoundError(DLIError):
-    """Snippet not found on server error.
+class SqlWorksheetNotFoundError(DLIError):
+    """Worksheet not found on server error.
 
-    Raised when a SQL snippet cannot be found on the server.
+    Raised when a SQL worksheet cannot be found on the server.
 
     Attributes:
-        snippet_id: The snippet ID that was not found.
+        worksheet_id: The worksheet ID that was not found.
     """
 
-    code: ErrorCode = ErrorCode.SQL_SNIPPET_NOT_FOUND
-    snippet_id: int = 0
+    code: ErrorCode = ErrorCode.SQL_WORKSHEET_NOT_FOUND
+    worksheet_id: int = 0
 
     def __str__(self) -> str:
         """Return formatted error message."""
-        if self.snippet_id:
-            return f"[{self.code.value}] Snippet not found: {self.snippet_id}"
+        if self.worksheet_id:
+            return f"[{self.code.value}] Worksheet not found: {self.worksheet_id}"
         return f"[{self.code.value}] {self.message}"
 
 
 @dataclass
 class SqlAccessDeniedError(DLIError):
-    """Access denied to snippet error.
+    """Access denied to worksheet error.
 
-    Raised when access to a SQL snippet is denied.
+    Raised when access to a SQL worksheet is denied.
 
     Attributes:
-        snippet_id: The snippet ID that was denied.
+        worksheet_id: The worksheet ID that was denied.
     """
 
     code: ErrorCode = ErrorCode.SQL_ACCESS_DENIED
-    snippet_id: int = 0
+    worksheet_id: int = 0
 
     def __str__(self) -> str:
         """Return formatted error message."""
-        if self.snippet_id:
-            return f"[{self.code.value}] Access denied to snippet: {self.snippet_id}"
+        if self.worksheet_id:
+            return f"[{self.code.value}] Access denied to worksheet: {self.worksheet_id}"
         return f"[{self.code.value}] {self.message}"
 
 
 @dataclass
 class SqlUpdateFailedError(DLIError):
-    """Failed to update snippet error.
+    """Failed to update worksheet error.
 
-    Raised when updating a SQL snippet fails.
+    Raised when updating a SQL worksheet fails.
 
     Attributes:
-        snippet_id: The snippet ID that failed to update.
+        worksheet_id: The worksheet ID that failed to update.
         reason: Optional reason for the failure.
     """
 
     code: ErrorCode = ErrorCode.SQL_UPDATE_FAILED
-    snippet_id: int = 0
+    worksheet_id: int = 0
     reason: str = ""
 
     def __str__(self) -> str:
         """Return formatted error message."""
-        msg = f"[{self.code.value}] Failed to update snippet"
-        if self.snippet_id:
-            msg += f": {self.snippet_id}"
+        msg = f"[{self.code.value}] Failed to update worksheet"
+        if self.worksheet_id:
+            msg += f": {self.worksheet_id}"
         if self.reason:
             msg += f" - {self.reason}"
         elif self.message:
@@ -1002,22 +1002,22 @@ class SqlUpdateFailedError(DLIError):
 
 
 @dataclass
-class SqlProjectNotFoundError(DLIError):
-    """Project not found error.
+class SqlTeamNotFoundError(DLIError):
+    """Team not found error.
 
-    Raised when the specified project cannot be found.
+    Raised when the specified team cannot be found.
 
     Attributes:
-        project: The project name that was not found.
+        team: The team name that was not found.
     """
 
-    code: ErrorCode = ErrorCode.SQL_PROJECT_NOT_FOUND
-    project: str = ""
+    code: ErrorCode = ErrorCode.SQL_TEAM_NOT_FOUND
+    team: str = ""
 
     def __str__(self) -> str:
         """Return formatted error message."""
-        if self.project:
-            return f"[{self.code.value}] Project not found: {self.project}"
+        if self.team:
+            return f"[{self.code.value}] Team not found: {self.team}"
         return f"[{self.code.value}] {self.message}"
 
 
@@ -1517,11 +1517,11 @@ __all__ = [
     "RunServerUnavailableError",
     "RunTimeoutError",
     "ServerError",
-    # SQL Snippet Errors
+    # SQL Worksheet Errors
     "SqlAccessDeniedError",
     "SqlFileNotFoundError",
-    "SqlProjectNotFoundError",
-    "SqlSnippetNotFoundError",
+    "SqlTeamNotFoundError",
+    "SqlWorksheetNotFoundError",
     "SqlUpdateFailedError",
     "TableNotFoundError",
     "TranspileError",

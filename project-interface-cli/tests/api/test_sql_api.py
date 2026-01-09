@@ -3,9 +3,9 @@
 Covers:
 - SqlAPI initialization with context
 - Mock mode operations
-- List snippets with filters
-- Get snippet details
-- Update snippets
+- List worksheets with filters
+- Get worksheet details
+- Update worksheets
 - Error handling for various failure cases
 """
 
@@ -20,16 +20,16 @@ from dli.api.sql import SqlAPI
 from dli.core.client import BasecampClient, ServerResponse
 from dli.exceptions import (
     SqlAccessDeniedError,
-    SqlProjectNotFoundError,
-    SqlSnippetNotFoundError,
+    SqlTeamNotFoundError,
+    SqlWorksheetNotFoundError,
     SqlUpdateFailedError,
 )
 from dli.models.common import ExecutionContext, ExecutionMode
 from dli.models.sql import (
     SqlDialect,
     SqlListResult,
-    SqlSnippetDetail,
-    SqlSnippetInfo,
+    SqlWorksheetDetail,
+    SqlWorksheetInfo,
     SqlUpdateResult,
 )
 
@@ -111,59 +111,59 @@ class TestSqlAPIInit:
         assert api._client is None
 
 
-class TestSqlAPIListSnippets:
-    """Tests for SqlAPI.list_snippets() method."""
+class TestSqlAPIListWorksheets:
+    """Tests for SqlAPI.list_worksheets() method."""
 
-    def test_list_snippets_mock_mode(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets in mock mode returns valid result."""
-        result = mock_api.list_snippets()
+    def test_list_worksheets_mock_mode(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets in mock mode returns valid result."""
+        result = mock_api.list_worksheets()
 
         assert isinstance(result, SqlListResult)
-        assert isinstance(result.snippets, list)
+        assert isinstance(result.worksheets, list)
         assert isinstance(result.total, int)
         assert result.total >= 0
 
-    def test_list_snippets_returns_snippet_info(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets returns SqlSnippetInfo items."""
-        result = mock_api.list_snippets()
+    def test_list_worksheets_returns_worksheet_info(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets returns SqlWorksheetInfo items."""
+        result = mock_api.list_worksheets()
 
-        for snippet in result.snippets:
-            assert isinstance(snippet, SqlSnippetInfo)
-            assert isinstance(snippet.id, int)
-            assert isinstance(snippet.name, str)
-            assert isinstance(snippet.dialect, SqlDialect)
-            assert isinstance(snippet.updated_at, datetime)
+        for worksheet in result.worksheets:
+            assert isinstance(worksheet, SqlWorksheetInfo)
+            assert isinstance(worksheet.id, int)
+            assert isinstance(worksheet.name, str)
+            assert isinstance(worksheet.dialect, SqlDialect)
+            assert isinstance(worksheet.updated_at, datetime)
 
-    def test_list_snippets_with_project_filter(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets with project filter."""
-        result = mock_api.list_snippets(project="marketing")
-
-        assert isinstance(result, SqlListResult)
-
-    def test_list_snippets_with_folder_filter(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets with folder filter."""
-        result = mock_api.list_snippets(folder="Analytics")
+    def test_list_worksheets_with_team_filter(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets with team filter."""
+        result = mock_api.list_worksheets(team="marketing")
 
         assert isinstance(result, SqlListResult)
 
-    def test_list_snippets_with_starred_filter(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets with starred filter."""
-        result = mock_api.list_snippets(starred=True)
+    def test_list_worksheets_with_folder_filter(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets with folder filter."""
+        result = mock_api.list_worksheets(folder="Analytics")
 
         assert isinstance(result, SqlListResult)
 
-    def test_list_snippets_with_pagination(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets with limit and offset."""
-        result = mock_api.list_snippets(limit=10, offset=5)
+    def test_list_worksheets_with_starred_filter(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets with starred filter."""
+        result = mock_api.list_worksheets(starred=True)
+
+        assert isinstance(result, SqlListResult)
+
+    def test_list_worksheets_with_pagination(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets with limit and offset."""
+        result = mock_api.list_worksheets(limit=10, offset=5)
 
         assert isinstance(result, SqlListResult)
         assert result.limit == 10
         assert result.offset == 5
 
-    def test_list_snippets_combined_filters(self, mock_api: SqlAPI) -> None:
-        """Test list_snippets with multiple filters combined."""
-        result = mock_api.list_snippets(
-            project="marketing",
+    def test_list_worksheets_combined_filters(self, mock_api: SqlAPI) -> None:
+        """Test list_worksheets with multiple filters combined."""
+        result = mock_api.list_worksheets(
+            team="marketing",
             folder="Campaign Analytics",
             starred=True,
             limit=5,
@@ -172,43 +172,43 @@ class TestSqlAPIListSnippets:
 
         assert isinstance(result, SqlListResult)
 
-    def test_list_snippets_project_not_found(self, server_context: ExecutionContext) -> None:
-        """Test list_snippets raises error when project not found."""
+    def test_list_worksheets_team_not_found(self, server_context: ExecutionContext) -> None:
+        """Test list_worksheets raises error when team not found."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=False,
-            error="Project not found",
+            error="Team not found",
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlProjectNotFoundError) as exc_info:
-            api.list_snippets(project="nonexistent")
+        with pytest.raises(SqlTeamNotFoundError) as exc_info:
+            api.list_worksheets(team="nonexistent")
 
         assert "nonexistent" in str(exc_info.value)
 
-    def test_list_snippets_server_error(self, server_context: ExecutionContext) -> None:
-        """Test list_snippets raises error on server failure."""
+    def test_list_worksheets_server_error(self, server_context: ExecutionContext) -> None:
+        """Test list_worksheets raises error on server failure."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "marketing"},
         )
-        mock_client.sql_list_snippets.return_value = ServerResponse(
+        mock_client.sql_list_worksheets.return_value = ServerResponse(
             success=False,
             error="Server error",
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlProjectNotFoundError):
-            api.list_snippets(project="marketing")
+        with pytest.raises(SqlTeamNotFoundError):
+            api.list_worksheets(team="marketing")
 
     def test_list_result_is_frozen(self, mock_api: SqlAPI) -> None:
         """Test that SqlListResult is immutable."""
-        result = mock_api.list_snippets()
+        result = mock_api.list_worksheets()
 
         with pytest.raises(Exception):
             result.total = 100  # type: ignore[misc]
@@ -217,23 +217,23 @@ class TestSqlAPIListSnippets:
 class TestSqlAPIGet:
     """Tests for SqlAPI.get() method."""
 
-    def test_get_snippet_mock_mode(self, mock_api: SqlAPI) -> None:
-        """Test get returns SqlSnippetDetail in mock mode."""
-        result = mock_api.get(snippet_id=1)
+    def test_get_worksheet_mock_mode(self, mock_api: SqlAPI) -> None:
+        """Test get returns SqlWorksheetDetail in mock mode."""
+        result = mock_api.get(worksheet_id=1)
 
-        assert isinstance(result, SqlSnippetDetail)
+        assert isinstance(result, SqlWorksheetDetail)
         assert result.id == 1
         assert isinstance(result.sql, str)
         assert len(result.sql) > 0
 
-    def test_get_snippet_returns_full_detail(self, mock_api: SqlAPI) -> None:
-        """Test get returns complete snippet details."""
-        result = mock_api.get(snippet_id=1)
+    def test_get_worksheet_returns_full_detail(self, mock_api: SqlAPI) -> None:
+        """Test get returns complete worksheet details."""
+        result = mock_api.get(worksheet_id=1)
 
-        assert isinstance(result, SqlSnippetDetail)
+        assert isinstance(result, SqlWorksheetDetail)
         assert isinstance(result.id, int)
         assert isinstance(result.name, str)
-        assert isinstance(result.project, str)
+        assert isinstance(result.team, str)
         assert isinstance(result.dialect, SqlDialect)
         assert isinstance(result.sql, str)
         assert isinstance(result.created_at, datetime)
@@ -241,42 +241,42 @@ class TestSqlAPIGet:
         assert isinstance(result.created_by, str)
         assert isinstance(result.updated_by, str)
 
-    def test_get_snippet_with_project(self, mock_api: SqlAPI) -> None:
-        """Test get with project option."""
-        result = mock_api.get(snippet_id=1, project="default")
+    def test_get_worksheet_with_team(self, mock_api: SqlAPI) -> None:
+        """Test get with team option."""
+        result = mock_api.get(worksheet_id=1, team="default")
 
-        assert isinstance(result, SqlSnippetDetail)
+        assert isinstance(result, SqlWorksheetDetail)
 
-    def test_get_snippet_not_found(self, server_context: ExecutionContext) -> None:
-        """Test get raises error when snippet not found."""
+    def test_get_worksheet_not_found(self, server_context: ExecutionContext) -> None:
+        """Test get raises error when worksheet not found."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "default"},
         )
-        mock_client.sql_get_snippet.return_value = ServerResponse(
+        mock_client.sql_get_worksheet.return_value = ServerResponse(
             success=False,
-            error="Snippet not found",
+            error="Worksheet not found",
             status_code=404,
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlSnippetNotFoundError) as exc_info:
-            api.get(snippet_id=999, project="default")
+        with pytest.raises(SqlWorksheetNotFoundError) as exc_info:
+            api.get(worksheet_id=999, team="default")
 
-        assert exc_info.value.snippet_id == 999
+        assert exc_info.value.worksheet_id == 999
 
-    def test_get_snippet_access_denied(self, server_context: ExecutionContext) -> None:
+    def test_get_worksheet_access_denied(self, server_context: ExecutionContext) -> None:
         """Test get raises error when access denied."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "default"},
         )
-        mock_client.sql_get_snippet.return_value = ServerResponse(
+        mock_client.sql_get_worksheet.return_value = ServerResponse(
             success=False,
             error="Access denied",
             status_code=403,
@@ -285,27 +285,27 @@ class TestSqlAPIGet:
         api = SqlAPI(context=server_context, client=mock_client)
 
         with pytest.raises(SqlAccessDeniedError) as exc_info:
-            api.get(snippet_id=1, project="default")
+            api.get(worksheet_id=1, team="default")
 
-        assert exc_info.value.snippet_id == 1
+        assert exc_info.value.worksheet_id == 1
 
-    def test_get_snippet_project_not_found(self, server_context: ExecutionContext) -> None:
-        """Test get raises error when project not found."""
+    def test_get_worksheet_team_not_found(self, server_context: ExecutionContext) -> None:
+        """Test get raises error when team not found."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=False,
-            error="Project not found",
+            error="Team not found",
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlProjectNotFoundError):
-            api.get(snippet_id=1, project="nonexistent")
+        with pytest.raises(SqlTeamNotFoundError):
+            api.get(worksheet_id=1, team="nonexistent")
 
     def test_get_result_is_frozen(self, mock_api: SqlAPI) -> None:
-        """Test that SqlSnippetDetail is immutable."""
-        result = mock_api.get(snippet_id=1)
+        """Test that SqlWorksheetDetail is immutable."""
+        result = mock_api.get(worksheet_id=1)
 
         with pytest.raises(Exception):
             result.sql = "modified"  # type: ignore[misc]
@@ -314,17 +314,17 @@ class TestSqlAPIGet:
 class TestSqlAPIPut:
     """Tests for SqlAPI.put() method."""
 
-    def test_put_snippet_mock_mode(self, mock_api: SqlAPI) -> None:
+    def test_put_worksheet_mock_mode(self, mock_api: SqlAPI) -> None:
         """Test put returns SqlUpdateResult in mock mode."""
-        result = mock_api.put(snippet_id=1, sql="SELECT * FROM users")
+        result = mock_api.put(worksheet_id=1, sql="SELECT * FROM users")
 
         assert isinstance(result, SqlUpdateResult)
         assert result.id == 1
         assert isinstance(result.updated_at, datetime)
 
-    def test_put_snippet_returns_update_result(self, mock_api: SqlAPI) -> None:
+    def test_put_worksheet_returns_update_result(self, mock_api: SqlAPI) -> None:
         """Test put returns complete update result."""
-        result = mock_api.put(snippet_id=1, sql="SELECT 1")
+        result = mock_api.put(worksheet_id=1, sql="SELECT 1")
 
         assert isinstance(result, SqlUpdateResult)
         assert isinstance(result.id, int)
@@ -332,42 +332,42 @@ class TestSqlAPIPut:
         assert isinstance(result.updated_at, datetime)
         assert isinstance(result.updated_by, str)
 
-    def test_put_snippet_with_project(self, mock_api: SqlAPI) -> None:
-        """Test put with project option."""
-        result = mock_api.put(snippet_id=1, sql="SELECT 1", project="default")
+    def test_put_worksheet_with_team(self, mock_api: SqlAPI) -> None:
+        """Test put with team option."""
+        result = mock_api.put(worksheet_id=1, sql="SELECT 1", team="default")
 
         assert isinstance(result, SqlUpdateResult)
 
-    def test_put_snippet_not_found(self, server_context: ExecutionContext) -> None:
-        """Test put raises error when snippet not found."""
+    def test_put_worksheet_not_found(self, server_context: ExecutionContext) -> None:
+        """Test put raises error when worksheet not found."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "default"},
         )
-        mock_client.sql_update_snippet.return_value = ServerResponse(
+        mock_client.sql_update_worksheet.return_value = ServerResponse(
             success=False,
-            error="Snippet not found",
+            error="Worksheet not found",
             status_code=404,
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlSnippetNotFoundError) as exc_info:
-            api.put(snippet_id=999, sql="SELECT 1", project="default")
+        with pytest.raises(SqlWorksheetNotFoundError) as exc_info:
+            api.put(worksheet_id=999, sql="SELECT 1", team="default")
 
-        assert exc_info.value.snippet_id == 999
+        assert exc_info.value.worksheet_id == 999
 
-    def test_put_snippet_access_denied(self, server_context: ExecutionContext) -> None:
+    def test_put_worksheet_access_denied(self, server_context: ExecutionContext) -> None:
         """Test put raises error when access denied."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "default"},
         )
-        mock_client.sql_update_snippet.return_value = ServerResponse(
+        mock_client.sql_update_worksheet.return_value = ServerResponse(
             success=False,
             error="Access denied",
             status_code=403,
@@ -376,19 +376,19 @@ class TestSqlAPIPut:
         api = SqlAPI(context=server_context, client=mock_client)
 
         with pytest.raises(SqlAccessDeniedError) as exc_info:
-            api.put(snippet_id=1, sql="SELECT 1", project="default")
+            api.put(worksheet_id=1, sql="SELECT 1", team="default")
 
-        assert exc_info.value.snippet_id == 1
+        assert exc_info.value.worksheet_id == 1
 
-    def test_put_snippet_update_failed(self, server_context: ExecutionContext) -> None:
+    def test_put_worksheet_update_failed(self, server_context: ExecutionContext) -> None:
         """Test put raises error when update fails."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 1, "name": "default"},
         )
-        mock_client.sql_update_snippet.return_value = ServerResponse(
+        mock_client.sql_update_worksheet.return_value = ServerResponse(
             success=False,
             error="Database error",
         )
@@ -396,78 +396,78 @@ class TestSqlAPIPut:
         api = SqlAPI(context=server_context, client=mock_client)
 
         with pytest.raises(SqlUpdateFailedError) as exc_info:
-            api.put(snippet_id=1, sql="SELECT 1", project="default")
+            api.put(worksheet_id=1, sql="SELECT 1", team="default")
 
-        assert exc_info.value.snippet_id == 1
+        assert exc_info.value.worksheet_id == 1
 
-    def test_put_snippet_project_not_found(self, server_context: ExecutionContext) -> None:
-        """Test put raises error when project not found."""
+    def test_put_worksheet_team_not_found(self, server_context: ExecutionContext) -> None:
+        """Test put raises error when team not found."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=False,
-            error="Project not found",
+            error="Team not found",
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlProjectNotFoundError):
-            api.put(snippet_id=1, sql="SELECT 1", project="nonexistent")
+        with pytest.raises(SqlTeamNotFoundError):
+            api.put(worksheet_id=1, sql="SELECT 1", team="nonexistent")
 
     def test_put_result_is_frozen(self, mock_api: SqlAPI) -> None:
         """Test that SqlUpdateResult is immutable."""
-        result = mock_api.put(snippet_id=1, sql="SELECT 1")
+        result = mock_api.put(worksheet_id=1, sql="SELECT 1")
 
         with pytest.raises(Exception):
             result.id = 999  # type: ignore[misc]
 
 
-class TestSqlAPIProjectResolution:
-    """Tests for SqlAPI project resolution logic."""
+class TestSqlAPITeamResolution:
+    """Tests for SqlAPI team resolution logic."""
 
-    def test_resolve_project_mock_mode_default(self, mock_api: SqlAPI) -> None:
-        """Test project resolution uses default in mock mode."""
-        # Should work without specifying project
-        result = mock_api.list_snippets()
+    def test_resolve_team_mock_mode_default(self, mock_api: SqlAPI) -> None:
+        """Test team resolution uses default in mock mode."""
+        # Should work without specifying team
+        result = mock_api.list_worksheets()
         assert isinstance(result, SqlListResult)
 
-    def test_resolve_project_mock_mode_explicit(self, mock_api: SqlAPI) -> None:
-        """Test project resolution with explicit project in mock mode."""
-        result = mock_api.list_snippets(project="custom_project")
+    def test_resolve_team_mock_mode_explicit(self, mock_api: SqlAPI) -> None:
+        """Test team resolution with explicit team in mock mode."""
+        result = mock_api.list_worksheets(team="custom_team")
         assert isinstance(result, SqlListResult)
 
-    def test_resolve_project_server_success(self, server_context: ExecutionContext) -> None:
-        """Test project resolution succeeds when project exists."""
+    def test_resolve_team_server_success(self, server_context: ExecutionContext) -> None:
+        """Test team resolution succeeds when team exists."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_get_by_name.return_value = ServerResponse(
+        mock_client.team_get_by_name.return_value = ServerResponse(
             success=True,
             data={"id": 42, "name": "marketing"},
         )
-        mock_client.sql_list_snippets.return_value = ServerResponse(
+        mock_client.sql_list_worksheets.return_value = ServerResponse(
             success=True,
-            data={"snippets": [], "total": 0},
+            data={"worksheets": [], "total": 0},
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
-        result = api.list_snippets(project="marketing")
+        result = api.list_worksheets(team="marketing")
 
         assert isinstance(result, SqlListResult)
-        mock_client.project_get_by_name.assert_called_with("marketing")
+        mock_client.team_get_by_name.assert_called_with("marketing")
 
-    def test_resolve_project_no_default(self, server_context: ExecutionContext) -> None:
-        """Test project resolution fails when no project specified and no default."""
+    def test_resolve_team_no_default(self, server_context: ExecutionContext) -> None:
+        """Test team resolution fails when no team specified and no default."""
         mock_client = MagicMock(spec=BasecampClient)
         mock_client.mock_mode = False
-        mock_client.project_list.return_value = ServerResponse(
+        mock_client.team_list.return_value = ServerResponse(
             success=True,
-            data={"projects": []},  # No projects available
+            data={"teams": []},  # No teams available
         )
 
         api = SqlAPI(context=server_context, client=mock_client)
 
-        with pytest.raises(SqlProjectNotFoundError):
-            api.list_snippets()
+        with pytest.raises(SqlTeamNotFoundError):
+            api.list_worksheets()
 
 
 class TestSqlAPIClientInit:
@@ -534,16 +534,16 @@ class TestSqlDialectEnum:
         assert SqlDialect("spark") == SqlDialect.SPARK
 
 
-class TestSqlSnippetInfoModel:
-    """Tests for SqlSnippetInfo model."""
+class TestSqlWorksheetInfoModel:
+    """Tests for SqlWorksheetInfo model."""
 
-    def test_snippet_info_creation(self) -> None:
-        """Test SqlSnippetInfo model creation."""
+    def test_worksheet_info_creation(self) -> None:
+        """Test SqlWorksheetInfo model creation."""
         now = datetime.now(timezone.utc)
-        info = SqlSnippetInfo(
+        info = SqlWorksheetInfo(
             id=1,
             name="daily_revenue",
-            project="analytics",
+            team="analytics",
             folder="Reports",
             dialect=SqlDialect.BIGQUERY,
             starred=True,
@@ -553,20 +553,20 @@ class TestSqlSnippetInfoModel:
 
         assert info.id == 1
         assert info.name == "daily_revenue"
-        assert info.project == "analytics"
+        assert info.team == "analytics"
         assert info.folder == "Reports"
         assert info.dialect == SqlDialect.BIGQUERY
         assert info.starred is True
         assert info.updated_at == now
         assert info.updated_by == "alice"
 
-    def test_snippet_info_optional_folder(self) -> None:
-        """Test SqlSnippetInfo without folder."""
+    def test_worksheet_info_optional_folder(self) -> None:
+        """Test SqlWorksheetInfo without folder."""
         now = datetime.now(timezone.utc)
-        info = SqlSnippetInfo(
+        info = SqlWorksheetInfo(
             id=1,
             name="query",
-            project="default",
+            team="default",
             dialect=SqlDialect.TRINO,
             updated_at=now,
             updated_by="bob",
@@ -574,13 +574,13 @@ class TestSqlSnippetInfoModel:
 
         assert info.folder is None
 
-    def test_snippet_info_frozen(self) -> None:
-        """Test SqlSnippetInfo is frozen (immutable)."""
+    def test_worksheet_info_frozen(self) -> None:
+        """Test SqlWorksheetInfo is frozen (immutable)."""
         now = datetime.now(timezone.utc)
-        info = SqlSnippetInfo(
+        info = SqlWorksheetInfo(
             id=1,
             name="query",
-            project="default",
+            team="default",
             dialect=SqlDialect.TRINO,
             updated_at=now,
             updated_by="bob",
@@ -590,16 +590,16 @@ class TestSqlSnippetInfoModel:
             info.name = "modified"  # type: ignore[misc]
 
 
-class TestSqlSnippetDetailModel:
-    """Tests for SqlSnippetDetail model."""
+class TestSqlWorksheetDetailModel:
+    """Tests for SqlWorksheetDetail model."""
 
-    def test_snippet_detail_creation(self) -> None:
-        """Test SqlSnippetDetail model creation."""
+    def test_worksheet_detail_creation(self) -> None:
+        """Test SqlWorksheetDetail model creation."""
         now = datetime.now(timezone.utc)
-        detail = SqlSnippetDetail(
+        detail = SqlWorksheetDetail(
             id=1,
             name="daily_revenue",
-            project="analytics",
+            team="analytics",
             folder="Reports",
             dialect=SqlDialect.BIGQUERY,
             sql="SELECT * FROM users",
@@ -612,7 +612,7 @@ class TestSqlSnippetDetailModel:
 
         assert detail.id == 1
         assert detail.name == "daily_revenue"
-        assert detail.project == "analytics"
+        assert detail.team == "analytics"
         assert detail.folder == "Reports"
         assert detail.dialect == SqlDialect.BIGQUERY
         assert detail.sql == "SELECT * FROM users"
@@ -622,13 +622,13 @@ class TestSqlSnippetDetailModel:
         assert detail.created_by == "alice"
         assert detail.updated_by == "bob"
 
-    def test_snippet_detail_frozen(self) -> None:
-        """Test SqlSnippetDetail is frozen (immutable)."""
+    def test_worksheet_detail_frozen(self) -> None:
+        """Test SqlWorksheetDetail is frozen (immutable)."""
         now = datetime.now(timezone.utc)
-        detail = SqlSnippetDetail(
+        detail = SqlWorksheetDetail(
             id=1,
             name="query",
-            project="default",
+            team="default",
             dialect=SqlDialect.TRINO,
             sql="SELECT 1",
             created_at=now,
@@ -647,52 +647,52 @@ class TestSqlListResultModel:
     def test_list_result_creation(self) -> None:
         """Test SqlListResult model creation."""
         result = SqlListResult(
-            snippets=[],
+            worksheets=[],
             total=0,
             offset=0,
             limit=20,
         )
 
-        assert result.snippets == []
+        assert result.worksheets == []
         assert result.total == 0
         assert result.offset == 0
         assert result.limit == 20
 
-    def test_list_result_with_snippets(self) -> None:
-        """Test SqlListResult with snippets."""
+    def test_list_result_with_worksheets(self) -> None:
+        """Test SqlListResult with worksheets."""
         now = datetime.now(timezone.utc)
-        snippets = [
-            SqlSnippetInfo(
+        worksheets = [
+            SqlWorksheetInfo(
                 id=1,
                 name="query1",
-                project="default",
+                team="default",
                 dialect=SqlDialect.BIGQUERY,
                 updated_at=now,
                 updated_by="alice",
             ),
-            SqlSnippetInfo(
+            SqlWorksheetInfo(
                 id=2,
                 name="query2",
-                project="default",
+                team="default",
                 dialect=SqlDialect.TRINO,
                 updated_at=now,
                 updated_by="bob",
             ),
         ]
         result = SqlListResult(
-            snippets=snippets,
+            worksheets=worksheets,
             total=2,
             offset=0,
             limit=20,
         )
 
-        assert len(result.snippets) == 2
+        assert len(result.worksheets) == 2
         assert result.total == 2
 
     def test_list_result_frozen(self) -> None:
         """Test SqlListResult is frozen (immutable)."""
         result = SqlListResult(
-            snippets=[],
+            worksheets=[],
             total=0,
         )
 

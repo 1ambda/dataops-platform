@@ -21,7 +21,7 @@ import typer
 
 from dli import __version__
 from dli.api.debug import DebugAPI
-from dli.commands.base import get_project_path
+from dli.commands.base import get_project_path, with_trace
 from dli.core.debug.models import CheckCategory, CheckResult, CheckStatus, DebugResult
 from dli.models.common import ExecutionContext
 
@@ -162,13 +162,13 @@ def _merge_debug_results(results: list[DebugResult]) -> DebugResult:
 
 
 @debug_app.callback(invoke_without_command=True)
+@with_trace("debug")
 def debug(
     ctx: typer.Context,
     connection: Annotated[
         bool,
         typer.Option(
             "--connection",
-            "-c",
             help="Test database connectivity only.",
         ),
     ] = False,
@@ -196,12 +196,12 @@ def debug(
             help="Test Basecamp Server connection only.",
         ),
     ] = False,
-    project: Annotated[
+    config_only: Annotated[
         bool,
         typer.Option(
-            "--project",
-            "-p",
-            help="Validate project configuration only.",
+            "--config",
+            "-c",
+            help="Validate CLI configuration only.",
         ),
     ] = False,
     verbose: Annotated[
@@ -242,6 +242,13 @@ def debug(
             help="Connection timeout in seconds.",
         ),
     ] = 30,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Run environment diagnostics and connection tests.
 
@@ -262,7 +269,14 @@ def debug(
 
         # Output as JSON
         $ dli debug --json
+
+        # Show/hide trace ID
+        $ dli debug --trace
+        $ dli debug --no-trace
     """
+    # Note: trace flag is available for consistency with other execution commands.
+    # Currently, debug output doesn't use print_error but the flag allows future use.
+    _ = trace  # Suppress unused variable warning
     # Get project path
     project_path = get_project_path(path)
 
@@ -276,7 +290,7 @@ def debug(
     api = DebugAPI(context=context)
 
     # Determine which checks to run
-    run_all = not any([connection, auth, network, server, project])
+    run_all = not any([connection, auth, network, server, config_only])
 
     if run_all:
         result = api.run_all(timeout=timeout)
@@ -292,7 +306,7 @@ def debug(
             results.append(api.check_network())
         if server:
             results.append(api.check_server())
-        if project:
+        if config_only:
             results.append(api.check_project())
 
         # Also run system checks for context

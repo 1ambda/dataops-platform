@@ -2,11 +2,19 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | v0.8.0 |
+| **Version** | v0.9.0 |
 | **Status** | ✅ Complete |
-| **Release Date** | 2026-01-01 |
+| **Release Date** | 2026-01-10 |
 | **Test Count** | 196 tests (all passing) |
 | **Components** | 12 checks, 7 API methods, 4 files |
+
+---
+
+## Migration Note (v0.9.0)
+
+**Flag Renamed:** `--project, -p` renamed to `--config, -c`
+- Rationale: Avoids confusion with Team-based resource management
+- The flag validates CLI configuration, not Team/Project selection
 
 ---
 
@@ -62,11 +70,11 @@ Debug feature provides comprehensive environment diagnostics and connection test
 | Command | Description |
 |---------|-------------|
 | `dli debug` | Run all diagnostic checks |
-| `dli debug --connection/-c` | Database connectivity only |
+| `dli debug --connection` | Database connectivity only |
 | `dli debug --auth/-a` | Authentication only |
 | `dli debug --network/-n` | Network connectivity only |
 | `dli debug --server/-s` | Basecamp Server only |
-| `dli debug --project/-p` | Project configuration only |
+| `dli debug --config/-c` | CLI configuration only (v0.9.0: renamed from --project/-p) |
 | `dli debug --verbose/-v` | Show detailed output |
 | `dli debug --json` | JSON output format |
 | `dli debug --dialect/-d` | Target dialect (bigquery, trino) |

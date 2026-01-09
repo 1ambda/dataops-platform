@@ -1,16 +1,16 @@
-"""SQL Snippet Management API.
+"""SQL Worksheet Management API.
 
-This module provides the SqlAPI class for programmatic access to SQL snippets
-stored on the Basecamp Server. Snippets are organized by project and optionally
+This module provides the SqlAPI class for programmatic access to SQL worksheets
+stored on the Basecamp Server. Worksheets are organized by team and optionally
 by folder.
 
 Example:
     >>> from dli import SqlAPI, ExecutionContext, ExecutionMode
     >>> ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER)
     >>> api = SqlAPI(context=ctx)
-    >>> result = api.list_snippets(project="marketing")
-    >>> for snippet in result.snippets:
-    ...     print(f"{snippet.id}: {snippet.name}")
+    >>> result = api.list_worksheets(team="marketing")
+    >>> for worksheet in result.worksheets:
+    ...     print(f"{worksheet.id}: {worksheet.name}")
 """
 
 from __future__ import annotations
@@ -20,16 +20,16 @@ from datetime import datetime
 from dli.core.client import BasecampClient, ServerConfig
 from dli.exceptions import (
     SqlAccessDeniedError,
-    SqlProjectNotFoundError,
-    SqlSnippetNotFoundError,
+    SqlTeamNotFoundError,
+    SqlWorksheetNotFoundError,
     SqlUpdateFailedError,
 )
 from dli.models.common import ExecutionContext, ExecutionMode
 from dli.models.sql import (
     SqlDialect,
     SqlListResult,
-    SqlSnippetDetail,
-    SqlSnippetInfo,
+    SqlWorksheetDetail,
+    SqlWorksheetInfo,
     SqlUpdateResult,
 )
 
@@ -37,10 +37,10 @@ __all__ = ["SqlAPI"]
 
 
 class SqlAPI:
-    """API for managing SQL snippets stored on Basecamp Server.
+    """API for managing SQL worksheets stored on Basecamp Server.
 
-    Provides methods to list, retrieve, and update saved SQL snippets.
-    Snippets are organized by project and optionally by folder.
+    Provides methods to list, retrieve, and update saved SQL worksheets.
+    Worksheets are organized by team and optionally by folder.
 
     Thread Safety:
         This class is NOT thread-safe. Create separate instances for
@@ -50,16 +50,16 @@ class SqlAPI:
         >>> from dli import SqlAPI, ExecutionContext, ExecutionMode
         >>> ctx = ExecutionContext(execution_mode=ExecutionMode.SERVER)
         >>> api = SqlAPI(context=ctx)
-        >>> result = api.list_snippets(project="marketing")
-        >>> for snippet in result.snippets:
-        ...     print(f"{snippet.id}: {snippet.name}")
+        >>> result = api.list_worksheets(team="marketing")
+        >>> for worksheet in result.worksheets:
+        ...     print(f"{worksheet.id}: {worksheet.name}")
         >>>
-        >>> # Get snippet details
-        >>> detail = api.get(snippet_id=123, project="marketing")
+        >>> # Get worksheet details
+        >>> detail = api.get(worksheet_id=123, team="marketing")
         >>> print(detail.sql)
         >>>
-        >>> # Update snippet
-        >>> result = api.put(snippet_id=123, sql="SELECT * FROM users", project="marketing")
+        >>> # Update worksheet
+        >>> result = api.put(worksheet_id=123, sql="SELECT * FROM users", team="marketing")
         >>> print(f"Updated at: {result.updated_at}")
 
     Attributes:
@@ -106,94 +106,94 @@ class SqlAPI:
             )
         return self._client
 
-    def _resolve_project_id(self, project: str | None) -> tuple[int, str]:
-        """Resolve project name to ID.
+    def _resolve_team_id(self, team: str | None) -> tuple[int, str]:
+        """Resolve team name to ID.
 
         Args:
-            project: Project name. If None, uses first available project.
+            team: Team name. If None, uses first available team.
 
         Returns:
-            Tuple of (project_id, project_name).
+            Tuple of (team_id, team_name).
 
         Raises:
-            SqlProjectNotFoundError: If project is not found.
+            SqlTeamNotFoundError: If team is not found.
         """
         client = self._get_client()
 
-        # Use provided project or try to get default from config
-        project_name = project
-        if project_name is None:
-            # Try to get first project as default
+        # Use provided team or try to get default from config
+        team_name = team
+        if team_name is None:
+            # Try to get first team as default
             if self._is_mock_mode:
                 return (1, "default")
-            response = client.project_list(limit=1)
+            response = client.team_list(limit=1)
             if response.success and response.data:
                 data = response.data
                 if isinstance(data, dict):
-                    projects = data.get("projects", [])
-                    if projects:
-                        return (projects[0]["id"], projects[0]["name"])
-            raise SqlProjectNotFoundError(
-                message="No default project configured",
-                project="",
+                    teams = data.get("teams", [])
+                    if teams:
+                        return (teams[0]["id"], teams[0]["name"])
+            raise SqlTeamNotFoundError(
+                message="No default team configured",
+                team="",
             )
 
-        # Look up project by name
-        response = client.project_get_by_name(project_name)
+        # Look up team by name
+        response = client.team_get_by_name(team_name)
         if not response.success:
-            raise SqlProjectNotFoundError(
-                message=f"Project not found: {project_name}",
-                project=project_name,
+            raise SqlTeamNotFoundError(
+                message=f"Team not found: {team_name}",
+                team=team_name,
             )
 
         data = response.data or {}
         if isinstance(data, dict):
-            return (data.get("id", 0), data.get("name", project_name))
-        return (0, project_name)
+            return (data.get("id", 0), data.get("name", team_name))
+        return (0, team_name)
 
     # =========================================================================
-    # List Snippets
+    # List Worksheets
     # =========================================================================
 
-    def list_snippets(
+    def list_worksheets(
         self,
-        project: str | None = None,
+        team: str | None = None,
         *,
         folder: str | None = None,
         starred: bool = False,
         limit: int = 20,
         offset: int = 0,
     ) -> SqlListResult:
-        """List SQL snippets with optional filters.
+        """List SQL worksheets with optional filters.
 
         Args:
-            project: Filter by project name. If None, uses default project.
+            team: Filter by team name. If None, uses default team.
             folder: Filter by folder name.
-            starred: If True, only return starred snippets.
+            starred: If True, only return starred worksheets.
             limit: Maximum number of results (default: 20).
             offset: Pagination offset (default: 0).
 
         Returns:
-            SqlListResult with snippets and pagination info.
+            SqlListResult with worksheets and pagination info.
 
         Raises:
-            SqlProjectNotFoundError: If specified project is not found.
+            SqlTeamNotFoundError: If specified team is not found.
 
         Example:
-            >>> result = api.list_snippets(project="analytics", starred=True)
-            >>> print(f"Found {result.total} starred snippets")
-            >>> for s in result.snippets:
-            ...     print(f"  {s.id}: {s.name}")
+            >>> result = api.list_worksheets(team="analytics", starred=True)
+            >>> print(f"Found {result.total} starred worksheets")
+            >>> for w in result.worksheets:
+            ...     print(f"  {w.id}: {w.name}")
         """
-        project_id, project_name = self._resolve_project_id(project)
+        team_id, team_name = self._resolve_team_id(team)
         client = self._get_client()
 
         # TODO: Resolve folder name to ID if provided
         folder_id = None
         _ = folder  # Suppress unused variable warning
 
-        response = client.sql_list_snippets(
-            project_id=project_id,
+        response = client.sql_list_worksheets(
+            team_id=team_id,
             folder_id=folder_id,
             starred=starred if starred else None,
             limit=limit,
@@ -201,27 +201,27 @@ class SqlAPI:
         )
 
         if not response.success:
-            raise SqlProjectNotFoundError(
-                message=f"Failed to list snippets: {response.error}",
-                project=project or "default",
+            raise SqlTeamNotFoundError(
+                message=f"Failed to list worksheets: {response.error}",
+                team=team or "default",
             )
 
         data = response.data or {}
         if not isinstance(data, dict):
             return SqlListResult(
-                snippets=[],
+                worksheets=[],
                 total=0,
                 offset=offset,
                 limit=limit,
             )
 
-        snippets = []
-        for item in data.get("snippets", []):
-            snippets.append(
-                SqlSnippetInfo(
+        worksheets = []
+        for item in data.get("worksheets", []):
+            worksheets.append(
+                SqlWorksheetInfo(
                     id=item.get("id", 0),
                     name=item.get("name", ""),
-                    project=item.get("projectName", project_name),
+                    team=item.get("teamName", team_name),
                     folder=item.get("folderName"),
                     dialect=SqlDialect(item.get("dialect", "bigquery").lower()),
                     starred=item.get("isStarred", False),
@@ -235,68 +235,68 @@ class SqlAPI:
             )
 
         return SqlListResult(
-            snippets=snippets,
-            total=data.get("total", len(snippets)),
+            worksheets=worksheets,
+            total=data.get("total", len(worksheets)),
             offset=data.get("offset", offset),
             limit=data.get("limit", limit),
         )
 
     # =========================================================================
-    # Get Snippet
+    # Get Worksheet
     # =========================================================================
 
-    def get(self, snippet_id: int, project: str | None = None) -> SqlSnippetDetail:
-        """Get a SQL snippet by ID.
+    def get(self, worksheet_id: int, team: str | None = None) -> SqlWorksheetDetail:
+        """Get a SQL worksheet by ID.
 
         Args:
-            snippet_id: The snippet ID to retrieve.
-            project: Project name containing the snippet.
+            worksheet_id: The worksheet ID to retrieve.
+            team: Team name containing the worksheet.
 
         Returns:
-            SqlSnippetDetail with full snippet data including SQL content.
+            SqlWorksheetDetail with full worksheet data including SQL content.
 
         Raises:
-            SqlSnippetNotFoundError: If snippet is not found.
+            SqlWorksheetNotFoundError: If worksheet is not found.
             SqlAccessDeniedError: If access is denied.
 
         Example:
-            >>> detail = api.get(snippet_id=123, project="analytics")
+            >>> detail = api.get(worksheet_id=123, team="analytics")
             >>> print(f"-- {detail.name} ({detail.dialect.value})")
             >>> print(detail.sql)
         """
-        project_id, project_name = self._resolve_project_id(project)
+        team_id, team_name = self._resolve_team_id(team)
         client = self._get_client()
 
-        response = client.sql_get_snippet(project_id, snippet_id)
+        response = client.sql_get_worksheet(team_id, worksheet_id)
 
         if not response.success:
             error = response.error or ""
             if "not found" in error.lower() or response.status_code == 404:
-                raise SqlSnippetNotFoundError(
-                    message=f"Snippet {snippet_id} not found",
-                    snippet_id=snippet_id,
+                raise SqlWorksheetNotFoundError(
+                    message=f"Worksheet {worksheet_id} not found",
+                    worksheet_id=worksheet_id,
                 )
             if "denied" in error.lower() or response.status_code == 403:
                 raise SqlAccessDeniedError(
-                    message=f"Access denied to snippet {snippet_id}",
-                    snippet_id=snippet_id,
+                    message=f"Access denied to worksheet {worksheet_id}",
+                    worksheet_id=worksheet_id,
                 )
-            raise SqlSnippetNotFoundError(
-                message=f"Failed to get snippet: {error}",
-                snippet_id=snippet_id,
+            raise SqlWorksheetNotFoundError(
+                message=f"Failed to get worksheet: {error}",
+                worksheet_id=worksheet_id,
             )
 
         data = response.data or {}
         if not isinstance(data, dict):
-            raise SqlSnippetNotFoundError(
-                message=f"Invalid response for snippet {snippet_id}",
-                snippet_id=snippet_id,
+            raise SqlWorksheetNotFoundError(
+                message=f"Invalid response for worksheet {worksheet_id}",
+                worksheet_id=worksheet_id,
             )
 
-        return SqlSnippetDetail(
-            id=data.get("id", snippet_id),
+        return SqlWorksheetDetail(
+            id=data.get("id", worksheet_id),
             name=data.get("name", ""),
-            project=data.get("projectName", project_name),
+            team=data.get("teamName", team_name),
             folder=data.get("folderName"),
             dialect=SqlDialect(data.get("dialect", "bigquery").lower()),
             sql=data.get("sqlText", ""),
@@ -312,68 +312,68 @@ class SqlAPI:
         )
 
     # =========================================================================
-    # Update Snippet
+    # Update Worksheet
     # =========================================================================
 
     def put(
-        self, snippet_id: int, sql: str, project: str | None = None
+        self, worksheet_id: int, sql: str, team: str | None = None
     ) -> SqlUpdateResult:
-        """Update a SQL snippet's content.
+        """Update a SQL worksheet's content.
 
         Args:
-            snippet_id: The snippet ID to update.
+            worksheet_id: The worksheet ID to update.
             sql: The new SQL content.
-            project: Project name containing the snippet.
+            team: Team name containing the worksheet.
 
         Returns:
             SqlUpdateResult with update confirmation.
 
         Raises:
-            SqlSnippetNotFoundError: If snippet is not found.
+            SqlWorksheetNotFoundError: If worksheet is not found.
             SqlAccessDeniedError: If access is denied.
             SqlUpdateFailedError: If update fails.
 
         Example:
             >>> result = api.put(
-            ...     snippet_id=123,
+            ...     worksheet_id=123,
             ...     sql="SELECT * FROM users WHERE active = true",
-            ...     project="analytics"
+            ...     team="analytics"
             ... )
             >>> print(f"Updated {result.name} at {result.updated_at}")
         """
-        project_id, _ = self._resolve_project_id(project)
+        team_id, _ = self._resolve_team_id(team)
         client = self._get_client()
 
-        response = client.sql_update_snippet(project_id, snippet_id, sql)
+        response = client.sql_update_worksheet(team_id, worksheet_id, sql)
 
         if not response.success:
             error = response.error or ""
             if "not found" in error.lower() or response.status_code == 404:
-                raise SqlSnippetNotFoundError(
-                    message=f"Snippet {snippet_id} not found",
-                    snippet_id=snippet_id,
+                raise SqlWorksheetNotFoundError(
+                    message=f"Worksheet {worksheet_id} not found",
+                    worksheet_id=worksheet_id,
                 )
             if "denied" in error.lower() or response.status_code == 403:
                 raise SqlAccessDeniedError(
-                    message=f"Access denied to snippet {snippet_id}",
-                    snippet_id=snippet_id,
+                    message=f"Access denied to worksheet {worksheet_id}",
+                    worksheet_id=worksheet_id,
                 )
             raise SqlUpdateFailedError(
-                message=f"Failed to update snippet {snippet_id}",
-                snippet_id=snippet_id,
+                message=f"Failed to update worksheet {worksheet_id}",
+                worksheet_id=worksheet_id,
                 reason=error,
             )
 
         data = response.data or {}
         if not isinstance(data, dict):
             raise SqlUpdateFailedError(
-                message=f"Invalid response for snippet {snippet_id}",
-                snippet_id=snippet_id,
+                message=f"Invalid response for worksheet {worksheet_id}",
+                worksheet_id=worksheet_id,
                 reason="Invalid response format",
             )
 
         return SqlUpdateResult(
-            id=data.get("id", snippet_id),
+            id=data.get("id", worksheet_id),
             name=data.get("name", ""),
             updated_at=datetime.fromisoformat(
                 data.get("updatedAt", "2026-01-01T00:00:00Z").replace("Z", "+00:00")

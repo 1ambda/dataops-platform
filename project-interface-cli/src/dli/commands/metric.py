@@ -26,9 +26,11 @@ from dli.commands.base import (
     spec_to_dict,
     spec_to_list_dict,
     spec_to_register_dict,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
+    get_effective_trace_mode,
     parse_params,
     print_data_table,
     print_error,
@@ -47,6 +49,7 @@ metric_app = typer.Typer(
 
 
 @metric_app.command("list")
+@with_trace("metric list")
 def list_metrics(
     source: Annotated[
         SourceType,
@@ -133,6 +136,7 @@ def list_metrics(
 
 
 @metric_app.command("get")
+@with_trace("metric get")
 def get_metric(
     name: Annotated[str, typer.Argument(help="Metric name.")],
     source: Annotated[
@@ -214,6 +218,7 @@ def get_metric(
 
 
 @metric_app.command("run")
+@with_trace("metric run")
 def run_metric(
     name: Annotated[str, typer.Argument(help="Metric name to run.")],
     params: Annotated[
@@ -256,6 +261,13 @@ def run_metric(
         Path | None,
         typer.Option("--path", help="Project path."),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Execute a metric query (SELECT).
 
@@ -265,13 +277,19 @@ def run_metric(
         dli metric run iceberg.reporting.user_summary --local
         dli metric run iceberg.reporting.user_summary --server
         dli metric run iceberg.reporting.user_summary --remote
+        dli metric run iceberg.reporting.user_summary --trace
+        dli metric run iceberg.reporting.user_summary --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     # Check mutual exclusivity of execution mode options
     mode_count = sum([local, server, remote])
     if mode_count > 1:
         print_error(
             "Cannot specify multiple execution modes. "
-            "Use only one of --local, --server, or --remote"
+            "Use only one of --local, --server, or --remote",
+            trace_mode=trace_mode,
         )
         raise typer.Exit(1)
 
@@ -287,25 +305,25 @@ def run_metric(
     try:
         param_dict = parse_params(params)
     except ValueError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     try:
         service = load_metric_service(project_path)
     except Exception as e:
-        print_error(f"Failed to initialize: {e}")
+        print_error(f"Failed to initialize: {e}", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     metric = service.get_metric(name)
     if not metric:
-        print_error(f"Metric '{name}' not found")
+        print_error(f"Metric '{name}' not found", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     with console.status("[bold green]Executing metric..."):
         result = service.execute(name, param_dict, dry_run=dry_run)
 
     if not result.success:
-        print_error(result.error_message or "Execution failed")
+        print_error(result.error_message or "Execution failed", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     if dry_run:
@@ -349,6 +367,7 @@ def run_metric(
 
 
 @metric_app.command("validate")
+@with_trace("metric validate")
 def validate_metric(
     name: Annotated[str, typer.Argument(help="Metric name to validate.")],
     params: Annotated[
@@ -415,6 +434,7 @@ def validate_metric(
 
 
 @metric_app.command("register")
+@with_trace("metric register")
 def register_metric(
     name: Annotated[str, typer.Argument(help="Metric name to register.")],
     path: Annotated[
@@ -469,6 +489,7 @@ def register_metric(
 
 
 @metric_app.command("format")
+@with_trace("metric format")
 def format_metric(
     name: Annotated[str, typer.Argument(help="Metric name to format.")],
     check: Annotated[
@@ -642,6 +663,7 @@ def format_metric(
 
 
 @metric_app.command("transpile")
+@with_trace("metric transpile")
 def transpile_metric(
     name: Annotated[str, typer.Argument(help="Metric name to transpile.")],
     file: Annotated[

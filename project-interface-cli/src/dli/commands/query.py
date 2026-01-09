@@ -20,6 +20,7 @@ from dli.commands.base import (
     ListOutputFormat,
     get_client,
     get_project_path,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
@@ -122,6 +123,7 @@ def _format_bytes(bytes_value: int | None) -> str:
 
 
 @query_app.command("list")
+@with_trace("query list")
 def list_queries(
     account_keyword: Annotated[
         str | None,
@@ -282,6 +284,7 @@ def list_queries(
 
 
 @query_app.command("show")
+@with_trace("query show")
 def show_query(
     query_id: Annotated[
         str,
@@ -413,6 +416,7 @@ def show_query(
 
 
 @query_app.command("cancel")
+@with_trace("query cancel")
 def cancel_query(
     query_id: Annotated[
         str | None,

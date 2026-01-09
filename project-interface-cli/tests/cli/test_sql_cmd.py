@@ -22,20 +22,20 @@ class TestSqlList:
     """Tests for sql list command."""
 
     def test_list_mock_mode(self) -> None:
-        """Test listing snippets in mock mode."""
+        """Test listing worksheets in mock mode."""
         result = runner.invoke(app, ["sql", "list", "--mock"])
         assert result.exit_code == 0
         output = get_output(result)
-        # Should show table with snippet info or "no snippets" message
+        # Should show table with worksheet info or "no worksheets" message
         assert (
             "id" in output.lower()
             or "name" in output.lower()
-            or "snippets" in output.lower()
-            or "no snippets" in output.lower()
+            or "worksheets" in output.lower()
+            or "no worksheets" in output.lower()
         )
 
     def test_list_json_format(self) -> None:
-        """Test listing snippets in JSON format."""
+        """Test listing worksheets in JSON format."""
         result = runner.invoke(app, ["sql", "list", "--mock", "--format", "json"])
         assert result.exit_code == 0
         output = get_output(result).strip()
@@ -43,51 +43,51 @@ class TestSqlList:
             try:
                 data = json.loads(output)
                 assert isinstance(data, dict)
-                assert "snippets" in data
+                assert "worksheets" in data
             except json.JSONDecodeError:
                 pass  # May have mixed output in mock mode
 
-    def test_list_with_project_filter(self) -> None:
-        """Test listing snippets filtered by project."""
-        result = runner.invoke(app, ["sql", "list", "--mock", "--project", "marketing"])
+    def test_list_with_team_filter(self) -> None:
+        """Test listing worksheets filtered by team."""
+        result = runner.invoke(app, ["sql", "list", "--mock", "--team", "marketing"])
         assert result.exit_code == 0
         output = get_output(result)
-        # Should filter by project
+        # Should filter by team
         assert (
             "id" in output.lower()
-            or "no snippets" in output.lower()
-            or "snippets" in output.lower()
+            or "no worksheets" in output.lower()
+            or "worksheets" in output.lower()
         )
 
     def test_list_with_folder_filter(self) -> None:
-        """Test listing snippets filtered by folder."""
+        """Test listing worksheets filtered by folder."""
         result = runner.invoke(app, ["sql", "list", "--mock", "--folder", "Analytics"])
         assert result.exit_code == 0
 
     def test_list_with_starred_filter(self) -> None:
-        """Test listing only starred snippets."""
+        """Test listing only starred worksheets."""
         result = runner.invoke(app, ["sql", "list", "--mock", "--starred"])
         assert result.exit_code == 0
 
     def test_list_with_limit(self) -> None:
-        """Test listing snippets with custom limit."""
+        """Test listing worksheets with custom limit."""
         result = runner.invoke(app, ["sql", "list", "--mock", "-n", "10"])
         assert result.exit_code == 0
 
     def test_list_with_offset(self) -> None:
-        """Test listing snippets with pagination offset."""
+        """Test listing worksheets with pagination offset."""
         result = runner.invoke(app, ["sql", "list", "--mock", "--offset", "5"])
         assert result.exit_code == 0
 
     def test_list_with_combined_filters(self) -> None:
-        """Test listing snippets with combined filters."""
+        """Test listing worksheets with combined filters."""
         result = runner.invoke(
             app,
             [
                 "sql",
                 "list",
                 "--mock",
-                "--project",
+                "--team",
                 "marketing",
                 "--folder",
                 "Reports",
@@ -110,7 +110,7 @@ class TestSqlGet:
     """Tests for sql get command."""
 
     def test_get_to_stdout(self) -> None:
-        """Test downloading snippet to stdout."""
+        """Test downloading worksheet to stdout."""
         result = runner.invoke(app, ["sql", "get", "1", "--mock"])
         assert result.exit_code == 0
         output = get_output(result)
@@ -118,7 +118,7 @@ class TestSqlGet:
         assert len(output.strip()) > 0
 
     def test_get_to_file(self, tmp_path: Path) -> None:
-        """Test downloading snippet to file."""
+        """Test downloading worksheet to file."""
         output_file = tmp_path / "test.sql"
         result = runner.invoke(
             app, ["sql", "get", "1", "--mock", "-f", str(output_file)]
@@ -147,9 +147,9 @@ class TestSqlGet:
         output = get_output(result)
         assert "downloaded" in output.lower() or output_file.exists()
 
-    def test_get_with_project(self) -> None:
-        """Test get with project option."""
-        result = runner.invoke(app, ["sql", "get", "1", "--mock", "--project", "default"])
+    def test_get_with_team(self) -> None:
+        """Test get with team option."""
+        result = runner.invoke(app, ["sql", "get", "1", "--mock", "--team", "default"])
         assert result.exit_code == 0
 
     def test_get_shows_download_message(self, tmp_path: Path) -> None:
@@ -192,14 +192,14 @@ class TestSqlPut:
         output = get_output(result)
         assert "not found" in output.lower() or "error" in output.lower()
 
-    def test_put_with_project(self, tmp_path: Path) -> None:
-        """Test put with project option."""
+    def test_put_with_team(self, tmp_path: Path) -> None:
+        """Test put with team option."""
         sql_file = tmp_path / "test.sql"
         sql_file.write_text("SELECT 1")
 
         result = runner.invoke(
             app,
-            ["sql", "put", "1", "-f", str(sql_file), "--force", "--mock", "--project", "default"],
+            ["sql", "put", "1", "-f", str(sql_file), "--force", "--mock", "--team", "default"],
         )
         assert result.exit_code == 0
 
@@ -265,7 +265,7 @@ class TestSqlHelp:
         assert result.exit_code == 0
         output = get_output(result)
         # Should show list options
-        assert "--project" in output
+        assert "--team" in output
         assert "--starred" in output
         assert "--limit" in output or "-n" in output
         assert "--format" in output or "-f" in output
@@ -276,7 +276,7 @@ class TestSqlHelp:
         assert result.exit_code == 0
         output = get_output(result)
         # Should show get options
-        assert "snippet" in output.lower() or "id" in output.lower()
+        assert "worksheet" in output.lower() or "id" in output.lower()
         assert "--file" in output or "-f" in output
         assert "--overwrite" in output
 
@@ -286,7 +286,7 @@ class TestSqlHelp:
         assert result.exit_code == 0
         output = get_output(result)
         # Should show put options
-        assert "snippet" in output.lower() or "id" in output.lower()
+        assert "worksheet" in output.lower() or "id" in output.lower()
         assert "--file" in output or "-f" in output
         assert "--force" in output
 
@@ -303,7 +303,7 @@ class TestSqlOutputFormatting:
         """Test that table format shows expected columns."""
         result = runner.invoke(app, ["sql", "list", "--mock"])
         output = get_output(result)
-        if result.exit_code == 0 and "no snippets" not in output.lower():
+        if result.exit_code == 0 and "no worksheets" not in output.lower():
             # Should include key columns in table header
             output_upper = output.upper()
             assert (
@@ -313,16 +313,16 @@ class TestSqlOutputFormatting:
                 or "FOLDER" in output_upper
             )
 
-    def test_list_shows_snippet_count(self) -> None:
-        """Test that list shows snippet count."""
+    def test_list_shows_worksheet_count(self) -> None:
+        """Test that list shows worksheet count."""
         result = runner.invoke(app, ["sql", "list", "--mock"])
         output = get_output(result)
         if result.exit_code == 0:
             # Should show count message
             assert (
                 "showing" in output.lower()
-                or "snippets" in output.lower()
-                or "no snippets" in output.lower()
+                or "worksheets" in output.lower()
+                or "no worksheets" in output.lower()
             )
 
 
@@ -342,8 +342,8 @@ class TestSqlEdgeCases:
         # We just verify it doesn't crash unexpectedly
         assert result.exit_code in [0, 1, 2]
 
-    def test_get_negative_snippet_id(self) -> None:
-        """Test get with negative snippet ID."""
+    def test_get_negative_worksheet_id(self) -> None:
+        """Test get with negative worksheet ID."""
         result = runner.invoke(app, ["sql", "get", "-1", "--mock"])
         # Should handle gracefully - may fail validation or treat as string
         # We just verify it doesn't crash
@@ -372,8 +372,8 @@ class TestSqlEdgeCases:
         # Should handle gracefully
         assert result.exit_code in [0, 1, 2]
 
-    def test_get_very_large_snippet_id(self) -> None:
-        """Test get with very large snippet ID."""
+    def test_get_very_large_worksheet_id(self) -> None:
+        """Test get with very large worksheet ID."""
         result = runner.invoke(app, ["sql", "get", "999999999", "--mock"])
         # In mock mode, should handle gracefully
         assert result.exit_code in [0, 1]
@@ -410,7 +410,7 @@ class TestSqlWithProjectPath:
     """Tests for sql commands with project path."""
 
     def test_list_with_sample_project(self, sample_project_path: Path) -> None:
-        """Test listing snippets with sample project path."""
+        """Test listing worksheets with sample project path."""
         result = runner.invoke(
             app,
             [
@@ -422,7 +422,7 @@ class TestSqlWithProjectPath:
         assert result.exit_code == 0
 
     def test_get_with_sample_project(self, sample_project_path: Path) -> None:
-        """Test getting snippet with sample project path."""
+        """Test getting worksheet with sample project path."""
         result = runner.invoke(
             app,
             [
@@ -435,7 +435,7 @@ class TestSqlWithProjectPath:
         assert result.exit_code == 0
 
     def test_put_with_sample_project(self, sample_project_path: Path, tmp_path: Path) -> None:
-        """Test putting snippet with sample project path."""
+        """Test putting worksheet with sample project path."""
         sql_file = tmp_path / "test.sql"
         sql_file.write_text("SELECT 1")
 

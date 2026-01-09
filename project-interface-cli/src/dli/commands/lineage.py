@@ -27,6 +27,7 @@ from dli.commands.base import (
     ListOutputFormat,
     get_client,
     get_project_path,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
@@ -276,6 +277,7 @@ def _lineage_to_dict(result: LineageResult) -> dict:
 
 
 @lineage_app.command("show")
+@with_trace("lineage show")
 def show_lineage(
     resource: Annotated[
         str,
@@ -334,6 +336,7 @@ def show_lineage(
 
 
 @lineage_app.command("upstream")
+@with_trace("lineage upstream")
 def show_upstream(
     resource: Annotated[
         str,
@@ -389,6 +392,7 @@ def show_upstream(
 
 
 @lineage_app.command("downstream")
+@with_trace("lineage downstream")
 def show_downstream(
     resource: Annotated[
         str,

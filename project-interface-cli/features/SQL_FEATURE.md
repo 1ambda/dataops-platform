@@ -1,13 +1,32 @@
-# FEATURE: SQL Command - Saved Query Management
+# FEATURE: SQL Command - Saved Worksheet Management
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.0.0 |
-| **Status** | Implemented |
+| **Version** | 3.2.0 |
+| **Status** | Team Migration Complete |
 | **Created** | 2026-01-06 |
-| **Last Updated** | 2026-01-09 |
+| **Last Updated** | 2026-01-10 |
 | **Implementation** | See [SQL_RELEASE.md](./SQL_RELEASE.md) |
 | **References** | Databricks SQL Editor, BigQuery Saved Queries, Redash, Metabase |
+| **Server Spec** | [`project-basecamp-server/features/SQL_FEATURE.md`](../../project-basecamp-server/features/SQL_FEATURE.md) |
+
+---
+
+## v3.2.0 Changes (2026-01-10)
+
+- **Terminology**: "Snippet" → "Worksheet" (industry-standard naming like Snowflake, Databricks)
+- **Model**: SqlSnippet* → SqlWorksheet* (documentation only, implementation separate)
+- **Server API**: Path updated to `/api/v1/teams/{teamId}/sql/worksheets`
+
+## v3.1.0 Changes (2026-01-10)
+
+- **Terminology**: "Query" → "Snippet" (unified with server implementation)
+- **Server API**: Path updated to `/api/v1/teams/{teamId}/sql/snippets`
+- **Organization**: Project-based → Team-based (completed in v2.0.0)
+- **CLI Option**: `--project` → `--team`
+- **Data Model**: `project` field → `team` field
+- **Permission**: Project Membership → Team Membership
+- **Role**: OWNER/EDITOR/VIEWER → MANAGER/EDITOR/VIEWER
 
 ---
 
@@ -15,12 +34,12 @@
 
 ### 1.1 Purpose
 
-`dli sql` provides management of saved queries stored in Basecamp Server. Users can list, download, and upload SQL queries to collaborate with team members and maintain version-controlled query files locally.
+`dli sql` provides management of saved worksheets stored in Basecamp Server. Users can list, download, and upload SQL worksheets to collaborate with team members and maintain version-controlled worksheet files locally.
 
 **Key Use Case:**
-- Download saved query SQL to local file for editing/version control
-- Upload modified SQL file back to the saved query
-- List available saved queries with filtering by project/folder
+- Download saved worksheet SQL to local file for editing/version control
+- Upload modified SQL file back to the saved worksheet
+- List available saved worksheets with filtering by team/folder
 
 ### 1.2 Core Principles
 
@@ -28,26 +47,27 @@
 |-----------|-------------|
 | **Minimal Scope** | Only 3 commands: `list`, `get`, `put` - no complex folder management |
 | **File-Based Workflow** | SQL content is downloaded/uploaded via local files |
-| **Server-Based Storage** | All queries are stored on Basecamp Server (not local-only) |
-| **Project-Scoped** | Queries are organized by project on the server |
+| **Server-Based Storage** | All worksheets are stored on Basecamp Server (not local-only) |
+| **Team-Scoped** | Worksheets are organized by team on the server |
 | **Bidirectional Sync** | Get (download) and Put (upload) enable local editing workflow |
 
 ### 1.3 Key Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **List Queries** | ✅ Complete | List saved queries with project/folder/starred filters |
-| **Download Query** | ✅ Complete | Download query SQL content to local file |
-| **Upload Query** | ✅ Complete | Upload local SQL file to update saved query |
+| **List Worksheets** | Implemented | List saved worksheets with team/folder/starred filters |
+| **Download Worksheet** | Implemented | Download worksheet SQL content to local file |
+| **Upload Worksheet** | Implemented | Upload local SQL file to update saved worksheet |
 
 ### 1.4 Industry Benchmarking
 
 | Tool | Key Features | Applied to `dli sql` |
 |------|--------------|----------------------|
-| **Databricks SQL Editor** | Saved queries, folders, sharing | Folder organization, project scope |
-| **BigQuery Saved Queries** | Project-based, labels, scheduling | Project filtering |
+| **Databricks SQL Editor** | Saved queries, folders, sharing | Folder organization, team scope |
+| **BigQuery Saved Queries** | Project-based, labels, scheduling | Team filtering |
 | **Redash** | Query versioning, favorites | Starred filter |
 | **Metabase** | Collections, permissions | Folder-based organization |
+| **PopSQL** | Team-based collaboration | Team scope (primary influence) |
 
 ### 1.5 System Integration Points
 
@@ -66,20 +86,20 @@
 
 | Entity | Description |
 |--------|-------------|
-| **SavedQuery** | A named SQL query stored on the server |
-| **Project** | Logical grouping of queries (e.g., "marketing", "finance") |
-| **Folder** | Organizational container within a project |
+| **SqlWorksheet** | A named SQL worksheet stored on the server |
+| **Team** | Logical grouping of worksheets (e.g., "marketing-team", "finance-team") |
+| **Folder** | Organizational container within a team (1-level) |
 
-### 2.2 SavedQuery Model
+### 2.2 SqlWorksheet Model
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | int | Unique query identifier |
-| `name` | string | Query name |
-| `project` | string | Project name |
-| `folder` | string | null | Folder path within project |
+| `id` | int | Unique worksheet identifier |
+| `name` | string | Worksheet name |
+| `team` | string | Team name |
+| `folder` | string | null | Folder path within team |
 | `dialect` | string | SQL dialect (bigquery, trino) |
-| `starred` | bool | Whether query is starred/favorited |
+| `starred` | bool | Whether worksheet is starred/favorited |
 | `created_at` | datetime | Creation timestamp |
 | `updated_at` | datetime | Last modification timestamp |
 | `created_by` | string | Creator account |
@@ -97,25 +117,25 @@ dli sql <subcommand> [arguments] [options]
 
 | Subcommand | Status | Arguments | Description |
 |------------|--------|-----------|-------------|
-| `list` | ✅ Complete | - | List saved queries with filters |
-| `get` | ✅ Complete | `<QUERY_ID>` | Download query SQL to local file |
-| `put` | ✅ Complete | `<QUERY_ID>` | Upload local SQL file to saved query |
+| `list` | Implemented | - | List saved worksheets with filters |
+| `get` | Implemented | `<WORKSHEET_ID>` | Download worksheet SQL to local file |
+| `put` | Implemented | `<WORKSHEET_ID>` | Upload local SQL file to saved worksheet |
 
-### 3.2 Subcommand: `list` - List Saved Queries
+### 3.2 Subcommand: `list` - List Saved Worksheets
 
 ```bash
 dli sql list [options]
 ```
 
-Lists saved queries with optional filtering.
+Lists saved worksheets with optional filtering.
 
 **Options:**
 
 | Option | Short | Type | Default | Description |
 |--------|-------|------|---------|-------------|
-| `--project` | `-p` | TEXT | - | Filter by project name |
+| `--team` | `-t` | TEXT | - | Filter by team name |
 | `--folder` | - | TEXT | - | Filter by folder path |
-| `--starred` | - | FLAG | `false` | Show only starred queries |
+| `--starred` | - | FLAG | `false` | Show only starred worksheets |
 | `--limit` | `-n` | INT | `20` | Maximum number of results |
 | `--offset` | - | INT | `0` | Pagination offset |
 | `--format` | `-f` | ENUM | `table` | Output format: `table`, `json` |
@@ -123,16 +143,16 @@ Lists saved queries with optional filtering.
 **Examples:**
 
 ```bash
-# List all accessible queries (default: limit=20)
+# List all accessible worksheets (default: limit=20)
 $ dli sql list
 
-# Filter by project
-$ dli sql list --project marketing
+# Filter by team
+$ dli sql list --team marketing
 
-# Filter by project and folder
-$ dli sql list --project marketing --folder "Campaign Analytics"
+# Filter by team and folder
+$ dli sql list --team marketing --folder "Campaign Analytics"
 
-# Show only starred queries
+# Show only starred worksheets
 $ dli sql list --starred
 
 # JSON output for scripting
@@ -145,7 +165,7 @@ $ dli sql list --limit 50 --offset 100
 **Output Example (Table):**
 
 ```
-$ dli sql list --project marketing
+$ dli sql list --team marketing
 
 ID   Name                    Folder              Dialect   Updated
 ---  ----------------------  ------------------  --------  ----------
@@ -154,22 +174,22 @@ ID   Name                    Folder              Dialect   Updated
 45   user_cohort_retention   User Acquisition    bigquery  2026-01-03
 46   daily_active_users      -                   bigquery  2026-01-02
 
-Showing 4 of 4 queries
+Showing 4 of 4 worksheets
 ```
 
-### 3.3 Subcommand: `get` - Download Query SQL
+### 3.3 Subcommand: `get` - Download Worksheet SQL
 
 ```bash
-dli sql get <QUERY_ID> [options]
+dli sql get <WORKSHEET_ID> [options]
 ```
 
-Downloads the SQL content of a saved query to a local file.
+Downloads the SQL content of a saved worksheet to a local file.
 
 **Arguments:**
 
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `QUERY_ID` | INT | Yes | Query ID to download |
+| `WORKSHEET_ID` | INT | Yes | Worksheet ID to download |
 
 **Options:**
 
@@ -183,11 +203,11 @@ Downloads the SQL content of a saved query to a local file.
 ```bash
 # Download to file
 $ dli sql get 43 -f ./insight.sql
-Downloaded query 43 to ./insight.sql
+Downloaded worksheet 43 to ./insight.sql
 
 # Download to specific directory
-$ dli sql get 43 --file ./queries/insight_analysis.sql
-Downloaded query 43 to ./queries/insight_analysis.sql
+$ dli sql get 43 --file ./worksheets/insight_analysis.sql
+Downloaded worksheet 43 to ./worksheets/insight_analysis.sql
 
 # Print to stdout (for piping)
 $ dli sql get 43
@@ -200,7 +220,7 @@ GROUP BY user_id
 
 # Overwrite existing file without prompt
 $ dli sql get 43 -f ./insight.sql --overwrite
-Downloaded query 43 to ./insight.sql
+Downloaded worksheet 43 to ./insight.sql
 ```
 
 **Behavior:**
@@ -208,19 +228,19 @@ Downloaded query 43 to ./insight.sql
 - If file exists and `--overwrite` not set, prompts for confirmation
 - Creates parent directories if they don't exist
 
-### 3.4 Subcommand: `put` - Upload SQL to Query
+### 3.4 Subcommand: `put` - Upload SQL to Worksheet
 
 ```bash
-dli sql put <QUERY_ID> --file <PATH> [options]
+dli sql put <WORKSHEET_ID> --file <PATH> [options]
 ```
 
-Uploads a local SQL file to update an existing saved query.
+Uploads a local SQL file to update an existing saved worksheet.
 
 **Arguments:**
 
 | Argument | Type | Required | Description |
 |----------|------|----------|-------------|
-| `QUERY_ID` | INT | Yes | Query ID to update |
+| `WORKSHEET_ID` | INT | Yes | Worksheet ID to update |
 
 **Options:**
 
@@ -232,15 +252,15 @@ Uploads a local SQL file to update an existing saved query.
 **Examples:**
 
 ```bash
-# Upload SQL file to query
+# Upload SQL file to worksheet
 $ dli sql put 43 -f ./insight.sql
-Upload ./insight.sql to query 43 (insight_analysis)?
+Upload ./insight.sql to worksheet 43 (insight_analysis)?
 This will overwrite the existing SQL content. [y/N]: y
-Uploaded ./insight.sql to query 43
+Uploaded ./insight.sql to worksheet 43
 
 # Force upload without confirmation
 $ dli sql put 43 --file ./insight.sql --force
-Uploaded ./insight.sql to query 43
+Uploaded ./insight.sql to worksheet 43
 
 # Error: file not found
 $ dli sql put 43 -f ./nonexistent.sql
@@ -250,7 +270,7 @@ Error [DLI-790]: File not found: ./nonexistent.sql
 **Behavior:**
 - File must exist and be readable
 - Prompts for confirmation unless `--force` is set
-- Returns query metadata after successful upload
+- Returns worksheet metadata after successful upload
 
 ---
 
@@ -260,9 +280,9 @@ Error [DLI-790]: File not found: ./nonexistent.sql
 
 | Method | Status | Returns | Description |
 |--------|--------|---------|-------------|
-| `list_snippets()` | ✅ Complete | `SqlListResult` | List saved queries with filters |
-| `get()` | ✅ Complete | `SqlSnippetDetail` | Get query metadata and SQL content |
-| `put()` | ✅ Complete | `SqlUpdateResult` | Update query SQL content |
+| `list_worksheets()` | Implemented | `SqlListResult` | List saved worksheets with filters |
+| `get()` | Implemented | `SqlWorksheetDetail` | Get worksheet metadata and SQL content |
+| `put()` | Implemented | `SqlUpdateResult` | Update worksheet SQL content |
 
 **Usage Example:**
 
@@ -276,18 +296,18 @@ ctx = ExecutionContext(
 )
 api = SqlAPI(context=ctx)
 
-# List queries
-result = api.list_queries(project="marketing", starred=True)
-for query in result.queries:
-    print(f"{query.id}: {query.name}")
+# List worksheets
+result = api.list_worksheets(team="marketing", starred=True)
+for worksheet in result.worksheets:
+    print(f"{worksheet.id}: {worksheet.name}")
 
-# Download query SQL
-query = api.get(query_id=43)
-Path("insight.sql").write_text(query.sql)
+# Download worksheet SQL
+worksheet = api.get(worksheet_id=43)
+Path("insight.sql").write_text(worksheet.sql)
 
 # Upload SQL file
 with open("insight.sql") as f:
-    result = api.put(query_id=43, sql=f.read())
+    result = api.put(worksheet_id=43, sql=f.read())
 print(f"Updated: {result.updated_at}")
 ```
 
@@ -295,10 +315,10 @@ print(f"Updated: {result.updated_at}")
 
 | Model | Status | Purpose |
 |-------|--------|---------|
-| `SqlSnippetInfo` | ✅ Complete | Summary query info for list views |
-| `SqlSnippetDetail` | ✅ Complete | Full query metadata with SQL content |
-| `SqlListResult` | ✅ Complete | List operation result with pagination |
-| `SqlUpdateResult` | ✅ Complete | Update operation result |
+| `SqlWorksheetInfo` | Implemented | Summary worksheet info for list views |
+| `SqlWorksheetDetail` | Implemented | Full worksheet metadata with SQL content |
+| `SqlListResult` | Implemented | List operation result with pagination |
+| `SqlUpdateResult` | Implemented | Update operation result |
 
 ---
 
@@ -312,26 +332,26 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 class SqlDialect(str, Enum):
-    """SQL dialect for saved queries."""
+    """SQL dialect for saved worksheets."""
     BIGQUERY = "bigquery"
     TRINO = "trino"
 
-class SqlQueryInfo(BaseModel):
+class SqlWorksheetInfo(BaseModel):
     """Summary information for list views."""
-    id: int = Field(..., description="Query ID")
-    name: str = Field(..., description="Query name")
-    project: str = Field(..., description="Project name")
+    id: int = Field(..., description="Worksheet ID")
+    name: str = Field(..., description="Worksheet name")
+    team: str = Field(..., description="Team name")
     folder: str | None = Field(default=None, description="Folder path")
     dialect: SqlDialect = Field(..., description="SQL dialect")
     starred: bool = Field(default=False, description="Starred status")
     updated_at: datetime = Field(..., description="Last update time")
     updated_by: str = Field(..., description="Last modifier")
 
-class SqlQueryDetail(BaseModel):
-    """Full query details with SQL content."""
+class SqlWorksheetDetail(BaseModel):
+    """Full worksheet details with SQL content."""
     id: int
     name: str
-    project: str
+    team: str
     folder: str | None = None
     dialect: SqlDialect
     sql: str = Field(..., description="SQL query content")
@@ -343,7 +363,7 @@ class SqlQueryDetail(BaseModel):
 
 class SqlListResult(BaseModel):
     """List operation result."""
-    queries: list[SqlQueryInfo]
+    queries: list[SqlWorksheetInfo]
     total: int
     offset: int
     limit: int
@@ -365,10 +385,10 @@ SQL errors use a sub-range of Query errors (DLI-7xx).
 | Code | Name | Description |
 |------|------|-------------|
 | DLI-790 | SQL_FILE_NOT_FOUND | Local SQL file not found |
-| DLI-791 | SQL_QUERY_NOT_FOUND | Saved query ID not found |
-| DLI-792 | SQL_ACCESS_DENIED | No permission to access/modify query |
-| DLI-793 | SQL_UPDATE_FAILED | Failed to update query |
-| DLI-794 | SQL_PROJECT_NOT_FOUND | Project not found |
+| DLI-791 | SQL_WORKSHEET_NOT_FOUND | Saved worksheet ID not found |
+| DLI-792 | SQL_ACCESS_DENIED | No permission to access/modify worksheet |
+| DLI-793 | SQL_UPDATE_FAILED | Failed to update worksheet |
+| DLI-794 | SQL_TEAM_NOT_FOUND | Team not found |
 | DLI-795 | SQL_FOLDER_NOT_FOUND | Folder not found |
 
 **Exception Classes:**
@@ -383,23 +403,32 @@ class SqlFileNotFoundError(DLIError):
         )
         self.path = path
 
-class SqlQueryNotFoundError(DLIError):
-    """Saved query not found."""
-    def __init__(self, query_id: int):
+class SqlWorksheetNotFoundError(DLIError):
+    """Saved worksheet not found."""
+    def __init__(self, worksheet_id: int):
         super().__init__(
-            message=f"Query not found: {query_id}",
-            code=ErrorCode.SQL_QUERY_NOT_FOUND,
+            message=f"Worksheet not found: {worksheet_id}",
+            code=ErrorCode.SQL_WORKSHEET_NOT_FOUND,
         )
-        self.query_id = query_id
+        self.worksheet_id = worksheet_id
 
 class SqlAccessDeniedError(DLIError):
-    """Access denied to query."""
-    def __init__(self, query_id: int):
+    """Access denied to worksheet."""
+    def __init__(self, worksheet_id: int):
         super().__init__(
-            message=f"Access denied to query: {query_id}",
+            message=f"Access denied to worksheet: {worksheet_id}",
             code=ErrorCode.SQL_ACCESS_DENIED,
         )
-        self.query_id = query_id
+        self.worksheet_id = worksheet_id
+
+class SqlTeamNotFoundError(DLIError):
+    """Team not found."""
+    def __init__(self, team: str):
+        super().__init__(
+            message=f"Team not found: {team}",
+            code=ErrorCode.SQL_TEAM_NOT_FOUND,
+        )
+        self.team = team
 ```
 
 ---
@@ -408,43 +437,46 @@ class SqlAccessDeniedError(DLIError):
 
 | Operation | Method | Endpoint |
 |-----------|--------|----------|
-| List Queries | GET | `/api/v1/sql/queries` |
-| Get Query | GET | `/api/v1/sql/queries/{query_id}` |
-| Update Query | PUT | `/api/v1/sql/queries/{query_id}` |
+| List Worksheets | GET | `/api/v1/teams/{teamId}/sql/worksheets` |
+| Get Worksheet | GET | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` |
+| Update Worksheet | PUT | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` |
 
-### 7.1 List Queries
+### 7.1 List Worksheets
 
 **Request:**
 ```http
-GET /api/v1/sql/queries?project=marketing&folder=Campaign%20Analytics&starred=true&limit=20&offset=0
+GET /api/v1/teams/1/sql/worksheets?folderName=Campaign%20Analytics&starred=true&size=20&page=0
 ```
 
 **Response:**
 ```json
 {
-  "queries": [
+  "content": [
     {
       "id": 43,
       "name": "insight_analysis",
-      "project": "marketing",
-      "folder": "Campaign Analytics",
-      "dialect": "bigquery",
+      "teamId": 1,
+      "teamName": "marketing",
+      "folderId": 5,
+      "folderName": "Campaign Analytics",
+      "dialect": "BIGQUERY",
       "starred": true,
-      "updated_at": "2026-01-05T10:30:00Z",
-      "updated_by": "user@example.com"
+      "updatedAt": "2026-01-05T10:30:00Z",
+      "createdBy": "user@example.com"
     }
   ],
-  "total": 1,
-  "offset": 0,
-  "limit": 20
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
 }
 ```
 
-### 7.2 Get Query
+### 7.2 Get Worksheet
 
 **Request:**
 ```http
-GET /api/v1/sql/queries/43
+GET /api/v1/teams/1/sql/worksheets/43
 ```
 
 **Response:**
@@ -452,27 +484,29 @@ GET /api/v1/sql/queries/43
 {
   "id": 43,
   "name": "insight_analysis",
-  "project": "marketing",
-  "folder": "Campaign Analytics",
-  "dialect": "bigquery",
-  "sql": "SELECT user_id, COUNT(*) as event_count\nFROM events\nWHERE event_date = '{{ date }}'\nGROUP BY user_id",
+  "teamId": 1,
+  "teamName": "marketing",
+  "folderId": 5,
+  "folderName": "Campaign Analytics",
+  "dialect": "BIGQUERY",
+  "sqlText": "SELECT user_id, COUNT(*) as event_count\nFROM events\nWHERE event_date = '{{ date }}'\nGROUP BY user_id",
   "starred": true,
-  "created_at": "2026-01-01T09:00:00Z",
-  "updated_at": "2026-01-05T10:30:00Z",
-  "created_by": "admin@example.com",
-  "updated_by": "user@example.com"
+  "createdAt": "2026-01-01T09:00:00Z",
+  "updatedAt": "2026-01-05T10:30:00Z",
+  "createdBy": "admin@example.com",
+  "updatedBy": "user@example.com"
 }
 ```
 
-### 7.3 Update Query
+### 7.3 Update Worksheet
 
 **Request:**
 ```http
-PUT /api/v1/sql/queries/43
+PUT /api/v1/teams/1/sql/worksheets/43
 Content-Type: application/json
 
 {
-  "sql": "SELECT user_id, COUNT(*) as event_count\nFROM events\nWHERE event_date = '{{ date }}'\nGROUP BY user_id\nORDER BY event_count DESC"
+  "sqlText": "SELECT user_id, COUNT(*) as event_count\nFROM events\nWHERE event_date = '{{ date }}'\nGROUP BY user_id\nORDER BY event_count DESC"
 }
 ```
 
@@ -481,8 +515,7 @@ Content-Type: application/json
 {
   "id": 43,
   "name": "insight_analysis",
-  "updated_at": "2026-01-06T14:20:00Z",
-  "updated_by": "user@example.com"
+  "updatedAt": "2026-01-06T14:20:00Z"
 }
 ```
 
@@ -494,20 +527,20 @@ Content-Type: application/json
 
 | Feature | Status | Completion Condition |
 |---------|--------|----------------------|
-| SqlAPI | ✅ Complete | `list_snippets()`, `get()`, `put()` work in mock mode |
-| CLI list | ✅ Complete | `dli sql list` returns formatted output |
-| CLI get | ✅ Complete | `dli sql get 43 -f file.sql` downloads file |
-| CLI put | ✅ Complete | `dli sql put 43 -f file.sql` uploads file |
-| Filters | ✅ Complete | `--project`, `--folder`, `--starred` work correctly |
-| Error handling | ✅ Complete | DLI-79x codes return appropriate messages |
+| SqlAPI | Implemented | `list_worksheets()`, `get()`, `put()` work in mock mode |
+| CLI list | Implemented | `dli sql list` returns formatted output |
+| CLI get | Implemented | `dli sql get 43 -f file.sql` downloads worksheet |
+| CLI put | Implemented | `dli sql put 43 -f file.sql` uploads worksheet |
+| Team Filters | Implemented | `--team` filter works correctly |
+| Error handling | Implemented | DLI-79x codes return appropriate messages |
 
 ### 8.2 Test Quality
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| Unit test coverage | >= 80% | ✅ 87 tests |
-| Mock mode tests | All methods | ✅ Complete |
-| CLI command tests | Each subcommand | ✅ Complete |
+| Unit test coverage | >= 80% | 87 tests |
+| Mock mode tests | All methods | Complete |
+| CLI command tests | Each subcommand | Complete |
 
 ### 8.3 Code Quality
 
@@ -529,7 +562,7 @@ project-interface-cli/src/dli/
 │   └── sql.py            # SqlAPI class
 ├── models/
 │   ├── __init__.py       # Add sql model exports
-│   └── sql.py            # SqlQueryInfo, SqlQueryDetail, etc.
+│   └── sql.py            # SqlWorksheetInfo, SqlWorksheetDetail, etc.
 ├── commands/
 │   ├── __init__.py       # Add sql_app export
 │   └── sql.py            # CLI commands
@@ -565,40 +598,40 @@ tests/
 
 ## Appendix A: Command Summary
 
-### List Queries
+### List Worksheets
 
 ```bash
 dli sql list [options]
 
 Options:
-  -p, --project TEXT    Filter by project name
+  -t, --team TEXT       Filter by team name
       --folder TEXT     Filter by folder path
-      --starred         Show only starred queries
+      --starred         Show only starred worksheets
   -n, --limit INT       Maximum results (default: 20)
       --offset INT      Pagination offset (default: 0)
   -f, --format ENUM     Output: table, json (default: table)
 ```
 
-### Get Query
+### Get Worksheet
 
 ```bash
-dli sql get <QUERY_ID> [options]
+dli sql get <WORKSHEET_ID> [options]
 
 Arguments:
-  QUERY_ID              Query ID to download (required)
+  WORKSHEET_ID            Worksheet ID to download (required)
 
 Options:
   -f, --file PATH       Output file (stdout if omitted)
       --overwrite       Overwrite existing file without prompt
 ```
 
-### Put Query
+### Put Worksheet
 
 ```bash
-dli sql put <QUERY_ID> --file <PATH> [options]
+dli sql put <WORKSHEET_ID> --file <PATH> [options]
 
 Arguments:
-  QUERY_ID              Query ID to update (required)
+  WORKSHEET_ID            Worksheet ID to update (required)
 
 Options:
   -f, --file PATH       SQL file to upload (required)
@@ -615,9 +648,9 @@ Options:
 | 2 | File requirement for put | `--file` is required | Explicit input, avoid stdin complexity |
 | 3 | Stdout default for get | Print to stdout if no `--file` | Unix pipe-friendly |
 | 4 | Confirmation for put | Prompt unless `--force` | Prevent accidental overwrites |
-| 5 | Project as filter | Optional `--project` filter | Not all users have multi-project access |
-| 6 | No create command | Put updates existing only | Query creation via UI, safer workflow |
-| 7 | Error code range | DLI-79x | Sub-range of Query (78x) errors |
+| 5 | Team as filter | Optional `--team` filter | Not all users have multi-team access |
+| 6 | No create command | Put updates existing only | Worksheet creation via UI, safer workflow |
+| 7 | Error code range | DLI-79x | Sub-range of SQL (79x) errors |
 | 8 | Default limit | 20 | Balance between overview and performance |
 | 9 | Dialect in output | Show in list table | Important context for users |
 | 10 | Starred filter | Dedicated `--starred` flag | Common use case, not mixed with search |
@@ -629,39 +662,39 @@ Options:
 ### Typical Edit Workflow
 
 ```bash
-# 1. Find the query to edit
-$ dli sql list --project marketing
+# 1. Find the worksheet to edit
+$ dli sql list --team marketing
 ID   Name                    Folder              Dialect   Updated
 43   insight_analysis        Campaign Analytics  bigquery  2026-01-05
 
 # 2. Download to local file
 $ dli sql get 43 -f ./insight.sql
-Downloaded query 43 to ./insight.sql
+Downloaded worksheet 43 to ./insight.sql
 
 # 3. Edit locally (vim, VS Code, etc.)
 $ vim ./insight.sql
 
 # 4. Upload changes
 $ dli sql put 43 -f ./insight.sql
-Upload ./insight.sql to query 43 (insight_analysis)?
+Upload ./insight.sql to worksheet 43 (insight_analysis)?
 This will overwrite the existing SQL content. [y/N]: y
-Uploaded ./insight.sql to query 43
+Uploaded ./insight.sql to worksheet 43
 ```
 
 ### Version Control Workflow
 
 ```bash
-# Download all queries in a project
-$ for id in $(dli sql list --project marketing --format json | jq -r '.queries[].id'); do
-    dli sql get $id -f ./queries/${id}.sql
+# Download all worksheets in a team
+$ for id in $(dli sql list --team marketing --format json | jq -r '.worksheets[].id'); do
+    dli sql get $id -f ./worksheets/${id}.sql
   done
 
 # Track in git
-$ git add queries/
-$ git commit -m "feat: sync marketing queries from Basecamp"
+$ git add worksheets/
+$ git commit -m "feat: sync marketing team worksheets from Basecamp"
 
-# Later, upload modified query
-$ dli sql put 43 -f ./queries/43.sql --force
+# Later, upload modified worksheet
+$ dli sql put 43 -f ./worksheets/43.sql --force
 ```
 
 ### CI/CD Integration
@@ -669,10 +702,44 @@ $ dli sql put 43 -f ./queries/43.sql --force
 ```bash
 # In CI pipeline - validate and upload
 $ dli sql get 43 -f /tmp/current.sql
-$ diff -q /tmp/current.sql ./queries/insight.sql || \
-    dli sql put 43 -f ./queries/insight.sql --force
+$ diff -q /tmp/current.sql ./worksheets/insight.sql || \
+    dli sql put 43 -f ./worksheets/insight.sql --force
 ```
 
 ---
 
-**Last Updated:** 2026-01-09
+## Appendix D: Migration from v1.x
+
+### Breaking Changes from v1.0.0
+
+| Change | v1.0.0 | v2.0.0 | Migration |
+|--------|--------|--------|-----------|
+| CLI filter option | `--project` | `--team` | Update CLI scripts |
+| API parameter | `projectName` | `teamName` | Update API calls |
+| Data model field | `project` | `team` | Update client code |
+| Server endpoint param | `project=` | `teamName=` | Update HTTP calls |
+
+### Migration Steps
+
+```bash
+# Old v1.x command
+$ dli sql list --project marketing
+
+# New v2.0 command
+$ dli sql list --team marketing
+```
+
+---
+
+## Appendix E: Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 3.2.0 | 2026-01-10 | Unified "Snippet" → "Worksheet" terminology (Snowflake/Databricks style) |
+| 3.1.0 | 2026-01-10 | Unified "Query" → "Snippet" terminology, Server API path update |
+| 2.0.0 | 2026-01-10 | Migration from Project-based to Team-based organization |
+| 1.0.0 | 2026-01-09 | Initial implementation with list/get/put commands |
+
+---
+
+**Last Updated:** 2026-01-10 (v3.2.0 - Worksheet terminology)

@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
-> **Auto-generated:** 2026-01-09
-> **Version:** 1.0.4
+> **Auto-generated:** 2026-01-10
+> **Version:** 1.0.5
 
 ---
 
@@ -9,6 +9,7 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
+| **Audit** | **✅ v1.0.0** | **TraceContext, TracedHttpClient, @with_trace (72 tests)** |
 | **Integration Testing** | **✅ v1.1.0** | **Trino integration + RunAPI tests (~65 tests)** |
 | **Execution Model** | **✅ v2.0.0** | **TrinoExecutor, CLI --local/--server/--remote, REMOTE mode** |
 | **Execution API** | **✅ v0.9.1** | **Server Execution API integration (4 endpoints)** |
@@ -23,7 +24,7 @@
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
 | **SQL** | **✅ v1.0.0** | **SqlAPI (3 methods), 87 tests, DLI-79x** |
-| Tests | ✅ ~2800 passed | pyright 0 errors, ~65 integration tests |
+| Tests | ✅ ~2870 passed | pyright 0 errors, ~65 integration tests |
 
 ---
 
@@ -194,7 +195,7 @@
 | DLI-791 | SQL_SNIPPET_NOT_FOUND | Snippet ID not found |
 | DLI-792 | SQL_ACCESS_DENIED | Access denied to snippet |
 | DLI-793 | SQL_UPDATE_FAILED | Failed to update snippet |
-| DLI-794 | SQL_PROJECT_NOT_FOUND | Project not found |
+| DLI-794 | SQL_TEAM_NOT_FOUND | Team not found |
 
 ### Format Error Codes (DLI-15xx)
 
@@ -275,6 +276,8 @@
 | **TESTING.md** | **✅ Created** | `project-interface-cli/docs/TESTING.md` |
 | **SQL_FEATURE.md** | **✅ Updated** | `project-interface-cli/features/SQL_FEATURE.md` |
 | **SQL_RELEASE.md** | **✅ Created** | `project-interface-cli/features/SQL_RELEASE.md` |
+| **AUDIT_FEATURE.md** | **✅ Updated** | `project-interface-cli/features/AUDIT_FEATURE.md` |
+| **AUDIT_RELEASE.md** | **✅ Created** | `project-interface-cli/features/AUDIT_RELEASE.md` |
 
 ### Archived Documents
 
@@ -302,9 +305,34 @@
 
 ## Changelog
 
+### v1.0.5 (2026-01-10)
+- **Audit Feature Phase 1 MVP Complete**
+  - TraceContext: UUID generation, User-Agent formatting
+  - TracedHttpClient: Auto X-Trace-Id, User-Agent header injection
+  - @with_trace decorator: Applied to 49 CLI commands
+  - TraceMode config: ALWAYS, ERROR_ONLY, NEVER
+  - --trace/--no-trace flags: 7 execution commands
+  - Error display: Trace ID in error messages
+- **New Files**
+  - `src/dli/core/trace.py` - TraceContext, with_trace decorator (~170 lines)
+  - `src/dli/core/http.py` - TracedHttpClient (~130 lines)
+  - `tests/core/test_trace.py` - TraceContext tests (31 tests)
+  - `tests/core/test_http.py` - TracedHttpClient tests (17 tests)
+  - `tests/commands/test_utils_trace.py` - Utils trace tests (24 tests)
+- **Modified Files**
+  - `src/dli/models/common.py` - Added TraceMode enum
+  - `src/dli/core/client/baseclient.py` - Integrated TracedHttpClient
+  - `src/dli/commands/utils.py` - Added print_error trace support
+  - `src/dli/api/config.py` - Added get_trace_mode() method
+  - `src/dli/commands/*.py` - Added @with_trace to 49 commands
+  - `src/dli/__init__.py` - Added public exports
+- **Test Coverage**
+  - 72 new tests (31 + 17 + 24)
+  - Total: ~2870 tests passed
+
 ### v1.0.4 (2026-01-09)
 - **SQL Snippet Management Feature Complete**
-  - ✅ `dli sql list` - List SQL snippets with filters (project, folder, starred)
+  - ✅ `dli sql list` - List SQL snippets with filters (team, folder, starred)
   - ✅ `dli sql get <ID>` - Download snippet SQL to file or stdout
   - ✅ `dli sql put <ID> -f <FILE>` - Upload SQL file to update snippet
   - ✅ SqlAPI class (list_snippets, get, put methods)
@@ -319,7 +347,7 @@
   - `tests/cli/test_sql_cmd.py` - CLI tests (400 lines)
 - **Modified Files**
   - `src/dli/exceptions.py` - Added DLI-79x error codes
-  - `src/dli/core/client.py` - Added sql_* and project_* methods
+  - `src/dli/core/client.py` - Added sql_* and team_* methods
   - `src/dli/__init__.py` - Added SqlAPI export
   - `src/dli/main.py` - Registered sql_app
 
@@ -435,7 +463,7 @@
 - **Debug Feature 구현 완료**
   - `dli debug` - 환경 진단 및 연결 테스트
   - 12개 Check 구현 (Python, dli version, OS, Config, Project, Server URL, Server Health, API Token, GCP Credentials, DNS, HTTPS, Proxy)
-  - `--connection`, `--auth`, `--network`, `--server`, `--project` 플래그
+  - `--connection`, `--auth`, `--network`, `--server`, `--config` 플래그
   - `--verbose`, `--json` 출력 옵션
   - `--dialect`, `--path`, `--timeout` 파라미터
 - **DebugAPI 구현** (`api/debug.py`, 369 lines)

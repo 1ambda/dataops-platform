@@ -114,8 +114,8 @@ from dli.exceptions import (
     ServerError,
     SqlAccessDeniedError,
     SqlFileNotFoundError,
-    SqlProjectNotFoundError,
-    SqlSnippetNotFoundError,
+    SqlTeamNotFoundError,
+    SqlWorksheetNotFoundError,
     SqlUpdateFailedError,
     TableNotFoundError,
     TranspileError,
@@ -127,13 +127,16 @@ from dli.exceptions import (
 
 # Context and Configuration
 # Config models
-from dli.models.common import ConfigValue, ExecutionContext, ExecutionMode
+from dli.models.common import ConfigValue, ExecutionContext, ExecutionMode, TraceMode
 from dli.models.config import (
     ConfigSource,
     ConfigValidationResult,
     ConfigValueInfo,
     EnvironmentProfile,
 )
+
+# Trace context
+from dli.core.trace import TraceContext, get_current_trace, with_trace
 
 # Format models (public API)
 from dli.models.format import (
@@ -222,10 +225,13 @@ __all__ = [
     "SqlAPI",
     "SqlAccessDeniedError",
     "SqlFileNotFoundError",
-    "SqlProjectNotFoundError",
-    "SqlSnippetNotFoundError",
+    "SqlTeamNotFoundError",
+    "SqlWorksheetNotFoundError",
     "SqlUpdateFailedError",
     "TableNotFoundError",
+    # Trace context
+    "TraceContext",
+    "TraceMode",
     "TranspileAPI",
     "TranspileError",
     "WorkflowAPI",
@@ -235,4 +241,7 @@ __all__ = [
     "WorkflowRegistrationError",
     # Version
     "__version__",
+    # Trace utilities
+    "get_current_trace",
+    "with_trace",
 ]

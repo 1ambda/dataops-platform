@@ -203,11 +203,16 @@ class TestBasecampClientNonMock:
         return BasecampClient(config, mock_mode=False)
 
     def test_health_check_non_mock(self, client: BasecampClient) -> None:
-        """Test health check returns 501 in non-mock mode."""
+        """Test health check attempts HTTP call in non-mock mode.
+
+        When the server is not running, returns 503 with connection error.
+        This verifies that TracedHttpClient is integrated and attempts real calls.
+        """
         response = client.health_check()
         assert response.success is False
-        assert response.status_code == 501
-        assert response.error == "Real API not implemented yet"
+        # 503 indicates the client attempted connection but server unavailable
+        assert response.status_code == 503
+        assert "Connection refused" in response.error or "connect" in response.error.lower()
 
     def test_list_metrics_non_mock(self, client: BasecampClient) -> None:
         """Test list metrics returns 501 in non-mock mode."""

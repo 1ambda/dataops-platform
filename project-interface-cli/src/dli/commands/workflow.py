@@ -21,10 +21,12 @@ from dli.commands.base import (
     ListOutputFormat,
     get_client,
     get_project_path,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
     format_datetime,
+    get_effective_trace_mode,
     parse_params,
     print_error,
     print_success,
@@ -85,6 +87,7 @@ def _get_source_style(source: str) -> str:
 
 
 @workflow_app.command("run")
+@with_trace("workflow run")
 def run_workflow(
     dataset_name: Annotated[
         str,
@@ -106,6 +109,13 @@ def run_workflow(
         Path | None,
         typer.Option("--path", help="Project path."),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Trigger adhoc workflow execution on server (Airflow).
 
@@ -115,14 +125,19 @@ def run_workflow(
     Examples:
         dli workflow run iceberg.analytics.daily_clicks -p execution_date=2024-01-15
         dli workflow run iceberg.analytics.daily_clicks --dry-run
+        dli workflow run iceberg.analytics.daily_clicks --trace
+        dli workflow run iceberg.analytics.daily_clicks --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     project_path = get_project_path(path)
     params = params or []
 
     try:
         param_dict = parse_params(params)
     except ValueError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     client = get_client(project_path)
@@ -135,7 +150,10 @@ def run_workflow(
         )
 
     if not response.success:
-        print_error(response.error or "Failed to trigger workflow run")
+        print_error(
+            response.error or "Failed to trigger workflow run",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
 
     result = response.data if isinstance(response.data, dict) else {}
@@ -152,6 +170,7 @@ def run_workflow(
 
 
 @workflow_app.command("backfill")
+@with_trace("workflow backfill")
 def backfill_workflow(
     dataset_name: Annotated[
         str,
@@ -179,6 +198,13 @@ def backfill_workflow(
         Path | None,
         typer.Option("--path", help="Project path."),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Run backfill for a date range.
 
@@ -188,14 +214,19 @@ def backfill_workflow(
     Examples:
         dli workflow backfill iceberg.analytics.daily_clicks -s 2024-01-01 -e 2024-01-07
         dli workflow backfill iceberg.analytics.daily_clicks -s 2024-01-01 -e 2024-01-07 --dry-run
+        dli workflow backfill iceberg.analytics.daily_clicks -s 2024-01-01 -e 2024-01-07 --trace
+        dli workflow backfill iceberg.analytics.daily_clicks -s 2024-01-01 -e 2024-01-07 --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     project_path = get_project_path(path)
     params = params or []
 
     try:
         param_dict = parse_params(params)
     except ValueError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     # Validate date format
@@ -203,11 +234,14 @@ def backfill_workflow(
         datetime.strptime(start_date, "%Y-%m-%d")
         datetime.strptime(end_date, "%Y-%m-%d")
     except ValueError:
-        print_error("Invalid date format. Use YYYY-MM-DD.")
+        print_error("Invalid date format. Use YYYY-MM-DD.", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     if start_date > end_date:
-        print_error("Start date must be before or equal to end date.")
+        print_error(
+            "Start date must be before or equal to end date.",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
 
     if dry_run:
@@ -231,7 +265,10 @@ def backfill_workflow(
         )
 
     if not response.success:
-        print_error(response.error or "Failed to start backfill")
+        print_error(
+            response.error or "Failed to start backfill",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
 
     result = response.data if isinstance(response.data, dict) else {}
@@ -242,6 +279,7 @@ def backfill_workflow(
 
 
 @workflow_app.command("stop")
+@with_trace("workflow stop")
 def stop_workflow(
     run_id: Annotated[
         str,
@@ -271,6 +309,7 @@ def stop_workflow(
 
 
 @workflow_app.command("status")
+@with_trace("workflow status")
 def status_workflow(
     run_id: Annotated[
         str,
@@ -327,6 +366,7 @@ def status_workflow(
 
 
 @workflow_app.command("list")
+@with_trace("workflow list")
 def list_workflows(
     source: Annotated[
         WorkflowSourceType,
@@ -427,6 +467,7 @@ def list_workflows(
 
 
 @workflow_app.command("history")
+@with_trace("workflow history")
 def history_workflow(
     dataset: Annotated[
         str | None,
@@ -508,6 +549,7 @@ def history_workflow(
 
 
 @workflow_app.command("pause")
+@with_trace("workflow pause")
 def pause_workflow(
     dataset_name: Annotated[
         str,
@@ -539,6 +581,7 @@ def pause_workflow(
 
 
 @workflow_app.command("unpause")
+@with_trace("workflow unpause")
 def unpause_workflow(
     dataset_name: Annotated[
         str,
@@ -570,6 +613,7 @@ def unpause_workflow(
 
 
 @workflow_app.command("register")
+@with_trace("workflow register")
 def register_workflow(
     dataset_name: Annotated[
         str,
@@ -662,6 +706,7 @@ def register_workflow(
 
 
 @workflow_app.command("unregister")
+@with_trace("workflow unregister")
 def unregister_workflow(
     dataset_name: Annotated[
         str,

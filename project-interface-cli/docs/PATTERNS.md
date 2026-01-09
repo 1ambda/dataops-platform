@@ -32,7 +32,7 @@ dli
 | `dli run` | `src/dli/commands/run.py` | Ad-hoc SQL execution |
 | Config subcommand | `src/dli/commands/config.py` | Simple settings management |
 | Data models | `src/dli/core/workflow/models.py` | Pydantic BaseModel |
-| Client methods | `src/dli/core/client.py` | Mock + ServerResponse |
+| Client methods | `src/dli/core/client/` | Mock + ServerResponse (package) |
 | CLI tests | `tests/cli/test_dataset_cmd.py` | CliRunner |
 | Model tests | `tests/core/workflow/test_models.py` | pytest + Pydantic |
 | **Library API** | `src/dli/api/dataset.py` | Facade + ExecutionContext |
@@ -212,7 +212,7 @@ __all__ = [
 ### Adding to BasecampClient
 
 ```python
-# In src/dli/core/client.py
+# In src/dli/core/client/baseclient.py
 
 def feature_list(
     self,
@@ -264,7 +264,7 @@ def _init_mock_data(self) -> dict[str, list[dict[str, Any]]]:
 
 ### Important: Check Existing Enums
 
-Before creating new Enums, check `client.py` for existing definitions:
+Before creating new Enums, check `client/enums.py` for existing definitions:
 - `WorkflowSource` - code/manual
 - `RunStatus` - workflow run statuses
 
@@ -453,7 +453,7 @@ from dli.commands.utils import (
 Before starting a new feature:
 
 - [ ] Read `FEATURE_{NAME}.md` requirements fully
-- [ ] Check `client.py` for existing enums/methods to reuse
+- [ ] Check `client/` package for existing enums/methods to reuse
 - [ ] Review similar command (e.g., `dataset.py`) for patterns
 - [ ] Plan model structure based on API requirements
 - [ ] Identify test scenarios (happy path + error cases)

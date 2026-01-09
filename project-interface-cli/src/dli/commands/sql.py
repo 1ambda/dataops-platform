@@ -1,12 +1,12 @@
-"""SQL Snippet CLI commands.
+"""SQL Worksheet CLI commands.
 
-Provides commands for managing saved SQL snippets on Basecamp Server.
-Snippets can be listed, downloaded, and uploaded.
+Provides commands for managing saved SQL worksheets on Basecamp Server.
+Worksheets can be listed, downloaded, and uploaded.
 
 Commands:
-    list: List SQL snippets with optional filters
-    get: Download snippet content to file or stdout
-    put: Upload SQL file to update a snippet
+    list: List SQL worksheets with optional filters
+    get: Download worksheet content to file or stdout
+    put: Upload SQL file to update a worksheet
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from rich.table import Table
 import typer
 
 from dli.api.sql import SqlAPI
+from dli.commands.base import with_trace
 from dli.commands.utils import (
     console,
     format_datetime,
@@ -30,8 +31,8 @@ from dli.commands.utils import (
 from dli.exceptions import (
     SqlAccessDeniedError,
     SqlFileNotFoundError,
-    SqlProjectNotFoundError,
-    SqlSnippetNotFoundError,
+    SqlTeamNotFoundError,
+    SqlWorksheetNotFoundError,
     SqlUpdateFailedError,
 )
 from dli.models.common import ExecutionContext, ExecutionMode
@@ -41,7 +42,7 @@ ListOutputFormat = str
 
 sql_app = typer.Typer(
     name="sql",
-    help="Manage saved SQL snippets on Basecamp Server.",
+    help="Manage saved SQL worksheets on Basecamp Server.",
     no_args_is_help=True,
 )
 
@@ -61,10 +62,11 @@ def _get_context(mock: bool = False) -> ExecutionContext:
 
 
 @sql_app.command("list")
-def list_snippets(
-    project: Annotated[
+@with_trace("sql list")
+def list_worksheets(
+    team: Annotated[
         str | None,
-        typer.Option("--project", "-p", help="Filter by project name."),
+        typer.Option("--team", "-t", help="Filter by team name."),
     ] = None,
     folder: Annotated[
         str | None,
@@ -72,7 +74,7 @@ def list_snippets(
     ] = None,
     starred: Annotated[
         bool,
-        typer.Option("--starred", help="Show only starred snippets."),
+        typer.Option("--starred", help="Show only starred worksheets."),
     ] = False,
     limit: Annotated[
         int,
@@ -91,13 +93,13 @@ def list_snippets(
         typer.Option("--mock", hidden=True, help="Use mock mode for testing."),
     ] = False,
 ) -> None:
-    """List saved SQL snippets.
+    """List saved SQL worksheets.
 
     \b
     Examples:
         dli sql list
-        dli sql list --project marketing
-        dli sql list --project marketing --folder "Campaign Analytics"
+        dli sql list --team marketing
+        dli sql list --team marketing --folder "Campaign Analytics"
         dli sql list --starred
         dli sql list --format json
     """
@@ -105,9 +107,9 @@ def list_snippets(
         ctx = _get_context(mock)
         api = SqlAPI(context=ctx)
 
-        with console.status("[bold green]Fetching snippets..."):
-            result = api.list_snippets(
-                project=project,
+        with console.status("[bold green]Fetching worksheets..."):
+            result = api.list_worksheets(
+                team=team,
                 folder=folder,
                 starred=starred,
                 limit=limit,
@@ -118,39 +120,40 @@ def list_snippets(
             console.print_json(json.dumps(result.model_dump(mode="json"), default=str))
             return
 
-        if not result.snippets:
-            print_warning("No snippets found.")
+        if not result.worksheets:
+            print_warning("No worksheets found.")
             raise typer.Exit(0)
 
-        table = Table(title="SQL Snippets", show_header=True)
+        table = Table(title="SQL Worksheets", show_header=True)
         table.add_column("ID", style="cyan", no_wrap=True)
         table.add_column("NAME", style="white")
         table.add_column("FOLDER", style="dim")
         table.add_column("DIALECT", style="yellow")
         table.add_column("UPDATED", style="dim")
 
-        for snippet in result.snippets:
+        for worksheet in result.worksheets:
             table.add_row(
-                str(snippet.id),
-                snippet.name,
-                snippet.folder or "-",
-                snippet.dialect.value,
-                format_datetime(snippet.updated_at),
+                str(worksheet.id),
+                worksheet.name,
+                worksheet.folder or "-",
+                worksheet.dialect.value,
+                format_datetime(worksheet.updated_at),
             )
 
         console.print(table)
-        console.print(f"\n[dim]Showing {len(result.snippets)} of {result.total} snippets[/dim]")
+        console.print(f"\n[dim]Showing {len(result.worksheets)} of {result.total} worksheets[/dim]")
 
-    except SqlProjectNotFoundError as e:
+    except SqlTeamNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
 
 
 @sql_app.command("get")
-def get_snippet(
-    snippet_id: Annotated[
+@with_trace("sql get")
+def get_worksheet(
+    worksheet_id: Annotated[
         int,
-        typer.Argument(help="Snippet ID to download."),
+        typer.Argument(help="Worksheet ID to download."),
     ],
     file: Annotated[
         Path | None,
@@ -160,33 +163,33 @@ def get_snippet(
         bool,
         typer.Option("--overwrite", help="Overwrite existing file without prompt."),
     ] = False,
-    project: Annotated[
+    team: Annotated[
         str | None,
-        typer.Option("--project", "-p", help="Project name."),
+        typer.Option("--team", "-t", help="Team name."),
     ] = None,
     mock: Annotated[
         bool,
         typer.Option("--mock", hidden=True, help="Use mock mode for testing."),
     ] = False,
 ) -> None:
-    """Download SQL snippet content.
+    """Download SQL worksheet content.
 
     \b
     Examples:
         dli sql get 43
         dli sql get 43 -f ./insight.sql
-        dli sql get 43 --file ./queries/insight.sql --overwrite
+        dli sql get 43 --file ./worksheets/insight.sql --overwrite
     """
     try:
         ctx = _get_context(mock)
         api = SqlAPI(context=ctx)
 
-        with console.status(f"[bold green]Fetching snippet {snippet_id}..."):
-            snippet = api.get(snippet_id, project=project)
+        with console.status(f"[bold green]Fetching worksheet {worksheet_id}..."):
+            worksheet = api.get(worksheet_id, team=team)
 
         if file is None:
             # Print to stdout
-            console.print(snippet.sql)
+            console.print(worksheet.sql)
             return
 
         # Check if file exists
@@ -198,25 +201,26 @@ def get_snippet(
         file.parent.mkdir(parents=True, exist_ok=True)
 
         # Write SQL content
-        file.write_text(snippet.sql)
-        print_success(f"Downloaded snippet {snippet_id} to {file}")
+        file.write_text(worksheet.sql)
+        print_success(f"Downloaded worksheet {worksheet_id} to {file}")
 
-    except SqlSnippetNotFoundError as e:
+    except SqlWorksheetNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
     except SqlAccessDeniedError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
-    except SqlProjectNotFoundError as e:
+    except SqlTeamNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
 
 
 @sql_app.command("put")
-def put_snippet(
-    snippet_id: Annotated[
+@with_trace("sql put")
+def put_worksheet(
+    worksheet_id: Annotated[
         int,
-        typer.Argument(help="Snippet ID to update."),
+        typer.Argument(help="Worksheet ID to update."),
     ],
     file: Annotated[
         Path,
@@ -226,16 +230,16 @@ def put_snippet(
         bool,
         typer.Option("--force", help="Skip confirmation prompt."),
     ] = False,
-    project: Annotated[
+    team: Annotated[
         str | None,
-        typer.Option("--project", "-p", help="Project name."),
+        typer.Option("--team", "-t", help="Team name."),
     ] = None,
     mock: Annotated[
         bool,
         typer.Option("--mock", hidden=True, help="Use mock mode for testing."),
     ] = False,
 ) -> None:
-    """Upload SQL file to update a snippet.
+    """Upload SQL file to update a worksheet.
 
     \b
     Examples:
@@ -252,13 +256,13 @@ def put_snippet(
         ctx = _get_context(mock)
         api = SqlAPI(context=ctx)
 
-        # Get current snippet info for confirmation
+        # Get current worksheet info for confirmation
         if not force:
-            with console.status(f"[bold green]Fetching snippet {snippet_id}..."):
-                snippet = api.get(snippet_id, project=project)
+            with console.status(f"[bold green]Fetching worksheet {worksheet_id}..."):
+                worksheet = api.get(worksheet_id, team=team)
 
             if not Confirm.ask(
-                f"Upload {file} to snippet {snippet_id} ({snippet.name})?\n"
+                f"Upload {file} to worksheet {worksheet_id} ({worksheet.name})?\n"
                 "This will overwrite the existing SQL content."
             ):
                 console.print("[dim]Cancelled.[/dim]")
@@ -267,16 +271,16 @@ def put_snippet(
         # Read and upload SQL
         sql = file.read_text()
 
-        with console.status(f"[bold green]Uploading to snippet {snippet_id}..."):
-            result = api.put(snippet_id, sql, project=project)
+        with console.status(f"[bold green]Uploading to worksheet {worksheet_id}..."):
+            result = api.put(worksheet_id, sql, team=team)
 
-        print_success(f"Uploaded {file} to snippet {snippet_id}")
+        print_success(f"Uploaded {file} to worksheet {worksheet_id}")
         console.print(f"[dim]Updated at:[/dim] {format_datetime(result.updated_at)}")
 
     except SqlFileNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
-    except SqlSnippetNotFoundError as e:
+    except SqlWorksheetNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
     except SqlAccessDeniedError as e:
@@ -285,6 +289,6 @@ def put_snippet(
     except SqlUpdateFailedError as e:
         print_error(str(e))
         raise typer.Exit(1) from e
-    except SqlProjectNotFoundError as e:
+    except SqlTeamNotFoundError as e:
         print_error(str(e))
         raise typer.Exit(1) from e

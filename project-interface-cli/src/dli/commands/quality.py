@@ -26,10 +26,12 @@ from dli.api.quality import QualityAPI
 from dli.commands.base import (
     ListOutputFormat,
     get_project_path,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
     format_datetime,
+    get_effective_trace_mode,
     parse_params,
     print_error,
     print_success,
@@ -74,6 +76,7 @@ def _severity_style(severity: str) -> str:
 
 
 @quality_app.command("list")
+@with_trace("quality list")
 def list_qualities(
     target_type: Annotated[
         str | None,
@@ -173,6 +176,7 @@ def list_qualities(
 
 
 @quality_app.command("get")
+@with_trace("quality get")
 def get_quality(
     quality_name: Annotated[
         str,
@@ -254,6 +258,7 @@ def get_quality(
 
 
 @quality_app.command("run")
+@with_trace("quality run")
 def run_tests(
     spec_path: Annotated[
         str,
@@ -295,6 +300,13 @@ def run_tests(
         list[str] | None,
         typer.Option("--param", "-P", help="Parameters (KEY=VALUE)."),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Execute quality tests from a Quality Spec.
 
@@ -310,13 +322,19 @@ def run_tests(
         dli quality run quality.yaml --test pk_unique --test not_null_user_id
         dli quality run quality.yaml --fail-fast
         dli quality run quality.yaml --param date=2025-01-01
+        dli quality run quality.yaml --trace
+        dli quality run quality.yaml --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     # Check mutual exclusivity of execution mode options
     mode_count = sum([local, server, remote])
     if mode_count > 1:
         print_error(
             "Cannot specify multiple execution modes. "
-            "Use only one of --local, --server, or --remote"
+            "Use only one of --local, --server, or --remote",
+            trace_mode=trace_mode,
         )
         raise typer.Exit(1)
 
@@ -363,13 +381,13 @@ def run_tests(
             )
 
     except QualitySpecNotFoundError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except QualitySpecParseError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
     except Exception as e:
-        print_error(f"Failed to run tests: {e}")
+        print_error(f"Failed to run tests: {e}", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     if format_output == "json":
@@ -433,7 +451,7 @@ def run_tests(
         if result.status == DqStatus.PASS:
             print_success("All tests passed")
         else:
-            print_error("Some tests failed")
+            print_error("Some tests failed", trace_mode=trace_mode)
 
     # Exit with error if tests failed
     if result.failed_count > 0:
@@ -441,6 +459,7 @@ def run_tests(
 
 
 @quality_app.command("validate")
+@with_trace("quality validate")
 def validate_spec(
     spec_path: Annotated[
         str,

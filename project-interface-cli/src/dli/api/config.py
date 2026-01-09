@@ -34,6 +34,7 @@ from dli.models.common import (
     EnvironmentInfo,
     ExecutionContext,
     ExecutionMode,
+    TraceMode,
 )
 from dli.models.config import (
     ConfigSource,
@@ -396,6 +397,49 @@ class ConfigAPI:
 
         # Check local config
         return self.get("active_environment")
+
+    def get_trace_mode(self) -> TraceMode:
+        """Get trace ID display mode.
+
+        Checks configuration in priority order:
+        1. DLI_TRACE environment variable
+        2. trace key in config files
+        3. Default: TraceMode.ERROR_ONLY
+
+        Valid values: "always", "error_only", "never"
+
+        Returns:
+            TraceMode enum value.
+
+        Example:
+            >>> mode = api.get_trace_mode()
+            >>> if mode == TraceMode.ALWAYS:
+            ...     print("Trace IDs shown in all output")
+
+        Config file example:
+            >>> # In ~/.dli/config.yaml or dli.yaml:
+            >>> # trace: error_only
+        """
+        # Check env var first (highest priority)
+        env_value = os.environ.get("DLI_TRACE")
+        if env_value:
+            try:
+                return TraceMode(env_value.lower())
+            except ValueError:
+                # Invalid value, fall through to config
+                pass
+
+        # Check config file
+        config_value = self.get("trace")
+        if config_value:
+            try:
+                return TraceMode(str(config_value).lower())
+            except ValueError:
+                # Invalid value, use default
+                pass
+
+        # Default to showing trace only on errors
+        return TraceMode.ERROR_ONLY
 
     def validate(self, *, strict: bool = False) -> ConfigValidationResult:
         """Validate configuration.

@@ -34,6 +34,7 @@ from rich.table import Table
 import typer
 import yaml
 
+from dli.commands.base import with_trace
 from dli.commands.utils import console, print_error, print_success, print_warning
 from dli.models.config import ConfigSource
 
@@ -76,6 +77,7 @@ def _get_config_api(path: Path | None, *, validate_path: bool = True):
 
 
 @config_app.command("show")
+@with_trace("config show")
 def show_config(
     path: Annotated[
         Path | None,
@@ -178,6 +180,7 @@ def show_config(
 
 
 @config_app.command("status")
+@with_trace("config status")
 def check_status(
     path: Annotated[
         Path | None,
@@ -250,6 +253,7 @@ def check_status(
 
 
 @config_app.command("validate")
+@with_trace("config validate")
 def validate_config(
     path: Annotated[
         Path | None,
@@ -308,6 +312,7 @@ def validate_config(
 
 
 @config_app.command("env")
+@with_trace("config env")
 def manage_environment(
     name: Annotated[
         str | None,
@@ -434,6 +439,7 @@ def manage_environment(
 
 
 @config_app.command("init")
+@with_trace("config init")
 def init_config(
     global_config: Annotated[
         bool,
@@ -525,6 +531,7 @@ def init_config(
 
 
 @config_app.command("set")
+@with_trace("config set")
 def set_config(
     key: Annotated[
         str,

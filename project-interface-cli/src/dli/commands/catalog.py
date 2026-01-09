@@ -24,6 +24,7 @@ from dli.commands.base import (
     format_tags_display,
     get_client,
     get_project_path,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
@@ -298,6 +299,7 @@ def _display_table_detail(
 
 
 @catalog_app.callback(invoke_without_command=True)
+@with_trace("catalog")
 def catalog_callback(
     ctx: typer.Context,
     identifier: Annotated[
@@ -453,6 +455,7 @@ def catalog_callback(
 
 
 @catalog_app.command("list")
+@with_trace("catalog list")
 def list_tables(
     project: Annotated[
         str | None,
@@ -527,6 +530,7 @@ def list_tables(
 
 
 @catalog_app.command("search")
+@with_trace("catalog search")
 def search_tables(
     keyword: Annotated[
         str,

@@ -59,9 +59,10 @@ class TestDebugCommand:
         output = get_output(result)
         assert "debug" in output.lower()
         # Should mention available options
-        assert "--connection" in output or "-c" in output
+        assert "--connection" in output
         assert "--auth" in output or "-a" in output
         assert "--json" in output
+        assert "--config" in output or "-c" in output
 
 
 class TestDebugConnectionFlag:
@@ -81,9 +82,9 @@ class TestDebugConnectionFlag:
             or "connection" in output.lower()
         )
 
-    def test_connection_short_flag(self) -> None:
-        """Test -c short flag works."""
-        result = runner.invoke(app, ["debug", "-c"])
+    def test_connection_only_long_flag(self) -> None:
+        """Test --connection works (no short flag -c as it's used by --config)."""
+        result = runner.invoke(app, ["debug", "--connection"])
 
         assert result.exit_code in [0, 1]
 
@@ -164,12 +165,12 @@ class TestDebugServerFlag:
         assert result.exit_code in [0, 1]
 
 
-class TestDebugProjectFlag:
-    """Tests for `dli debug --project` flag."""
+class TestDebugConfigFlag:
+    """Tests for `dli debug --config` flag."""
 
-    def test_project_flag(self) -> None:
-        """Test --project validates project configuration."""
-        result = runner.invoke(app, ["debug", "--project"])
+    def test_config_flag(self) -> None:
+        """Test --config validates project configuration."""
+        result = runner.invoke(app, ["debug", "--config"])
         output = get_output(result)
 
         assert result.exit_code in [0, 1]
@@ -181,9 +182,9 @@ class TestDebugProjectFlag:
             or "config" in output.lower()
         )
 
-    def test_project_short_flag(self) -> None:
-        """Test -p short flag works."""
-        result = runner.invoke(app, ["debug", "-p"])
+    def test_config_short_flag(self) -> None:
+        """Test -c short flag works."""
+        result = runner.invoke(app, ["debug", "-c"])
 
         assert result.exit_code in [0, 1]
 
@@ -338,7 +339,7 @@ class TestDebugMultipleFlags:
             "--auth",
             "--network",
             "--server",
-            "--project",
+            "--config",
         ])
 
         assert result.exit_code in [0, 1]
@@ -367,13 +368,13 @@ class TestDebugPathOption:
         # Create minimal project
         (tmp_path / "dli.yaml").write_text("project_name: test")
 
-        result = runner.invoke(app, ["debug", "--project", "--path", str(tmp_path)])
+        result = runner.invoke(app, ["debug", "--config", "--path", str(tmp_path)])
 
         assert result.exit_code in [0, 1]
 
     def test_invalid_path(self) -> None:
         """Test --path with invalid path."""
-        result = runner.invoke(app, ["debug", "--project", "--path", "/nonexistent/xyz"])
+        result = runner.invoke(app, ["debug", "--config", "--path", "/nonexistent/xyz"])
 
         # Should either fail or show path error
         output = get_output(result)
@@ -413,7 +414,7 @@ class TestDebugDialectOption:
 
     def test_dialect_short_flag(self) -> None:
         """Test -d short flag works."""
-        result = runner.invoke(app, ["debug", "-c", "-d", "bigquery"])
+        result = runner.invoke(app, ["debug", "--connection", "-d", "bigquery"])
 
         assert result.exit_code in [0, 1]
 
@@ -476,7 +477,7 @@ class TestDebugErrorHandling:
         """Test failure output includes remediation hints."""
         # Force a failure by pointing to nonexistent path
         result = runner.invoke(app, [
-            "debug", "--project", "--path", "/definitely/not/a/real/path"
+            "debug", "--config", "--path", "/definitely/not/a/real/path"
         ])
         output = get_output(result)
 
@@ -551,7 +552,7 @@ class TestDebugExitCode2:
         """Test distinction between exit code 1 (check failure) and 2 (usage error)."""
         # Exit code 1: Valid command but checks fail
         result_valid = runner.invoke(app, [
-            "debug", "--project", "--path", "/nonexistent/path/xyz123"
+            "debug", "--config", "--path", "/nonexistent/path/xyz123"
         ])
 
         # Exit code 2: Invalid command syntax

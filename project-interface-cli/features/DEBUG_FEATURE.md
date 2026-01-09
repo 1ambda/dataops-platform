@@ -2,13 +2,22 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | v0.8.0 |
+| **Version** | v0.9.0 |
 | **Status** | ✅ Complete |
 | **Created** | 2026-01-01 |
-| **Last Updated** | 2026-01-01 |
+| **Last Updated** | 2026-01-10 |
 | **Implementation** | 12 checks, 7 API methods, 196 tests |
 | **References** | dbt debug, BigQuery CLI, Trino CLI |
 | **Release Notes** | [DEBUG_RELEASE.md](./DEBUG_RELEASE.md) |
+
+---
+
+## Migration Note (v0.9.0)
+
+**Flag Renamed:** `--project, -p` renamed to `--config, -c`
+- Rationale: The flag validates CLI configuration, not Team/Project selection
+- Avoids confusion with Team-based resource management
+- More accurately describes the check's purpose (configuration validation)
 
 ---
 
@@ -47,7 +56,7 @@
 | **Server Connection** | ✅ Complete | Basecamp Server reachability and latency |
 | **Authentication Status** | ✅ Complete | Credential validation (API token, GCP credentials) |
 | **Network Diagnostics** | ✅ Complete | DNS resolution, HTTPS connectivity, proxy detection |
-| **Focused Checks** | ✅ Complete | `--connection`, `--auth`, `--network`, `--server`, `--project` flags |
+| **Focused Checks** | ✅ Complete | `--connection`, `--auth`, `--network`, `--server`, `--config` flags |
 | **Output Formats** | ✅ Complete | Rich table output, JSON output, verbose mode |
 
 ### 1.4 Industry Benchmarking
@@ -83,15 +92,15 @@ dli debug [options]
 
 | Option | Short | Type | Default | Description |
 |--------|-------|------|---------|-------------|
-| `--connection` | `-c` | FLAG | `false` | Test database connectivity only |
+| `--connection` | - | FLAG | `false` | Test database connectivity only |
 | `--auth` | `-a` | FLAG | `false` | Test authentication only |
 | `--network` | `-n` | FLAG | `false` | Test network connectivity only |
 | `--server` | `-s` | FLAG | `false` | Test Basecamp Server connection only |
-| `--project` | `-p` | FLAG | `false` | Validate project configuration only |
+| `--config` | `-c` | FLAG | `false` | Validate CLI configuration only (v0.9.0: renamed from --project) |
 | `--verbose` | `-v` | FLAG | `false` | Show detailed diagnostic information |
 | `--json` | - | FLAG | `false` | Output in JSON format |
 | `--dialect` | `-d` | ENUM | (auto) | Target dialect: `bigquery`, `trino` |
-| `--path` | - | PATH | `.` | Project path for config resolution |
+| `--path` | `-p` | PATH | `.` | Path for config resolution |
 | `--timeout` | `-t` | INT | `30` | Connection timeout in seconds |
 
 ### 2.3 Flag Behavior
@@ -103,7 +112,7 @@ dli debug [options]
 | `--auth` | Authentication validation only |
 | `--network` | Network endpoint checks only |
 | `--server` | Basecamp Server health check only |
-| `--project` | Project configuration validation only |
+| `--config` | CLI configuration validation only (v0.9.0: renamed from --project) |
 | Multiple flags | Run only specified checks |
 
 ### 2.4 Examples

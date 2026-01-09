@@ -23,9 +23,11 @@ from dli.commands.base import (
     spec_to_dict,
     spec_to_list_dict,
     spec_to_register_dict,
+    with_trace,
 )
 from dli.commands.utils import (
     console,
+    get_effective_trace_mode,
     parse_params,
     print_error,
     print_sql,
@@ -33,6 +35,7 @@ from dli.commands.utils import (
     print_validation_result,
     print_warning,
 )
+from dli.models.common import TraceMode
 from dli.core.transpile import (
     MockTranspileClient,
     TranspileConfig,
@@ -48,6 +51,7 @@ dataset_app = typer.Typer(
 
 
 @dataset_app.command("list")
+@with_trace("dataset list")
 def list_datasets(
     source: Annotated[
         SourceType,
@@ -131,6 +135,7 @@ def list_datasets(
 
 
 @dataset_app.command("get")
+@with_trace("dataset get")
 def get_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name.")],
     source: Annotated[
@@ -211,6 +216,7 @@ def get_dataset(
 
 
 @dataset_app.command("run")
+@with_trace("dataset run")
 def run_dataset(
     name: Annotated[
         str | None,
@@ -274,6 +280,13 @@ def run_dataset(
         Path | None,
         typer.Option("--path", help="Project path."),
     ] = None,
+    trace: Annotated[
+        bool | None,
+        typer.Option(
+            "--trace/--no-trace",
+            help="Show/hide trace ID in output (overrides config).",
+        ),
+    ] = None,
 ) -> None:
     """Execute a dataset (DML operations) or ad-hoc SQL.
 
@@ -287,26 +300,41 @@ def run_dataset(
         dli dataset run -f query.sql
         dli dataset run --sql "SELECT * FROM t" --no-transpile
         dli dataset run --sql "SELECT * FROM t" --transpile-strict
+        dli dataset run iceberg.analytics.daily_clicks --trace
+        dli dataset run iceberg.analytics.daily_clicks --no-trace
     """
+    # Get effective trace mode from CLI flag or config
+    trace_mode = get_effective_trace_mode(trace)
+
     # Check mutual exclusivity of execution mode options
     mode_count = sum([local, server, remote])
     if mode_count > 1:
         print_error(
             "Cannot specify multiple execution modes. "
-            "Use only one of --local, --server, or --remote"
+            "Use only one of --local, --server, or --remote",
+            trace_mode=trace_mode,
         )
         raise typer.Exit(1)
 
     # Validate mutual exclusivity
     has_adhoc = sql is not None or file is not None
     if name and has_adhoc:
-        print_error("Cannot use both spec name and --sql/--file options.")
+        print_error(
+            "Cannot use both spec name and --sql/--file options.",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
     if not name and not has_adhoc:
-        print_error("Either spec name or --sql/--file option is required.")
+        print_error(
+            "Either spec name or --sql/--file option is required.",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
     if sql is not None and file is not None:
-        print_error("Cannot use both --sql and --file options.")
+        print_error(
+            "Cannot use both --sql and --file options.",
+            trace_mode=trace_mode,
+        )
         raise typer.Exit(1)
 
     # Handle ad-hoc SQL mode
@@ -321,6 +349,7 @@ def run_dataset(
             local=local,
             server=server,
             remote=remote,
+            trace_mode=trace_mode,
         )
         return
 
@@ -333,20 +362,20 @@ def run_dataset(
     try:
         param_dict = parse_params(params)
     except ValueError as e:
-        print_error(str(e))
+        print_error(str(e), trace_mode=trace_mode)
         raise typer.Exit(1)
 
     try:
         service = load_dataset_service(project_path)
     except Exception as e:
-        print_error(f"Failed to initialize: {e}")
+        print_error(f"Failed to initialize: {e}", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     # name is guaranteed to be non-None here
     assert name is not None
     dataset = service.get_dataset(name)
     if not dataset:
-        print_error(f"Dataset '{name}' not found")
+        print_error(f"Dataset '{name}' not found", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     with console.status("[bold green]Executing dataset..."):
@@ -359,7 +388,7 @@ def run_dataset(
         )
 
     if not result.success:
-        print_error(result.error_message or "Execution failed")
+        print_error(result.error_message or "Execution failed", trace_mode=trace_mode)
         raise typer.Exit(1)
 
     if dry_run:
@@ -395,6 +424,7 @@ def _run_adhoc_sql(
     local: bool = False,
     server: bool = False,
     remote: bool = False,
+    trace_mode: TraceMode = TraceMode.ERROR_ONLY,
 ) -> None:
     """Run ad-hoc SQL with optional transpilation.
 
@@ -408,6 +438,7 @@ def _run_adhoc_sql(
         local: Execute locally (CLI connects directly to query engine).
         server: Execute via Basecamp Server.
         remote: Execute via Basecamp Server async queue.
+        trace_mode: Controls trace ID display in error output.
     """
     from dli.models.common import ExecutionMode
 
@@ -424,22 +455,22 @@ def _run_adhoc_sql(
     # Load SQL from option or file
     if file is not None:
         if not file.exists():
-            print_error(f"SQL file not found: {file}")
+            print_error(f"SQL file not found: {file}", trace_mode=trace_mode)
             raise typer.Exit(1)
         try:
             sql_content = file.read_text(encoding="utf-8").strip()
         except Exception as e:
-            print_error(f"Failed to read SQL file: {e}")
+            print_error(f"Failed to read SQL file: {e}", trace_mode=trace_mode)
             raise typer.Exit(1)
         if not sql_content:
-            print_error("SQL file is empty.")
+            print_error("SQL file is empty.", trace_mode=trace_mode)
             raise typer.Exit(1)
         source_desc = str(file)
     else:
         assert sql is not None
         sql_content = sql.strip()
         if not sql_content:
-            print_error("SQL is empty.")
+            print_error("SQL is empty.", trace_mode=trace_mode)
             raise typer.Exit(1)
         source_desc = "ad-hoc SQL"
 
@@ -454,12 +485,15 @@ def _run_adhoc_sql(
             try:
                 transpile_result = engine.transpile(sql_content)
             except Exception as e:
-                print_error(f"Transpile failed: {e}")
+                print_error(f"Transpile failed: {e}", trace_mode=trace_mode)
                 raise typer.Exit(1)
 
         if not transpile_result.success:
             if transpile_strict:
-                print_error(transpile_result.error or "Transpile failed")
+                print_error(
+                    transpile_result.error or "Transpile failed",
+                    trace_mode=trace_mode,
+                )
                 raise typer.Exit(1)
             print_warning(f"Transpile warning: {transpile_result.error}")
             # Continue with original SQL in non-strict mode
@@ -507,6 +541,7 @@ def _run_adhoc_sql(
 
 
 @dataset_app.command("validate")
+@with_trace("dataset validate")
 def validate_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to validate.")],
     params: Annotated[
@@ -576,6 +611,7 @@ def validate_dataset(
 
 
 @dataset_app.command("register")
+@with_trace("dataset register")
 def register_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to register.")],
     path: Annotated[
@@ -629,6 +665,7 @@ def register_dataset(
 
 
 @dataset_app.command("format")
+@with_trace("dataset format")
 def format_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to format.")],
     check: Annotated[
@@ -802,6 +839,7 @@ def format_dataset(
 
 
 @dataset_app.command("transpile")
+@with_trace("dataset transpile")
 def transpile_dataset(
     name: Annotated[str, typer.Argument(help="Dataset name to transpile.")],
     file: Annotated[

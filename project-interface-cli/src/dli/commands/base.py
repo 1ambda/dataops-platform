@@ -14,6 +14,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+# Re-export trace utilities for command modules
+from dli.core.trace import get_current_trace, with_trace
+
 if TYPE_CHECKING:
     from dli.core.client import BasecampClient
 
@@ -32,6 +35,27 @@ ListOutputFormat = Literal["table", "json"]
 # Constants
 MAX_TAGS_DISPLAY = 3
 """Maximum number of tags to display in table output before truncating."""
+
+
+__all__ = [
+    # Type definitions
+    "ListOutputFormat",
+    "MAX_TAGS_DISPLAY",
+    "OutputFormat",
+    "SourceType",
+    # Functions
+    "format_tags_display",
+    "get_client",
+    "get_current_trace",
+    "get_project_path",
+    "load_dataset_service",
+    "load_metric_service",
+    "spec_to_dict",
+    "spec_to_list_dict",
+    "spec_to_register_dict",
+    # Trace utilities
+    "with_trace",
+]
 
 
 def get_project_path(path: Path | None) -> Path:
