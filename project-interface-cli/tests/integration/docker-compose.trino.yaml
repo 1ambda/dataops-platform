@@ -1,0 +1,27 @@
+# Docker Compose for Trino Integration Tests
+# Uses memory catalog for fast, isolated testing
+version: "3.8"
+
+services:
+  trino:
+    image: trinodb/trino:467
+    container_name: trino-test
+    ports:
+      - "8080:8080"
+    environment:
+      - TRINO_ENVIRONMENT=test
+    volumes:
+      - ./trino-config/catalog:/etc/trino/catalog:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    # Resource limits for CI
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G

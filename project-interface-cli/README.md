@@ -546,20 +546,189 @@ except ExecutionError as e:
 
 ## Development
 
-### Setup
+> **Full Guide:** See [docs/TESTING.md](./docs/TESTING.md) for comprehensive testing documentation.
+
+### Prerequisites
+
+- **Python 3.12+** (required)
+- **Docker** (required for integration tests)
+- **uv** or **pyenv-virtualenv** (package management)
+
+### Using uv (Recommended)
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager that handles virtual environments and dependencies.
 
 ```bash
+# Install uv (macOS/Linux)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Or with Homebrew
+brew install uv
+
+# Navigate to project
+cd project-interface-cli
+
+# Create virtual environment and install dependencies
+uv sync
+
+# Install with development dependencies
 uv sync --group dev
-uv pip install -e .
+
+# Install with integration test dependencies
+uv sync --group integration
+
+# Install all optional dependencies
+uv sync --group dev --group integration --group build
+
+# Activate virtual environment (optional, uv run handles this)
+source .venv/bin/activate
+
+# Run CLI
+uv run dli --version
+
+# Run tests
+uv run pytest
+```
+
+### Using pyenv-virtualenv
+
+If you prefer using pyenv and virtualenv:
+
+```bash
+# Install pyenv (macOS)
+brew install pyenv pyenv-virtualenv
+
+# Add to shell profile (~/.zshrc or ~/.bashrc)
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+# Install Python 3.12
+pyenv install 3.12.3
+
+# Create virtual environment
+pyenv virtualenv 3.12.3 dli-dev
+
+# Activate
+pyenv activate dli-dev
+
+# Navigate to project
+cd project-interface-cli
+
+# Install dependencies with pip (from pyproject.toml)
+pip install -e ".[dev]"
+
+# For integration tests
+pip install -e ".[dev]" pytest-docker trino
+
+# Run CLI
+dli --version
+
+# Run tests
+pytest
+```
+
+### Building and Installing Locally
+
+#### Install as Editable Package
+
+For development, install in editable mode so changes are reflected immediately:
+
+```bash
+# Using uv
+uv sync
+uv run dli --version
+
+# Using pip
+pip install -e .
+dli --version
+```
+
+#### Build Standalone Binary
+
+Build a standalone executable that doesn't require Python:
+
+```bash
+# Install build dependencies
+uv sync --group build
+
+# Build with PyInstaller
+uv run pyinstaller dli.spec --noconfirm
+
+# Binary is at dist/dli
+./dist/dli --version
+```
+
+#### Build Python Package
+
+Build distributable wheel and sdist:
+
+```bash
+# Using uv
+uv build
+
+# Output in dist/
+ls dist/
+# dataops_cli-0.1.0-py3-none-any.whl
+# dataops_cli-0.1.0.tar.gz
+
+# Install from wheel
+pip install dist/dataops_cli-0.1.0-py3-none-any.whl
 ```
 
 ### Running Tests
 
+#### Unit Tests
+
+Unit tests run without external dependencies (Docker, Trino, etc.):
+
 ```bash
-uv run pytest                    # Run all tests
-uv run pytest --cov=dli          # With coverage
-uv run pytest -v                 # Verbose
+# Run all unit tests (default, skips integration tests)
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/api/test_dataset_api.py
+
+# Run specific test class or method
+uv run pytest tests/api/test_dataset_api.py::TestDatasetAPIRun
+uv run pytest tests/api/test_dataset_api.py::TestDatasetAPIRun::test_run_success
+
+# Run with coverage report
+uv run pytest --cov=src --cov-report=html
+
+# Run in parallel (faster)
+uv run pytest -n auto
 ```
+
+#### Integration Tests
+
+Integration tests require Docker and Trino:
+
+```bash
+# Install integration dependencies
+uv sync --group integration
+
+# Option 1: Let pytest-docker manage containers
+uv run pytest tests/integration/ -m integration -v
+
+# Option 2: Manual Docker management
+cd tests/integration
+docker compose -f docker-compose.trino.yaml up -d
+cd ../..
+uv run pytest tests/integration/ -m integration -v
+docker compose -f tests/integration/docker-compose.trino.yaml down -v
+```
+
+#### Test Markers
+
+| Marker | Description | Command |
+|--------|-------------|---------|
+| `integration` | Requires Docker + Trino | `pytest -m integration` |
+| `trino` | Requires Trino database | `pytest -m trino` |
+| `slow` | Long-running tests | `pytest -m "not slow"` |
 
 ### Code Quality
 
@@ -569,15 +738,30 @@ uv run ruff format               # Format
 uv run pyright src/              # Type check
 ```
 
-### Building
+### Troubleshooting
 
+#### "Docker not available"
 ```bash
-# Standard package
-uv build
+# Check Docker is running
+docker info
 
-# Standalone executable (includes Python runtime)
-uv sync --group build
-uv run python build_standalone.py
+# Start Docker Desktop (macOS)
+open -a Docker
+```
+
+#### "Trino connection refused"
+```bash
+# Check Trino is running
+curl http://localhost:8080/v1/info
+
+# Check container logs
+docker logs trino-test
+```
+
+#### "Module 'trino' not found"
+```bash
+# Install integration dependencies
+uv sync --group integration
 ```
 
 ## Project Structure

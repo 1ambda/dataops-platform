@@ -48,6 +48,10 @@ dev = [
 build = [
     "pyinstaller>=6.0.0"
 ]
+integration = [
+    "pytest-docker>=3.1.0",
+    "trino>=0.330.0",
+]
 
 [project.scripts]
 dli = "dli.main:app"
@@ -147,7 +151,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101", "PLR2004", "ARG", "FBT", "PLC0415"]  # late imports needed for mocking
+"tests/**/*" = ["S101", "PLR2004", "ARG", "FBT", "PLC0415", "S608", "S603", "S607", "S110", "PLW1510", "TRY300"]  # Test-specific: late imports, SQL strings, subprocess, exceptions
 "main.py" = ["T201"]  # allow print in main entry point
 "build_standalone.py" = ["S602", "TRY300", "PLR0911", "PLC0415"]  # build script allowances
 "src/dli/main.py" = ["PLC0415", "PLR2004"]  # allow late imports and magic numbers for CLI
@@ -187,6 +191,12 @@ addopts = [
     "--cov-report=xml",
     "--strict-markers",
     "--strict-config",
+    "-m", "not integration",  # Skip integration tests by default
+]
+markers = [
+    "integration: mark test as integration test (requires Docker + Trino)",
+    "trino: mark test as requiring Trino database",
+    "slow: mark test as slow running",
 ]
 
 [tool.bandit]

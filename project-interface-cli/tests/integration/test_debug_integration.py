@@ -11,10 +11,9 @@ Covers:
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 import platform
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -199,7 +198,7 @@ query_file: sample.sql
         result = api.run_all()
 
         # Should have checks from multiple categories
-        categories = set(c.category for c in result.checks)
+        categories = {c.category for c in result.checks}
         assert CheckCategory.SYSTEM in categories
         assert CheckCategory.CONFIG in categories
 

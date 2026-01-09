@@ -31,8 +31,8 @@ except ImportError:
 
 # Check if format dependencies are installed
 try:
-    import sqlfluff  # noqa: F401
     import ruamel.yaml  # noqa: F401
+    import sqlfluff  # noqa: F401
 
     FORMAT_DEPS_AVAILABLE = True
 except ImportError:
@@ -311,7 +311,7 @@ class TestFormatYamlKeyOrder:
 
         # Find first non-comment, non-empty line
         lines = content.split("\n")
-        content_lines = [l for l in lines if l.strip() and not l.strip().startswith("#")]
+        content_lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
 
         if content_lines:
             first_key_line = content_lines[0]

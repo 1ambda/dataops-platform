@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
-> **Auto-generated:** 2026-01-08
-> **Version:** 1.0.1
+> **Auto-generated:** 2026-01-09
+> **Version:** 1.0.3
 
 ---
 
@@ -9,6 +9,7 @@
 
 | Area | Status | Latest |
 |------|--------|--------|
+| **Integration Testing** | **✅ v1.1.0** | **Trino integration + RunAPI tests (~65 tests)** |
 | **Execution Model** | **✅ v2.0.0** | **TrinoExecutor, CLI --local/--server/--remote, REMOTE mode** |
 | **Execution API** | **✅ v0.9.1** | **Server Execution API integration (4 endpoints)** |
 | Library API | ✅ v0.9.0 | DatasetAPI/MetricAPI.format() |
@@ -21,7 +22,7 @@
 | Lineage | ✅ v1.1.0 | LineageAPI (3 methods), 60 tests (CLI 17 + API 43) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2645 passed | pyright 0 errors |
+| Tests | ✅ ~2700 passed | pyright 0 errors, ~65 integration tests |
 
 ---
 
@@ -56,6 +57,53 @@
 - CLI renders SQL locally (SQLGlot transpilation)
 - Both LOCAL and SERVER modes call Server Execution API
 - Server executes pre-rendered SQL against Query Engine
+
+### Integration Testing (v1.1.0 Standard)
+
+| Component | File | Status | Notes |
+|-----------|------|--------|-------|
+| Docker Compose | `tests/integration/docker-compose.trino.yaml` | ✅ Complete | Trino 467 + memory catalog |
+| Memory Catalog | `tests/integration/trino-config/catalog/memory.properties` | ✅ Complete | 256MB data per node |
+| pytest-docker fixtures | `tests/integration/conftest.py` | ✅ Complete | trino_service, trino_executor, trino_test_schema |
+| TrinoExecutor Tests | `tests/integration/test_trino_integration.py` | ✅ Complete | Connection, query, schema, dry_run, error handling |
+| Spec Execution Tests | `tests/integration/test_spec_execution_integration.py` | ✅ Complete | Dataset/Metric/Quality SQL rendering + Trino execution |
+| **RunAPI Tests** | `tests/integration/test_run_integration.py` | ✅ Complete | **Ad-hoc SQL execution + output formats** |
+| GitHub Actions CI | `.github/workflows/interface-cli-ci.yml` | ✅ Complete | integration-test job (main push / manual trigger) |
+| TESTING.md | `docs/TESTING.md` | ✅ Complete | Local dev setup (uv, pyenv-virtualenv) |
+| TEST_RELEASE.md | `features/TEST_RELEASE.md` | ✅ Complete | MVP + Standard roadmap |
+
+#### Test Categories (v1.0.0 MVP)
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| Trino Connection | 9 | Connection, query, columns, timing |
+| Schema Operations | 3 | Create schema, table, insert/select |
+| Query Execution | 4 | Aggregation, join, filter, date functions |
+| Dry Run | 3 | EXPLAIN validation |
+| Error Handling | 3 | Non-existent table, syntax, division |
+| Table Schema | 2 | Schema inspection |
+| Dataset Spec | 4 | SQL rendering and execution |
+| Metric Spec | 2 | Metric calculation validation |
+| Quality Spec | 4 | NOT NULL, UNIQUE, accepted_values |
+| Complex Queries | 4 | Window, CTE, subquery, CASE |
+| **v1.0.0 Total** | **~38** | |
+
+#### Test Categories (v1.1.0 Standard - NEW)
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| RunAPI Basic Execution | 3 | Simple SELECT, multi-column, table data |
+| RunAPI Output Formats | 3 | CSV, JSON, TSV format validation |
+| RunAPI Parameters | 2 | Parameter substitution, render_sql |
+| RunAPI Row Limiting | 1 | Limit option |
+| RunAPI Complex Queries | 2 | Aggregation, JOIN |
+| RunAPI dry-run | 3 | EXPLAIN, parameters, execution mode |
+| RunAPI Error Handling | 5 | File not found, syntax, table, column, division |
+| RunAPI Advanced | 4 | CTE, Window, Subquery, CASE |
+| RunAPI Result Validation | 4 | Rendered SQL, duration, mode, empty result |
+| **v1.1.0 Total** | **~27** | |
+
+#### Combined Total: **~65 integration tests**
 
 ### Library API (v0.9.1)
 
@@ -155,9 +203,27 @@
 | CLI Tests | ~1050 (+38 Execution options) | ✅ All pass |
 | Core Tests | ~860 (+42 Trino/Server) | ✅ All pass |
 | Model Tests | ~235 (+14 ExecutionConfig) | ✅ All pass |
-| Integration | ~45 (+6 Execution) | ✅ All pass |
+| Integration | ~110 (+27 RunAPI) | ✅ All pass (65 deselected by default) |
 | Exception Tests | ~75 (+2 Execution) | ✅ All pass |
-| **Total** | **~2845** (+116 Execution) | ✅ All pass, 35 skipped |
+| **Total** | **~2910** (+27 RunAPI Integration) | ✅ All pass, 35 skipped, 65 integration deselected |
+
+### Integration Test Markers
+
+| Marker | Description | Default |
+|--------|-------------|---------|
+| `integration` | Requires Docker + Trino | Skipped by default |
+| `trino` | Requires Trino database | Skipped by default |
+| `slow` | Long-running tests | Included |
+
+### Integration Test Files
+
+| File | Tests | Description |
+|------|-------|-------------|
+| `test_trino_integration.py` | ~30 | TrinoExecutor tests |
+| `test_spec_execution_integration.py` | ~17 | Dataset/Metric/Quality spec tests |
+| `test_run_integration.py` | ~27 | RunAPI ad-hoc SQL tests |
+| `test_debug_integration.py` | ~15 | Debug feature tests |
+| `test_format_integration.py` | ~24 | Format feature tests |
 
 ---
 
@@ -191,6 +257,8 @@
 | DATASET_RELEASE.md | ✅ Created | `project-interface-cli/features/DATASET_RELEASE.md` |
 | METRIC_FEATURE.md | ✅ Created | `project-interface-cli/features/METRIC_FEATURE.md` |
 | METRIC_RELEASE.md | ✅ Created | `project-interface-cli/features/METRIC_RELEASE.md` |
+| **TEST_RELEASE.md** | **✅ Created** | `project-interface-cli/features/TEST_RELEASE.md` |
+| **TESTING.md** | **✅ Created** | `project-interface-cli/docs/TESTING.md` |
 
 ### Archived Documents
 
@@ -203,6 +271,8 @@
 
 ## Related Documents
 
+- [TEST_RELEASE.md](./TEST_RELEASE.md) - Integration Testing 구현 상세 및 로드맵
+- [../docs/TESTING.md](../docs/TESTING.md) - 로컬 개발 환경 및 테스트 가이드
 - [EXECUTION_RELEASE.md](./EXECUTION_RELEASE.md) - Execution Model 구현 상세
 - [LIBRARY_RELEASE.md](./LIBRARY_RELEASE.md) - Library API 구현 상세
 - [DATASET_RELEASE.md](./DATASET_RELEASE.md) - Dataset CLI 구현 상세
@@ -214,6 +284,44 @@
 ---
 
 ## Changelog
+
+### v1.0.3 (2026-01-09)
+- **Integration Testing Standard Level Complete**
+  - ✅ RunAPI integration tests (~27 tests)
+  - ✅ Ad-hoc SQL execution tests (CSV, JSON, TSV)
+  - ✅ Parameter substitution tests
+  - ✅ dry-run tests (EXPLAIN validation)
+  - ✅ Error handling tests (syntax, non-existent table, invalid column)
+  - ✅ Advanced query tests (CTE, Window, Subquery, CASE)
+- **New Files**
+  - `tests/integration/test_run_integration.py` (~500 lines)
+  - `TrinoQueryExecutorAdapter` for QueryExecutor protocol compatibility
+- **Test Coverage**
+  - ~27 new RunAPI integration tests
+  - Combined total: ~65 integration tests
+
+### v1.0.2 (2026-01-09)
+- **Integration Testing MVP Complete**
+  - ✅ Trino integration tests with memory catalog (~38 tests)
+  - ✅ pytest-docker for container lifecycle management
+  - ✅ Docker Compose configuration (`docker-compose.trino.yaml`)
+  - ✅ Test fixtures: `trino_executor`, `trino_test_schema`, `sample_users_table`, `sample_events_table`
+  - ✅ TrinoExecutor tests (connection, query, schema, dry_run, error handling)
+  - ✅ Spec execution tests (Dataset/Metric/Quality SQL rendering + Trino execution)
+  - ✅ GitHub Actions CI integration (`integration-test` job)
+- **New Dependencies**
+  - `pytest-docker>=3.1.0` - Docker container lifecycle
+  - `trino>=0.330.0` - Trino Python client
+- **New pytest markers**
+  - `integration` - Requires Docker + Trino (skipped by default)
+  - `trino` - Requires Trino database
+  - `slow` - Long-running tests
+- **Documentation**
+  - ✅ Created `docs/TESTING.md` - Local development setup (uv, pyenv-virtualenv, building, testing)
+  - ✅ Created `features/TEST_RELEASE.md` - MVP release notes + Standard/Full roadmap
+- **Test Coverage**
+  - ~38 new integration tests
+  - Total: ~2883 tests (2632 unit + 251 other categories)
 
 ### v1.0.1 (2026-01-08)
 - **Documentation Consolidation**
