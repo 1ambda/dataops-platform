@@ -21,6 +21,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      run_integration_tests:
+        description: 'Run integration tests (requires Docker)'
+        required: false
+        default: 'false'
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -153,3 +158,67 @@ jobs:
         if: success() && matrix.os == 'macos-latest'
         id: artifact-macos
         run: echo "name=interface-cli-macos-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # Integration tests with Trino (optional, runs on demand)
+  integration-test:
+    name: Integration Tests (Trino)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only run when explicitly requested or on main branch pushes
+    if: |
+      github.event.inputs.run_integration_tests == 'true' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb # v6.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'project-interface-cli/pyproject.toml'
+
+      - name: Sync dependencies with integration group
+        working-directory: project-interface-cli
+        run: uv sync --frozen --group integration
+
+      - name: Start Trino container
+        working-directory: project-interface-cli/tests/integration
+        run: |
+          docker compose -f docker-compose.trino.yaml up -d --wait
+          # Wait for Trino to be fully ready
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/v1/info | grep -q '"starting":false'; then
+              echo "Trino is ready!"
+              break
+            fi
+            echo "Waiting for Trino... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run integration tests
+        working-directory: project-interface-cli
+        env:
+          TRINO_HOST: localhost
+          TRINO_PORT: 8080
+        run: |
+          uv run pytest tests/integration/ -m integration -v --tb=short --junitxml=integration-test-results.xml
+
+      - name: Stop Trino container
+        if: always()
+        working-directory: project-interface-cli/tests/integration
+        run: docker compose -f docker-compose.trino.yaml down -v
+
+      - name: Publish Integration Test Results
+        uses: EnricoMi/publish-unit-test-result-action@27d65e188ec43221b20d26de30f4892fad91df2f # v2.22.0
+        if: always()
+        with:
+          files: project-interface-cli/integration-test-results.xml
+          check_name: 'Integration Test Results - Interface CLI'
+          comment_mode: ${{ github.event_name == 'pull_request' && 'changes' || 'off' }}

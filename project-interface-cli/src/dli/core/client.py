@@ -2456,6 +2456,205 @@ class BasecampClient:
             status_code=501,
         )
 
+    # =========================================================================
+    # SQL Snippet Operations
+    # =========================================================================
+
+    def sql_list_snippets(
+        self,
+        project_id: int,
+        folder_id: int | None = None,
+        starred: bool | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> ServerResponse:
+        """List SQL snippets in a project.
+
+        Args:
+            project_id: Project ID to list snippets from.
+            folder_id: Optional folder ID to filter by.
+            starred: If True, only return starred snippets.
+            limit: Maximum number of results (default: 20).
+            offset: Pagination offset (default: 0).
+
+        Returns:
+            ServerResponse with list of snippets and pagination info.
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "snippets": [
+                        {
+                            "id": 1,
+                            "name": "sample_query",
+                            "projectName": "default",
+                            "folderName": "Analytics",
+                            "dialect": "bigquery",
+                            "isStarred": False,
+                            "updatedAt": "2026-01-01T00:00:00Z",
+                            "updatedBy": "user@example.com",
+                        }
+                    ],
+                    "total": 1,
+                    "offset": offset,
+                    "limit": limit,
+                },
+            )
+
+        params: dict[str, str | int | bool] = {"limit": limit, "offset": offset}
+        if folder_id is not None:
+            params["folderId"] = folder_id
+        if starred is not None:
+            params["starred"] = starred
+
+        # TODO: Implement actual HTTP call
+        # return self._get(f"/api/v1/projects/{project_id}/sql/snippets", params=params)
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def sql_get_snippet(self, project_id: int, snippet_id: int) -> ServerResponse:
+        """Get a SQL snippet by ID.
+
+        Args:
+            project_id: Project ID containing the snippet.
+            snippet_id: Snippet ID to retrieve.
+
+        Returns:
+            ServerResponse with snippet details including SQL content.
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "id": snippet_id,
+                    "name": "sample_query",
+                    "projectName": "default",
+                    "folderName": "Analytics",
+                    "dialect": "bigquery",
+                    "sqlText": "SELECT * FROM users WHERE active = true",
+                    "isStarred": False,
+                    "createdAt": "2026-01-01T00:00:00Z",
+                    "updatedAt": "2026-01-01T00:00:00Z",
+                    "createdBy": "admin@example.com",
+                    "updatedBy": "user@example.com",
+                },
+            )
+
+        # TODO: Implement actual HTTP call
+        # return self._get(f"/api/v1/projects/{project_id}/sql/snippets/{snippet_id}")
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def sql_update_snippet(
+        self, project_id: int, snippet_id: int, sql: str
+    ) -> ServerResponse:
+        """Update a SQL snippet.
+
+        Args:
+            project_id: Project ID containing the snippet.
+            snippet_id: Snippet ID to update.
+            sql: New SQL content.
+
+        Returns:
+            ServerResponse with update confirmation.
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "id": snippet_id,
+                    "name": "sample_query",
+                    "updatedAt": "2026-01-01T00:00:00Z",
+                    "updatedBy": "user@example.com",
+                },
+            )
+
+        # TODO: Implement actual HTTP call
+        # return self._put(
+        #     f"/api/v1/projects/{project_id}/sql/snippets/{snippet_id}",
+        #     json={"sqlText": sql},
+        # )
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    # =========================================================================
+    # Project Operations
+    # =========================================================================
+
+    def project_list(self, limit: int = 100, offset: int = 0) -> ServerResponse:
+        """List projects.
+
+        Args:
+            limit: Maximum number of results (default: 100).
+            offset: Pagination offset (default: 0).
+
+        Returns:
+            ServerResponse with list of projects.
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={
+                    "projects": [
+                        {"id": 1, "name": "default", "displayName": "Default Project"},
+                    ],
+                    "total": 1,
+                    "offset": offset,
+                    "limit": limit,
+                },
+            )
+
+        # TODO: Implement actual HTTP call
+        # return self._get("/api/v1/projects", params={"limit": limit, "offset": offset})
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    def project_get_by_name(self, name: str) -> ServerResponse:
+        """Get project by name.
+
+        Args:
+            name: Project name to look up.
+
+        Returns:
+            ServerResponse with project details.
+        """
+        if self.mock_mode:
+            return ServerResponse(
+                success=True,
+                data={"id": 1, "name": name, "displayName": f"{name.title()} Project"},
+            )
+
+        # TODO: Implement actual HTTP call
+        # Search projects by name
+        # response = self._get("/api/v1/projects", params={"search": name, "limit": 1})
+        # if response.success and response.data:
+        #     projects = response.data.get("projects", [])
+        #     if projects:
+        #         return ServerResponse(success=True, data=projects[0])
+        # return ServerResponse(success=False, error=f"Project not found: {name}")
+        return ServerResponse(
+            success=False,
+            error="Real API not implemented yet",
+            status_code=501,
+        )
+
+    # =========================================================================
+    # Ad-hoc SQL Execution APIs
+    # =========================================================================
+
     def execute_rendered_sql(
         self,
         sql: str,

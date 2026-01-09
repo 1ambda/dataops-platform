@@ -16,6 +16,7 @@ Commands:
     catalog: Data catalog browsing and search
     query: Query execution metadata (list, show, cancel)
     run: Ad-hoc SQL execution with result download
+    sql: SQL snippet management (list, get, put)
     transpile: SQL transpile operations (table substitution, METRIC expansion, warnings)
 
 Example:
@@ -31,6 +32,7 @@ Example:
     $ dli catalog my-project.analytics.users
     $ dli query list --scope my
     $ dli run --sql query.sql --output results.csv
+    $ dli sql list --project marketing
     $ dli transpile "SELECT * FROM analytics.users"
 """
 
@@ -43,18 +45,21 @@ from rich.panel import Panel
 import typer
 
 # Import command implementations
-from dli.commands import catalog_app
-from dli.commands import config_app
-from dli.commands import dataset_app
-from dli.commands import debug_app
+from dli.commands import (
+    catalog_app,
+    config_app,
+    dataset_app,
+    debug_app,
+    lineage_app,
+    metric_app,
+    quality_app,
+    query_app,
+    run_app,
+    sql_app,
+    workflow_app,
+)
 from dli.commands import info as info_cmd
-from dli.commands import lineage_app
-from dli.commands import metric_app
-from dli.commands import quality_app
-from dli.commands import query_app
-from dli.commands import run_app
 from dli.commands import version as version_cmd
-from dli.commands import workflow_app
 
 # Create the main Typer app
 app = typer.Typer(
@@ -118,6 +123,7 @@ app.add_typer(metric_app, name="metric")
 app.add_typer(quality_app, name="quality")
 app.add_typer(query_app, name="query")
 app.add_typer(run_app, name="run")
+app.add_typer(sql_app, name="sql")
 app.add_typer(workflow_app, name="workflow")
 
 

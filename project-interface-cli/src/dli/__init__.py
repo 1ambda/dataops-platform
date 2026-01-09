@@ -66,17 +66,21 @@ from dli.api import (
     QualityAPI,
     QueryAPI,
     RunAPI,
+    SqlAPI,
     TranspileAPI,
     WorkflowAPI,
 )
+
+# Debug models (public API)
+from dli.core.debug.models import CheckCategory, CheckResult, CheckStatus, DebugResult
 
 # Exceptions
 from dli.exceptions import (
     ConfigEnvNotFoundError,
     ConfigTemplateError,
+    ConfigurationError,
     ConfigValidationError,
     ConfigWriteError,
-    ConfigurationError,
     DatasetNotFoundError,
     DebugCheckError,
     DebugTimeoutError,
@@ -108,6 +112,11 @@ from dli.exceptions import (
     RunOutputError,
     RunServerUnavailableError,
     ServerError,
+    SqlAccessDeniedError,
+    SqlFileNotFoundError,
+    SqlProjectNotFoundError,
+    SqlSnippetNotFoundError,
+    SqlUpdateFailedError,
     TableNotFoundError,
     TranspileError,
     WorkflowExecutionError,
@@ -117,22 +126,14 @@ from dli.exceptions import (
 )
 
 # Context and Configuration
-from dli.models.common import ExecutionContext, ExecutionMode
-
 # Config models
-from dli.models.common import ConfigValue
+from dli.models.common import ConfigValue, ExecutionContext, ExecutionMode
 from dli.models.config import (
     ConfigSource,
     ConfigValidationResult,
     ConfigValueInfo,
     EnvironmentProfile,
 )
-
-# Run models (public API)
-from dli.models.run import ExecutionPlan, OutputFormat, RunResult
-
-# Debug models (public API)
-from dli.core.debug.models import CheckCategory, CheckResult, CheckStatus, DebugResult
 
 # Format models (public API)
 from dli.models.format import (
@@ -143,86 +144,95 @@ from dli.models.format import (
     LintViolation,
 )
 
+# Run models (public API)
+from dli.models.run import ExecutionPlan, OutputFormat, RunResult
+
 __all__ = [
     # API Classes
     "CatalogAPI",
-    "ConfigAPI",
-    "DatasetAPI",
-    "DebugAPI",
-    "LineageAPI",
-    "MetricAPI",
-    "QualityAPI",
-    "QueryAPI",
-    "RunAPI",
-    "TranspileAPI",
-    "WorkflowAPI",
-    # Config Models
-    "ConfigSource",
-    "ConfigValidationResult",
-    "ConfigValue",
-    "ConfigValueInfo",
-    "EnvironmentProfile",
     # Debug models
     "CheckCategory",
     "CheckResult",
     "CheckStatus",
-    "DebugResult",
+    "ConfigAPI",
     # Exceptions
     "ConfigEnvNotFoundError",
+    # Config Models
+    "ConfigSource",
     "ConfigTemplateError",
     "ConfigValidationError",
+    "ConfigValidationResult",
+    "ConfigValue",
+    "ConfigValueInfo",
     "ConfigWriteError",
     "ConfigurationError",
-    "DebugCheckError",
-    "DebugTimeoutError",
     "DLIError",
     "DLIValidationError",
+    "DatasetAPI",
     "DatasetNotFoundError",
+    "DebugAPI",
+    "DebugCheckError",
+    "DebugResult",
+    "DebugTimeoutError",
+    "EnvironmentProfile",
     "ErrorCode",
+    # Context
+    "ExecutionContext",
     "ExecutionError",
+    "ExecutionMode",
+    # Run models
+    "ExecutionPlan",
+    # Format models
+    "FileFormatResult",
+    "FileFormatStatus",
     "FormatConfigError",
     "FormatDialectError",
     "FormatError",
     "FormatLintError",
+    "FormatResult",
     "FormatSqlError",
+    "FormatStatus",
     "FormatYamlError",
+    "LineageAPI",
     "LineageError",
     "LineageNotFoundError",
     "LineageTimeoutError",
+    "LintViolation",
+    "MetricAPI",
     "MetricNotFoundError",
+    "OutputFormat",
+    "QualityAPI",
     "QualityNotFoundError",
     "QualitySpecNotFoundError",
     "QualitySpecParseError",
     "QualityTargetNotFoundError",
+    "QueryAPI",
     "QueryAccessDeniedError",
     "QueryCancelError",
     "QueryInvalidFilterError",
     "QueryNotFoundError",
+    "RunAPI",
     "RunExecutionError",
     "RunFileNotFoundError",
     "RunLocalDeniedError",
     "RunOutputError",
+    "RunResult",
     "RunServerUnavailableError",
     "ServerError",
+    "SqlAPI",
+    "SqlAccessDeniedError",
+    "SqlFileNotFoundError",
+    "SqlProjectNotFoundError",
+    "SqlSnippetNotFoundError",
+    "SqlUpdateFailedError",
     "TableNotFoundError",
+    "TranspileAPI",
     "TranspileError",
+    "WorkflowAPI",
     "WorkflowExecutionError",
     "WorkflowNotFoundError",
     "WorkflowPermissionError",
     "WorkflowRegistrationError",
-    # Context
-    "ExecutionContext",
-    "ExecutionMode",
-    # Format models
-    "FileFormatResult",
-    "FileFormatStatus",
-    "FormatResult",
-    "FormatStatus",
-    "LintViolation",
-    # Run models
-    "ExecutionPlan",
-    "OutputFormat",
-    "RunResult",
     # Version
     "__version__",
 ]

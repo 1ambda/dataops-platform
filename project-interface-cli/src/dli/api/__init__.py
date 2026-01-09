@@ -37,6 +37,7 @@ from dli.api.metric import MetricAPI
 from dli.api.quality import QualityAPI
 from dli.api.query import QueryAPI
 from dli.api.run import RunAPI
+from dli.api.sql import SqlAPI
 from dli.api.transpile import TranspileAPI
 from dli.api.workflow import WorkflowAPI
 
@@ -50,6 +51,7 @@ __all__ = [
     "QualityAPI",
     "QueryAPI",
     "RunAPI",
+    "SqlAPI",
     "TranspileAPI",
     "WorkflowAPI",
 ]

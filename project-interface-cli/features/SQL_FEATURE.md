@@ -3,10 +3,10 @@
 | Attribute | Value |
 |-----------|-------|
 | **Version** | 1.0.0 |
-| **Status** | Draft |
+| **Status** | Implemented |
 | **Created** | 2026-01-06 |
-| **Last Updated** | 2026-01-06 |
-| **Implementation** | See [SQL_RELEASE.md](./SQL_RELEASE.md) (TBD) |
+| **Last Updated** | 2026-01-09 |
+| **Implementation** | See [SQL_RELEASE.md](./SQL_RELEASE.md) |
 | **References** | Databricks SQL Editor, BigQuery Saved Queries, Redash, Metabase |
 
 ---
@@ -36,9 +36,9 @@
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **List Queries** | Planned | List saved queries with project/folder/starred filters |
-| **Download Query** | Planned | Download query SQL content to local file |
-| **Upload Query** | Planned | Upload local SQL file to update saved query |
+| **List Queries** | ✅ Complete | List saved queries with project/folder/starred filters |
+| **Download Query** | ✅ Complete | Download query SQL content to local file |
+| **Upload Query** | ✅ Complete | Upload local SQL file to update saved query |
 
 ### 1.4 Industry Benchmarking
 
@@ -97,9 +97,9 @@ dli sql <subcommand> [arguments] [options]
 
 | Subcommand | Status | Arguments | Description |
 |------------|--------|-----------|-------------|
-| `list` | Planned | - | List saved queries with filters |
-| `get` | Planned | `<QUERY_ID>` | Download query SQL to local file |
-| `put` | Planned | `<QUERY_ID>` | Upload local SQL file to saved query |
+| `list` | ✅ Complete | - | List saved queries with filters |
+| `get` | ✅ Complete | `<QUERY_ID>` | Download query SQL to local file |
+| `put` | ✅ Complete | `<QUERY_ID>` | Upload local SQL file to saved query |
 
 ### 3.2 Subcommand: `list` - List Saved Queries
 
@@ -260,9 +260,9 @@ Error [DLI-790]: File not found: ./nonexistent.sql
 
 | Method | Status | Returns | Description |
 |--------|--------|---------|-------------|
-| `list_queries()` | Planned | `SqlListResult` | List saved queries with filters |
-| `get()` | Planned | `SqlQueryDetail` | Get query metadata and SQL content |
-| `put()` | Planned | `SqlUpdateResult` | Update query SQL content |
+| `list_snippets()` | ✅ Complete | `SqlListResult` | List saved queries with filters |
+| `get()` | ✅ Complete | `SqlSnippetDetail` | Get query metadata and SQL content |
+| `put()` | ✅ Complete | `SqlUpdateResult` | Update query SQL content |
 
 **Usage Example:**
 
@@ -295,10 +295,10 @@ print(f"Updated: {result.updated_at}")
 
 | Model | Status | Purpose |
 |-------|--------|---------|
-| `SqlQueryInfo` | Planned | Summary query info for list views |
-| `SqlQueryDetail` | Planned | Full query metadata with SQL content |
-| `SqlListResult` | Planned | List operation result with pagination |
-| `SqlUpdateResult` | Planned | Update operation result |
+| `SqlSnippetInfo` | ✅ Complete | Summary query info for list views |
+| `SqlSnippetDetail` | ✅ Complete | Full query metadata with SQL content |
+| `SqlListResult` | ✅ Complete | List operation result with pagination |
+| `SqlUpdateResult` | ✅ Complete | Update operation result |
 
 ---
 
@@ -494,20 +494,20 @@ Content-Type: application/json
 
 | Feature | Status | Completion Condition |
 |---------|--------|----------------------|
-| SqlAPI | Planned | `list_queries()`, `get()`, `put()` work in mock mode |
-| CLI list | Planned | `dli sql list` returns formatted output |
-| CLI get | Planned | `dli sql get 43 -f file.sql` downloads file |
-| CLI put | Planned | `dli sql put 43 -f file.sql` uploads file |
-| Filters | Planned | `--project`, `--folder`, `--starred` work correctly |
-| Error handling | Planned | DLI-79x codes return appropriate messages |
+| SqlAPI | ✅ Complete | `list_snippets()`, `get()`, `put()` work in mock mode |
+| CLI list | ✅ Complete | `dli sql list` returns formatted output |
+| CLI get | ✅ Complete | `dli sql get 43 -f file.sql` downloads file |
+| CLI put | ✅ Complete | `dli sql put 43 -f file.sql` uploads file |
+| Filters | ✅ Complete | `--project`, `--folder`, `--starred` work correctly |
+| Error handling | ✅ Complete | DLI-79x codes return appropriate messages |
 
 ### 8.2 Test Quality
 
 | Metric | Target | Status |
 |--------|--------|--------|
-| Unit test coverage | >= 80% | Planned |
-| Mock mode tests | All methods | Planned |
-| CLI command tests | Each subcommand | Planned |
+| Unit test coverage | >= 80% | ✅ 87 tests |
+| Mock mode tests | All methods | ✅ Complete |
+| CLI command tests | Each subcommand | ✅ Complete |
 
 ### 8.3 Code Quality
 
@@ -675,4 +675,4 @@ $ diff -q /tmp/current.sql ./queries/insight.sql || \
 
 ---
 
-**Last Updated:** 2026-01-06
+**Last Updated:** 2026-01-09

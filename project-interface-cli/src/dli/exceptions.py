@@ -108,6 +108,13 @@ class ErrorCode(str, Enum):
     QUERY_INVALID_FILTER = "DLI-783"
     QUERY_SERVER_ERROR = "DLI-784"
 
+    # SQL Snippet Errors (DLI-79x) - Sub-range of Catalog (DLI-7xx)
+    SQL_FILE_NOT_FOUND = "DLI-790"
+    SQL_SNIPPET_NOT_FOUND = "DLI-791"
+    SQL_ACCESS_DENIED = "DLI-792"
+    SQL_UPDATE_FAILED = "DLI-793"
+    SQL_PROJECT_NOT_FOUND = "DLI-794"
+
     # Workflow Errors (DLI-8xx)
     WORKFLOW_NOT_FOUND = "DLI-800"
     WORKFLOW_REGISTRATION_FAILED = "DLI-801"
@@ -904,6 +911,116 @@ class QueryInvalidFilterError(DLIError):
         return f"[{self.code.value}] Invalid filter: {self.filter_name}={self.filter_value}"
 
 
+# SQL Snippet Errors (DLI-79x)
+
+
+@dataclass
+class SqlFileNotFoundError(DLIError):
+    """Local SQL file not found error.
+
+    Raised when a local SQL file cannot be found.
+
+    Attributes:
+        path: Path to the SQL file that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.SQL_FILE_NOT_FOUND
+    path: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.path:
+            return f"[{self.code.value}] File not found: {self.path}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class SqlSnippetNotFoundError(DLIError):
+    """Snippet not found on server error.
+
+    Raised when a SQL snippet cannot be found on the server.
+
+    Attributes:
+        snippet_id: The snippet ID that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.SQL_SNIPPET_NOT_FOUND
+    snippet_id: int = 0
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.snippet_id:
+            return f"[{self.code.value}] Snippet not found: {self.snippet_id}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class SqlAccessDeniedError(DLIError):
+    """Access denied to snippet error.
+
+    Raised when access to a SQL snippet is denied.
+
+    Attributes:
+        snippet_id: The snippet ID that was denied.
+    """
+
+    code: ErrorCode = ErrorCode.SQL_ACCESS_DENIED
+    snippet_id: int = 0
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.snippet_id:
+            return f"[{self.code.value}] Access denied to snippet: {self.snippet_id}"
+        return f"[{self.code.value}] {self.message}"
+
+
+@dataclass
+class SqlUpdateFailedError(DLIError):
+    """Failed to update snippet error.
+
+    Raised when updating a SQL snippet fails.
+
+    Attributes:
+        snippet_id: The snippet ID that failed to update.
+        reason: Optional reason for the failure.
+    """
+
+    code: ErrorCode = ErrorCode.SQL_UPDATE_FAILED
+    snippet_id: int = 0
+    reason: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        msg = f"[{self.code.value}] Failed to update snippet"
+        if self.snippet_id:
+            msg += f": {self.snippet_id}"
+        if self.reason:
+            msg += f" - {self.reason}"
+        elif self.message:
+            msg += f" - {self.message}"
+        return msg
+
+
+@dataclass
+class SqlProjectNotFoundError(DLIError):
+    """Project not found error.
+
+    Raised when the specified project cannot be found.
+
+    Attributes:
+        project: The project name that was not found.
+    """
+
+    code: ErrorCode = ErrorCode.SQL_PROJECT_NOT_FOUND
+    project: str = ""
+
+    def __str__(self) -> str:
+        """Return formatted error message."""
+        if self.project:
+            return f"[{self.code.value}] Project not found: {self.project}"
+        return f"[{self.code.value}] {self.message}"
+
+
 # Lineage Errors (DLI-9xx)
 
 
@@ -923,7 +1040,9 @@ class LineageError(DLIError):
     def __str__(self) -> str:
         """Return formatted error message."""
         if self.resource_name:
-            return f"[{self.code.value}] {self.message} (resource: {self.resource_name})"
+            return (
+                f"[{self.code.value}] {self.message} (resource: {self.resource_name})"
+            )
         return f"[{self.code.value}] {self.message}"
 
 
@@ -944,7 +1063,9 @@ class LineageNotFoundError(DLIError):
         """Return formatted error message."""
         if self.message:
             return f"[{self.code.value}] {self.message}"
-        return f"[{self.code.value}] Lineage not found for resource: {self.resource_name}"
+        return (
+            f"[{self.code.value}] Lineage not found for resource: {self.resource_name}"
+        )
 
 
 @dataclass
@@ -1396,6 +1517,12 @@ __all__ = [
     "RunServerUnavailableError",
     "RunTimeoutError",
     "ServerError",
+    # SQL Snippet Errors
+    "SqlAccessDeniedError",
+    "SqlFileNotFoundError",
+    "SqlProjectNotFoundError",
+    "SqlSnippetNotFoundError",
+    "SqlUpdateFailedError",
     "TableNotFoundError",
     "TranspileError",
     "UnsupportedEngineError",

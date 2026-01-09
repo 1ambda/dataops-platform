@@ -61,6 +61,14 @@ from dli.models.query import (
     QueryDetailResult,
     QueryListResult,
 )
+from dli.models.sql import (
+    # SQL Snippet models
+    SqlDialect,
+    SqlListResult,
+    SqlSnippetDetail,
+    SqlSnippetInfo,
+    SqlUpdateResult,
+)
 from dli.models.run import (
     # Run result models
     ExecutionPlan,
@@ -119,6 +127,12 @@ __all__ = [
     "RunResult",
     # Type aliases
     "SQLDialect",
+    # SQL Snippet models
+    "SqlDialect",
+    "SqlListResult",
+    "SqlSnippetDetail",
+    "SqlSnippetInfo",
+    "SqlUpdateResult",
     "TranspileResult",
     "TranspileRule",
     "TranspileWarning",

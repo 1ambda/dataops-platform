@@ -1,7 +1,7 @@
 # project-interface-cli Implementation Status
 
 > **Auto-generated:** 2026-01-09
-> **Version:** 1.0.3
+> **Version:** 1.0.4
 
 ---
 
@@ -22,7 +22,8 @@
 | Lineage | ✅ v1.1.0 | LineageAPI (3 methods), 60 tests (CLI 17 + API 43) |
 | Query | ✅ v1.0.0 | QueryAPI (3 methods) |
 | Run | ✅ v1.0.0 | RunAPI (3 methods) |
-| Tests | ✅ ~2700 passed | pyright 0 errors, ~65 integration tests |
+| **SQL** | **✅ v1.0.0** | **SqlAPI (3 methods), 87 tests, DLI-79x** |
+| Tests | ✅ ~2800 passed | pyright 0 errors, ~65 integration tests |
 
 ---
 
@@ -120,6 +121,7 @@
 | QueryAPI | `api/query.py` | ✅ Complete | - |
 | RunAPI | `api/run.py` | ✅ Complete | ✅ execute_rendered_sql() |
 | DebugAPI | `api/debug.py` | ✅ Complete | - |
+| **SqlAPI** | `api/sql.py` | ✅ Complete | - |
 
 ### CLI Commands (v0.8.0)
 
@@ -137,6 +139,7 @@
 | dli query | `commands/query.py` | ✅ Complete |
 | dli run | `commands/run.py` | ✅ Complete |
 | dli debug | `commands/debug.py` | ✅ Complete |
+| **dli sql** | `commands/sql.py` | ✅ Complete (list, get, put) |
 
 ---
 
@@ -152,6 +155,7 @@
 | DLI-5xx | Server | DLI-504 | ✅ Complete |
 | DLI-6xx | Quality | DLI-606 | ✅ Complete (601-606) |
 | DLI-7xx | Catalog | DLI-784 | ✅ Complete (701-706, 780-784 Query) |
+| **DLI-79x** | **SQL** | **DLI-794** | **✅ Complete (790-794)** |
 | DLI-8xx | Workflow | DLI-803 | ✅ Complete (800-803) |
 | DLI-9xx | Lineage | DLI-904 | ✅ Complete (900-904) |
 | DLI-41x | Run | DLI-416 | ✅ Complete (410-416) |
@@ -182,6 +186,16 @@
 | DLI-955 | DEBUG_NETWORK_CHECK_FAILED | Network check failed |
 | DLI-956 | DEBUG_TIMEOUT | Check timed out |
 
+### SQL Error Codes (DLI-79x)
+
+| Code | Name | Description |
+|------|------|-------------|
+| DLI-790 | SQL_FILE_NOT_FOUND | Local SQL file not found |
+| DLI-791 | SQL_SNIPPET_NOT_FOUND | Snippet ID not found |
+| DLI-792 | SQL_ACCESS_DENIED | Access denied to snippet |
+| DLI-793 | SQL_UPDATE_FAILED | Failed to update snippet |
+| DLI-794 | SQL_PROJECT_NOT_FOUND | Project not found |
+
 ### Format Error Codes (DLI-15xx)
 
 | Code | Name | Description |
@@ -199,13 +213,13 @@
 
 | Category | Tests | Status |
 |----------|-------|--------|
-| API Tests | ~580 (+14 Execution) | ✅ All pass |
-| CLI Tests | ~1050 (+38 Execution options) | ✅ All pass |
+| API Tests | ~630 (+50 SQL) | ✅ All pass |
+| CLI Tests | ~1087 (+37 SQL) | ✅ All pass |
 | Core Tests | ~860 (+42 Trino/Server) | ✅ All pass |
 | Model Tests | ~235 (+14 ExecutionConfig) | ✅ All pass |
 | Integration | ~110 (+27 RunAPI) | ✅ All pass (65 deselected by default) |
 | Exception Tests | ~75 (+2 Execution) | ✅ All pass |
-| **Total** | **~2910** (+27 RunAPI Integration) | ✅ All pass, 35 skipped, 65 integration deselected |
+| **Total** | **~2997** (+87 SQL) | ✅ All pass, 35 skipped, 65 integration deselected |
 
 ### Integration Test Markers
 
@@ -259,6 +273,8 @@
 | METRIC_RELEASE.md | ✅ Created | `project-interface-cli/features/METRIC_RELEASE.md` |
 | **TEST_RELEASE.md** | **✅ Created** | `project-interface-cli/features/TEST_RELEASE.md` |
 | **TESTING.md** | **✅ Created** | `project-interface-cli/docs/TESTING.md` |
+| **SQL_FEATURE.md** | **✅ Updated** | `project-interface-cli/features/SQL_FEATURE.md` |
+| **SQL_RELEASE.md** | **✅ Created** | `project-interface-cli/features/SQL_RELEASE.md` |
 
 ### Archived Documents
 
@@ -279,11 +295,33 @@
 - [METRIC_RELEASE.md](./METRIC_RELEASE.md) - Metric CLI 구현 상세
 - [QUALITY_RELEASE.md](./QUALITY_RELEASE.md) - Quality Spec 구현 상세
 - [RUN_RELEASE.md](./RUN_RELEASE.md) - Run 기능 구현 상세
+- [SQL_RELEASE.md](./SQL_RELEASE.md) - SQL Snippet 관리 구현 상세
 - [../docs/PATTERNS.md](../docs/PATTERNS.md) - 개발 패턴
 
 ---
 
 ## Changelog
+
+### v1.0.4 (2026-01-09)
+- **SQL Snippet Management Feature Complete**
+  - ✅ `dli sql list` - List SQL snippets with filters (project, folder, starred)
+  - ✅ `dli sql get <ID>` - Download snippet SQL to file or stdout
+  - ✅ `dli sql put <ID> -f <FILE>` - Upload SQL file to update snippet
+  - ✅ SqlAPI class (list_snippets, get, put methods)
+  - ✅ SQL data models (SqlDialect, SqlSnippetInfo, SqlSnippetDetail, SqlListResult, SqlUpdateResult)
+  - ✅ DLI-79x error codes (790-794)
+  - ✅ 87 new tests (50 API + 37 CLI)
+- **New Files**
+  - `src/dli/models/sql.py` - SQL data models (165 lines)
+  - `src/dli/api/sql.py` - SqlAPI class (316 lines)
+  - `src/dli/commands/sql.py` - CLI commands (290 lines)
+  - `tests/api/test_sql_api.py` - API tests (615 lines)
+  - `tests/cli/test_sql_cmd.py` - CLI tests (400 lines)
+- **Modified Files**
+  - `src/dli/exceptions.py` - Added DLI-79x error codes
+  - `src/dli/core/client.py` - Added sql_* and project_* methods
+  - `src/dli/__init__.py` - Added SqlAPI export
+  - `src/dli/main.py` - Registered sql_app
 
 ### v1.0.3 (2026-01-09)
 - **Integration Testing Standard Level Complete**

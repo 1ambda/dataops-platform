@@ -16,6 +16,7 @@ Commands:
 - catalog: Data catalog browsing and search (server-based)
 - query: Query execution metadata (list, show, cancel)
 - run: Ad-hoc SQL execution with result download
+- sql: SQL snippet management (list, get, put)
 """
 
 from dli.commands.catalog import catalog_app
@@ -28,6 +29,7 @@ from dli.commands.metric import metric_app
 from dli.commands.quality import quality_app
 from dli.commands.query import query_app
 from dli.commands.run import run_app
+from dli.commands.sql import sql_app
 from dli.commands.version import version
 from dli.commands.workflow import workflow_app
 
@@ -42,6 +44,7 @@ __all__ = [
     "quality_app",
     "query_app",
     "run_app",
+    "sql_app",
     "version",
     "workflow_app",
 ]
