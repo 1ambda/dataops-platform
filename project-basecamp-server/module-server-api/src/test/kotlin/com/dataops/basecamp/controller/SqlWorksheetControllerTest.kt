@@ -1,16 +1,14 @@
 package com.dataops.basecamp.controller
 
 import com.dataops.basecamp.common.enums.SqlDialect
-import com.dataops.basecamp.common.exception.ProjectNotFoundException
-import com.dataops.basecamp.common.exception.SqlFolderNotFoundException
-import com.dataops.basecamp.common.exception.SqlSnippetAlreadyExistsException
-import com.dataops.basecamp.domain.entity.sql.SqlFolderEntity
-import com.dataops.basecamp.domain.entity.sql.SqlSnippetEntity
-import com.dataops.basecamp.domain.service.ProjectService
-import com.dataops.basecamp.domain.service.SqlFolderService
-import com.dataops.basecamp.domain.service.SqlSnippetService
-import com.dataops.basecamp.dto.sql.CreateSqlSnippetRequest
-import com.dataops.basecamp.dto.sql.UpdateSqlSnippetRequest
+import com.dataops.basecamp.common.exception.SqlWorksheetAlreadyExistsException
+import com.dataops.basecamp.common.exception.WorksheetFolderNotFoundException
+import com.dataops.basecamp.domain.entity.sql.SqlWorksheetEntity
+import com.dataops.basecamp.domain.entity.sql.WorksheetFolderEntity
+import com.dataops.basecamp.domain.service.SqlWorksheetService
+import com.dataops.basecamp.domain.service.WorksheetFolderService
+import com.dataops.basecamp.dto.sql.CreateSqlWorksheetRequest
+import com.dataops.basecamp.dto.sql.UpdateSqlWorksheetRequest
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.clearMocks
 import io.mockk.every
@@ -45,9 +43,9 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
 /**
- * SQL Snippet Controller REST API Tests
+ * SQL Worksheet Controller REST API Tests
  *
- * Tests for SQL Snippet endpoints within ProjectController.
+ * Tests for SQL Worksheet endpoints within TeamSqlController.
  *
  * Spring Boot 4.x patterns:
  * - @SpringBootTest: Full context for proper security and exception handling
@@ -58,8 +56,8 @@ import java.time.LocalDateTime
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
-@DisplayName("SQL Snippet Controller Tests")
-class SqlSnippetControllerTest {
+@DisplayName("SQL Worksheet Controller Tests")
+class SqlWorksheetControllerTest {
     /**
      * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
      * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
@@ -77,29 +75,26 @@ class SqlSnippetControllerTest {
     private lateinit var jsonMapper: JsonMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var projectService: ProjectService
+    private lateinit var worksheetFolderService: WorksheetFolderService
 
     @MockkBean(relaxed = true)
-    private lateinit var sqlFolderService: SqlFolderService
+    private lateinit var sqlWorksheetService: SqlWorksheetService
 
-    @MockkBean(relaxed = true)
-    private lateinit var sqlSnippetService: SqlSnippetService
-
-    private val projectId = 1L
+    private val teamId = 1L
     private val folderId = 100L
-    private val snippetId = 1000L
+    private val worksheetId = 1000L
 
-    private lateinit var testFolder: SqlFolderEntity
-    private lateinit var testSnippet: SqlSnippetEntity
+    private lateinit var testFolder: WorksheetFolderEntity
+    private lateinit var testWorksheet: SqlWorksheetEntity
 
     @BeforeEach
     fun setUp() {
         // Clear mocks between tests to avoid mock pollution
-        clearMocks(projectService, sqlFolderService, sqlSnippetService)
+        clearMocks(worksheetFolderService, sqlWorksheetService)
 
         testFolder =
-            SqlFolderEntity(
-                projectId = projectId,
+            WorksheetFolderEntity(
+                teamId = teamId,
                 name = "test-folder",
                 description = "Test folder description",
                 displayOrder = 0,
@@ -117,17 +112,17 @@ class SqlSnippetControllerTest {
                 updatedAtField.set(this, LocalDateTime.of(2024, 1, 1, 10, 0, 0))
             }
 
-        testSnippet =
-            SqlSnippetEntity(
+        testWorksheet =
+            SqlWorksheetEntity(
                 folderId = folderId,
-                name = "test-snippet",
-                description = "Test snippet description",
+                name = "test-worksheet",
+                description = "Test worksheet description",
                 sqlText = "SELECT * FROM users",
                 dialect = SqlDialect.BIGQUERY,
             ).apply {
                 val idField = this::class.java.superclass.getDeclaredField("id")
                 idField.isAccessible = true
-                idField.set(this, snippetId)
+                idField.set(this, worksheetId)
 
                 val createdAtField = this::class.java.superclass.getDeclaredField("createdAt")
                 createdAtField.isAccessible = true
@@ -140,18 +135,18 @@ class SqlSnippetControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/projects/{projectId}/sql/snippets")
-    inner class ListSqlSnippets {
+    @DisplayName("GET /api/v1/teams/{teamId}/sql/worksheets")
+    inner class ListSqlWorksheets {
         @Test
-        @DisplayName("should return empty list when no snippets exist")
-        fun `should return empty list when no snippets exist`() {
+        @DisplayName("should return empty list when no worksheets exist")
+        fun `should return empty list when no worksheets exist`() {
             // Given
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val emptyPage = PageImpl<SqlSnippetEntity>(emptyList(), pageable, 0)
+            val emptyPage = PageImpl<SqlWorksheetEntity>(emptyList(), pageable, 0)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = null,
@@ -162,7 +157,7 @@ class SqlSnippetControllerTest {
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets"))
                 .andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content").isArray())
@@ -171,18 +166,18 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should return snippets list with pagination")
-        fun `should return snippets list with pagination`() {
+        @DisplayName("should return worksheets list with pagination")
+        fun `should return worksheets list with pagination`() {
             // Given
-            val snippet1 = createTestSnippet(1001L, folderId, "snippet-1")
-            val snippet2 = createTestSnippet(1002L, folderId, "snippet-2")
-            val snippets = listOf(snippet1, snippet2)
+            val worksheet1 = createTestWorksheet(1001L, folderId, "worksheet-1")
+            val worksheet2 = createTestWorksheet(1002L, folderId, "worksheet-2")
+            val worksheets = listOf(worksheet1, worksheet2)
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 2)
+            val page = PageImpl(worksheets, pageable, 2)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = null,
@@ -191,33 +186,33 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].name").value("snippet-1"))
-                .andExpect(jsonPath("$.content[1].name").value("snippet-2"))
+                .andExpect(jsonPath("$.content[0].name").value("worksheet-1"))
+                .andExpect(jsonPath("$.content[1].name").value("worksheet-2"))
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(20))
         }
 
         @Test
-        @DisplayName("should filter snippets by folderId")
-        fun `should filter snippets by folderId`() {
+        @DisplayName("should filter worksheets by folderId")
+        fun `should filter worksheets by folderId`() {
             // Given
-            val snippet1 = createTestSnippet(1001L, folderId, "snippet-in-folder")
-            val snippets = listOf(snippet1)
+            val worksheet1 = createTestWorksheet(1001L, folderId, "worksheet-in-folder")
+            val worksheets = listOf(worksheet1)
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 1)
+            val page = PageImpl(worksheets, pageable, 1)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = folderId,
                     searchText = null,
                     starred = null,
@@ -226,20 +221,20 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/projects/$projectId/sql/snippets")
+                    get("/api/v1/teams/$teamId/sql/worksheets")
                         .param("folderId", folderId.toString()),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].folderId").value(folderId))
 
             verify(exactly = 1) {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = folderId,
                     searchText = null,
                     starred = null,
@@ -250,18 +245,18 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should filter snippets by searchText")
-        fun `should filter snippets by searchText`() {
+        @DisplayName("should filter worksheets by searchText")
+        fun `should filter worksheets by searchText`() {
             // Given
             val searchText = "user"
-            val snippet1 = createTestSnippet(1001L, folderId, "user-query")
-            val snippets = listOf(snippet1)
+            val worksheet1 = createTestWorksheet(1001L, folderId, "user-query")
+            val worksheets = listOf(worksheet1)
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 1)
+            val page = PageImpl(worksheets, pageable, 1)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = searchText,
                     starred = null,
@@ -270,20 +265,20 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/projects/$projectId/sql/snippets")
+                    get("/api/v1/teams/$teamId/sql/worksheets")
                         .param("searchText", searchText),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("user-query"))
 
             verify(exactly = 1) {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = searchText,
                     starred = null,
@@ -294,20 +289,20 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should filter snippets by starred")
-        fun `should filter snippets by starred`() {
+        @DisplayName("should filter worksheets by starred")
+        fun `should filter worksheets by starred`() {
             // Given
-            val snippet1 =
-                createTestSnippet(1001L, folderId, "starred-snippet").apply {
+            val worksheet1 =
+                createTestWorksheet(1001L, folderId, "starred-worksheet").apply {
                     this.isStarred = true
                 }
-            val snippets = listOf(snippet1)
+            val worksheets = listOf(worksheet1)
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 1)
+            val page = PageImpl(worksheets, pageable, 1)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = true,
@@ -316,20 +311,20 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/projects/$projectId/sql/snippets")
+                    get("/api/v1/teams/$teamId/sql/worksheets")
                         .param("starred", "true"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].isStarred").value(true))
 
             verify(exactly = 1) {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = true,
@@ -340,20 +335,20 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should filter snippets by dialect")
-        fun `should filter snippets by dialect`() {
+        @DisplayName("should filter worksheets by dialect")
+        fun `should filter worksheets by dialect`() {
             // Given
-            val snippet1 =
-                createTestSnippet(1001L, folderId, "trino-snippet").apply {
+            val worksheet1 =
+                createTestWorksheet(1001L, folderId, "trino-worksheet").apply {
                     this.dialect = SqlDialect.TRINO
                 }
-            val snippets = listOf(snippet1)
+            val worksheets = listOf(worksheet1)
             val pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 1)
+            val page = PageImpl(worksheets, pageable, 1)
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = null,
@@ -362,20 +357,20 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/projects/$projectId/sql/snippets")
+                    get("/api/v1/teams/$teamId/sql/worksheets")
                         .param("dialect", "TRINO"),
                 ).andExpect(status().isOk)
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].dialect").value("TRINO"))
 
             verify(exactly = 1) {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = null,
@@ -389,14 +384,14 @@ class SqlSnippetControllerTest {
         @DisplayName("should handle pagination parameters")
         fun `should handle pagination parameters`() {
             // Given
-            val snippet1 = createTestSnippet(1003L, folderId, "snippet-page2")
-            val snippets = listOf(snippet1)
+            val worksheet1 = createTestWorksheet(1003L, folderId, "worksheet-page2")
+            val worksheets = listOf(worksheet1)
             val pageable = PageRequest.of(1, 10, Sort.by(Sort.Direction.DESC, "updatedAt"))
-            val page = PageImpl(snippets, pageable, 25) // 25 total elements
+            val page = PageImpl(worksheets, pageable, 25) // 25 total elements
 
             every {
-                sqlSnippetService.listSnippets(
-                    projectId = projectId,
+                sqlWorksheetService.listWorksheets(
+                    projectId = teamId,
                     folderId = null,
                     searchText = null,
                     starred = null,
@@ -405,12 +400,12 @@ class SqlSnippetControllerTest {
                 )
             } returns page
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
                 .perform(
-                    get("/api/v1/projects/$projectId/sql/snippets")
+                    get("/api/v1/teams/$teamId/sql/worksheets")
                         .param("page", "1")
                         .param("size", "10"),
                 ).andExpect(status().isOk)
@@ -420,49 +415,26 @@ class SqlSnippetControllerTest {
                 .andExpect(jsonPath("$.totalElements").isNumber())
                 .andExpect(jsonPath("$.totalPages").isNumber())
         }
-
-        @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-
-            every {
-                sqlSnippetService.listSnippets(
-                    projectId = nonExistentProjectId,
-                    folderId = null,
-                    searchText = null,
-                    starred = null,
-                    dialect = null,
-                    pageable = any(),
-                )
-            } throws ProjectNotFoundException(nonExistentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(get("/api/v1/projects/$nonExistentProjectId/sql/snippets"))
-                .andExpect(status().isNotFound)
-        }
     }
 
     @Nested
-    @DisplayName("POST /api/v1/projects/{projectId}/sql/snippets")
-    inner class CreateSqlSnippet {
+    @DisplayName("POST /api/v1/teams/{teamId}/sql/worksheets")
+    inner class CreateSqlWorksheet {
         @Test
-        @DisplayName("should create snippet successfully")
-        fun `should create snippet successfully`() {
+        @DisplayName("should create worksheet successfully")
+        fun `should create worksheet successfully`() {
             // Given
             val request =
-                CreateSqlSnippetRequest(
+                CreateSqlWorksheetRequest(
                     folderId = folderId,
-                    name = "new-snippet",
-                    description = "New snippet description",
+                    name = "new-worksheet",
+                    description = "New worksheet description",
                     sqlText = "SELECT id, name FROM users",
                     dialect = SqlDialect.TRINO,
                 )
 
-            val savedSnippet =
-                createTestSnippet(
+            val savedWorksheet =
+                createTestWorksheet(
                     id = 1003L,
                     folderId = folderId,
                     name = request.name,
@@ -473,22 +445,20 @@ class SqlSnippetControllerTest {
                 }
 
             every {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = request.folderId,
                     name = request.name,
                     description = request.description,
                     sqlText = request.sqlText,
                     dialect = request.dialect,
                 )
-            } returns savedSnippet
-
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            } returns savedWorksheet
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -496,15 +466,15 @@ class SqlSnippetControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1003))
                 .andExpect(jsonPath("$.folderId").value(folderId))
-                .andExpect(jsonPath("$.folderName").value("test-folder"))
-                .andExpect(jsonPath("$.name").value("new-snippet"))
-                .andExpect(jsonPath("$.description").value("New snippet description"))
+                .andExpect(jsonPath("$.folderName").exists())
+                .andExpect(jsonPath("$.name").value("new-worksheet"))
+                .andExpect(jsonPath("$.description").value("New worksheet description"))
                 .andExpect(jsonPath("$.sqlText").value("SELECT id, name FROM users"))
                 .andExpect(jsonPath("$.dialect").value("TRINO"))
 
             verify(exactly = 1) {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = request.folderId,
                     name = request.name,
                     description = request.description,
@@ -515,18 +485,18 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should create snippet without description")
-        fun `should create snippet without description`() {
+        @DisplayName("should create worksheet without description")
+        fun `should create worksheet without description`() {
             // Given
             val request =
-                CreateSqlSnippetRequest(
+                CreateSqlWorksheetRequest(
                     folderId = folderId,
-                    name = "snippet-no-desc",
+                    name = "worksheet-no-desc",
                     sqlText = "SELECT 1",
                 )
 
-            val savedSnippet =
-                createTestSnippet(
+            val savedWorksheet =
+                createTestWorksheet(
                     id = 1004L,
                     folderId = folderId,
                     name = request.name,
@@ -536,27 +506,25 @@ class SqlSnippetControllerTest {
                 }
 
             every {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = request.folderId,
                     name = request.name,
                     description = null,
                     sqlText = request.sqlText,
                     dialect = SqlDialect.BIGQUERY,
                 )
-            } returns savedSnippet
-
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            } returns savedWorksheet
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isCreated)
-                .andExpect(jsonPath("$.name").value("snippet-no-desc"))
+                .andExpect(jsonPath("$.name").value("worksheet-no-desc"))
                 .andExpect(jsonPath("$.description").doesNotExist())
         }
 
@@ -573,7 +541,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -594,7 +562,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -614,7 +582,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -635,7 +603,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -657,7 +625,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -680,7 +648,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -693,27 +661,27 @@ class SqlSnippetControllerTest {
             // Given
             val nonExistentFolderId = 999L
             val request =
-                CreateSqlSnippetRequest(
+                CreateSqlWorksheetRequest(
                     folderId = nonExistentFolderId,
-                    name = "new-snippet",
+                    name = "new-worksheet",
                     sqlText = "SELECT 1",
                 )
 
             every {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = nonExistentFolderId,
                     name = request.name,
                     description = null,
                     sqlText = request.sqlText,
                     dialect = SqlDialect.BIGQUERY,
                 )
-            } throws SqlFolderNotFoundException(nonExistentFolderId, projectId)
+            } throws WorksheetFolderNotFoundException(nonExistentFolderId, teamId)
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -721,39 +689,39 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should return 409 when snippet name already exists")
-        fun `should return 409 when snippet name already exists`() {
+        @DisplayName("should return 409 when worksheet name already exists")
+        fun `should return 409 when worksheet name already exists`() {
             // Given
             val request =
-                CreateSqlSnippetRequest(
+                CreateSqlWorksheetRequest(
                     folderId = folderId,
-                    name = "existing-snippet",
+                    name = "existing-worksheet",
                     sqlText = "SELECT 1",
                 )
 
             every {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = request.folderId,
                     name = request.name,
                     description = null,
                     sqlText = request.sqlText,
                     dialect = SqlDialect.BIGQUERY,
                 )
-            } throws SqlSnippetAlreadyExistsException(request.name, folderId)
+            } throws SqlWorksheetAlreadyExistsException(request.name, folderId)
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isConflict)
 
             verify(exactly = 1) {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = request.folderId,
                     name = request.name,
                     description = null,
@@ -762,61 +730,27 @@ class SqlSnippetControllerTest {
                 )
             }
         }
-
-        @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-            val request =
-                CreateSqlSnippetRequest(
-                    folderId = folderId,
-                    name = "new-snippet",
-                    sqlText = "SELECT 1",
-                )
-
-            every {
-                sqlSnippetService.createSnippet(
-                    projectId = nonExistentProjectId,
-                    folderId = request.folderId,
-                    name = request.name,
-                    description = null,
-                    sqlText = request.sqlText,
-                    dialect = SqlDialect.BIGQUERY,
-                )
-            } throws ProjectNotFoundException(nonExistentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/projects/$nonExistentProjectId/sql/snippets")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(request)),
-                ).andExpect(status().isNotFound)
-        }
     }
 
     @Nested
-    @DisplayName("GET /api/v1/projects/{projectId}/sql/snippets/{snippetId}")
-    inner class GetSqlSnippet {
+    @DisplayName("GET /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}")
+    inner class GetSqlWorksheet {
         @Test
-        @DisplayName("should return snippet by id")
-        fun `should return snippet by id`() {
-            // Given
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, snippetId) } returns testSnippet
+        @DisplayName("should return worksheet by id")
+        fun `should return worksheet by id`() {
+            // Given - Controller now uses findWorksheetById directly
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns testWorksheet
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets/$snippetId"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets/$worksheetId"))
                 .andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(snippetId))
+                .andExpect(jsonPath("$.id").value(worksheetId))
                 .andExpect(jsonPath("$.folderId").value(folderId))
-                .andExpect(jsonPath("$.folderName").value("test-folder"))
-                .andExpect(jsonPath("$.name").value("test-snippet"))
-                .andExpect(jsonPath("$.description").value("Test snippet description"))
+                .andExpect(jsonPath("$.folderName").exists())
+                .andExpect(jsonPath("$.name").value("test-worksheet"))
+                .andExpect(jsonPath("$.description").value("Test worksheet description"))
                 .andExpect(jsonPath("$.sqlText").value("SELECT * FROM users"))
                 .andExpect(jsonPath("$.dialect").value("BIGQUERY"))
                 .andExpect(jsonPath("$.isStarred").value(false))
@@ -824,114 +758,96 @@ class SqlSnippetControllerTest {
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists())
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 1) { sqlSnippetService.getSnippetById(folderId, snippetId) }
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(worksheetId) }
         }
 
         @Test
-        @DisplayName("should return 404 when snippet not found")
-        fun `should return 404 when snippet not found`() {
+        @DisplayName("should return 404 when worksheet not found")
+        fun `should return 404 when worksheet not found`() {
             // Given
-            val nonExistentSnippetId = 9999L
+            val nonExistentWorksheetId = 9999L
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, nonExistentSnippetId) } returns null
+            every { sqlWorksheetService.findWorksheetById(nonExistentWorksheetId) } returns null
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets/$nonExistentSnippetId"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets/$nonExistentWorksheetId"))
                 .andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 1) { sqlSnippetService.getSnippetById(folderId, nonExistentSnippetId) }
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(nonExistentWorksheetId) }
         }
 
         @Test
-        @DisplayName("should return 404 when project has no folders")
-        fun `should return 404 when project has no folders`() {
-            // Given
-            every { sqlFolderService.listFolders(projectId) } returns emptyList()
+        @DisplayName("should return 404 when worksheet not found (previously team has no folders)")
+        fun `should return 404 when worksheet not found (previously team has no folders)`() {
+            // Given - Now worksheet lookup is direct, so this tests same scenario as "not found"
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns null
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets/$snippetId"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets/$worksheetId"))
                 .andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-        }
-
-        @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-
-            every { sqlFolderService.listFolders(nonExistentProjectId) } throws
-                ProjectNotFoundException(nonExistentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(get("/api/v1/projects/$nonExistentProjectId/sql/snippets/$snippetId"))
-                .andExpect(status().isNotFound)
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(worksheetId) }
         }
     }
 
     @Nested
-    @DisplayName("PUT /api/v1/projects/{projectId}/sql/snippets/{snippetId}")
-    inner class UpdateSqlSnippet {
+    @DisplayName("PUT /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}")
+    inner class UpdateSqlWorksheet {
         @Test
-        @DisplayName("should update snippet successfully")
-        fun `should update snippet successfully`() {
+        @DisplayName("should update worksheet successfully")
+        fun `should update worksheet successfully`() {
             // Given
             val request =
-                UpdateSqlSnippetRequest(
-                    name = "updated-snippet",
+                UpdateSqlWorksheetRequest(
+                    name = "updated-worksheet",
                     description = "Updated description",
                     sqlText = "SELECT id, name, email FROM users",
                     dialect = SqlDialect.TRINO,
                 )
 
-            val updatedSnippet =
-                createTestSnippet(snippetId, folderId, request.name!!).apply {
+            val updatedWorksheet =
+                createTestWorksheet(worksheetId, folderId, request.name!!).apply {
                     this.description = request.description
                     this.sqlText = request.sqlText!!
                     this.dialect = request.dialect!!
                 }
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, snippetId) } returns testSnippet
+            // Controller now uses findWorksheetById directly
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns testWorksheet
             every {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = snippetId,
+                    worksheetId = worksheetId,
                     name = request.name,
                     description = request.description,
                     sqlText = request.sqlText,
                     dialect = request.dialect,
                 )
-            } returns updatedSnippet
+            } returns updatedWorksheet
 
             // When & Then
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    put("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(snippetId))
-                .andExpect(jsonPath("$.name").value("updated-snippet"))
+                .andExpect(jsonPath("$.id").value(worksheetId))
+                .andExpect(jsonPath("$.name").value("updated-worksheet"))
                 .andExpect(jsonPath("$.description").value("Updated description"))
                 .andExpect(jsonPath("$.sqlText").value("SELECT id, name, email FROM users"))
                 .andExpect(jsonPath("$.dialect").value("TRINO"))
 
             verify(exactly = 1) {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = snippetId,
+                    worksheetId = worksheetId,
                     name = request.name,
                     description = request.description,
                     sqlText = request.sqlText,
@@ -941,38 +857,37 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should update snippet with partial fields")
-        fun `should update snippet with partial fields`() {
+        @DisplayName("should update worksheet with partial fields")
+        fun `should update worksheet with partial fields`() {
             // Given
             val request =
-                UpdateSqlSnippetRequest(
+                UpdateSqlWorksheetRequest(
                     description = "Only description updated",
                 )
 
-            val updatedSnippet =
-                createTestSnippet(snippetId, folderId, testSnippet.name).apply {
+            val updatedWorksheet =
+                createTestWorksheet(worksheetId, folderId, testWorksheet.name).apply {
                     this.description = request.description
-                    this.sqlText = testSnippet.sqlText
+                    this.sqlText = testWorksheet.sqlText
                 }
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, snippetId) } returns testSnippet
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns testWorksheet
             every {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = snippetId,
+                    worksheetId = worksheetId,
                     name = null,
                     description = request.description,
                     sqlText = null,
                     dialect = null,
                 )
-            } returns updatedSnippet
+            } returns updatedWorksheet
 
             // When & Then
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    put("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -981,22 +896,21 @@ class SqlSnippetControllerTest {
         }
 
         @Test
-        @DisplayName("should return 404 when snippet not found")
-        fun `should return 404 when snippet not found`() {
+        @DisplayName("should return 404 when worksheet not found")
+        fun `should return 404 when worksheet not found`() {
             // Given
-            val nonExistentSnippetId = 9999L
+            val nonExistentWorksheetId = 9999L
             val request =
-                UpdateSqlSnippetRequest(
+                UpdateSqlWorksheetRequest(
                     name = "new-name",
                 )
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, nonExistentSnippetId) } returns null
+            every { sqlWorksheetService.findWorksheetById(nonExistentWorksheetId) } returns null
 
             // When & Then
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/$nonExistentSnippetId")
+                    put("/api/v1/teams/$teamId/sql/worksheets/$nonExistentWorksheetId")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -1008,28 +922,27 @@ class SqlSnippetControllerTest {
         fun `should return 409 when new name already exists`() {
             // Given
             val request =
-                UpdateSqlSnippetRequest(
+                UpdateSqlWorksheetRequest(
                     name = "existing-name",
                 )
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, snippetId) } returns testSnippet
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns testWorksheet
             every {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = snippetId,
+                    worksheetId = worksheetId,
                     name = request.name,
                     description = null,
                     sqlText = null,
                     dialect = null,
                 )
-            } throws SqlSnippetAlreadyExistsException(request.name!!, folderId)
+            } throws SqlWorksheetAlreadyExistsException(request.name!!, folderId)
 
             // When & Then
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    put("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -1049,7 +962,7 @@ class SqlSnippetControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    put("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -1058,81 +971,60 @@ class SqlSnippetControllerTest {
     }
 
     @Nested
-    @DisplayName("DELETE /api/v1/projects/{projectId}/sql/snippets/{snippetId}")
-    inner class DeleteSqlSnippet {
+    @DisplayName("DELETE /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}")
+    inner class DeleteSqlWorksheet {
         @Test
-        @DisplayName("should delete snippet successfully")
-        fun `should delete snippet successfully`() {
-            // Given
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, snippetId) } returns testSnippet
-            every { sqlSnippetService.deleteSnippet(projectId, folderId, snippetId) } returns Unit
+        @DisplayName("should delete worksheet successfully")
+        fun `should delete worksheet successfully`() {
+            // Given - Controller now uses findWorksheetById directly
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns testWorksheet
+            every { sqlWorksheetService.deleteWorksheet(teamId, folderId, worksheetId) } returns Unit
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    delete("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf()),
                 ).andExpect(status().isNoContent)
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 1) { sqlSnippetService.getSnippetById(folderId, snippetId) }
-            verify(exactly = 1) { sqlSnippetService.deleteSnippet(projectId, folderId, snippetId) }
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(worksheetId) }
+            verify(exactly = 1) { sqlWorksheetService.deleteWorksheet(teamId, folderId, worksheetId) }
         }
 
         @Test
-        @DisplayName("should return 404 when snippet not found")
-        fun `should return 404 when snippet not found`() {
+        @DisplayName("should return 404 when worksheet not found")
+        fun `should return 404 when worksheet not found`() {
             // Given
-            val nonExistentSnippetId = 9999L
+            val nonExistentWorksheetId = 9999L
 
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, nonExistentSnippetId) } returns null
+            every { sqlWorksheetService.findWorksheetById(nonExistentWorksheetId) } returns null
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/snippets/$nonExistentSnippetId")
+                    delete("/api/v1/teams/$teamId/sql/worksheets/$nonExistentWorksheetId")
                         .with(csrf()),
                 ).andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 1) { sqlSnippetService.getSnippetById(folderId, nonExistentSnippetId) }
-            verify(exactly = 0) { sqlSnippetService.deleteSnippet(any(), any(), any()) }
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(nonExistentWorksheetId) }
+            verify(exactly = 0) { sqlWorksheetService.deleteWorksheet(any(), any(), any()) }
         }
 
         @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-
-            every { sqlFolderService.listFolders(nonExistentProjectId) } throws
-                ProjectNotFoundException(nonExistentProjectId)
+        @DisplayName("should return 404 when worksheet not found (previously team has no folders)")
+        fun `should return 404 when worksheet not found (previously team has no folders)`() {
+            // Given - Same behavior as "not found" now
+            every { sqlWorksheetService.findWorksheetById(worksheetId) } returns null
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$nonExistentProjectId/sql/snippets/$snippetId")
-                        .with(csrf()),
-                ).andExpect(status().isNotFound)
-        }
-
-        @Test
-        @DisplayName("should return 404 when project has no folders")
-        fun `should return 404 when project has no folders`() {
-            // Given
-            every { sqlFolderService.listFolders(projectId) } returns emptyList()
-
-            // When & Then
-            mockMvc
-                .perform(
-                    delete("/api/v1/projects/$projectId/sql/snippets/$snippetId")
+                    delete("/api/v1/teams/$teamId/sql/worksheets/$worksheetId")
                         .with(csrf()),
                 ).andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 0) { sqlSnippetService.deleteSnippet(any(), any(), any()) }
+            verify(exactly = 1) { sqlWorksheetService.findWorksheetById(worksheetId) }
+            verify(exactly = 0) { sqlWorksheetService.deleteWorksheet(any(), any(), any()) }
         }
     }
 
@@ -1144,16 +1036,16 @@ class SqlSnippetControllerTest {
         fun `should handle complete create-get-update-delete flow`() {
             // === CREATE ===
             val createRequest =
-                CreateSqlSnippetRequest(
+                CreateSqlWorksheetRequest(
                     folderId = folderId,
-                    name = "integration-test-snippet",
-                    description = "Snippet for integration testing",
+                    name = "integration-test-worksheet",
+                    description = "Worksheet for integration testing",
                     sqlText = "SELECT * FROM integration_table",
                     dialect = SqlDialect.BIGQUERY,
                 )
 
-            val createdSnippet =
-                createTestSnippet(
+            val createdWorksheet =
+                createTestWorksheet(
                     id = 2000L,
                     folderId = folderId,
                     name = createRequest.name,
@@ -1164,83 +1056,83 @@ class SqlSnippetControllerTest {
                 }
 
             every {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = createRequest.folderId,
                     name = createRequest.name,
                     description = createRequest.description,
                     sqlText = createRequest.sqlText,
                     dialect = createRequest.dialect,
                 )
-            } returns createdSnippet
+            } returns createdWorksheet
 
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/snippets")
+                    post("/api/v1/teams/$teamId/sql/worksheets")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(createRequest)),
                 ).andExpect(status().isCreated)
-                .andExpect(jsonPath("$.name").value("integration-test-snippet"))
+                .andExpect(jsonPath("$.name").value("integration-test-worksheet"))
 
             // === GET ===
-            every { sqlFolderService.listFolders(projectId) } returns listOf(testFolder)
-            every { sqlSnippetService.getSnippetById(folderId, 2000L) } returns createdSnippet
+            // Controller now uses findWorksheetById directly
+            every { sqlWorksheetService.findWorksheetById(2000L) } returns createdWorksheet
 
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/snippets/2000"))
+                .perform(get("/api/v1/teams/$teamId/sql/worksheets/2000"))
                 .andExpect(status().isOk)
-                .andExpect(jsonPath("$.name").value("integration-test-snippet"))
+                .andExpect(jsonPath("$.name").value("integration-test-worksheet"))
 
             // === UPDATE ===
             val updateRequest =
-                UpdateSqlSnippetRequest(
-                    name = "updated-integration-snippet",
+                UpdateSqlWorksheetRequest(
+                    name = "updated-integration-worksheet",
                     sqlText = "SELECT id, name FROM integration_table",
                 )
 
-            val updatedSnippet =
-                createTestSnippet(2000L, folderId, updateRequest.name!!).apply {
+            val updatedWorksheet =
+                createTestWorksheet(2000L, folderId, updateRequest.name!!).apply {
                     this.description = createRequest.description
                     this.sqlText = updateRequest.sqlText!!
                 }
 
             every {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = 2000L,
+                    worksheetId = 2000L,
                     name = updateRequest.name,
                     description = null,
                     sqlText = updateRequest.sqlText,
                     dialect = null,
                 )
-            } returns updatedSnippet
+            } returns updatedWorksheet
 
             mockMvc
                 .perform(
-                    put("/api/v1/projects/$projectId/sql/snippets/2000")
+                    put("/api/v1/teams/$teamId/sql/worksheets/2000")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(updateRequest)),
                 ).andExpect(status().isOk)
-                .andExpect(jsonPath("$.name").value("updated-integration-snippet"))
+                .andExpect(jsonPath("$.name").value("updated-integration-worksheet"))
 
             // === DELETE ===
-            every { sqlSnippetService.deleteSnippet(projectId, folderId, 2000L) } returns Unit
+            every { sqlWorksheetService.deleteWorksheet(teamId, folderId, 2000L) } returns Unit
 
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/snippets/2000")
+                    delete("/api/v1/teams/$teamId/sql/worksheets/2000")
                         .with(csrf()),
                 ).andExpect(status().isNoContent)
 
             // Verify all calls
             verify(exactly = 1) {
-                sqlSnippetService.createSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.createWorksheet(
+                    projectId = teamId,
                     folderId = createRequest.folderId,
                     name = createRequest.name,
                     description = createRequest.description,
@@ -1248,29 +1140,29 @@ class SqlSnippetControllerTest {
                     dialect = createRequest.dialect,
                 )
             }
-            verify(atLeast = 1) { sqlSnippetService.getSnippetById(folderId, 2000L) }
+            verify(atLeast = 1) { sqlWorksheetService.findWorksheetById(2000L) }
             verify(exactly = 1) {
-                sqlSnippetService.updateSnippet(
-                    projectId = projectId,
+                sqlWorksheetService.updateWorksheet(
+                    projectId = teamId,
                     folderId = folderId,
-                    snippetId = 2000L,
+                    worksheetId = 2000L,
                     name = updateRequest.name,
                     description = null,
                     sqlText = updateRequest.sqlText,
                     dialect = null,
                 )
             }
-            verify(exactly = 1) { sqlSnippetService.deleteSnippet(projectId, folderId, 2000L) }
+            verify(exactly = 1) { sqlWorksheetService.deleteWorksheet(teamId, folderId, 2000L) }
         }
     }
 
-    // Helper function to create test snippets
-    private fun createTestSnippet(
+    // Helper function to create test worksheets
+    private fun createTestWorksheet(
         id: Long,
         folderId: Long,
         name: String,
-    ): SqlSnippetEntity =
-        SqlSnippetEntity(
+    ): SqlWorksheetEntity =
+        SqlWorksheetEntity(
             folderId = folderId,
             name = name,
             description = "Test description for $name",

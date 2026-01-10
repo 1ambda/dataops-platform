@@ -7,13 +7,13 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
 /**
- * SQL Snippet 생성 요청 DTO
+ * SQL Worksheet 생성 요청 DTO
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class CreateSqlSnippetRequest(
+data class CreateSqlWorksheetRequest(
     val folderId: Long,
-    @field:NotBlank(message = "Snippet name is required")
-    @field:Size(max = 200, message = "Snippet name must not exceed 200 characters")
+    @field:NotBlank(message = "Worksheet name is required")
+    @field:Size(max = 200, message = "Worksheet name must not exceed 200 characters")
     val name: String,
     @field:Size(max = 1000, message = "Description must not exceed 1000 characters")
     val description: String? = null,
@@ -23,11 +23,11 @@ data class CreateSqlSnippetRequest(
 )
 
 /**
- * SQL Snippet 수정 요청 DTO
+ * SQL Worksheet 수정 요청 DTO
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class UpdateSqlSnippetRequest(
-    @field:Size(max = 200, message = "Snippet name must not exceed 200 characters")
+data class UpdateSqlWorksheetRequest(
+    @field:Size(max = 200, message = "Worksheet name must not exceed 200 characters")
     val name: String? = null,
     @field:Size(max = 1000, message = "Description must not exceed 1000 characters")
     val description: String? = null,
@@ -36,10 +36,10 @@ data class UpdateSqlSnippetRequest(
 )
 
 /**
- * SQL Snippet 요약 응답 DTO (목록용)
+ * SQL Worksheet 요약 응답 DTO (목록용)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class SqlSnippetSummaryResponse(
+data class SqlWorksheetSummaryResponse(
     val id: Long,
     val folderId: Long,
     val folderName: String,
@@ -57,10 +57,10 @@ data class SqlSnippetSummaryResponse(
 )
 
 /**
- * SQL Snippet 상세 응답 DTO (단건 조회용)
+ * SQL Worksheet 상세 응답 DTO (단건 조회용)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class SqlSnippetDetailResponse(
+data class SqlWorksheetDetailResponse(
     val id: Long,
     val folderId: Long,
     val folderName: String,
@@ -79,11 +79,11 @@ data class SqlSnippetDetailResponse(
 )
 
 /**
- * SQL Snippet 목록 응답 DTO (페이징 포함)
+ * SQL Worksheet 목록 응답 DTO (페이징 포함)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class SqlSnippetListResponse(
-    val content: List<SqlSnippetSummaryResponse>,
+data class SqlWorksheetListResponse(
+    val content: List<SqlWorksheetSummaryResponse>,
     val page: Int,
     val size: Int,
     val totalElements: Long,

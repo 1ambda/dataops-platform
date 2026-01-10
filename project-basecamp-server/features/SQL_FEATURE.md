@@ -1,21 +1,37 @@
-# SQL (Saved Query) Management Feature Specification
+# SQL (Saved Worksheet) Management Feature Specification
 
-> **Version:** 2.1.0 | **Status:** ✅ MVP Complete | **Priority:** P2 Medium
+> **Version:** 3.3.0 | **Status:** Team Migration | **Priority:** P2 Medium
 > **CLI Commands:** `dli sql list/get/create/update/delete` (planned) | **Target:** Spring Boot 4 + Kotlin 2
-> **Implementation Timeline:** 2026-01-09 | **Endpoints:** 14/14 Complete (MVP)
+> **Implementation Timeline:** 2026-01-10 | **Endpoints:** 9/9 Complete (MVP)
 >
-> **Data Source:** Self-managed JPA (SqlSnippet, SqlFolder, Project)
-> **Entities:** `ProjectEntity`, `SqlFolderEntity`, `SqlSnippetEntity`
+> **Data Source:** Self-managed JPA (SqlWorksheet, WorksheetFolder, Team)
+> **Entities:** `TeamEntity`, `WorksheetFolderEntity`, `SqlWorksheetEntity`
 >
 > **Implementation Details:** [`SQL_RELEASE.md`](./SQL_RELEASE.md)
 > **CLI Specification:** [`project-interface-cli/features/SQL_FEATURE.md`](../../project-interface-cli/features/SQL_FEATURE.md)
-> **Related Features:** [`PROJECT_FEATURE.md`](./PROJECT_FEATURE.md) - Team & Project Management (ProjectEntity shared)
+> **Related Features:** [`TEAM_FEATURE.md`](./TEAM_FEATURE.md) - Team Management (TeamEntity shared)
 >
-> **MVP Changes (2026-01-09):**
-> - Renamed `SavedQueryEntity` → `SqlSnippetEntity` for clarity
-> - URL structure: `/api/v1/projects/{projectId}/sql/folders|snippets` (nested under projects)
-> - Permission checking deferred to PROJECT_FEATURE (minimal MVP)
-> - 14 endpoints implemented with 158+ tests
+> **v3.3.0 Changes (2026-01-10):**
+> - Controller renamed: `TeamSqlController` → `TeamController`
+> - Entity renamed: `SqlFolderEntity` → `WorksheetFolderEntity`
+> - Controller file: `TeamSqlController.kt` → `TeamController.kt`
+> - API paths remain unchanged: `/api/v1/teams/{teamId}/sql/worksheets` and `/api/v1/teams/{teamId}/sql/folders`
+>
+> **v3.2.0 Changes (2026-01-10):**
+> - Terminology unified: "Snippet" → "Worksheet" (industry-standard naming like Snowflake, Databricks)
+> - Entity: SqlSnippetEntity → SqlWorksheetEntity (documentation only, implementation separate)
+> - API paths: `/api/v1/teams/{teamId}/sql/snippets` → `/api/v1/teams/{teamId}/sql/worksheets`
+>
+> **v3.1.0 Changes (2026-01-10):**
+> - Terminology unified: "Query" → "Snippet" throughout documentation
+> - API paths aligned with implementation: `/api/v1/teams/{teamId}/sql/snippets`
+>
+> **v3.0.0 Changes (2026-01-10):**
+> - Migrated from Project-based to Team-based organization
+> - SqlFolder.projectId → SqlFolder.teamId
+> - Permission model: Project Membership → Team Membership
+> - Role hierarchy: OWNER/EDITOR/VIEWER → MANAGER/EDITOR/VIEWER
+> - URL structure: `/api/v1/teams/{teamId}/sql/folders|worksheets`
 
 ---
 
@@ -23,52 +39,52 @@
 
 ### 1.1 Purpose
 
-The SQL (Saved Query) Management API provides endpoints for storing, organizing, and retrieving SQL queries within projects. Users can save frequently used queries, organize them in folders, and share them with project members for collaborative work.
+The SQL (Saved Worksheet) Management API provides endpoints for storing, organizing, and retrieving SQL worksheets within teams. Users can save frequently used queries, organize them in folders, and share them with team members for collaborative work.
 
 **Target Users:**
-- **Data Professionals (DS/DA/DAE/DE):** Save, organize, and manage SQL queries via CLI and UI
-- **Non-Technical Users (Marketing, Operations):** Browse and execute shared queries via Basecamp UI
+- **Data Professionals (DS/DA/DAE/DE):** Save, organize, and manage SQL worksheets via CLI and UI
+- **Non-Technical Users (Marketing, Operations):** Browse and execute shared worksheets via Basecamp UI
 
 **Key Use Cases:**
-- Save and organize SQL queries by project and folder
-- Share queries with project members (via Project Membership model)
-- Execute saved queries with parameter substitution
-- Sync queries between server and local files via CLI
+- Save and organize SQL worksheets by team and folder
+- Share worksheets with team members (via Team Membership model)
+- Execute saved worksheets with parameter substitution
+- Sync worksheets between server and local files via CLI
 
 ### 1.2 Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Project-Based Organization** | Queries organized within projects (e.g., "Marketing Analytics", "Finance Reports") |
-| **Flat Folder Structure** | 1-level folders within projects for simple organization |
-| **Query CRUD** | Create, read, update, delete saved queries |
-| **Search & Filter** | Find queries by name, content, project, folder, starred status |
-| **Execution Integration** | Run saved queries (tracked in ExecutionHistoryEntity) |
-| **Star/Favorite** | Mark frequently used queries |
-| **CLI Sync** | Create/update/delete queries via `dli sql` commands |
-| **Project Sharing** | Project members can view and execute queries (based on ProjectRole) |
+| **Team-Based Organization** | Worksheets organized within teams (e.g., "Marketing Analytics Team", "Finance Team") |
+| **Flat Folder Structure** | 1-level folders within teams for simple organization |
+| **Worksheet CRUD** | Create, read, update, delete saved worksheets |
+| **Search & Filter** | Find worksheets by name, content, team, folder, starred status |
+| **Execution Integration** | Run saved worksheets (tracked in ExecutionHistoryEntity) |
+| **Star/Favorite** | Mark frequently used worksheets |
+| **CLI Sync** | Create/update/delete worksheets via `dli sql` commands |
+| **Team Sharing** | Team members can view and execute worksheets (based on TeamRole) |
 
 ### 1.3 CLI Integration
 
 ```bash
-# List saved queries with filters
+# List saved worksheets with filters
 dli sql list
-dli sql list --project marketing --starred
+dli sql list --team marketing --starred
 dli sql list --text "revenue"              # Search in name/content
 
-# Get query details
+# Get worksheet details
 dli sql get 43                              # Get by ID
 dli sql get 43 --output ./insight.sql       # Download to file
 
-# Create new query
-dli sql create --name "Daily Revenue" --project marketing --file ./revenue.sql
-dli sql create --name "User Stats" --project analytics --sql "SELECT * FROM users"
+# Create new worksheet
+dli sql create --name "Daily Revenue" --team marketing --file ./revenue.sql
+dli sql create --name "User Stats" --team analytics --sql "SELECT * FROM users"
 
-# Update existing query
+# Update existing worksheet
 dli sql update 43 --file ./updated.sql
 dli sql update 43 --name "Weekly Revenue" --description "Updated description"
 
-# Delete query
+# Delete worksheet
 dli sql delete 43
 dli sql delete 43 --force                   # Skip confirmation
 ```
@@ -80,36 +96,37 @@ dli sql delete 43 --force                   # Skip confirmation
 │                     SQL Management API                               │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  SqlFolderController          SqlQueryController                     │
-│  /api/v1/sql/folders          /api/v1/sql/queries                   │
+│  TeamController (v3.3.0 - renamed from SqlController)               │
+│  /api/v1/teams/{teamId}/sql/folders                                 │
+│  /api/v1/teams/{teamId}/sql/worksheets                              │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  SqlFolderService             SqlQueryService                        │
+│  WorksheetFolderService         SqlWorksheetService                 │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  ProjectEntity ─────1:N───── SqlFolderEntity ─────1:N───── SavedQueryEntity │
-│  (from PROJECT_FEATURE)      (flat, no hierarchy)                   │
+│  TeamEntity ─────1:N───── WorksheetFolderEntity ─────1:N───── SqlWorksheetEntity │
+│  (from TEAM_FEATURE)      (flat, no hierarchy)                      │
 │                                                                     │
-│  ProjectMemberEntity ───── Role-based Access Control                │
+│  TeamMemberEntity ───── Role-based Access Control                   │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.5 Permission Model
 
-SQL query access follows the **Project Membership Model** from PROJECT_FEATURE.md:
+SQL worksheet access follows the **Team Membership Model** from TEAM_FEATURE.md:
 
-| Role | View Queries | Execute Queries | Create/Edit/Delete |
-|------|--------------|-----------------|-------------------|
-| **OWNER** | ✓ | ✓ | ✓ |
-| **EDITOR** | ✓ | ✓ | ✓ |
-| **VIEWER** | ✓ | ✓ | ✗ |
-| **Non-Member** | ✗ | ✗ | ✗ |
+| Role | View Worksheets | Execute Worksheets | Create/Edit/Delete |
+|------|---------------|------------------|-------------------|
+| **MANAGER** | Yes | Yes | Yes |
+| **EDITOR** | Yes | Yes | Yes |
+| **VIEWER** | Yes | Yes | No |
+| **Non-Member** | No | No | No |
 
-> **Sharing Workflow:** Admin adds users as Project members with appropriate roles.
-> Project VIEWERs can browse and execute all queries in the project.
+> **Sharing Workflow:** Team Manager adds users as Team members with appropriate roles.
+> Team VIEWERs can browse and execute all worksheets in the team.
 
 ---
 
@@ -119,19 +136,19 @@ SQL query access follows the **Project Membership Model** from PROJECT_FEATURE.m
 
 | CLI Command | HTTP Method | API Endpoint | Description |
 |-------------|-------------|--------------|-------------|
-| `dli sql list` | GET | `/api/v1/sql/queries` | List/search saved queries |
-| `dli sql get <id>` | GET | `/api/v1/sql/queries/{queryId}` | Get query details |
-| `dli sql create` | POST | `/api/v1/sql/queries` | Create new query |
-| `dli sql update <id>` | PUT | `/api/v1/sql/queries/{queryId}` | Update query |
-| `dli sql delete <id>` | DELETE | `/api/v1/sql/queries/{queryId}` | Delete query (soft) |
+| `dli sql list` | GET | `/api/v1/teams/{teamId}/sql/worksheets` | List/search saved worksheets |
+| `dli sql get <id>` | GET | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Get worksheet details |
+| `dli sql create` | POST | `/api/v1/teams/{teamId}/sql/worksheets` | Create new worksheet |
+| `dli sql update <id>` | PUT | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Update worksheet |
+| `dli sql delete <id>` | DELETE | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Delete worksheet (soft) |
 
 ### 2.2 CLI Options to Query Parameters
 
 | CLI Option | Query Parameter | Default | Description |
 |------------|----------------|---------|-------------|
-| `--project` | `projectName` | - | Filter by project name |
+| `--team` | Path param `teamId` | - | Team ID (resolved from name) |
 | `--folder` | `folderName` | - | Filter by folder name |
-| `--starred` | `starred` | `false` | Show only starred queries |
+| `--starred` | `starred` | `false` | Show only starred worksheets |
 | `--text` | `searchText` | - | Search in name, description, SQL content |
 | `--limit` | `size` | `20` | Max results per page |
 | `--offset` | `page` | `0` | Page number |
@@ -144,7 +161,7 @@ SQL query access follows the **Project Membership Model** from PROJECT_FEATURE.m
 
 ```
 ┌─────────────────┐
-│  ProjectEntity  │ (from PROJECT_FEATURE.md)
+│   TeamEntity    │ (from TEAM_FEATURE.md)
 ├─────────────────┤
 │ id (PK)         │
 │ name (unique)   │
@@ -155,21 +172,21 @@ SQL query access follows the **Project Membership Model** from PROJECT_FEATURE.m
          │
          │ 1:N
          ▼
-┌─────────────────────┐
-│   SqlFolderEntity   │
-├─────────────────────┤
-│ id (PK)             │
-│ projectId (FK)      │
-│ name                │ ──► Unique per project
-│ description         │
-│ displayOrder        │
-│ [BaseEntity]        │
-└────────┬────────────┘
+┌──────────────────────────┐
+│  WorksheetFolderEntity   │ (v3.3.0 - renamed from SqlFolderEntity)
+├──────────────────────────┤
+│ id (PK)                  │
+│ teamId (FK)              │
+│ name                     │ ──► Unique per team
+│ description              │
+│ displayOrder             │
+│ [BaseEntity]             │
+└────────┬─────────────────┘
          │
          │ 1:N
          ▼
 ┌─────────────────────┐
-│  SavedQueryEntity   │
+│  SqlWorksheetEntity │
 ├─────────────────────┤
 │ id (PK)             │
 │ folderId (FK)       │
@@ -186,26 +203,26 @@ SQL query access follows the **Project Membership Model** from PROJECT_FEATURE.m
 
 ### 3.2 Entity Definitions
 
-#### SqlFolderEntity
+#### WorksheetFolderEntity (v3.3.0 - renamed from SqlFolderEntity)
 
 ```kotlin
 @Entity
 @Table(
-    name = "sql_folder",
+    name = "worksheet_folder",
     indexes = [
-        Index(name = "idx_sql_folder_project_id", columnList = "project_id"),
-        Index(name = "idx_sql_folder_deleted_at", columnList = "deleted_at"),
+        Index(name = "idx_worksheet_folder_team_id", columnList = "team_id"),
+        Index(name = "idx_worksheet_folder_deleted_at", columnList = "deleted_at"),
     ],
     uniqueConstraints = [
         UniqueConstraint(
-            name = "uk_sql_folder_name_project",
-            columnNames = ["name", "project_id"]
+            name = "uk_worksheet_folder_name_team",
+            columnNames = ["name", "team_id"]
         )
     ]
 )
-class SqlFolderEntity(
-    @Column(name = "project_id", nullable = false)
-    val projectId: Long,
+class WorksheetFolderEntity(
+    @Column(name = "team_id", nullable = false)
+    val teamId: Long,
 
     @field:NotBlank
     @field:Size(max = 100)
@@ -222,22 +239,22 @@ class SqlFolderEntity(
 ```
 
 > **Design Decision:** Flat 1-level folder structure. No `parentFolderId` field.
-> Folders are unique per project by (name, project_id).
+> Folders are unique per team by (name, team_id).
 
-#### SavedQueryEntity
+#### SqlWorksheetEntity
 
 ```kotlin
 @Entity
 @Table(
-    name = "saved_query",
+    name = "sql_worksheet",
     indexes = [
-        Index(name = "idx_saved_query_folder_id", columnList = "folder_id"),
-        Index(name = "idx_saved_query_name", columnList = "name"),
-        Index(name = "idx_saved_query_starred", columnList = "is_starred"),
-        Index(name = "idx_saved_query_deleted_at", columnList = "deleted_at"),
+        Index(name = "idx_sql_worksheet_folder_id", columnList = "folder_id"),
+        Index(name = "idx_sql_worksheet_name", columnList = "name"),
+        Index(name = "idx_sql_worksheet_starred", columnList = "is_starred"),
+        Index(name = "idx_sql_worksheet_deleted_at", columnList = "deleted_at"),
     ],
 )
-class SavedQueryEntity(
+class SqlWorksheetEntity(
     @Column(name = "folder_id", nullable = false)
     val folderId: Long,
 
@@ -269,16 +286,16 @@ class SavedQueryEntity(
 ) : BaseEntity()
 ```
 
-#### ProjectEntity (Reference)
+#### TeamEntity (Reference)
 
-> **Note:** ProjectEntity is defined in [`PROJECT_FEATURE.md`](./PROJECT_FEATURE.md).
-> SQL feature uses ProjectEntity for organizing queries and enforcing access control via ProjectMemberEntity.
+> **Note:** TeamEntity is defined in [`TEAM_FEATURE.md`](./TEAM_FEATURE.md).
+> SQL feature uses TeamEntity for organizing worksheets and enforcing access control via TeamMemberEntity.
 
 ```kotlin
-// See PROJECT_FEATURE.md Section 2.3 for full definition
+// See TEAM_FEATURE.md Section 2.1 for full definition
 @Entity
-@Table(name = "project")
-class ProjectEntity(
+@Table(name = "team")
+class TeamEntity(
     var name: String,           // Unique identifier (lowercase, hyphenated)
     var displayName: String,    // Human-readable name
     var description: String?,
@@ -307,13 +324,13 @@ enum class SqlDialect {
 
 | # | Decision | Choice | Rationale |
 |---|----------|--------|-----------|
-| 1 | **Organization** | Project → Folder → Query | Clear hierarchy, team-friendly |
+| 1 | **Organization** | Team → Folder → Worksheet | Clear hierarchy, team-friendly |
 | 2 | **Folder Depth** | Flat 1-level | Simple UX, avoid deep nesting complexity |
-| 3 | **Folder Uniqueness** | Unique per project | Prevent duplicate folder names |
-| 4 | **Query Uniqueness** | Not unique | Allow duplicate query names |
+| 3 | **Folder Uniqueness** | Unique per team | Prevent duplicate folder names |
+| 4 | **Worksheet Uniqueness** | Not unique | Allow duplicate worksheet names |
 | 5 | **Folder Deletion** | Block if not empty | Explicit cleanup required |
 | 6 | **Execution Tracking** | Unified ExecutionHistoryEntity | Consistent with Dataset/Quality runs |
-| 7 | **Sharing Model** | Project Membership | Simple RBAC via ProjectRole |
+| 7 | **Sharing Model** | Team Membership | Simple RBAC via TeamRole |
 | 8 | **FK Pattern** | FK-only (no @ManyToOne) | Follows project architecture pattern |
 | 9 | **Tags** | Phase 2 (Common TagEntity) | Deferred for MVP simplicity |
 
@@ -321,89 +338,95 @@ enum class SqlDialect {
 
 ## 4. API Specifications
 
-### 4.1 Folder API
+### 4.1 Folder API (4 endpoints - MVP Complete)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| GET | `/api/v1/sql/projects/{projectId}/folders` | List folders in project | Member |
-| POST | `/api/v1/sql/projects/{projectId}/folders` | Create folder | Editor+ |
-| GET | `/api/v1/sql/folders/{folderId}` | Get folder details | Member |
-| PUT | `/api/v1/sql/folders/{folderId}` | Update folder | Editor+ |
-| DELETE | `/api/v1/sql/folders/{folderId}` | Delete folder (block if not empty) | Editor+ |
+| GET | `/api/v1/teams/{teamId}/sql/folders` | List folders in team | Member |
+| POST | `/api/v1/teams/{teamId}/sql/folders` | Create folder | Editor+ |
+| GET | `/api/v1/teams/{teamId}/sql/folders/{folderId}` | Get folder details | Member |
+| DELETE | `/api/v1/teams/{teamId}/sql/folders/{folderId}` | Delete folder (block if not empty) | Editor+ |
 
-### 4.2 Query API
+### 4.2 Worksheet API (5 endpoints - MVP Complete)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| GET | `/api/v1/sql/queries` | List/search queries (CLI primary) | Member |
-| POST | `/api/v1/sql/queries` | Create query | Editor+ |
-| GET | `/api/v1/sql/queries/{queryId}` | Get query details | Member |
-| PUT | `/api/v1/sql/queries/{queryId}` | Update query | Editor+ |
-| DELETE | `/api/v1/sql/queries/{queryId}` | Delete query (soft) | Editor+ |
-| POST | `/api/v1/sql/queries/{queryId}/run` | Execute query | Member |
-| POST | `/api/v1/sql/queries/{queryId}/star` | Toggle star status | Member |
-| POST | `/api/v1/sql/queries/{queryId}/move` | Move to another folder | Editor+ |
-| POST | `/api/v1/sql/queries/{queryId}/duplicate` | Duplicate query | Editor+ |
+| GET | `/api/v1/teams/{teamId}/sql/worksheets` | List/search worksheets | Member |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets` | Create worksheet | Editor+ |
+| GET | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Get worksheet details | Member |
+| PUT | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Update worksheet | Editor+ |
+| DELETE | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Delete worksheet (soft) | Editor+ |
 
-### 4.3 Permission Annotation Pattern
+### 4.3 Deferred API (Phase 2)
+
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| PUT | `/api/v1/teams/{teamId}/sql/folders/{folderId}` | Update folder | Deferred |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}/run` | Execute worksheet | Deferred |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}/star` | Toggle star status | Deferred |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}/move` | Move to another folder | Deferred |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}/duplicate` | Duplicate worksheet | Deferred |
+
+### 4.4 Permission Annotation Pattern
 
 ```kotlin
-// SqlQueryController.kt - Permission enforcement examples
+// TeamController.kt - Permission enforcement examples (v3.3.0 - renamed from SqlController)
 
 @RestController
-@RequestMapping("\${CommonConstants.Api.V1_PATH}/sql/queries")
-class SqlQueryController(
-    private val sqlQueryService: SqlQueryService,
-    private val projectMemberService: ProjectMemberService,
+@RequestMapping("\${CommonConstants.Api.V1_PATH}/teams/{teamId}/sql")
+class TeamController(
+    private val worksheetFolderService: WorksheetFolderService,
+    private val sqlWorksheetService: SqlWorksheetService,
 ) {
-    // Member role required (VIEWER, EDITOR, OWNER)
-    @GetMapping
-    @PreAuthorize("@projectMemberCheck.isMember(#projectName)")
-    fun listQueries(
-        @RequestParam projectName: String?,
+    // Member role required (VIEWER, EDITOR, MANAGER)
+    @GetMapping("/worksheets")
+    @PreAuthorize("@teamSecurity.isMember(#teamId)")
+    fun listWorksheets(
+        @PathVariable teamId: Long,
         ...
     ): ResponseEntity<...> { ... }
 
-    // Editor+ role required (EDITOR, OWNER)
-    @PostMapping
-    @PreAuthorize("@projectMemberCheck.hasRole(#request.folderId, {'OWNER', 'EDITOR'})")
-    fun createQuery(
-        @RequestBody request: CreateQueryRequest,
+    // Editor+ role required (EDITOR, MANAGER)
+    @PostMapping("/worksheets")
+    @PreAuthorize("@teamSecurity.canEdit(#teamId)")
+    fun createWorksheet(
+        @PathVariable teamId: Long,
+        @RequestBody request: CreateWorksheetRequest,
     ): ResponseEntity<...> { ... }
 
-    // Query-level permission check (via folderId -> projectId)
-    @PutMapping("/{queryId}")
-    @PreAuthorize("@projectMemberCheck.canEditQuery(#queryId)")
-    fun updateQuery(
-        @PathVariable queryId: Long,
-        @RequestBody request: UpdateQueryRequest,
+    // Worksheet-level permission check (via folderId -> teamId)
+    @PutMapping("/worksheets/{worksheetId}")
+    @PreAuthorize("@teamSecurity.canEditWorksheet(#teamId, #worksheetId)")
+    fun updateWorksheet(
+        @PathVariable teamId: Long,
+        @PathVariable worksheetId: Long,
+        @RequestBody request: UpdateWorksheetRequest,
     ): ResponseEntity<...> { ... }
 }
 ```
 
-> **Note:** `ProjectMemberCheck` is a Spring component that validates user's project role.
-> See PROJECT_FEATURE.md for ProjectMemberService implementation details.
+> **Note:** `TeamSecurityService` is a Spring component that validates user's team role.
+> See TEAM_FEATURE.md for TeamMemberService implementation details.
 
 ---
 
 ## 5. API Details
 
-### 5.1 List Queries (CLI Primary Endpoint)
+### 5.1 List Worksheets (CLI Primary Endpoint)
 
-**`GET /api/v1/sql/queries`**
+**`GET /api/v1/teams/{teamId}/sql/worksheets`**
 
 ```http
-GET /api/v1/sql/queries?projectName=marketing&searchText=revenue&starred=true&size=20&page=0
+GET /api/v1/teams/1/sql/worksheets?searchText=revenue&starred=true&size=20&page=0
 ```
 
 **Query Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `projectName` | string | No | Filter by project name |
 | `folderName` | string | No | Filter by folder name |
 | `searchText` | string | No | Search in name, description, SQL content |
-| `starred` | boolean | No | Filter starred queries only |
+| `starred` | boolean | No | Filter starred worksheets only |
 | `dialect` | string | No | Filter by SQL dialect |
 | `size` | int | No | Page size (default: 20, max: 100) |
 | `page` | int | No | Page number (default: 0) |
@@ -416,8 +439,8 @@ GET /api/v1/sql/queries?projectName=marketing&searchText=revenue&starred=true&si
       "id": 43,
       "name": "daily_revenue",
       "description": "Daily revenue by channel",
-      "projectId": 1,
-      "projectName": "marketing",
+      "teamId": 1,
+      "teamName": "marketing",
       "folderId": 5,
       "folderName": "Revenue Reports",
       "dialect": "BIGQUERY",
@@ -436,9 +459,9 @@ GET /api/v1/sql/queries?projectName=marketing&searchText=revenue&starred=true&si
 }
 ```
 
-### 5.2 Get Query Details
+### 5.2 Get Worksheet Details
 
-**`GET /api/v1/sql/queries/{queryId}`**
+**`GET /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}`**
 
 **Response:**
 ```json
@@ -446,8 +469,8 @@ GET /api/v1/sql/queries?projectName=marketing&searchText=revenue&starred=true&si
   "id": 43,
   "name": "daily_revenue",
   "description": "Daily revenue by channel",
-  "projectId": 1,
-  "projectName": "marketing",
+  "teamId": 1,
+  "teamName": "marketing",
   "folderId": 5,
   "folderName": "Revenue Reports",
   "sqlText": "SELECT channel, SUM(revenue) as total\nFROM sales\nWHERE date = '{{ date }}'\nGROUP BY channel",
@@ -462,12 +485,12 @@ GET /api/v1/sql/queries?projectName=marketing&searchText=revenue&starred=true&si
 }
 ```
 
-### 5.3 Create Query
+### 5.3 Create Worksheet
 
-**`POST /api/v1/sql/queries`**
+**`POST /api/v1/teams/{teamId}/sql/worksheets`**
 
 ```http
-POST /api/v1/sql/queries
+POST /api/v1/teams/1/sql/worksheets
 Content-Type: application/json
 
 {
@@ -489,17 +512,17 @@ Content-Type: application/json
 }
 ```
 
-### 5.4 Update Query
+### 5.4 Update Worksheet
 
-**`PUT /api/v1/sql/queries/{queryId}`**
+**`PUT /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}`**
 
 ```http
-PUT /api/v1/sql/queries/43
+PUT /api/v1/teams/1/sql/worksheets/43
 Content-Type: application/json
 
 {
   "name": "daily_revenue_v2",
-  "description": "Updated daily revenue query",
+  "description": "Updated daily revenue worksheet",
   "sqlText": "SELECT channel, SUM(revenue) as total\nFROM sales\nWHERE date = '{{ date }}'\nGROUP BY channel\nORDER BY total DESC"
 }
 ```
@@ -513,54 +536,25 @@ Content-Type: application/json
 }
 ```
 
-### 5.5 Delete Query
+### 5.5 Delete Worksheet
 
-**`DELETE /api/v1/sql/queries/{queryId}`**
+**`DELETE /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}`**
 
 **Response:** `204 No Content`
 
-### 5.6 Execute Query
+### 5.6 Delete Folder
 
-**`POST /api/v1/sql/queries/{queryId}/run`**
-
-```http
-POST /api/v1/sql/queries/43/run
-Content-Type: application/json
-
-{
-  "parameters": {
-    "date": "2026-01-06"
-  },
-  "limit": 1000
-}
-```
-
-**Response:** `202 Accepted`
-```json
-{
-  "executionId": "exec_abc123",
-  "queryId": 43,
-  "status": "RUNNING",
-  "startedAt": "2026-01-06T14:30:00Z"
-}
-```
-
-> **Note:** Execution is tracked in `ExecutionHistoryEntity` (unified with Dataset/Quality runs).
-> Poll `/api/v1/executions/{executionId}` for status updates.
-
-### 5.7 Delete Folder
-
-**`DELETE /api/v1/sql/folders/{folderId}`**
+**`DELETE /api/v1/teams/{teamId}/sql/folders/{folderId}`**
 
 Returns `204 No Content` on success.
 
-Returns `400 Bad Request` if folder contains queries:
+Returns `400 Bad Request` if folder contains worksheets:
 ```json
 {
   "error": "FOLDER_NOT_EMPTY",
-  "message": "Cannot delete folder: contains 3 queries",
+  "message": "Cannot delete folder: contains 3 worksheets",
   "details": {
-    "queryCount": 3
+    "worksheetCount": 3
   }
 }
 ```
@@ -575,7 +569,7 @@ Returns `400 Bad Request` if folder contains queries:
 // module-core-domain/command/sql/SqlCommands.kt
 
 data class CreateFolderCommand(
-    val projectId: Long,
+    val teamId: Long,
     @field:NotBlank @field:Size(max = 100)
     val name: String,
     @field:Size(max = 500)
@@ -591,7 +585,7 @@ data class UpdateFolderCommand(
     val displayOrder: Int? = null,
 )
 
-data class CreateQueryCommand(
+data class CreateWorksheetCommand(
     val folderId: Long,
     @field:NotBlank @field:Size(max = 200)
     val name: String,
@@ -602,7 +596,7 @@ data class CreateQueryCommand(
     val dialect: SqlDialect = SqlDialect.BIGQUERY,
 )
 
-data class UpdateQueryCommand(
+data class UpdateWorksheetCommand(
     @field:Size(max = 200)
     val name: String? = null,
     @field:Size(max = 1000)
@@ -611,17 +605,17 @@ data class UpdateQueryCommand(
     val dialect: SqlDialect? = null,
 )
 
-data class MoveQueryCommand(
+data class MoveWorksheetCommand(
     val targetFolderId: Long,
 )
 
-data class RunQueryCommand(
+data class RunWorksheetCommand(
     val parameters: Map<String, String>? = null,
     val limit: Int? = 1000,
 )
 
-data class ListQueriesQuery(
-    val projectName: String? = null,
+data class ListWorksheetsQuery(
+    val teamId: Long,
     val folderName: String? = null,
     val searchText: String? = null,
     val starred: Boolean? = null,
@@ -638,21 +632,21 @@ data class ListQueriesQuery(
 
 data class FolderSummaryProjection(
     val id: Long,
-    val projectId: Long,
+    val teamId: Long,
     val name: String,
     val description: String?,
     val displayOrder: Int,
-    val queryCount: Int,
+    val worksheetCount: Int,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 )
 
-data class QuerySummaryProjection(
+data class WorksheetSummaryProjection(
     val id: Long,
     val name: String,
     val description: String?,
-    val projectId: Long,
-    val projectName: String,
+    val teamId: Long,
+    val teamName: String,
     val folderId: Long,
     val folderName: String,
     val dialect: SqlDialect,
@@ -664,12 +658,12 @@ data class QuerySummaryProjection(
     val updatedAt: LocalDateTime,
 )
 
-data class QueryDetailProjection(
+data class WorksheetDetailProjection(
     val id: Long,
     val name: String,
     val description: String?,
-    val projectId: Long,
-    val projectName: String,
+    val teamId: Long,
+    val teamName: String,
     val folderId: Long,
     val folderName: String,
     val sqlText: String,
@@ -683,9 +677,9 @@ data class QueryDetailProjection(
     val updatedAt: LocalDateTime,
 )
 
-data class QueryExecutionProjection(
+data class WorksheetExecutionProjection(
     val executionId: String,
-    val queryId: Long,
+    val worksheetId: Long,
     val status: ExecutionStatus,
     val startedAt: LocalDateTime,
 )
@@ -713,7 +707,7 @@ data class UpdateFolderRequest(
     val displayOrder: Int? = null,
 )
 
-data class CreateQueryRequest(
+data class CreateWorksheetRequest(
     val folderId: Long,
     @field:NotBlank @field:Size(max = 200)
     val name: String,
@@ -724,7 +718,7 @@ data class CreateQueryRequest(
     val dialect: SqlDialect = SqlDialect.BIGQUERY,
 )
 
-data class UpdateQueryRequest(
+data class UpdateWorksheetRequest(
     @field:Size(max = 200)
     val name: String? = null,
     @field:Size(max = 1000)
@@ -733,11 +727,11 @@ data class UpdateQueryRequest(
     val dialect: SqlDialect? = null,
 )
 
-data class MoveQueryRequest(
+data class MoveWorksheetRequest(
     val targetFolderId: Long,
 )
 
-data class RunQueryRequest(
+data class RunWorksheetRequest(
     val parameters: Map<String, String>? = null,
     val limit: Int? = 1000,
 )
@@ -745,21 +739,21 @@ data class RunQueryRequest(
 // Response DTOs
 data class FolderResponse(
     val id: Long,
-    val projectId: Long,
+    val teamId: Long,
     val name: String,
     val description: String?,
     val displayOrder: Int,
-    val queryCount: Int,
+    val worksheetCount: Int,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 )
 
-data class QueryListResponse(
+data class WorksheetListResponse(
     val id: Long,
     val name: String,
     val description: String?,
-    val projectId: Long,
-    val projectName: String,
+    val teamId: Long,
+    val teamName: String,
     val folderId: Long,
     val folderName: String,
     val dialect: SqlDialect,
@@ -771,12 +765,12 @@ data class QueryListResponse(
     val updatedAt: LocalDateTime,
 )
 
-data class QueryDetailResponse(
+data class WorksheetDetailResponse(
     val id: Long,
     val name: String,
     val description: String?,
-    val projectId: Long,
-    val projectName: String,
+    val teamId: Long,
+    val teamName: String,
     val folderId: Long,
     val folderName: String,
     val sqlText: String,
@@ -790,22 +784,22 @@ data class QueryDetailResponse(
     val updatedAt: LocalDateTime,
 )
 
-data class QueryCreatedResponse(
+data class WorksheetCreatedResponse(
     val id: Long,
     val name: String,
     val folderId: Long,
     val createdAt: LocalDateTime,
 )
 
-data class QueryUpdatedResponse(
+data class WorksheetUpdatedResponse(
     val id: Long,
     val name: String,
     val updatedAt: LocalDateTime,
 )
 
-data class QueryExecutionResponse(
+data class WorksheetExecutionResponse(
     val executionId: String,
-    val queryId: Long,
+    val worksheetId: Long,
     val status: ExecutionStatus,  // Use enum for type safety
     val startedAt: LocalDateTime,
 )
@@ -827,7 +821,7 @@ data class QueryExecutionResponse(
 | Services | module-core-domain | `service/` |
 | Controllers | module-server-api | `controller/` |
 | DTOs | module-server-api | `dto/sql/` |
-| Mappers | module-server-api | `mapper/sql/` |
+| Mappers | module-server-api | `mapper/` |
 | Enums | module-core-common | `enums/SqlEnums.kt` |
 
 ### 7.2 File Structure
@@ -840,38 +834,38 @@ module-core-common/
 module-core-domain/
 └── src/main/kotlin/com/dataops/basecamp/domain/
     ├── entity/sql/
-    │   ├── SqlFolderEntity.kt
-    │   └── SavedQueryEntity.kt
+    │   ├── WorksheetFolderEntity.kt   # v3.3.0 (renamed from SqlFolderEntity)
+    │   └── SqlWorksheetEntity.kt
     ├── command/sql/
     │   └── SqlCommands.kt             # All command/query classes
     ├── projection/sql/
     │   └── SqlProjections.kt          # All projection classes
     ├── repository/sql/
-    │   ├── SqlFolderRepositoryJpa.kt
-    │   ├── SqlFolderRepositoryDsl.kt
-    │   ├── SavedQueryRepositoryJpa.kt
-    │   └── SavedQueryRepositoryDsl.kt
+    │   ├── WorksheetFolderRepositoryJpa.kt   # v3.3.0
+    │   ├── WorksheetFolderRepositoryDsl.kt   # v3.3.0
+    │   ├── SqlWorksheetRepositoryJpa.kt
+    │   └── SqlWorksheetRepositoryDsl.kt
     └── service/
-        ├── SqlFolderService.kt
-        └── SqlQueryService.kt
+        ├── WorksheetFolderService.kt  # v3.3.0 (renamed from SqlFolderService)
+        └── SqlWorksheetService.kt
 
 module-core-infra/
 └── src/main/kotlin/com/dataops/basecamp/infra/repository/sql/
-    ├── SqlFolderRepositoryJpaImpl.kt
-    ├── SqlFolderRepositoryDslImpl.kt
-    ├── SavedQueryRepositoryJpaImpl.kt
-    └── SavedQueryRepositoryDslImpl.kt
+    ├── WorksheetFolderRepositoryJpaImpl.kt   # v3.3.0
+    ├── WorksheetFolderRepositoryDslImpl.kt   # v3.3.0
+    ├── SqlWorksheetRepositoryJpaImpl.kt
+    └── SqlWorksheetRepositoryDslImpl.kt
 
 module-server-api/
 └── src/main/kotlin/com/dataops/basecamp/
     ├── controller/
-    │   ├── SqlFolderController.kt
-    │   └── SqlQueryController.kt
+    │   └── TeamController.kt          # v3.3.0 (renamed from SqlController)
     ├── dto/sql/
-    │   └── SqlDtos.kt                 # All request/response DTOs
-    └── mapper/sql/
-        ├── SqlFolderMapper.kt         # Request -> Command, Projection -> Response
-        └── SqlQueryMapper.kt          # Request -> Command, Projection -> Response
+    │   ├── WorksheetFolderDtos.kt     # v3.3.0
+    │   └── SqlWorksheetDtos.kt
+    └── mapper/
+        ├── WorksheetFolderMapper.kt   # v3.3.0 (renamed from SqlFolderMapper)
+        └── SqlWorksheetMapper.kt
 ```
 
 ---
@@ -881,10 +875,10 @@ module-server-api/
 ### 8.1 Tables
 
 ```sql
--- SQL Folder table (flat structure, no parent_folder_id)
-CREATE TABLE sql_folder (
+-- Worksheet Folder table (v3.3.0 - renamed from sql_folder)
+CREATE TABLE worksheet_folder (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    project_id BIGINT NOT NULL,
+    team_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(500),
     display_order INT NOT NULL DEFAULT 0,
@@ -893,14 +887,14 @@ CREATE TABLE sql_folder (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_by BIGINT,
     deleted_at TIMESTAMP,
-    INDEX idx_sql_folder_project_id (project_id),
-    INDEX idx_sql_folder_deleted_at (deleted_at),
-    UNIQUE KEY uk_sql_folder_name_project (name, project_id),
-    FOREIGN KEY (project_id) REFERENCES project(id)
+    INDEX idx_worksheet_folder_team_id (team_id),
+    INDEX idx_worksheet_folder_deleted_at (deleted_at),
+    UNIQUE KEY uk_worksheet_folder_name_team (name, team_id),
+    FOREIGN KEY (team_id) REFERENCES team(id)
 );
 
--- Saved Query table
-CREATE TABLE saved_query (
+-- SQL Worksheet table
+CREATE TABLE sql_worksheet (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     folder_id BIGINT NOT NULL,
     name VARCHAR(200) NOT NULL,
@@ -915,11 +909,11 @@ CREATE TABLE saved_query (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_by BIGINT,
     deleted_at TIMESTAMP,
-    INDEX idx_saved_query_folder_id (folder_id),
-    INDEX idx_saved_query_name (name),
-    INDEX idx_saved_query_starred (is_starred),
-    INDEX idx_saved_query_deleted_at (deleted_at),
-    FOREIGN KEY (folder_id) REFERENCES sql_folder(id)
+    INDEX idx_sql_worksheet_folder_id (folder_id),
+    INDEX idx_sql_worksheet_name (name),
+    INDEX idx_sql_worksheet_starred (is_starred),
+    INDEX idx_sql_worksheet_deleted_at (deleted_at),
+    FOREIGN KEY (folder_id) REFERENCES worksheet_folder(id)
 );
 ```
 
@@ -927,29 +921,32 @@ CREATE TABLE saved_query (
 
 ## 9. Implementation Phases
 
-### Phase 1: MVP (Core Functionality)
+### Phase 1: MVP (Core Functionality) - ✅ Complete
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| SqlFolderEntity | Planned | Flat folder structure |
-| SavedQueryEntity | Planned | Query storage |
-| Folder CRUD API | Planned | 5 endpoints |
-| Query CRUD API | Planned | 9 endpoints |
+| SqlFolderEntity | ✅ Complete | Flat folder structure |
+| SqlWorksheetEntity | ✅ Complete | Worksheet storage |
+| Folder CRUD API | ✅ Complete | 4 endpoints |
+| Worksheet CRUD API | ✅ Complete | 5 endpoints |
 | CLI commands | Planned | list/get/create/update/delete |
-| Project permission check | Planned | Role-based access via ProjectMemberEntity |
+| Team permission check | Planned | Role-based access via TeamMemberEntity |
 
 ### Phase 2: Enhanced Features
 
 | Component | Status | Description |
 |-----------|--------|-------------|
+| Folder Update API | Planned | PUT endpoint for folder updates |
+| Worksheet Run API | Planned | Execute worksheet with parameters |
+| Worksheet Star API | Planned | Toggle star status |
+| Worksheet Move API | Planned | Move between folders |
+| Worksheet Duplicate API | Planned | Clone worksheet |
 | **Common TagEntity** | Planned | Shared tag system for SQL/Dataset/Quality |
 | Full-text search | Planned | Optimized SQL content search |
-| Query versioning | Future | Track query changes |
-| Import/Export | Future | Bulk query migration |
 
 ### Phase 2: Tag Entity Design (Preview)
 
-> Tags will be implemented as a **common entity** shared across SQL queries, Datasets, and Quality specs.
+> Tags will be implemented as a **common entity** shared across SQL worksheets, Datasets, and Quality specs.
 
 ```kotlin
 // module-core-domain/entity/common/TagEntity.kt
@@ -992,7 +989,7 @@ class TagEntity(
 class ResourceTagEntity(
     @Enumerated(EnumType.STRING)
     @Column(name = "resource_type", nullable = false, length = 30)
-    val resourceType: TaggableResourceType,  // SAVED_QUERY, DATASET, QUALITY_SPEC
+    val resourceType: TaggableResourceType,  // SQL_SNIPPET, DATASET, QUALITY_SPEC
 
     @Column(name = "resource_id", nullable = false)
     val resourceId: Long,
@@ -1003,7 +1000,7 @@ class ResourceTagEntity(
 
 // module-core-common/enums/TagEnums.kt
 enum class TaggableResourceType {
-    SAVED_QUERY,
+    SQL_SNIPPET,
     DATASET,
     QUALITY_SPEC,
     METRIC,
@@ -1019,11 +1016,11 @@ enum class TaggableResourceType {
 
 | Feature | Completion Condition |
 |---------|----------------------|
-| Folder CRUD | All 5 endpoints working |
-| Query CRUD | All 9 endpoints working |
+| Folder CRUD | All 4 endpoints working |
+| Worksheet CRUD | All 5 endpoints working |
 | CLI integration | `dli sql list/get/create/update/delete` working |
-| Permission check | Project role enforcement working |
-| Folder constraints | Unique names per project, deletion blocking |
+| Permission check | Team role enforcement working |
+| Folder constraints | Unique names per team, deletion blocking |
 | Execution tracking | Runs recorded in ExecutionHistoryEntity |
 
 ### 10.2 Test Coverage
@@ -1050,7 +1047,7 @@ enum class TaggableResourceType {
 
 **Design Choices Applied:**
 - Flat folder structure (simpler than Databricks' nested)
-- Project-based organization (from BigQuery)
+- Team-based organization (from PopSQL)
 - Starred/favorites (from Redash)
 - Team sharing via membership (from PopSQL)
 
@@ -1060,10 +1057,10 @@ enum class TaggableResourceType {
 
 | # | Decision | Choice | Rationale |
 |---|----------|--------|-----------|
-| 1 | Sharing model | Project Membership | Simple, consistent with PROJECT_FEATURE.md |
+| 1 | Sharing model | Team Membership | Simple, consistent with TEAM_FEATURE.md |
 | 2 | Folder depth | Flat 1-level | Simpler UX, easier navigation |
-| 3 | Folder uniqueness | Unique per project | Prevent confusion |
-| 4 | Query uniqueness | Not unique | Allow duplicate names |
+| 3 | Folder uniqueness | Unique per team | Prevent confusion |
+| 4 | Worksheet uniqueness | Not unique | Allow duplicate names |
 | 5 | Folder deletion | Block if not empty | Explicit cleanup required |
 | 6 | Execution tracking | Unified ExecutionHistoryEntity | Consistent with Dataset/Quality |
 | 7 | CLI scope | list/get/create/update/delete | Full CRUD, search via list --text |
@@ -1084,27 +1081,27 @@ enum class TaggableResourceType {
 interface SqlFolderRepositoryJpa {
     fun save(folder: SqlFolderEntity): SqlFolderEntity
     fun findById(id: Long): SqlFolderEntity?
-    fun findByProjectIdAndName(projectId: Long, name: String): SqlFolderEntity?
+    fun findByTeamIdAndName(teamId: Long, name: String): SqlFolderEntity?
     fun deleteById(id: Long)
 }
 
 // SqlFolderRepositoryDsl.kt
 interface SqlFolderRepositoryDsl {
-    fun findByProjectId(projectId: Long): List<FolderSummaryProjection>
-    fun countQueriesByFolderId(folderId: Long): Int
+    fun findByTeamId(teamId: Long): List<FolderSummaryProjection>
+    fun countWorksheetsByFolderId(folderId: Long): Int
 }
 
-// SavedQueryRepositoryJpa.kt
-interface SavedQueryRepositoryJpa {
-    fun save(query: SavedQueryEntity): SavedQueryEntity
-    fun findById(id: Long): SavedQueryEntity?
+// SqlWorksheetRepositoryJpa.kt
+interface SqlWorksheetRepositoryJpa {
+    fun save(worksheet: SqlWorksheetEntity): SqlWorksheetEntity
+    fun findById(id: Long): SqlWorksheetEntity?
     fun deleteById(id: Long)
 }
 
-// SavedQueryRepositoryDsl.kt
-interface SavedQueryRepositoryDsl {
-    fun findByConditions(query: ListQueriesQuery): Page<QuerySummaryProjection>
-    fun findDetailById(id: Long): QueryDetailProjection?
+// SqlWorksheetRepositoryDsl.kt
+interface SqlWorksheetRepositoryDsl {
+    fun findByConditions(query: ListWorksheetsQuery): Page<WorksheetSummaryProjection>
+    fun findDetailById(id: Long): WorksheetDetailProjection?
     fun countByFolderId(folderId: Long): Int
 }
 
@@ -1119,14 +1116,14 @@ interface SqlFolderRepositoryJpaImpl :
     SqlFolderRepositoryJpa,
     JpaRepository<SqlFolderEntity, Long> {
 
-    // Spring Data auto-implements: findByProjectIdAndName(projectId, name)
+    // Spring Data auto-implements: findByTeamIdAndName(teamId, name)
 }
 
-// SavedQueryRepositoryJpaImpl.kt
-@Repository("savedQueryRepositoryJpa")
-interface SavedQueryRepositoryJpaImpl :
-    SavedQueryRepositoryJpa,
-    JpaRepository<SavedQueryEntity, Long>
+// SqlWorksheetRepositoryJpaImpl.kt
+@Repository("sqlWorksheetRepositoryJpa")
+interface SqlWorksheetRepositoryJpaImpl :
+    SqlWorksheetRepositoryJpa,
+    JpaRepository<SqlWorksheetEntity, Long>
 
 // SqlFolderRepositoryDslImpl.kt
 @Repository("sqlFolderRepositoryDsl")
@@ -1136,63 +1133,65 @@ class SqlFolderRepositoryDslImpl(
     // QueryDSL implementation
 }
 
-// SavedQueryRepositoryDslImpl.kt
-@Repository("savedQueryRepositoryDsl")
-class SavedQueryRepositoryDslImpl(
+// SqlWorksheetRepositoryDslImpl.kt
+@Repository("sqlWorksheetRepositoryDsl")
+class SqlWorksheetRepositoryDslImpl(
     private val queryFactory: JPAQueryFactory,
-) : SavedQueryRepositoryDsl {
+) : SqlWorksheetRepositoryDsl {
     // QueryDSL implementation with search and pagination
 }
 ```
 
 ---
 
-## Appendix D: Migration from v1.x
+## Appendix D: Migration from v2.x (Project-based to Team-based)
 
-### Breaking Changes from v1.1.0
+### Breaking Changes from v2.1.0
 
-| Change | v1.1.0 | v2.0.0 | Migration |
+| Change | v2.1.0 | v3.0.0 | Migration |
 |--------|--------|--------|-----------|
-| Folder hierarchy | `parentFolderId` (nested) | Flat (no parent) | Remove parent references, flatten structure |
-| CLI `put` command | `dli sql put` | `dli sql update` | Update CLI scripts |
-| Search endpoint | Separate `/search` | `list --text` | Use list with searchText param |
-| Dry-run | Supported | Removed | Remove dryRun parameter usage |
+| Organization | Project-based | Team-based | Update teamId FK |
+| CLI option | `--project` | `--team` | Update CLI scripts |
+| URL structure | `/projects/{projectId}/sql/` | `/teams/{teamId}/sql/` | Update API clients |
+| Permission check | ProjectMemberEntity | TeamMemberEntity | Update security beans |
+| Role hierarchy | OWNER/EDITOR/VIEWER | MANAGER/EDITOR/VIEWER | Update role references |
 
 ### Database Migration
 
 ```sql
--- Remove parentFolderId column (if exists)
-ALTER TABLE sql_folder DROP COLUMN parent_folder_id;
+-- Step 1: Add team_id column to sql_folder
+ALTER TABLE sql_folder ADD COLUMN team_id BIGINT;
 
--- Update unique constraint
-ALTER TABLE sql_folder DROP INDEX uk_sql_folder_name_parent_project;
-ALTER TABLE sql_folder ADD UNIQUE KEY uk_sql_folder_name_project (name, project_id);
+-- Step 2: Migrate data (if project->team mapping exists)
+-- Note: Development in progress, no migration needed for fresh deployment
+-- UPDATE sql_folder sf
+-- SET sf.team_id = (SELECT team_id FROM project_team_mapping WHERE project_id = sf.project_id);
+
+-- Step 3: Drop project_id column
+ALTER TABLE sql_folder DROP COLUMN project_id;
+
+-- Step 4: Update constraints
+ALTER TABLE sql_folder DROP INDEX uk_sql_folder_name_project;
+ALTER TABLE sql_folder ADD UNIQUE KEY uk_sql_folder_name_team (name, team_id);
+ALTER TABLE sql_folder DROP INDEX idx_sql_folder_project_id;
+ALTER TABLE sql_folder ADD INDEX idx_sql_folder_team_id (team_id);
+ALTER TABLE sql_folder ADD FOREIGN KEY (team_id) REFERENCES team(id);
 ```
 
 ---
 
-**Last Updated:** 2026-01-07 (v2.0.1 - Applied architectural review feedback)
+## Appendix E: Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 3.3.0 | 2026-01-10 | Controller renamed: TeamSqlController → TeamController; Entity: SqlFolderEntity → WorksheetFolderEntity |
+| 3.2.0 | 2026-01-10 | Terminology unified: "Snippet" → "Worksheet" (Snowflake/Databricks style) |
+| 3.1.0 | 2026-01-10 | Terminology unified: "Query" → "Snippet" throughout documentation |
+| 3.0.0 | 2026-01-10 | Migration from Project-based to Team-based organization |
+| 2.1.0 | 2026-01-09 | MVP complete with 14 endpoints, 158+ tests |
+| 2.0.1 | 2026-01-07 | Architectural review feedback applied |
+| 2.0.0 | 2026-01-06 | Flat folder structure, SavedQueryEntity renamed to SqlSnippetEntity |
 
 ---
 
-## Appendix E: Architectural Review Notes (v2.0.1)
-
-### Review Feedback Applied
-
-| # | Issue | Resolution |
-|---|-------|------------|
-| C1 | SqlDialect enum location | Added full package declaration and import note |
-| C2 | Repository JpaImpl override keyword | Removed override, added Spring Data auto-generation note |
-| I3 | QueryExecutionResponse status type | Changed from `String` to `ExecutionStatus` enum |
-| I4 | Missing permission annotations | Added Section 4.3 with controller annotation examples |
-| M2 | Missing mapper classes | Added `mapper/sql/` to file structure and module overview |
-
-### Approved Patterns (from review)
-
-- ✅ FK-only entity pattern (projectId: Long, folderId: Long)
-- ✅ Soft delete index on both entities
-- ✅ Unique constraint naming (`uk_sql_folder_name_project`)
-- ✅ Repository Jpa/Dsl naming convention
-- ✅ DTO organization (Commands, Projections, API DTOs)
-- ✅ Project permission model integration
-- ✅ Phase 2 Tag Entity preview design
+**Last Updated:** 2026-01-10 (v3.3.0 - TeamController, WorksheetFolderEntity)

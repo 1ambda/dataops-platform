@@ -1,21 +1,48 @@
-# SQL (Saved Query) Management - Release Document
+# SQL (Saved Worksheet) Management - Release Document
 
-> **Version:** 1.0.0
-> **Release Date:** 2026-01-09
-> **Status:** MVP Complete (14/14 endpoints)
+> **Version:** 3.3.0
+> **Release Date:** 2026-01-10
+> **Status:** MVP Complete (9/9 endpoints - Team-based)
+
+---
+
+## v3.3.0 Changes (2026-01-10)
+
+- **Controller Rename**: `TeamSqlController` → `TeamController`
+- Controller now handles all Team-scoped resources (SQL Worksheets/Folders)
+- API paths remain unchanged: `/api/v1/teams/{teamId}/sql/worksheets` and `/api/v1/teams/{teamId}/sql/folders`
+- Controller file renamed: `TeamSqlController.kt` → `TeamController.kt`
+
+---
+
+## v3.2.0 Changes (2026-01-10)
+
+- **Terminology**: "Snippet" → "Worksheet" (industry-standard naming like Snowflake, Databricks)
+- Entity names: SqlSnippetEntity → SqlWorksheetEntity (documentation only)
+- API paths: `/sql/snippets` → `/sql/worksheets`
+
+---
+
+## Migration Note (v3.0.0)
+
+**Breaking Change:** Project-based organization replaced with Team-based architecture.
+- All `/api/v1/projects/{projectId}/sql/*` endpoints migrated to `/api/v1/teams/{teamId}/sql/*`
+- Project API (5 endpoints) removed - See [TEAM_FEATURE.md](./TEAM_FEATURE.md) for Team management
+- `ProjectEntity` references replaced with `TeamEntity`
+- `projectId` parameters replaced with `teamId`
 
 ---
 
 ## Executive Summary
 
-This release introduces the SQL (Saved Query) Management feature, enabling users to organize and manage reusable SQL queries within projects. The implementation includes Project management, SQL Folder organization, and SQL Snippet CRUD operations.
+This release introduces the SQL (Saved Worksheet) Management feature, enabling users to organize and manage reusable SQL worksheets within Teams. The implementation includes SQL Folder organization and SQL Worksheet CRUD operations under Team ownership.
 
 ### Key Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Total Endpoints** | 14 (5 Project + 4 Folder + 5 Snippet) |
-| **Total Tests** | 158+ (Service: 75, Controller: 83) |
+| **Total Endpoints** | 9 (4 Folder + 5 Worksheet) |
+| **Total Tests** | 100+ (Service: 48, Controller: 53) |
 | **Test Success Rate** | 100% |
 | **Architecture** | Pure Hexagonal (Port-Adapter) |
 
@@ -23,50 +50,28 @@ This release introduces the SQL (Saved Query) Management feature, enabling users
 
 ## API Endpoints
 
-### Project API (5 endpoints)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/projects` | List projects with search/pagination |
-| POST | `/api/v1/projects` | Create project |
-| GET | `/api/v1/projects/{projectId}` | Get project details |
-| PUT | `/api/v1/projects/{projectId}` | Update project |
-| DELETE | `/api/v1/projects/{projectId}` | Soft delete project |
-
 ### SQL Folder API (4 endpoints)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/projects/{projectId}/sql/folders` | List folders with snippet count |
-| POST | `/api/v1/projects/{projectId}/sql/folders` | Create folder |
-| GET | `/api/v1/projects/{projectId}/sql/folders/{folderId}` | Get folder details |
-| DELETE | `/api/v1/projects/{projectId}/sql/folders/{folderId}` | Soft delete folder |
+| GET | `/api/v1/teams/{teamId}/sql/folders` | List folders with worksheet count |
+| POST | `/api/v1/teams/{teamId}/sql/folders` | Create folder |
+| GET | `/api/v1/teams/{teamId}/sql/folders/{folderId}` | Get folder details |
+| DELETE | `/api/v1/teams/{teamId}/sql/folders/{folderId}` | Soft delete folder |
 
-### SQL Snippet API (5 endpoints)
+### SQL Worksheet API (5 endpoints)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/projects/{projectId}/sql/snippets` | List snippets with filters/pagination |
-| POST | `/api/v1/projects/{projectId}/sql/snippets` | Create snippet |
-| GET | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | Get snippet details |
-| PUT | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | Update snippet |
-| DELETE | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | Soft delete snippet |
+| GET | `/api/v1/teams/{teamId}/sql/worksheets` | List worksheets with filters/pagination |
+| POST | `/api/v1/teams/{teamId}/sql/worksheets` | Create worksheet |
+| GET | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Get worksheet details |
+| PUT | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Update worksheet |
+| DELETE | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | Soft delete worksheet |
 
 ---
 
 ## Entity Model
-
-### ProjectEntity
-
-```kotlin
-@Entity
-@Table(name = "project")
-class ProjectEntity(
-    name: String,           // Unique identifier
-    displayName: String,    // Human-readable name
-    description: String?,   // Optional description
-) : BaseEntity()
-```
 
 ### SqlFolderEntity
 
@@ -74,21 +79,21 @@ class ProjectEntity(
 @Entity
 @Table(name = "sql_folder")
 class SqlFolderEntity(
-    projectId: Long,        // FK to Project
-    name: String,           // Folder name (unique per project)
+    teamId: Long,           // FK to Team
+    name: String,           // Folder name (unique per team)
     description: String?,   // Optional description
     displayOrder: Int,      // Sort order
 ) : BaseEntity()
 ```
 
-### SqlSnippetEntity
+### SqlWorksheetEntity
 
 ```kotlin
 @Entity
-@Table(name = "sql_snippet")
-class SqlSnippetEntity(
+@Table(name = "sql_worksheet")
+class SqlWorksheetEntity(
     folderId: Long,         // FK to SqlFolder
-    name: String,           // Snippet name
+    name: String,           // Worksheet name
     description: String?,   // Optional description
     sqlText: String,        // SQL query text
     dialect: SqlDialect,    // BIGQUERY, TRINO, SPARK, etc.
@@ -101,9 +106,9 @@ class SqlSnippetEntity(
 ### Entity Relationships
 
 ```
-Project
-  └── SqlFolder (projectId FK)
-        └── SqlSnippet (folderId FK)
+Team (see TEAM_FEATURE.md)
+  └── SqlFolder (teamId FK)
+        └── SqlWorksheet (folderId FK)
 ```
 
 ---
@@ -117,55 +122,47 @@ Project
 | **Services** | Concrete classes | `module-core-domain/service/` |
 | **Repository Interfaces** | Jpa/Dsl separation | `module-core-domain/repository/` |
 | **Repository Implementations** | QueryDSL + Spring Data | `module-core-infra/repository/` |
-| **Controller** | Unified ProjectController | `module-server-api/controller/` |
+| **Controller** | TeamController (v3.3.0) | `module-server-api/controller/` |
 | **DTOs** | Request/Response pattern | `module-server-api/dto/` |
 | **Mappers** | Static object mappers | `module-server-api/mapper/` |
 
 ### Key Design Decisions
 
-1. **Unified Controller**: All 14 endpoints in `ProjectController` for cohesive API surface
+1. **Unified Controller**: All 9 SQL endpoints in `TeamController` (renamed from SqlController in v3.3.0) for cohesive API surface
 2. **Long FK Pattern**: No JPA `@ManyToOne` relationships, only Long FK fields
 3. **Soft Delete**: `deletedAt` field in `BaseEntity` for all entities
 4. **QueryDSL**: Complex queries use `JPAQueryFactory` with BooleanBuilder
 5. **CQRS**: Jpa repositories for CRUD, Dsl repositories for complex queries
+6. **Team Ownership**: SQL resources owned by Teams, not Projects (v3.0.0)
 
 ### Files Created/Modified
 
 #### New Files (module-core-domain)
 
-- `entity/project/ProjectEntity.kt` - Project domain entity
-- `entity/sql/SqlFolderEntity.kt` - SQL Folder entity
-- `entity/sql/SqlSnippetEntity.kt` - SQL Snippet entity
-- `service/ProjectService.kt` - Project business logic
+- `entity/sql/SqlFolderEntity.kt` - SQL Folder entity (teamId FK)
+- `entity/sql/SqlWorksheetEntity.kt` - SQL Worksheet entity
 - `service/SqlFolderService.kt` - Folder business logic
-- `service/SqlSnippetService.kt` - Snippet business logic
-- `repository/project/ProjectRepositoryJpa.kt` - Project CRUD interface
-- `repository/project/ProjectRepositoryDsl.kt` - Project query interface
+- `service/SqlWorksheetService.kt` - Worksheet business logic
 - `repository/sql/SqlFolderRepositoryJpa.kt` - Folder CRUD interface
 - `repository/sql/SqlFolderRepositoryDsl.kt` - Folder query interface
-- `repository/sql/SqlSnippetRepositoryJpa.kt` - Snippet CRUD interface
-- `repository/sql/SqlSnippetRepositoryDsl.kt` - Snippet query interface
+- `repository/sql/SqlWorksheetRepositoryJpa.kt` - Worksheet CRUD interface
+- `repository/sql/SqlWorksheetRepositoryDsl.kt` - Worksheet query interface
 
 #### New Files (module-core-infra)
 
-- `repository/project/ProjectRepositoryJpaImpl.kt` - Project CRUD implementation
-- `repository/project/ProjectRepositoryJpaSpringData.kt` - Spring Data interface
-- `repository/project/ProjectRepositoryDslImpl.kt` - Project QueryDSL
 - `repository/sql/SqlFolderRepositoryJpaImpl.kt` - Folder CRUD implementation
 - `repository/sql/SqlFolderRepositoryJpaSpringData.kt` - Spring Data interface
 - `repository/sql/SqlFolderRepositoryDslImpl.kt` - Folder QueryDSL
-- `repository/sql/SqlSnippetRepositoryJpaImpl.kt` - Snippet CRUD implementation
-- `repository/sql/SqlSnippetRepositoryJpaSpringData.kt` - Spring Data interface
-- `repository/sql/SqlSnippetRepositoryDslImpl.kt` - Snippet QueryDSL
+- `repository/sql/SqlWorksheetRepositoryJpaImpl.kt` - Worksheet CRUD implementation
+- `repository/sql/SqlWorksheetRepositoryJpaSpringData.kt` - Spring Data interface
+- `repository/sql/SqlWorksheetRepositoryDslImpl.kt` - Worksheet QueryDSL
 
 #### New Files (module-server-api)
 
-- `controller/ProjectController.kt` - Unified REST controller (14 endpoints)
-- `dto/project/*.kt` - Project DTOs (Create, Update, Response, List)
-- `dto/sql/*.kt` - SQL DTOs (Folder, Snippet requests/responses)
-- `mapper/ProjectMapper.kt` - Project entity-DTO mapping
-- `mapper/SqlFolderMapper.kt` - Folder entity-DTO mapping
-- `mapper/SqlSnippetMapper.kt` - Snippet entity-DTO mapping
+- `controller/TeamController.kt` - Unified Team-scoped REST controller (9 SQL endpoints, renamed from SqlController in v3.3.0)
+- `dto/sql/*.kt` - SQL DTOs (Folder, Worksheet requests/responses)
+- `mapper/SqlFolderMapper.kt` - Folder entity-DTO mapping (replaced by WorksheetFolderMapper in v3.3.0)
+- `mapper/SqlWorksheetMapper.kt` - Worksheet entity-DTO mapping
 
 #### New Files (module-core-common)
 
@@ -174,32 +171,30 @@ Project
 
 #### Test Files
 
-- `ProjectServiceTest.kt` - 27 tests
-- `ProjectControllerTest.kt` - 30 tests
 - `SqlFolderServiceTest.kt` - 19 tests
 - `SqlFolderControllerTest.kt` - 20 tests
-- `SqlSnippetServiceTest.kt` - 29 tests
-- `SqlSnippetControllerTest.kt` - 33 tests
+- `SqlWorksheetServiceTest.kt` - 29 tests
+- `SqlWorksheetControllerTest.kt` - 33 tests
 
 ---
 
 ## Test Coverage
 
-### Service Tests (75 tests)
+### Service Tests (48 tests)
 
 | Service | Test Count | Coverage |
 |---------|------------|----------|
-| ProjectService | 27 | CRUD + validation + pagination |
 | SqlFolderService | 19 | CRUD + validation + cascade |
-| SqlSnippetService | 29 | CRUD + filters + star/run tracking |
+| SqlWorksheetService | 29 | CRUD + filters + star/run tracking |
 
-### Controller Tests (83 tests)
+### Controller Tests (53 tests)
 
 | Controller | Test Count | Coverage |
 |------------|------------|----------|
-| ProjectController (Project) | 30 | All 5 endpoints |
-| ProjectController (Folder) | 20 | All 4 endpoints |
-| ProjectController (Snippet) | 33 | All 5 endpoints |
+| TeamController (Folder) | 20 | All 4 endpoints |
+| TeamController (Worksheet) | 33 | All 5 endpoints |
+
+> **Note:** Controller tests are in `WorksheetFolderControllerTest.kt` and `SqlWorksheetControllerTest.kt`
 
 ---
 
@@ -208,7 +203,7 @@ Project
 ### Fixed Issues (HIGH Priority)
 
 1. **SqlFolderRepositoryDslImpl**: Converted from JPQL + field injection to QueryDSL + constructor injection
-2. **Controller Code Duplication**: Extracted `findSnippetInProject()` helper method to eliminate 4x duplicated snippet lookup logic
+2. **Controller Code Duplication**: Extracted `findWorksheetInProject()` helper method to eliminate 4x duplicated worksheet lookup logic
 
 ### Documented Issues (MEDIUM/LOW)
 
@@ -224,23 +219,23 @@ The SQL Feature will integrate with CLI via the following commands (planned):
 
 | CLI Command | Server API |
 |-------------|------------|
-| `dli sql folders list` | GET `/api/v1/projects/{id}/sql/folders` |
-| `dli sql folders create` | POST `/api/v1/projects/{id}/sql/folders` |
-| `dli sql snippets list` | GET `/api/v1/projects/{id}/sql/snippets` |
-| `dli sql snippets get` | GET `/api/v1/projects/{id}/sql/snippets/{id}` |
-| `dli sql snippets create` | POST `/api/v1/projects/{id}/sql/snippets` |
-| `dli sql snippets update` | PUT `/api/v1/projects/{id}/sql/snippets/{id}` |
-| `dli sql snippets delete` | DELETE `/api/v1/projects/{id}/sql/snippets/{id}` |
+| `dli sql folders list --team <id>` | GET `/api/v1/teams/{teamId}/sql/folders` |
+| `dli sql folders create --team <id>` | POST `/api/v1/teams/{teamId}/sql/folders` |
+| `dli sql worksheets list --team <id>` | GET `/api/v1/teams/{teamId}/sql/worksheets` |
+| `dli sql worksheets get --team <id>` | GET `/api/v1/teams/{teamId}/sql/worksheets/{id}` |
+| `dli sql worksheets create --team <id>` | POST `/api/v1/teams/{teamId}/sql/worksheets` |
+| `dli sql worksheets update --team <id>` | PUT `/api/v1/teams/{teamId}/sql/worksheets/{id}` |
+| `dli sql worksheets delete --team <id>` | DELETE `/api/v1/teams/{teamId}/sql/worksheets/{id}` |
 
 ---
 
-## Deferred Features (v2.0)
+## Deferred Features (v4.0)
 
 The following features were excluded from MVP per scope discussion:
 
-1. **Permission Checking**: User access control (deferred to PROJECT_FEATURE)
+1. **Permission Checking**: User access control (deferred to TEAM_FEATURE)
 2. **Folder Update API**: PUT endpoint for folder updates
-3. **Snippet Move**: Move snippet between folders
+3. **Worksheet Move**: Move worksheet between folders
 4. **Folder Nesting**: Hierarchical folder structure
 
 ---
@@ -248,15 +243,18 @@ The following features were excluded from MVP per scope discussion:
 ## Verification
 
 ```bash
-# Run SQL Feature tests
-./gradlew :module-server-api:test --tests "com.dataops.basecamp.controller.ProjectControllerTest"
-./gradlew :module-server-api:test --tests "com.dataops.basecamp.controller.SqlFolderControllerTest"
-./gradlew :module-server-api:test --tests "com.dataops.basecamp.controller.SqlSnippetControllerTest"
+# Run SQL Feature tests (v3.3.0 test file names)
+./gradlew :module-server-api:test --tests "com.dataops.basecamp.controller.WorksheetFolderControllerTest"
+./gradlew :module-server-api:test --tests "com.dataops.basecamp.controller.SqlWorksheetControllerTest"
 
-# All 83 controller tests pass
-# All 75 service tests pass
+# Service tests
+./gradlew :module-core-domain:test --tests "com.dataops.basecamp.domain.service.WorksheetFolderServiceTest"
+./gradlew :module-core-domain:test --tests "com.dataops.basecamp.domain.service.SqlWorksheetServiceTest"
+
+# All 53 controller tests pass
+# All 48 service tests pass
 ```
 
 ---
 
-*Document Version: 1.0.0 | Last Updated: 2026-01-09*
+*Document Version: 3.3.0 | Last Updated: 2026-01-10*

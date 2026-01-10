@@ -6,10 +6,10 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 
 /**
- * SQL Folder 생성 요청 DTO
+ * Worksheet Folder 생성 요청 DTO
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class CreateSqlFolderRequest(
+data class CreateWorksheetFolderRequest(
     @field:NotBlank(message = "Folder name is required")
     @field:Size(max = 100, message = "Folder name must not exceed 100 characters")
     val name: String,
@@ -19,12 +19,12 @@ data class CreateSqlFolderRequest(
 )
 
 /**
- * SQL Folder 상세 응답 DTO
+ * Worksheet Folder 상세 응답 DTO
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class SqlFolderResponse(
+data class WorksheetFolderResponse(
     val id: Long,
-    val projectId: Long,
+    val teamId: Long,
     val name: String,
     val description: String?,
     val displayOrder: Int,
@@ -36,10 +36,10 @@ data class SqlFolderResponse(
 )
 
 /**
- * SQL Folder 목록 응답 DTO
+ * Worksheet Folder 목록 응답 DTO
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-data class SqlFolderListResponse(
-    val content: List<SqlFolderResponse>,
-    val projectId: Long,
+data class WorksheetFolderListResponse(
+    val content: List<WorksheetFolderResponse>,
+    val teamId: Long,
 )

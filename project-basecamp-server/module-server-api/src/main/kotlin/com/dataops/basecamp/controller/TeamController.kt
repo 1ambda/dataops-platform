@@ -1,20 +1,19 @@
 package com.dataops.basecamp.controller
 
 import com.dataops.basecamp.common.enums.SqlDialect
-import com.dataops.basecamp.common.exception.ProjectNotFoundException
 import com.dataops.basecamp.common.exception.SqlWorksheetNotFoundException
-import com.dataops.basecamp.domain.service.ProjectService
+import com.dataops.basecamp.common.exception.WorksheetFolderNotFoundException
 import com.dataops.basecamp.domain.service.SqlWorksheetService
-import com.dataops.basecamp.dto.project.CreateProjectRequest
-import com.dataops.basecamp.dto.project.ProjectListResponse
-import com.dataops.basecamp.dto.project.ProjectResponse
-import com.dataops.basecamp.dto.project.UpdateProjectRequest
+import com.dataops.basecamp.domain.service.WorksheetFolderService
 import com.dataops.basecamp.dto.sql.CreateSqlWorksheetRequest
+import com.dataops.basecamp.dto.sql.CreateWorksheetFolderRequest
 import com.dataops.basecamp.dto.sql.SqlWorksheetDetailResponse
 import com.dataops.basecamp.dto.sql.SqlWorksheetListResponse
 import com.dataops.basecamp.dto.sql.UpdateSqlWorksheetRequest
-import com.dataops.basecamp.mapper.ProjectMapper
+import com.dataops.basecamp.dto.sql.WorksheetFolderListResponse
+import com.dataops.basecamp.dto.sql.WorksheetFolderResponse
 import com.dataops.basecamp.mapper.SqlWorksheetMapper
+import com.dataops.basecamp.mapper.WorksheetFolderMapper
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -34,144 +33,116 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * Project REST API Controller
+ * Team REST API Controller
  *
- * Project CRUD 및 SQL Worksheet 기능을 제공하는 REST API 컨트롤러입니다.
+ * Team 기반 SQL Folder 및 SQL Worksheet 기능을 제공하는 REST API 컨트롤러입니다.
  *
- * Project API:
- * - GET /api/v1/projects (목록 조회 with 검색/페이징)
- * - POST /api/v1/projects (생성)
- * - GET /api/v1/projects/{projectId} (상세 조회)
- * - PUT /api/v1/projects/{projectId} (수정)
- * - DELETE /api/v1/projects/{projectId} (삭제 - soft delete)
+ * SQL Folder API:
+ * - GET /api/v1/teams/{teamId}/sql/folders (폴더 목록 조회)
+ * - POST /api/v1/teams/{teamId}/sql/folders (폴더 생성)
+ * - GET /api/v1/teams/{teamId}/sql/folders/{folderId} (폴더 상세 조회)
+ * - DELETE /api/v1/teams/{teamId}/sql/folders/{folderId} (폴더 삭제 - soft delete)
  *
  * SQL Worksheet API:
- * - GET /api/v1/projects/{projectId}/sql/worksheets (워크시트 목록 조회 with 검색/페이징)
- * - POST /api/v1/projects/{projectId}/sql/worksheets (워크시트 생성)
- * - GET /api/v1/projects/{projectId}/sql/worksheets/{worksheetId} (워크시트 상세 조회)
- * - PUT /api/v1/projects/{projectId}/sql/worksheets/{worksheetId} (워크시트 수정)
- * - DELETE /api/v1/projects/{projectId}/sql/worksheets/{worksheetId} (워크시트 삭제 - soft delete)
+ * - GET /api/v1/teams/{teamId}/sql/worksheets (워크시트 목록 조회 with 검색/페이징)
+ * - POST /api/v1/teams/{teamId}/sql/worksheets (워크시트 생성)
+ * - GET /api/v1/teams/{teamId}/sql/worksheets/{worksheetId} (워크시트 상세 조회)
+ * - PUT /api/v1/teams/{teamId}/sql/worksheets/{worksheetId} (워크시트 수정)
+ * - DELETE /api/v1/teams/{teamId}/sql/worksheets/{worksheetId} (워크시트 삭제 - soft delete)
  *
- * Note: SQL Folder API는 v3.0.0부터 TeamSqlController로 이동되었습니다.
- * - GET /api/v1/teams/{teamId}/sql/folders
- * - POST /api/v1/teams/{teamId}/sql/folders
- * - GET /api/v1/teams/{teamId}/sql/folders/{folderId}
- * - DELETE /api/v1/teams/{teamId}/sql/folders/{folderId}
+ * v3.0.0: Project 기반에서 Team 기반으로 마이그레이션됨
  */
 @RestController
-@RequestMapping("/api/v1/projects")
+@RequestMapping("/api/v1/teams")
 @Validated
-class ProjectController(
-    private val projectService: ProjectService,
+class TeamController(
+    private val worksheetFolderService: WorksheetFolderService,
     private val sqlWorksheetService: SqlWorksheetService,
 ) {
-    /**
-     * Project 목록 조회 with 검색/페이징
-     *
-     * @param search 이름/displayName 검색 (부분 일치)
-     * @param page 페이지 번호 (0부터)
-     * @param size 페이지 크기 (1-100)
-     * @return 필터 조건에 맞는 Project 목록
-     */
-    @GetMapping
-    fun listProjects(
-        @RequestParam(required = false) search: String?,
-        @RequestParam(defaultValue = "0") @Min(0) page: Int,
-        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
-    ): ResponseEntity<ProjectListResponse> {
-        val pageRequest =
-            PageRequest.of(
-                page,
-                size,
-                Sort.by(Sort.Direction.DESC, "updatedAt"),
-            )
+    // ============= SQL Folder API =============
 
-        val projects = projectService.listProjects(search, pageRequest)
-        val response = ProjectMapper.toListResponse(projects)
+    /**
+     * SQL Folder 목록 조회
+     *
+     * @param teamId Team ID
+     * @return Team 내 모든 SQL Folder 목록 (displayOrder 순)
+     */
+    @GetMapping("/{teamId}/sql/folders")
+    fun listSqlFolders(
+        @PathVariable teamId: Long,
+    ): ResponseEntity<WorksheetFolderListResponse> {
+        val folders = worksheetFolderService.listFolders(teamId)
+        val response = WorksheetFolderMapper.toListResponse(folders, teamId)
 
         return ResponseEntity.ok(response)
     }
 
     /**
-     * Project 생성
+     * SQL Folder 생성
      *
-     * @param request Project 생성 요청
-     * @return 생성된 Project 정보
+     * @param teamId Team ID
+     * @param request SQL Folder 생성 요청
+     * @return 생성된 SQL Folder 정보
      */
-    @PostMapping
-    fun createProject(
-        @Valid @RequestBody request: CreateProjectRequest,
-    ): ResponseEntity<ProjectResponse> {
-        val entity = ProjectMapper.toEntity(request)
-        val savedProject = projectService.createProject(entity)
-        val response = ProjectMapper.toResponse(savedProject)
+    @PostMapping("/{teamId}/sql/folders")
+    fun createSqlFolder(
+        @PathVariable teamId: Long,
+        @Valid @RequestBody request: CreateWorksheetFolderRequest,
+    ): ResponseEntity<WorksheetFolderResponse> {
+        val folder =
+            worksheetFolderService.createFolder(
+                teamId = teamId,
+                name = request.name,
+                description = request.description,
+                displayOrder = request.displayOrder ?: 0,
+            )
+        val response = WorksheetFolderMapper.toResponse(folder)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
     /**
-     * Project 상세 조회
+     * SQL Folder 상세 조회
      *
-     * @param projectId Project ID
-     * @return Project 상세 정보
+     * @param teamId Team ID
+     * @param folderId Folder ID
+     * @return SQL Folder 상세 정보
      */
-    @GetMapping("/{projectId}")
-    fun getProject(
-        @PathVariable projectId: Long,
-    ): ResponseEntity<ProjectResponse> {
-        val project =
-            projectService.getProjectById(projectId)
-                ?: throw ProjectNotFoundException(projectId)
+    @GetMapping("/{teamId}/sql/folders/{folderId}")
+    fun getSqlFolder(
+        @PathVariable teamId: Long,
+        @PathVariable folderId: Long,
+    ): ResponseEntity<WorksheetFolderResponse> {
+        val folder =
+            worksheetFolderService.getFolderById(teamId, folderId)
+                ?: throw WorksheetFolderNotFoundException(folderId, teamId)
 
-        val response = ProjectMapper.toResponse(project)
+        val response = WorksheetFolderMapper.toResponse(folder)
         return ResponseEntity.ok(response)
     }
 
     /**
-     * Project 수정
+     * SQL Folder 삭제 (Soft Delete)
      *
-     * @param projectId Project ID
-     * @param request Project 수정 요청
-     * @return 수정된 Project 정보
-     */
-    @PutMapping("/{projectId}")
-    fun updateProject(
-        @PathVariable projectId: Long,
-        @Valid @RequestBody request: UpdateProjectRequest,
-    ): ResponseEntity<ProjectResponse> {
-        val updatedProject =
-            projectService.updateProject(
-                id = projectId,
-                displayName = request.displayName,
-                description = request.description,
-            )
-
-        val response = ProjectMapper.toResponse(updatedProject)
-        return ResponseEntity.ok(response)
-    }
-
-    /**
-     * Project 삭제 (Soft Delete)
-     *
-     * @param projectId Project ID
+     * @param teamId Team ID
+     * @param folderId Folder ID
      * @return 204 No Content
      */
-    @DeleteMapping("/{projectId}")
-    fun deleteProject(
-        @PathVariable projectId: Long,
+    @DeleteMapping("/{teamId}/sql/folders/{folderId}")
+    fun deleteSqlFolder(
+        @PathVariable teamId: Long,
+        @PathVariable folderId: Long,
     ): ResponseEntity<Void> {
-        projectService.deleteProject(projectId)
+        worksheetFolderService.deleteFolder(teamId, folderId)
         return ResponseEntity.noContent().build()
     }
 
     // ============= SQL Worksheet API =============
-    // TODO: v3.0.0 - SQL Worksheet는 Team 기반으로 마이그레이션 예정
-    // 현재는 folderId 기반으로 동작하며, folder name 조회는 팀 마이그레이션 후 구현
 
     /**
      * SQL Worksheet 목록 조회 (검색/페이징)
      *
-     * @param projectId Project ID
+     * @param teamId Team ID
      * @param folderId 특정 폴더로 필터링 (선택)
      * @param searchText 이름/설명/SQL 검색 (선택)
      * @param starred starred 필터 (선택)
@@ -180,9 +151,9 @@ class ProjectController(
      * @param size 페이지 크기 (1-100)
      * @return 조건에 맞는 SQL Worksheet 목록
      */
-    @GetMapping("/{projectId}/sql/worksheets")
+    @GetMapping("/{teamId}/sql/worksheets")
     fun listSqlWorksheets(
-        @PathVariable projectId: Long,
+        @PathVariable teamId: Long,
         @RequestParam(required = false) folderId: Long?,
         @RequestParam(required = false) searchText: String?,
         @RequestParam(required = false) starred: Boolean?,
@@ -192,9 +163,11 @@ class ProjectController(
     ): ResponseEntity<SqlWorksheetListResponse> {
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"))
 
+        // Note: SqlWorksheetService.listWorksheets uses projectId parameter,
+        // but internally it operates on teamId since Worksheet belongs to Folder which belongs to Team
         val worksheetsPage =
             sqlWorksheetService.listWorksheets(
-                projectId = projectId,
+                projectId = teamId,
                 folderId = folderId,
                 searchText = searchText,
                 starred = starred,
@@ -202,8 +175,9 @@ class ProjectController(
                 pageable = pageable,
             )
 
-        // TODO: Folder 이름 조회는 Team 마이그레이션 후 TeamSqlController를 통해 처리
-        val folderNameMap = emptyMap<Long, String>()
+        // Folder 이름 조회를 위한 매핑 생성
+        val folderIds = worksheetsPage.content.map { it.folderId }.distinct()
+        val folderNameMap = buildFolderNameMap(teamId, folderIds)
 
         val response = SqlWorksheetMapper.toListResponse(worksheetsPage, folderNameMap)
         return ResponseEntity.ok(response)
@@ -212,18 +186,23 @@ class ProjectController(
     /**
      * SQL Worksheet 생성
      *
-     * @param projectId Project ID
+     * @param teamId Team ID
      * @param request SQL Worksheet 생성 요청
      * @return 생성된 SQL Worksheet 정보
      */
-    @PostMapping("/{projectId}/sql/worksheets")
+    @PostMapping("/{teamId}/sql/worksheets")
     fun createSqlWorksheet(
-        @PathVariable projectId: Long,
+        @PathVariable teamId: Long,
         @Valid @RequestBody request: CreateSqlWorksheetRequest,
     ): ResponseEntity<SqlWorksheetDetailResponse> {
+        // Folder 존재 확인 및 이름 조회
+        val folder =
+            worksheetFolderService.getFolderById(teamId, request.folderId)
+                ?: throw WorksheetFolderNotFoundException(request.folderId, teamId)
+
         val worksheet =
             sqlWorksheetService.createWorksheet(
-                projectId = projectId,
+                projectId = teamId,
                 folderId = request.folderId,
                 name = request.name,
                 description = request.description,
@@ -231,9 +210,7 @@ class ProjectController(
                 dialect = request.dialect,
             )
 
-        // TODO: Folder 이름 조회는 Team 마이그레이션 후 TeamSqlController를 통해 처리
-        val folderName = "Folder-${request.folderId}"
-        val response = SqlWorksheetMapper.toDetailResponse(worksheet, folderName)
+        val response = SqlWorksheetMapper.toDetailResponse(worksheet, folder.name)
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
@@ -241,16 +218,16 @@ class ProjectController(
     /**
      * SQL Worksheet 상세 조회
      *
-     * @param projectId Project ID
+     * @param teamId Team ID
      * @param worksheetId Worksheet ID
      * @return SQL Worksheet 상세 정보
      */
-    @GetMapping("/{projectId}/sql/worksheets/{worksheetId}")
+    @GetMapping("/{teamId}/sql/worksheets/{worksheetId}")
     fun getSqlWorksheet(
-        @PathVariable projectId: Long,
+        @PathVariable teamId: Long,
         @PathVariable worksheetId: Long,
     ): ResponseEntity<SqlWorksheetDetailResponse> {
-        val result = findWorksheetInProject(projectId, worksheetId)
+        val result = findWorksheetInTeam(teamId, worksheetId)
         val response = SqlWorksheetMapper.toDetailResponse(result.worksheet, result.folderName)
         return ResponseEntity.ok(response)
     }
@@ -258,22 +235,22 @@ class ProjectController(
     /**
      * SQL Worksheet 수정
      *
-     * @param projectId Project ID
+     * @param teamId Team ID
      * @param worksheetId Worksheet ID
      * @param request SQL Worksheet 수정 요청
      * @return 수정된 SQL Worksheet 정보
      */
-    @PutMapping("/{projectId}/sql/worksheets/{worksheetId}")
+    @PutMapping("/{teamId}/sql/worksheets/{worksheetId}")
     fun updateSqlWorksheet(
-        @PathVariable projectId: Long,
+        @PathVariable teamId: Long,
         @PathVariable worksheetId: Long,
         @Valid @RequestBody request: UpdateSqlWorksheetRequest,
     ): ResponseEntity<SqlWorksheetDetailResponse> {
-        val result = findWorksheetInProject(projectId, worksheetId)
+        val result = findWorksheetInTeam(teamId, worksheetId)
 
         val updatedWorksheet =
             sqlWorksheetService.updateWorksheet(
-                projectId = projectId,
+                projectId = teamId,
                 folderId = result.folderId,
                 worksheetId = worksheetId,
                 name = request.name,
@@ -289,17 +266,17 @@ class ProjectController(
     /**
      * SQL Worksheet 삭제 (Soft Delete)
      *
-     * @param projectId Project ID
+     * @param teamId Team ID
      * @param worksheetId Worksheet ID
      * @return 204 No Content
      */
-    @DeleteMapping("/{projectId}/sql/worksheets/{worksheetId}")
+    @DeleteMapping("/{teamId}/sql/worksheets/{worksheetId}")
     fun deleteSqlWorksheet(
-        @PathVariable projectId: Long,
+        @PathVariable teamId: Long,
         @PathVariable worksheetId: Long,
     ): ResponseEntity<Void> {
-        val result = findWorksheetInProject(projectId, worksheetId)
-        sqlWorksheetService.deleteWorksheet(projectId, result.folderId, worksheetId)
+        val result = findWorksheetInTeam(teamId, worksheetId)
+        sqlWorksheetService.deleteWorksheet(teamId, result.folderId, worksheetId)
         return ResponseEntity.noContent().build()
     }
 
@@ -308,11 +285,10 @@ class ProjectController(
     // ===========================================
 
     /**
-     * Project 내 worksheetId에 해당하는 Worksheet 찾기
-     * TODO: v3.0.0 - Team 마이그레이션 후 folder 조회 로직 업데이트 필요
+     * Team 내 worksheetId에 해당하는 Worksheet 찾기
      */
-    private fun findWorksheetInProject(
-        @Suppress("UNUSED_PARAMETER") projectId: Long, // TODO: Remove after Team migration
+    private fun findWorksheetInTeam(
+        teamId: Long,
         worksheetId: Long,
     ): WorksheetLookupResult {
         // Worksheet를 직접 조회하여 folderId 확인
@@ -320,12 +296,31 @@ class ProjectController(
             sqlWorksheetService.findWorksheetById(worksheetId)
                 ?: throw SqlWorksheetNotFoundException(worksheetId, 0L)
 
+        // Folder가 해당 Team에 속하는지 확인하고 이름 조회
+        val folder =
+            worksheetFolderService.getFolderById(teamId, worksheet.folderId)
+                ?: throw SqlWorksheetNotFoundException(worksheetId, worksheet.folderId)
+
         return WorksheetLookupResult(
             worksheet = worksheet,
             folderId = worksheet.folderId,
-            folderName = "Folder-${worksheet.folderId}", // TODO: Team 마이그레이션 후 실제 이름 조회
+            folderName = folder.name,
         )
     }
+
+    /**
+     * FolderId 목록에 대한 FolderName 매핑 생성
+     */
+    private fun buildFolderNameMap(
+        teamId: Long,
+        folderIds: List<Long>,
+    ): Map<Long, String> =
+        folderIds
+            .mapNotNull { folderId ->
+                worksheetFolderService.getFolderById(teamId, folderId)?.let { folder ->
+                    folderId to folder.name
+                }
+            }.toMap()
 
     private data class WorksheetLookupResult(
         val worksheet: com.dataops.basecamp.domain.entity.sql.SqlWorksheetEntity,

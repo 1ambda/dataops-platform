@@ -39,15 +39,15 @@ import com.dataops.basecamp.common.exception.RateLimitExceededException
 import com.dataops.basecamp.common.exception.ResourceNotFoundException
 import com.dataops.basecamp.common.exception.ResultNotFoundException
 import com.dataops.basecamp.common.exception.ResultSizeLimitExceededException
-import com.dataops.basecamp.common.exception.SqlFolderAlreadyExistsException
-import com.dataops.basecamp.common.exception.SqlFolderNotFoundException
-import com.dataops.basecamp.common.exception.SqlSnippetAlreadyExistsException
-import com.dataops.basecamp.common.exception.SqlSnippetNotFoundException
+import com.dataops.basecamp.common.exception.SqlWorksheetAlreadyExistsException
+import com.dataops.basecamp.common.exception.SqlWorksheetNotFoundException
 import com.dataops.basecamp.common.exception.TableNotFoundException
 import com.dataops.basecamp.common.exception.TooManyTagsException
 import com.dataops.basecamp.common.exception.WorkflowAlreadyExistsException
 import com.dataops.basecamp.common.exception.WorkflowNotFoundException
 import com.dataops.basecamp.common.exception.WorkflowRunNotFoundException
+import com.dataops.basecamp.common.exception.WorksheetFolderAlreadyExistsException
+import com.dataops.basecamp.common.exception.WorksheetFolderNotFoundException
 import com.dataops.basecamp.dto.ApiResponse
 import com.dataops.basecamp.dto.ErrorDetails
 import jakarta.validation.ConstraintViolationException
@@ -560,17 +560,17 @@ class GlobalExceptionHandler {
             .body(ApiResponse.error(ex.message ?: "Project already exists", errorDetails))
     }
 
-    // === SQL Folder-specific exception handlers ===
+    // === Worksheet Folder-specific exception handlers ===
 
     /**
-     * SQL Folder not found exception (404)
+     * Worksheet Folder not found exception (404)
      */
-    @ExceptionHandler(SqlFolderNotFoundException::class)
-    fun handleSqlFolderNotFoundException(
-        ex: SqlFolderNotFoundException,
+    @ExceptionHandler(WorksheetFolderNotFoundException::class)
+    fun handleWorksheetFolderNotFoundException(
+        ex: WorksheetFolderNotFoundException,
         request: WebRequest,
     ): ResponseEntity<ApiResponse<Nothing>> {
-        logger.warn { "SQL folder not found: ${ex.message}" }
+        logger.warn { "Worksheet folder not found: ${ex.message}" }
 
         val errorDetails =
             ErrorDetails(
@@ -579,24 +579,24 @@ class GlobalExceptionHandler {
                     mapOf(
                         "path" to request.getDescription(false),
                         "folder_id" to ex.folderId,
-                        "project_id" to ex.projectId,
+                        "team_id" to ex.teamId,
                     ),
             )
 
         return ResponseEntity
             .status(HttpStatus.NOT_FOUND)
-            .body(ApiResponse.error(ex.message ?: "SQL folder not found", errorDetails))
+            .body(ApiResponse.error(ex.message ?: "Worksheet folder not found", errorDetails))
     }
 
     /**
-     * SQL Folder already exists exception (409 Conflict)
+     * Worksheet Folder already exists exception (409 Conflict)
      */
-    @ExceptionHandler(SqlFolderAlreadyExistsException::class)
-    fun handleSqlFolderAlreadyExistsException(
-        ex: SqlFolderAlreadyExistsException,
+    @ExceptionHandler(WorksheetFolderAlreadyExistsException::class)
+    fun handleWorksheetFolderAlreadyExistsException(
+        ex: WorksheetFolderAlreadyExistsException,
         request: WebRequest,
     ): ResponseEntity<ApiResponse<Nothing>> {
-        logger.warn { "SQL folder already exists: ${ex.message}" }
+        logger.warn { "Worksheet folder already exists: ${ex.message}" }
 
         val errorDetails =
             ErrorDetails(
@@ -605,26 +605,26 @@ class GlobalExceptionHandler {
                     mapOf(
                         "path" to request.getDescription(false),
                         "folder_name" to ex.folderName,
-                        "project_id" to ex.projectId,
+                        "team_id" to ex.teamId,
                     ),
             )
 
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
-            .body(ApiResponse.error(ex.message ?: "SQL folder already exists", errorDetails))
+            .body(ApiResponse.error(ex.message ?: "Worksheet folder already exists", errorDetails))
     }
 
-    // === SQL Snippet-specific exception handlers ===
+    // === SQL Worksheet-specific exception handlers ===
 
     /**
-     * SQL Snippet not found exception (404)
+     * SQL Worksheet not found exception (404)
      */
-    @ExceptionHandler(SqlSnippetNotFoundException::class)
-    fun handleSqlSnippetNotFoundException(
-        ex: SqlSnippetNotFoundException,
+    @ExceptionHandler(SqlWorksheetNotFoundException::class)
+    fun handleSqlWorksheetNotFoundException(
+        ex: SqlWorksheetNotFoundException,
         request: WebRequest,
     ): ResponseEntity<ApiResponse<Nothing>> {
-        logger.warn { "SQL snippet not found: ${ex.message}" }
+        logger.warn { "SQL worksheet not found: ${ex.message}" }
 
         val errorDetails =
             ErrorDetails(
@@ -632,25 +632,25 @@ class GlobalExceptionHandler {
                 details =
                     mapOf(
                         "path" to request.getDescription(false),
-                        "snippet_id" to ex.snippetId,
+                        "worksheet_id" to ex.worksheetId,
                         "folder_id" to ex.folderId,
                     ),
             )
 
         return ResponseEntity
             .status(HttpStatus.NOT_FOUND)
-            .body(ApiResponse.error(ex.message ?: "SQL snippet not found", errorDetails))
+            .body(ApiResponse.error(ex.message ?: "SQL worksheet not found", errorDetails))
     }
 
     /**
-     * SQL Snippet already exists exception (409 Conflict)
+     * SQL Worksheet already exists exception (409 Conflict)
      */
-    @ExceptionHandler(SqlSnippetAlreadyExistsException::class)
-    fun handleSqlSnippetAlreadyExistsException(
-        ex: SqlSnippetAlreadyExistsException,
+    @ExceptionHandler(SqlWorksheetAlreadyExistsException::class)
+    fun handleSqlWorksheetAlreadyExistsException(
+        ex: SqlWorksheetAlreadyExistsException,
         request: WebRequest,
     ): ResponseEntity<ApiResponse<Nothing>> {
-        logger.warn { "SQL snippet already exists: ${ex.message}" }
+        logger.warn { "SQL worksheet already exists: ${ex.message}" }
 
         val errorDetails =
             ErrorDetails(
@@ -658,14 +658,14 @@ class GlobalExceptionHandler {
                 details =
                     mapOf(
                         "path" to request.getDescription(false),
-                        "snippet_name" to ex.snippetName,
+                        "worksheet_name" to ex.worksheetName,
                         "folder_id" to ex.folderId,
                     ),
             )
 
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
-            .body(ApiResponse.error(ex.message ?: "SQL snippet already exists", errorDetails))
+            .body(ApiResponse.error(ex.message ?: "SQL worksheet already exists", errorDetails))
     }
 
     // === Dataset-specific exception handlers ===

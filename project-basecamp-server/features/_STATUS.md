@@ -1,8 +1,17 @@
 # Basecamp Server - Implementation Status
 
-> **Last Updated:** 2026-01-09
-> **Scope:** BASECAMP API feature implementation (88 endpoints)
-> **Current Progress:** 100% (88/88 endpoints completed)
+> **Last Updated:** 2026-01-10
+> **Scope:** BASECAMP API feature implementation (83 endpoints) - v3.0.0 Team-based architecture
+> **Current Progress:** 100% (83/83 endpoints completed)
+
+---
+
+## Migration Note (v3.0.0)
+
+**Breaking Change:** Project-based organization replaced with Team-based architecture.
+- Project API (5 endpoints) removed - See [TEAM_FEATURE.md](./TEAM_FEATURE.md)
+- SQL endpoints migrated: `/api/v1/projects/{projectId}/sql/*` -> `/api/v1/teams/{teamId}/sql/*`
+- Total endpoint count: 88 -> 83 (Project API removed)
 
 ---
 
@@ -10,15 +19,15 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total BASECAMP APIs** | 88 endpoints | Target scope |
-| **Completed** | 88 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL** + **Flag** APIs |
+| **Total BASECAMP APIs** | 83 endpoints | Target scope (v3.0.0 - Project removed) |
+| **Completed** | 83 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL (Team-based)** + **Flag** APIs |
 | **In Progress** | 0 endpoints | - |
 | **Not Started** | 0 endpoints | - |
 | **Overall Progress** | **100%** | All phases complete |
 | **Infrastructure Readiness** | **98%** | Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management), and **P8 (Flag)** APIs all operational with 1210+ tests total. All CLI commands fully supported. **v2.3 Update:** Flag API completed with 11 endpoints for Feature Flag Management (60+ tests).
+**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management - Team-based v3.0.0), and **P8 (Flag)** APIs all operational with 1150+ tests total. All CLI commands fully supported. **v3.0.0 Update:** Project API removed in favor of Team-based architecture for SQL Management.
 
 ---
 
@@ -41,9 +50,9 @@
 | **P4 GitHub** | GitHub | 11 | 11 | **100%** | (Server API) |
 | **P5 Airflow** | Airflow Integration | 4 | 4 | **100%** | (Server API) |
 | **P6 Execution** | Execution | 4 | 4 | **100%** | `dli * run --mode server` |
-| **P7 SQL** | SQL Management | 14 | 14 | **100%** | `dli sql` (planned) |
+| **P7 SQL** | SQL Management (Team-based) | 9 | 9 | **100%** | `dli sql --team` |
 | **P8 Flag** | Flag | 11 | 11 | **100%** | `dli config flags` (planned) |
-| **TOTAL** | **15 features** | **88** | **88** | **100%** | All CLI commands |
+| **TOTAL** | **14 features** | **83** | **83** | **100%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -335,40 +344,30 @@
 
 **Summary:** CLI-rendered SQL execution endpoints for SERVER mode support, enabling CLI to delegate SQL execution to Basecamp Server. Includes Dataset/Metric/Quality/Ad-hoc SQL execution with unified result format. 35 controller tests, Flat+Prefix DTO style, full hexagonal architecture compliance.
 
-### SQL (Saved Query) Management API - 100% Complete (14/14 endpoints)
+### SQL (Saved Worksheet) Management API - 100% Complete (9/9 endpoints) - v3.3.0 Team-based
 
 > **📖 Detailed Documentation:** [`SQL_RELEASE.md`](./SQL_RELEASE.md)
-
-#### Project API (5/5)
-
-| Endpoint | Status |
-|----------|--------|
-| `GET /api/v1/projects` | ✅ Complete |
-| `POST /api/v1/projects` | ✅ Complete |
-| `GET /api/v1/projects/{projectId}` | ✅ Complete |
-| `PUT /api/v1/projects/{projectId}` | ✅ Complete |
-| `DELETE /api/v1/projects/{projectId}` | ✅ Complete |
 
 #### SQL Folder API (4/4)
 
 | Endpoint | Status |
 |----------|--------|
-| `GET /api/v1/projects/{projectId}/sql/folders` | ✅ Complete |
-| `POST /api/v1/projects/{projectId}/sql/folders` | ✅ Complete |
-| `GET /api/v1/projects/{projectId}/sql/folders/{folderId}` | ✅ Complete |
-| `DELETE /api/v1/projects/{projectId}/sql/folders/{folderId}` | ✅ Complete |
+| `GET /api/v1/teams/{teamId}/sql/folders` | ✅ Complete |
+| `POST /api/v1/teams/{teamId}/sql/folders` | ✅ Complete |
+| `GET /api/v1/teams/{teamId}/sql/folders/{folderId}` | ✅ Complete |
+| `DELETE /api/v1/teams/{teamId}/sql/folders/{folderId}` | ✅ Complete |
 
-#### SQL Snippet API (5/5)
+#### SQL Worksheet API (5/5)
 
 | Endpoint | Status |
 |----------|--------|
-| `GET /api/v1/projects/{projectId}/sql/snippets` | ✅ Complete |
-| `POST /api/v1/projects/{projectId}/sql/snippets` | ✅ Complete |
-| `GET /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
-| `PUT /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
-| `DELETE /api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ Complete |
+| `GET /api/v1/teams/{teamId}/sql/worksheets` | ✅ Complete |
+| `POST /api/v1/teams/{teamId}/sql/worksheets` | ✅ Complete |
+| `GET /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ Complete |
+| `PUT /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ Complete |
+| `DELETE /api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ Complete |
 
-**Summary:** 158+ tests (75 service + 83 controller), Pure Hexagonal Architecture, ProjectEntity + SqlFolderEntity + SqlSnippetEntity, QueryDSL complex queries, soft delete pattern, unified ProjectController
+**Summary:** 100+ tests (48 service + 53 controller), Pure Hexagonal Architecture, TeamEntity + WorksheetFolderEntity + SqlWorksheetEntity, QueryDSL complex queries, soft delete pattern, TeamController (v3.3.0)
 
 ### Flag API - 100% Complete (11/11 endpoints)
 
@@ -614,7 +613,7 @@ project-basecamp-server/
 | **GitHub API** | [`GITHUB_RELEASE.md`](./GITHUB_RELEASE.md) | 100% (11/11 endpoints) |
 | **Airflow API** | [`AIRFLOW_RELEASE.md`](./AIRFLOW_RELEASE.md) | 100% (4/4 endpoints) |
 | **Execution API** | [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) | 100% (4/4 endpoints) |
-| **SQL API** | [`SQL_RELEASE.md`](./SQL_RELEASE.md) | 100% (14/14 endpoints) |
+| **SQL API** | [`SQL_RELEASE.md`](./SQL_RELEASE.md) | 100% (9/9 endpoints) - v3.3.0 Team-based |
 | **Flag API** | [`FLAG_RELEASE.md`](./FLAG_RELEASE.md) | 100% (11/11 endpoints) |
 
 ### Implementation Guides
@@ -662,4 +661,4 @@ project-basecamp-server/
 
 ---
 
-*Last Updated: 2026-01-09 (Flag API completed - 11 endpoints for Feature Flag Management with 60+ tests) | Next Review: Weekly*
+*Last Updated: 2026-01-10 (v3.3.0 - SQL API: TeamSqlController → TeamController, Worksheet terminology) | Next Review: Weekly*

@@ -107,11 +107,32 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
-        // Temporarily allow tests with no discovered tests
+
+        // Memory settings for tests
+        minHeapSize = "512m"
+        maxHeapSize = "2g"
+
+        // Test parallelism - limit to prevent OOM
+        maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+
+        // JUnit Jupiter parallel execution settings
         systemProperty("junit.jupiter.execution.parallel.enabled", "true")
         systemProperty("junit.jupiter.execution.parallel.mode.default", "concurrent")
+        systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
+        systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
+        systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "4")
+
+        // Test timeout (5 minutes per test class)
+        systemProperty("junit.jupiter.execution.timeout.default", "5m")
+        systemProperty("junit.jupiter.execution.timeout.testable.method.default", "2m")
+
+        // Fail fast on first failure
+        failFast = false
+
         testLogging {
             events("passed", "skipped", "failed")
+            showStandardStreams = false
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         }
     }
 

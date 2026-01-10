@@ -1,12 +1,10 @@
 package com.dataops.basecamp.controller
 
-import com.dataops.basecamp.common.exception.ProjectNotFoundException
-import com.dataops.basecamp.common.exception.SqlFolderAlreadyExistsException
-import com.dataops.basecamp.common.exception.SqlFolderNotFoundException
-import com.dataops.basecamp.domain.entity.sql.SqlFolderEntity
-import com.dataops.basecamp.domain.service.ProjectService
-import com.dataops.basecamp.domain.service.SqlFolderService
-import com.dataops.basecamp.dto.sql.CreateSqlFolderRequest
+import com.dataops.basecamp.common.exception.WorksheetFolderAlreadyExistsException
+import com.dataops.basecamp.common.exception.WorksheetFolderNotFoundException
+import com.dataops.basecamp.domain.entity.sql.WorksheetFolderEntity
+import com.dataops.basecamp.domain.service.WorksheetFolderService
+import com.dataops.basecamp.dto.sql.CreateWorksheetFolderRequest
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
@@ -36,9 +34,10 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 
 /**
- * SQL Folder Controller REST API Tests
+ * Worksheet Folder Controller REST API Tests
  *
- * Tests for SQL Folder endpoints within ProjectController.
+ * Tests for Worksheet Folder endpoints within TeamController.
+ * v3.0.0: Migrated from project-based to team-based architecture.
  *
  * Spring Boot 4.x patterns:
  * - @SpringBootTest: Full context for proper security and exception handling
@@ -49,8 +48,8 @@ import java.time.LocalDateTime
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Execution(ExecutionMode.SAME_THREAD)
-@DisplayName("SQL Folder Controller Tests")
-class SqlFolderControllerTest {
+@DisplayName("Worksheet Folder Controller Tests")
+class WorksheetFolderControllerTest {
     /**
      * Test configuration to enable method-level validation for @Min, @Max, @Size annotations
      * on controller method parameters. Required for @WebMvcTest since it doesn't auto-configure this.
@@ -68,21 +67,18 @@ class SqlFolderControllerTest {
     private lateinit var jsonMapper: JsonMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var projectService: ProjectService
+    private lateinit var worksheetFolderService: WorksheetFolderService
 
-    @MockkBean(relaxed = true)
-    private lateinit var sqlFolderService: SqlFolderService
+    private lateinit var testFolder: WorksheetFolderEntity
 
-    private lateinit var testFolder: SqlFolderEntity
-
-    private val projectId = 1L
+    private val teamId = 1L
     private val folderId = 100L
 
     @BeforeEach
     fun setUp() {
         testFolder =
-            SqlFolderEntity(
-                projectId = projectId,
+            WorksheetFolderEntity(
+                teamId = teamId,
                 name = "test-folder",
                 description = "Test folder description",
                 displayOrder = 0,
@@ -102,24 +98,24 @@ class SqlFolderControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/projects/{projectId}/sql/folders")
-    inner class ListSqlFolders {
+    @DisplayName("GET /api/v1/teams/{teamId}/sql/folders")
+    inner class ListWorksheetFolders {
         @Test
         @DisplayName("should return empty list when no folders exist")
         fun `should return empty list when no folders exist`() {
             // Given
-            every { sqlFolderService.listFolders(projectId) } returns emptyList()
+            every { worksheetFolderService.listFolders(teamId) } returns emptyList()
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders"))
                 .andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(0))
-                .andExpect(jsonPath("$.projectId").value(projectId))
+                .andExpect(jsonPath("$.teamId").value(teamId))
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
+            verify(exactly = 1) { worksheetFolderService.listFolders(teamId) }
         }
 
         @Test
@@ -130,11 +126,11 @@ class SqlFolderControllerTest {
             val folder2 = createTestFolder(102L, "folder-2", 1)
             val folders = listOf(folder1, folder2)
 
-            every { sqlFolderService.listFolders(projectId) } returns folders
+            every { worksheetFolderService.listFolders(teamId) } returns folders
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(2))
@@ -142,38 +138,21 @@ class SqlFolderControllerTest {
                 .andExpect(jsonPath("$.content[0].displayOrder").value(0))
                 .andExpect(jsonPath("$.content[1].name").value("folder-2"))
                 .andExpect(jsonPath("$.content[1].displayOrder").value(1))
-                .andExpect(jsonPath("$.projectId").value(projectId))
+                .andExpect(jsonPath("$.teamId").value(teamId))
 
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-        }
-
-        @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-
-            every { sqlFolderService.listFolders(nonExistentProjectId) } throws
-                ProjectNotFoundException(nonExistentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(get("/api/v1/projects/$nonExistentProjectId/sql/folders"))
-                .andExpect(status().isNotFound)
-
-            verify(exactly = 1) { sqlFolderService.listFolders(nonExistentProjectId) }
+            verify(exactly = 1) { worksheetFolderService.listFolders(teamId) }
         }
     }
 
     @Nested
-    @DisplayName("POST /api/v1/projects/{projectId}/sql/folders")
-    inner class CreateSqlFolder {
+    @DisplayName("POST /api/v1/teams/{teamId}/sql/folders")
+    inner class CreateWorksheetFolder {
         @Test
         @DisplayName("should create folder successfully")
         fun `should create folder successfully`() {
             // Given
             val request =
-                CreateSqlFolderRequest(
+                CreateWorksheetFolderRequest(
                     name = "new-folder",
                     description = "New folder description",
                     displayOrder = 1,
@@ -188,8 +167,8 @@ class SqlFolderControllerTest {
                 )
 
             every {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = request.name,
                     description = request.description,
                     displayOrder = request.displayOrder ?: 0,
@@ -199,21 +178,21 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isCreated)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(103))
-                .andExpect(jsonPath("$.projectId").value(projectId))
+                .andExpect(jsonPath("$.teamId").value(teamId))
                 .andExpect(jsonPath("$.name").value("new-folder"))
                 .andExpect(jsonPath("$.description").value("New folder description"))
                 .andExpect(jsonPath("$.displayOrder").value(1))
 
             verify(exactly = 1) {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = request.name,
                     description = request.description,
                     displayOrder = request.displayOrder ?: 0,
@@ -226,7 +205,7 @@ class SqlFolderControllerTest {
         fun `should create folder without description`() {
             // Given
             val request =
-                CreateSqlFolderRequest(
+                CreateWorksheetFolderRequest(
                     name = "folder-no-desc",
                 )
 
@@ -239,8 +218,8 @@ class SqlFolderControllerTest {
                 )
 
             every {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = request.name,
                     description = null,
                     displayOrder = 0,
@@ -250,7 +229,7 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
@@ -271,7 +250,7 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -290,7 +269,7 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -310,7 +289,7 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -331,7 +310,7 @@ class SqlFolderControllerTest {
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(invalidRequest)),
@@ -343,91 +322,62 @@ class SqlFolderControllerTest {
         fun `should return 409 when folder name already exists`() {
             // Given
             val request =
-                CreateSqlFolderRequest(
+                CreateWorksheetFolderRequest(
                     name = "existing-folder",
                 )
 
             every {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = request.name,
                     description = null,
                     displayOrder = 0,
                 )
-            } throws SqlFolderAlreadyExistsException(request.name, projectId)
+            } throws WorksheetFolderAlreadyExistsException(request.name, teamId)
 
             // When & Then
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(request)),
                 ).andExpect(status().isConflict)
 
             verify(exactly = 1) {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = request.name,
                     description = null,
                     displayOrder = 0,
                 )
             }
         }
-
-        @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
-            // Given
-            val nonExistentProjectId = 999L
-            val request =
-                CreateSqlFolderRequest(
-                    name = "new-folder",
-                )
-
-            every {
-                sqlFolderService.createFolder(
-                    projectId = nonExistentProjectId,
-                    name = request.name,
-                    description = null,
-                    displayOrder = 0,
-                )
-            } throws ProjectNotFoundException(nonExistentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(
-                    post("/api/v1/projects/$nonExistentProjectId/sql/folders")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonMapper.writeValueAsString(request)),
-                ).andExpect(status().isNotFound)
-        }
     }
 
     @Nested
-    @DisplayName("GET /api/v1/projects/{projectId}/sql/folders/{folderId}")
-    inner class GetSqlFolder {
+    @DisplayName("GET /api/v1/teams/{teamId}/sql/folders/{folderId}")
+    inner class GetWorksheetFolder {
         @Test
         @DisplayName("should return folder by id")
         fun `should return folder by id`() {
             // Given
-            every { sqlFolderService.getFolderById(projectId, folderId) } returns testFolder
+            every { worksheetFolderService.getFolderById(teamId, folderId) } returns testFolder
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders/$folderId"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders/$folderId"))
                 .andExpect(status().isOk)
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(folderId))
-                .andExpect(jsonPath("$.projectId").value(projectId))
+                .andExpect(jsonPath("$.teamId").value(teamId))
                 .andExpect(jsonPath("$.name").value("test-folder"))
                 .andExpect(jsonPath("$.description").value("Test folder description"))
                 .andExpect(jsonPath("$.displayOrder").value(0))
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists())
 
-            verify(exactly = 1) { sqlFolderService.getFolderById(projectId, folderId) }
+            verify(exactly = 1) { worksheetFolderService.getFolderById(teamId, folderId) }
         }
 
         @Test
@@ -435,65 +385,49 @@ class SqlFolderControllerTest {
         fun `should return 404 when folder not found`() {
             // Given
             val nonExistentFolderId = 999L
-            every { sqlFolderService.getFolderById(projectId, nonExistentFolderId) } returns null
+            every { worksheetFolderService.getFolderById(teamId, nonExistentFolderId) } returns null
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders/$nonExistentFolderId"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders/$nonExistentFolderId"))
                 .andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.getFolderById(projectId, nonExistentFolderId) }
+            verify(exactly = 1) { worksheetFolderService.getFolderById(teamId, nonExistentFolderId) }
         }
 
         @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
+        @DisplayName("should return 404 when folder belongs to different team")
+        fun `should return 404 when folder belongs to different team`() {
             // Given
-            val nonExistentProjectId = 999L
+            val differentTeamId = 2L
 
-            every {
-                sqlFolderService.getFolderById(nonExistentProjectId, folderId)
-            } throws ProjectNotFoundException(nonExistentProjectId)
+            // Service returns null because folder doesn't belong to this team
+            every { worksheetFolderService.getFolderById(differentTeamId, folderId) } returns null
 
             // When & Then
             mockMvc
-                .perform(get("/api/v1/projects/$nonExistentProjectId/sql/folders/$folderId"))
-                .andExpect(status().isNotFound)
-        }
-
-        @Test
-        @DisplayName("should return 404 when folder belongs to different project")
-        fun `should return 404 when folder belongs to different project`() {
-            // Given
-            val differentProjectId = 2L
-
-            // Service returns null because folder doesn't belong to this project
-            every { sqlFolderService.getFolderById(differentProjectId, folderId) } returns null
-
-            // When & Then
-            mockMvc
-                .perform(get("/api/v1/projects/$differentProjectId/sql/folders/$folderId"))
+                .perform(get("/api/v1/teams/$differentTeamId/sql/folders/$folderId"))
                 .andExpect(status().isNotFound)
         }
     }
 
     @Nested
-    @DisplayName("DELETE /api/v1/projects/{projectId}/sql/folders/{folderId}")
-    inner class DeleteSqlFolder {
+    @DisplayName("DELETE /api/v1/teams/{teamId}/sql/folders/{folderId}")
+    inner class DeleteWorksheetFolder {
         @Test
         @DisplayName("should delete folder successfully")
         fun `should delete folder successfully`() {
             // Given
-            every { sqlFolderService.deleteFolder(projectId, folderId) } returns Unit
+            every { worksheetFolderService.deleteFolder(teamId, folderId) } returns Unit
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/folders/$folderId")
+                    delete("/api/v1/teams/$teamId/sql/folders/$folderId")
                         .with(csrf()),
                 ).andExpect(status().isNoContent)
 
-            verify(exactly = 1) { sqlFolderService.deleteFolder(projectId, folderId) }
+            verify(exactly = 1) { worksheetFolderService.deleteFolder(teamId, folderId) }
         }
 
         @Test
@@ -503,52 +437,34 @@ class SqlFolderControllerTest {
             val nonExistentFolderId = 999L
 
             every {
-                sqlFolderService.deleteFolder(projectId, nonExistentFolderId)
-            } throws SqlFolderNotFoundException(nonExistentFolderId, projectId)
+                worksheetFolderService.deleteFolder(teamId, nonExistentFolderId)
+            } throws WorksheetFolderNotFoundException(nonExistentFolderId, teamId)
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/folders/$nonExistentFolderId")
+                    delete("/api/v1/teams/$teamId/sql/folders/$nonExistentFolderId")
                         .with(csrf()),
                 ).andExpect(status().isNotFound)
 
-            verify(exactly = 1) { sqlFolderService.deleteFolder(projectId, nonExistentFolderId) }
+            verify(exactly = 1) { worksheetFolderService.deleteFolder(teamId, nonExistentFolderId) }
         }
 
         @Test
-        @DisplayName("should return 404 when project not found")
-        fun `should return 404 when project not found`() {
+        @DisplayName("should return 404 when folder belongs to different team")
+        fun `should return 404 when folder belongs to different team`() {
             // Given
-            val nonExistentProjectId = 999L
+            val differentTeamId = 2L
 
+            // Service throws exception because folder doesn't belong to this team
             every {
-                sqlFolderService.deleteFolder(nonExistentProjectId, folderId)
-            } throws ProjectNotFoundException(nonExistentProjectId)
+                worksheetFolderService.deleteFolder(differentTeamId, folderId)
+            } throws WorksheetFolderNotFoundException(folderId, differentTeamId)
 
             // When & Then
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$nonExistentProjectId/sql/folders/$folderId")
-                        .with(csrf()),
-                ).andExpect(status().isNotFound)
-        }
-
-        @Test
-        @DisplayName("should return 404 when folder belongs to different project")
-        fun `should return 404 when folder belongs to different project`() {
-            // Given
-            val differentProjectId = 2L
-
-            // Service throws exception because folder doesn't belong to this project
-            every {
-                sqlFolderService.deleteFolder(differentProjectId, folderId)
-            } throws SqlFolderNotFoundException(folderId, differentProjectId)
-
-            // When & Then
-            mockMvc
-                .perform(
-                    delete("/api/v1/projects/$differentProjectId/sql/folders/$folderId")
+                    delete("/api/v1/teams/$differentTeamId/sql/folders/$folderId")
                         .with(csrf()),
                 ).andExpect(status().isNotFound)
         }
@@ -562,7 +478,7 @@ class SqlFolderControllerTest {
         fun `should handle complete create-get-delete flow`() {
             // === CREATE ===
             val createRequest =
-                CreateSqlFolderRequest(
+                CreateWorksheetFolderRequest(
                     name = "integration-test-folder",
                     description = "Folder for integration testing",
                     displayOrder = 5,
@@ -577,8 +493,8 @@ class SqlFolderControllerTest {
                 )
 
             every {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = createRequest.name,
                     description = createRequest.description,
                     displayOrder = createRequest.displayOrder ?: 0,
@@ -587,7 +503,7 @@ class SqlFolderControllerTest {
 
             mockMvc
                 .perform(
-                    post("/api/v1/projects/$projectId/sql/folders")
+                    post("/api/v1/teams/$teamId/sql/folders")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonMapper.writeValueAsString(createRequest)),
@@ -595,43 +511,43 @@ class SqlFolderControllerTest {
                 .andExpect(jsonPath("$.name").value("integration-test-folder"))
 
             // === GET ===
-            every { sqlFolderService.getFolderById(projectId, 200L) } returns createdFolder
+            every { worksheetFolderService.getFolderById(teamId, 200L) } returns createdFolder
 
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders/200"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders/200"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.name").value("integration-test-folder"))
 
             // === LIST ===
-            every { sqlFolderService.listFolders(projectId) } returns listOf(createdFolder)
+            every { worksheetFolderService.listFolders(teamId) } returns listOf(createdFolder)
 
             mockMvc
-                .perform(get("/api/v1/projects/$projectId/sql/folders"))
+                .perform(get("/api/v1/teams/$teamId/sql/folders"))
                 .andExpect(status().isOk)
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("integration-test-folder"))
 
             // === DELETE ===
-            every { sqlFolderService.deleteFolder(projectId, 200L) } returns Unit
+            every { worksheetFolderService.deleteFolder(teamId, 200L) } returns Unit
 
             mockMvc
                 .perform(
-                    delete("/api/v1/projects/$projectId/sql/folders/200")
+                    delete("/api/v1/teams/$teamId/sql/folders/200")
                         .with(csrf()),
                 ).andExpect(status().isNoContent)
 
             // Verify all calls
             verify(exactly = 1) {
-                sqlFolderService.createFolder(
-                    projectId = projectId,
+                worksheetFolderService.createFolder(
+                    teamId = teamId,
                     name = createRequest.name,
                     description = createRequest.description,
                     displayOrder = createRequest.displayOrder ?: 0,
                 )
             }
-            verify(exactly = 1) { sqlFolderService.getFolderById(projectId, 200L) }
-            verify(exactly = 1) { sqlFolderService.listFolders(projectId) }
-            verify(exactly = 1) { sqlFolderService.deleteFolder(projectId, 200L) }
+            verify(exactly = 1) { worksheetFolderService.getFolderById(teamId, 200L) }
+            verify(exactly = 1) { worksheetFolderService.listFolders(teamId) }
+            verify(exactly = 1) { worksheetFolderService.deleteFolder(teamId, 200L) }
         }
     }
 
@@ -641,9 +557,9 @@ class SqlFolderControllerTest {
         name: String,
         displayOrder: Int,
         description: String? = null,
-    ): SqlFolderEntity =
-        SqlFolderEntity(
-            projectId = projectId,
+    ): WorksheetFolderEntity =
+        WorksheetFolderEntity(
+            teamId = teamId,
             name = name,
             description = description,
             displayOrder = displayOrder,

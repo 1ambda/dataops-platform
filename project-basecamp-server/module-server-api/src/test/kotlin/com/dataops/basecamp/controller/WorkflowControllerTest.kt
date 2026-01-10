@@ -88,19 +88,19 @@ class WorkflowControllerTest {
     private lateinit var projectService: com.dataops.basecamp.domain.service.ProjectService
 
     @MockkBean(relaxed = true)
-    private lateinit var sqlFolderService: com.dataops.basecamp.domain.service.SqlFolderService
+    private lateinit var worksheetFolderService: com.dataops.basecamp.domain.service.WorksheetFolderService
 
     @MockkBean(relaxed = true)
-    private lateinit var sqlSnippetService: com.dataops.basecamp.domain.service.SqlSnippetService
+    private lateinit var sqlWorksheetService: com.dataops.basecamp.domain.service.SqlWorksheetService
 
     @MockkBean(relaxed = true)
     private lateinit var projectMapper: com.dataops.basecamp.mapper.ProjectMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var sqlFolderMapper: com.dataops.basecamp.mapper.SqlFolderMapper
+    private lateinit var worksheetFolderMapper: com.dataops.basecamp.mapper.WorksheetFolderMapper
 
     @MockkBean(relaxed = true)
-    private lateinit var sqlSnippetMapper: com.dataops.basecamp.mapper.SqlSnippetMapper
+    private lateinit var sqlWorksheetMapper: com.dataops.basecamp.mapper.SqlWorksheetMapper
 
     // Test data
     private lateinit var testWorkflowEntity: WorkflowEntity

@@ -13,27 +13,27 @@ import jakarta.validation.constraints.Size
 import java.time.LocalDateTime
 
 /**
- * SQL Snippet Entity
+ * SQL Worksheet Entity
  *
- * SQL Snippet을 저장하는 엔티티입니다.
+ * SQL Worksheet을 저장하는 엔티티입니다.
  * - Folder에 종속되며, folderId로 FK를 관리합니다.
  * - Soft delete를 지원합니다.
  */
 @Entity
 @Table(
-    name = "sql_snippet",
+    name = "sql_worksheet",
     indexes = [
-        Index(name = "idx_sql_snippet_folder_id", columnList = "folder_id"),
-        Index(name = "idx_sql_snippet_name", columnList = "name"),
-        Index(name = "idx_sql_snippet_starred", columnList = "is_starred"),
-        Index(name = "idx_sql_snippet_deleted_at", columnList = "deleted_at"),
+        Index(name = "idx_sql_worksheet_folder_id", columnList = "folder_id"),
+        Index(name = "idx_sql_worksheet_name", columnList = "name"),
+        Index(name = "idx_sql_worksheet_starred", columnList = "is_starred"),
+        Index(name = "idx_sql_worksheet_deleted_at", columnList = "deleted_at"),
     ],
 )
-class SqlSnippetEntity(
+class SqlWorksheetEntity(
     @Column(name = "folder_id", nullable = false)
     val folderId: Long,
-    @field:NotBlank(message = "Snippet name is required")
-    @field:Size(max = 200, message = "Snippet name must not exceed 200 characters")
+    @field:NotBlank(message = "Worksheet name is required")
+    @field:Size(max = 200, message = "Worksheet name must not exceed 200 characters")
     @Column(name = "name", nullable = false, length = 200)
     var name: String,
     @field:Size(max = 1000, message = "Description must not exceed 1000 characters")
@@ -53,7 +53,7 @@ class SqlSnippetEntity(
     var isStarred: Boolean = false,
 ) : BaseEntity() {
     /**
-     * 스니펫 정보를 업데이트합니다.
+     * 워크시트 정보를 업데이트합니다.
      */
     fun update(
         name: String? = null,

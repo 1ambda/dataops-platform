@@ -813,59 +813,85 @@ class ProjectAlreadyExistsException(
         cause = cause,
     )
 
-// ============= SQL Folder Exceptions =============
+// ============= Team Exceptions =============
 
 /**
- * Exception thrown when a SQL folder is not found
+ * Exception thrown when a team is not found
  */
-class SqlFolderNotFoundException(
-    val folderId: Long,
-    val projectId: Long,
+class TeamNotFoundException(
+    val teamId: Long,
     cause: Throwable? = null,
 ) : BusinessException(
-        message = "SQL folder with id '$folderId' not found in project '$projectId'",
-        errorCode = "SQL_FOLDER_NOT_FOUND",
+        message = "Team with id '$teamId' not found",
+        errorCode = "TEAM_NOT_FOUND",
         cause = cause,
     )
 
 /**
- * Exception thrown when trying to create a SQL folder that already exists
+ * Exception thrown when trying to create a team that already exists
  */
-class SqlFolderAlreadyExistsException(
+class TeamAlreadyExistsException(
+    val teamName: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Team '$teamName' already exists",
+        errorCode = "TEAM_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+// ============= Worksheet Folder Exceptions =============
+
+/**
+ * Exception thrown when a worksheet folder is not found
+ */
+class WorksheetFolderNotFoundException(
+    val folderId: Long,
+    val teamId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Worksheet folder with id '$folderId' not found in team '$teamId'",
+        errorCode = "WORKSHEET_FOLDER_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a worksheet folder that already exists
+ */
+class WorksheetFolderAlreadyExistsException(
     val folderName: String,
-    val projectId: Long,
+    val teamId: Long,
     cause: Throwable? = null,
 ) : BusinessException(
-        message = "SQL folder '$folderName' already exists in project '$projectId'",
-        errorCode = "SQL_FOLDER_ALREADY_EXISTS",
+        message = "Worksheet folder '$folderName' already exists in team '$teamId'",
+        errorCode = "WORKSHEET_FOLDER_ALREADY_EXISTS",
         cause = cause,
     )
 
-// ============= SQL Snippet Exceptions =============
+// ============= SQL Worksheet Exceptions =============
 
 /**
- * Exception thrown when a SQL snippet is not found
+ * Exception thrown when a SQL worksheet is not found
  */
-class SqlSnippetNotFoundException(
-    val snippetId: Long,
+class SqlWorksheetNotFoundException(
+    val worksheetId: Long,
     val folderId: Long,
     cause: Throwable? = null,
 ) : BusinessException(
-        message = "SQL snippet with id '$snippetId' not found in folder '$folderId'",
-        errorCode = "SQL_SNIPPET_NOT_FOUND",
+        message = "SQL worksheet with id '$worksheetId' not found in folder '$folderId'",
+        errorCode = "SQL_WORKSHEET_NOT_FOUND",
         cause = cause,
     )
 
 /**
- * Exception thrown when trying to create a SQL snippet that already exists
+ * Exception thrown when trying to create a SQL worksheet that already exists
  */
-class SqlSnippetAlreadyExistsException(
-    val snippetName: String,
+class SqlWorksheetAlreadyExistsException(
+    val worksheetName: String,
     val folderId: Long,
     cause: Throwable? = null,
 ) : BusinessException(
-        message = "SQL snippet '$snippetName' already exists in folder '$folderId'",
-        errorCode = "SQL_SNIPPET_ALREADY_EXISTS",
+        message = "SQL worksheet '$worksheetName' already exists in folder '$folderId'",
+        errorCode = "SQL_WORKSHEET_ALREADY_EXISTS",
         cause = cause,
     )
 

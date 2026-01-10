@@ -1,10 +1,10 @@
 package com.dataops.basecamp.infra.repository.sql
 
 import com.dataops.basecamp.common.enums.SqlDialect
-import com.dataops.basecamp.domain.entity.sql.QSqlFolderEntity
-import com.dataops.basecamp.domain.entity.sql.QSqlSnippetEntity
-import com.dataops.basecamp.domain.entity.sql.SqlSnippetEntity
-import com.dataops.basecamp.domain.repository.sql.SqlSnippetRepositoryDsl
+import com.dataops.basecamp.domain.entity.sql.QSqlWorksheetEntity
+import com.dataops.basecamp.domain.entity.sql.QWorksheetFolderEntity
+import com.dataops.basecamp.domain.entity.sql.SqlWorksheetEntity
+import com.dataops.basecamp.domain.repository.sql.SqlWorksheetRepositoryDsl
 import com.querydsl.core.BooleanBuilder
 import com.querydsl.core.types.dsl.Expressions
 import com.querydsl.jpa.impl.JPAQueryFactory
@@ -14,82 +14,83 @@ import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Repository
 
 /**
- * SQL Snippet DSL 리포지토리 구현체
+ * SQL Worksheet DSL 리포지토리 구현체
  *
  * 복잡한 쿼리를 처리하는 QueryDSL 구현체입니다.
  */
 @Repository
-class SqlSnippetRepositoryDslImpl(
+class SqlWorksheetRepositoryDslImpl(
     private val queryFactory: JPAQueryFactory,
-) : SqlSnippetRepositoryDsl {
-    private val snippet = QSqlSnippetEntity.sqlSnippetEntity
-    private val folder = QSqlFolderEntity.sqlFolderEntity
+) : SqlWorksheetRepositoryDsl {
+    private val worksheet = QSqlWorksheetEntity.sqlWorksheetEntity
+    private val folder = QWorksheetFolderEntity.worksheetFolderEntity
 
     override fun findByConditions(
-        projectId: Long,
+        projectId: Long, // TODO: v3.0.0 - Rename to teamId after full migration
         folderId: Long?,
         searchText: String?,
         starred: Boolean?,
         dialect: SqlDialect?,
         pageable: Pageable,
-    ): Page<SqlSnippetEntity> {
+    ): Page<SqlWorksheetEntity> {
         val builder = BooleanBuilder()
 
-        // Project에 속한 폴더들의 snippet만 조회
+        // Team에 속한 폴더들의 worksheet만 조회
+        // v3.0.0: projectId 파라미터는 임시로 teamId로 사용됨 (Worksheet 마이그레이션 후 수정 예정)
         builder.and(
-            snippet.folderId.`in`(
+            worksheet.folderId.`in`(
                 queryFactory
                     .select(folder.id)
                     .from(folder)
                     .where(
-                        folder.projectId.eq(projectId),
+                        folder.teamId.eq(projectId), // TODO: Rename parameter to teamId
                         folder.deletedAt.isNull,
                     ),
             ),
         )
 
         // Soft delete 제외
-        builder.and(snippet.deletedAt.isNull)
+        builder.and(worksheet.deletedAt.isNull)
 
         // 특정 폴더 필터링
         folderId?.let {
-            builder.and(snippet.folderId.eq(it))
+            builder.and(worksheet.folderId.eq(it))
         }
 
         // 검색어 필터링 (name, description, sqlText)
         searchText?.takeIf { it.isNotBlank() }?.let { search ->
             builder.and(
-                snippet.name
+                worksheet.name
                     .containsIgnoreCase(search)
-                    .or(snippet.description.containsIgnoreCase(search))
-                    .or(snippet.sqlText.containsIgnoreCase(search)),
+                    .or(worksheet.description.containsIgnoreCase(search))
+                    .or(worksheet.sqlText.containsIgnoreCase(search)),
             )
         }
 
         // starred 필터링
         starred?.let {
-            builder.and(snippet.isStarred.eq(it))
+            builder.and(worksheet.isStarred.eq(it))
         }
 
         // dialect 필터링
         dialect?.let {
-            builder.and(snippet.dialect.eq(it))
+            builder.and(worksheet.dialect.eq(it))
         }
 
         // 전체 개수 조회
         val totalCount =
             queryFactory
-                .select(snippet.count())
-                .from(snippet)
+                .select(worksheet.count())
+                .from(worksheet)
                 .where(builder)
                 .fetchOne() ?: 0L
 
         // 페이징된 결과 조회
         val content =
             queryFactory
-                .selectFrom(snippet)
+                .selectFrom(worksheet)
                 .where(builder)
-                .orderBy(snippet.updatedAt.desc())
+                .orderBy(worksheet.updatedAt.desc())
                 .offset(pageable.offset)
                 .limit(pageable.pageSize.toLong())
                 .fetch()
@@ -104,18 +105,18 @@ class SqlSnippetRepositoryDslImpl(
 
         val results =
             queryFactory
-                .select(snippet.folderId, snippet.count())
-                .from(snippet)
+                .select(worksheet.folderId, worksheet.count())
+                .from(worksheet)
                 .where(
-                    snippet.folderId.`in`(folderIds),
-                    snippet.deletedAt.isNull,
-                ).groupBy(snippet.folderId)
+                    worksheet.folderId.`in`(folderIds),
+                    worksheet.deletedAt.isNull,
+                ).groupBy(worksheet.folderId)
                 .fetch()
 
         return results.associate { tuple ->
-            val folderId = tuple.get(snippet.folderId)!!
+            val fId = tuple.get(worksheet.folderId)!!
             val count = tuple.get(Expressions.numberPath(Long::class.java, "count")) ?: 0L
-            folderId to count
+            fId to count
         }
     }
 }

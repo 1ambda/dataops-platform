@@ -137,6 +137,65 @@ CREATE TABLE datasets (
                           INDEX idx_dataset_active (is_active)
 );
 
+-- 팀 테이블
+CREATE TABLE team (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE COMMENT '팀 식별자 (lowercase, hyphenated)',
+    display_name VARCHAR(200) NOT NULL COMMENT '팀 표시명',
+    description VARCHAR(500),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP DEFAULT NULL,
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    deleted_by BIGINT DEFAULT NULL,
+    INDEX idx_team_name (name),
+    INDEX idx_team_deleted_at (deleted_at)
+);
+
+-- Worksheet 폴더 테이블
+CREATE TABLE worksheet_folder (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    team_id BIGINT NOT NULL COMMENT 'FK to team',
+    name VARCHAR(100) NOT NULL COMMENT '폴더명 (팀 내 unique)',
+    description VARCHAR(500),
+    display_order INT NOT NULL DEFAULT 0 COMMENT '정렬 순서',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP DEFAULT NULL,
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    deleted_by BIGINT DEFAULT NULL,
+    INDEX idx_worksheet_folder_team_id (team_id),
+    INDEX idx_worksheet_folder_deleted_at (deleted_at),
+    UNIQUE KEY uk_worksheet_folder_name_team (name, team_id),
+    FOREIGN KEY (team_id) REFERENCES team(id)
+);
+
+-- SQL Worksheet 테이블
+CREATE TABLE sql_worksheet (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    folder_id BIGINT NOT NULL COMMENT 'FK to worksheet_folder',
+    name VARCHAR(200) NOT NULL COMMENT 'Worksheet 이름',
+    description VARCHAR(1000),
+    sql_text TEXT NOT NULL COMMENT 'SQL 쿼리 내용',
+    dialect VARCHAR(20) NOT NULL DEFAULT 'BIGQUERY' COMMENT 'SQL 방언 (BIGQUERY, TRINO, SPARK, etc.)',
+    run_count INT NOT NULL DEFAULT 0 COMMENT '실행 횟수',
+    last_run_at TIMESTAMP COMMENT '마지막 실행 시간',
+    is_starred BOOLEAN NOT NULL DEFAULT FALSE COMMENT '즐겨찾기 여부',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP DEFAULT NULL,
+    created_by BIGINT DEFAULT NULL,
+    updated_by BIGINT DEFAULT NULL,
+    deleted_by BIGINT DEFAULT NULL,
+    INDEX idx_sql_worksheet_folder_id (folder_id),
+    INDEX idx_sql_worksheet_name (name),
+    INDEX idx_sql_worksheet_starred (is_starred),
+    INDEX idx_sql_worksheet_deleted_at (deleted_at),
+    FOREIGN KEY (folder_id) REFERENCES worksheet_folder(id)
+);
+
 -- 초기 데이터 삽입
 INSERT INTO pipelines (name, description, status, owner, is_active) VALUES
                                                                         ('sample-etl-pipeline', 'ETL 파이프라인 샘플', 'DRAFT', 'admin', true),
@@ -145,3 +204,8 @@ INSERT INTO pipelines (name, description, status, owner, is_active) VALUES
 INSERT INTO datasets (name, description, type, format, location, owner, is_active) VALUES
                                                                                        ('user-events', '사용자 이벤트 데이터', 'SOURCE', 'JSON', '/data/events/user_events.json', 'admin', true),
                                                                                        ('processed-analytics', '처리된 분석 데이터', 'TARGET', 'PARQUET', '/data/analytics/processed/', 'admin', true);
+
+-- 샘플 팀 데이터
+INSERT INTO team (name, display_name, description) VALUES
+    ('analytics', 'Analytics Team', '데이터 분석팀'),
+    ('marketing', 'Marketing Team', '마케팅팀');
