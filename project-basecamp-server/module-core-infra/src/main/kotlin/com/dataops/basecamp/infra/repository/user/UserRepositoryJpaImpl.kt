@@ -37,6 +37,9 @@ interface UserRepositoryJpaImpl :
 
     // findById는 JpaRepository에서 제공되므로 별도 구현 불필요
 
+    // soft delete를 위한 조회 메서드 (Spring Data JPA가 자동 구현)
+    override fun findByIdAndDeletedAtIsNull(id: Long): UserEntity?
+
     override fun findAllWithPagination(
         page: Int,
         size: Int,

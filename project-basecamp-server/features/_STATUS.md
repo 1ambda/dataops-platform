@@ -1,8 +1,8 @@
 # Basecamp Server - Implementation Status
 
 > **Last Updated:** 2026-01-10
-> **Scope:** BASECAMP API feature implementation (83 endpoints) - v3.0.0 Team-based architecture
-> **Current Progress:** 100% (83/83 endpoints completed)
+> **Scope:** BASECAMP API feature implementation (93 endpoints) - v3.0.0 Team-based architecture
+> **Current Progress:** 100% (93/93 endpoints completed)
 
 ---
 
@@ -19,15 +19,15 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total BASECAMP APIs** | 83 endpoints | Target scope (v3.0.0 - Project removed) |
-| **Completed** | 83 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL (Team-based)** + **Flag** APIs |
+| **Total BASECAMP APIs** | 93 endpoints | Target scope (v3.0.0 - Project removed) |
+| **Completed** | 93 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL (Team-based)** + **Flag** + **Resource Sharing** APIs |
 | **In Progress** | 0 endpoints | - |
 | **Not Started** | 0 endpoints | - |
 | **Overall Progress** | **100%** | All phases complete |
 | **Infrastructure Readiness** | **98%** | Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management - Team-based v3.0.0), and **P8 (Flag)** APIs all operational with 1150+ tests total. All CLI commands fully supported. **v3.0.0 Update:** Project API removed in favor of Team-based architecture for SQL Management.
+**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management - Team-based v3.0.0), **P8 (Flag)**, and **P9 (Resource Sharing)** APIs all operational with 1200+ tests total. All CLI commands fully supported. **v3.0.0 Update:** Project API removed in favor of Team-based architecture for SQL Management.
 
 ---
 
@@ -52,7 +52,8 @@
 | **P6 Execution** | Execution | 4 | 4 | **100%** | `dli * run --mode server` |
 | **P7 SQL** | SQL Management (Team-based) | 9 | 9 | **100%** | `dli sql --team` |
 | **P8 Flag** | Flag | 11 | 11 | **100%** | `dli config flags` (planned) |
-| **TOTAL** | **14 features** | **83** | **83** | **100%** | All CLI commands |
+| **P9 Resource** | Resource Sharing | 10 | 10 | **100%** | (Server API) |
+| **TOTAL** | **15 features** | **93** | **93** | **100%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -369,6 +370,37 @@
 
 **Summary:** 100+ tests (48 service + 53 controller), Pure Hexagonal Architecture, TeamEntity + WorksheetFolderEntity + SqlWorksheetEntity, QueryDSL complex queries, soft delete pattern, TeamController (v3.3.0)
 
+### Team Management API - 100% Complete (10/10 endpoints) - Phase 1
+
+> **📖 Detailed Documentation:** [`TEAM_FEATURE.md`](./TEAM_FEATURE.md) | [`TEAM_RELEASE.md`](./TEAM_RELEASE.md)
+
+#### Team CRUD Endpoints (5/5)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/team-management` | ✅ Complete |
+| `POST /api/v1/team-management` | ✅ Complete |
+| `GET /api/v1/team-management/{teamId}` | ✅ Complete |
+| `PUT /api/v1/team-management/{teamId}` | ✅ Complete |
+| `DELETE /api/v1/team-management/{teamId}` | ✅ Complete |
+
+#### Team Member Endpoints (4/4)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/team-management/{teamId}/members` | ✅ Complete |
+| `POST /api/v1/team-management/{teamId}/members` | ✅ Complete |
+| `PUT /api/v1/team-management/{teamId}/members/{userId}` | ✅ Complete |
+| `DELETE /api/v1/team-management/{teamId}/members/{userId}` | ✅ Complete |
+
+#### Team Resources Endpoint (1/1)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/team-management/{teamId}/resources` | ✅ Complete |
+
+**Summary:** 32 tests (22 service + 10 controller), TeamEntity + TeamMemberEntity, TeamRole enum (MANAGER/EDITOR/VIEWER), TeamResourceType enum, defaultTeamId in UserEntity, QueryDSL for complex queries, soft delete pattern, deletion protection (TeamHasResourcesException), Phase 1 Core MVP complete (2026-01-10)
+
 ### Flag API - 100% Complete (11/11 endpoints)
 
 > **Detailed Documentation:** [`FLAG_RELEASE.md`](./FLAG_RELEASE.md)
@@ -400,6 +432,32 @@
 | `DELETE /api/v1/flags/{key}/targets/{subjectType}/{subjectId}` | Complete |
 
 **Summary:** 60+ tests (35 service + 25 controller), Unified FlagTargetEntity (Override + Permission), JSON-based permissions, FlagCachePort with MockFlagCacheAdapter, @RequireFlag AOP annotation, soft delete pattern
+
+### Resource Sharing API - 100% Complete (10/10 endpoints) - Phase 1 + Phase 2
+
+> **Detailed Documentation:** [`RESOURCE_RELEASE.md`](./RESOURCE_RELEASE.md) | [`RESOURCE_FEATURE.md`](./RESOURCE_FEATURE.md)
+
+#### Team Resource Share Endpoints (5/5)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/resources/{resourceType}/shares` | Complete |
+| `POST /api/v1/resources/{resourceType}/shares` | Complete |
+| `GET /api/v1/resources/{resourceType}/shares/{shareId}` | Complete |
+| `PUT /api/v1/resources/{resourceType}/shares/{shareId}` | Complete |
+| `DELETE /api/v1/resources/{resourceType}/shares/{shareId}` | Complete |
+
+#### User Resource Grant Endpoints (5/5)
+
+| Endpoint | Status |
+|----------|--------|
+| `GET /api/v1/resources/{resourceType}/shares/{shareId}/grants` | Complete |
+| `POST /api/v1/resources/{resourceType}/shares/{shareId}/grants` | Complete |
+| `GET /api/v1/resources/{resourceType}/shares/{shareId}/grants/{grantId}` | Complete |
+| `PUT /api/v1/resources/{resourceType}/shares/{shareId}/grants/{grantId}` | Complete |
+| `DELETE /api/v1/resources/{resourceType}/shares/{shareId}/grants/{grantId}` | Complete |
+
+**Summary:** 44 tests (30 service + 14 controller), TeamResourceShareEntity + UserResourceGrantEntity, ShareableResourceType enum (6 types), ResourcePermission enum (VIEWER/EDITOR), ResourceSecurityService (canView/canEdit/canShare), API-level cascade delete, soft delete pattern
 
 ---
 
@@ -596,6 +654,7 @@ project-basecamp-server/
 | **P5** | Airflow API | [`AIRFLOW_FEATURE.md`](./AIRFLOW_FEATURE.md) | 4.5/5 |
 | **P6** | Execution API | [`EXECUTION_FEATURE.md`](./EXECUTION_FEATURE.md) | 4.5/5 |
 | **P8** | Flag API | [`FLAG_FEATURE.md`](./FLAG_FEATURE.md) | 4.5/5 |
+| **P9** | Resource API | [`RESOURCE_FEATURE.md`](./RESOURCE_FEATURE.md) | 4.5/5 |
 
 ### Release Documents (Completed Implementations)
 
@@ -614,7 +673,9 @@ project-basecamp-server/
 | **Airflow API** | [`AIRFLOW_RELEASE.md`](./AIRFLOW_RELEASE.md) | 100% (4/4 endpoints) |
 | **Execution API** | [`EXECUTION_RELEASE.md`](./EXECUTION_RELEASE.md) | 100% (4/4 endpoints) |
 | **SQL API** | [`SQL_RELEASE.md`](./SQL_RELEASE.md) | 100% (9/9 endpoints) - v3.3.0 Team-based |
+| **Team API** | [`TEAM_RELEASE.md`](./TEAM_RELEASE.md) | 100% (10/10 endpoints) - Phase 1 |
 | **Flag API** | [`FLAG_RELEASE.md`](./FLAG_RELEASE.md) | 100% (11/11 endpoints) |
+| **Resource API** | [`RESOURCE_RELEASE.md`](./RESOURCE_RELEASE.md) | 100% (10/10 endpoints) - Phase 1 + 2 |
 
 ### Implementation Guides
 
@@ -661,4 +722,4 @@ project-basecamp-server/
 
 ---
 
-*Last Updated: 2026-01-10 (v3.3.0 - SQL API: TeamSqlController → TeamController, Worksheet terminology) | Next Review: Weekly*
+*Last Updated: 2026-01-10 (v3.4.0 - Resource Sharing API Phase 1 + Phase 2 Complete, 10 endpoints, 44 tests) | Next Review: Weekly*

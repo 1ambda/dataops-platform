@@ -6,7 +6,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 1. [Complete Command Mapping](#1-complete-command-mapping)
 2. [Parameter Mapping](#2-parameter-mapping)
@@ -14,6 +14,7 @@
 4. [Error Code Mapping](#4-error-code-mapping)
 5. [Authentication Mapping](#5-authentication-mapping)
 6. [CLI Integration Testing](#6-cli-integration-testing)
+7. [Audit/Trace Support](#7-audittrace-support)
 
 ---
 
@@ -80,11 +81,13 @@
 | `dli transpile metric <name>` | GET | `/api/v1/transpile/metrics/{metric_name}` | ✅ P3 Week 11-12 |
 | `dli run <file>` | POST | `/api/v1/run/execute` | ✅ P3 Week 11-12 |
 | `dli run policy` | GET | `/api/v1/run/policy` | ✅ P3 Week 11-12 |
-| `dli sql list` | GET | `/api/v1/projects/{projectId}/sql/snippets` | ✅ **Completed** |
-| `dli sql get <id>` | GET | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ **Completed** |
-| `dli sql put <id>` | PUT | `/api/v1/projects/{projectId}/sql/snippets/{snippetId}` | ✅ **Completed** |
+| `dli sql list` | GET | `/api/v1/teams/{teamId}/sql/worksheets` | ✅ **Updated v3.2** |
+| `dli sql get <id>` | GET | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ **Updated v3.2** |
+| `dli sql create` | POST | `/api/v1/teams/{teamId}/sql/worksheets` | ✅ **Updated v3.2** |
+| `dli sql update <id>` | PUT | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ **Updated v3.2** |
+| `dli sql delete <id>` | DELETE | `/api/v1/teams/{teamId}/sql/worksheets/{worksheetId}` | ✅ **Updated v3.2** |
 
-**Total: 13 endpoints enabling advanced features**
+**Total: 15 endpoints enabling advanced features**
 
 ### 1.5 Execution APIs (CLI-Rendered SQL Execution)
 
@@ -204,9 +207,9 @@ CLI (Local SQL Rendering)          Server (Execution)
 
 | CLI Flag | API Parameter | Type | Description |
 |----------|---------------|------|-------------|
-| `--project <name>` | Path param `projectId` | string | Project ID (resolved from name) |
+| `--team <name>` | Path param `teamId` | string | Team ID (resolved from name) |
 | `--folder <name>` | `folder` | string | Filter by folder name |
-| `--starred` | `starred` | bool | Show only starred snippets |
+| `--starred` | `starred` | bool | Show only starred worksheets |
 | `--file <path>` | Request body `sql` | string | SQL file content to upload |
 | `--force` | N/A | N/A | Skip confirmation (CLI only) |
 | `--overwrite` | N/A | N/A | Overwrite existing file (CLI only) |
@@ -708,6 +711,126 @@ jobs:
 - **API Specifications**: [`METRIC_FEATURE.md`](../features/METRIC_FEATURE.md), [`DATASET_FEATURE.md`](../features/DATASET_FEATURE.md)
 - **Implementation Plan**: [`IMPLEMENTATION_PLAN.md`](../features/IMPLEMENTATION_PLAN.md)
 - **Integration Patterns**: [`INTEGRATION_PATTERNS.md`](../features/INTEGRATION_PATTERNS.md)
+
+---
+
+## 7. Audit/Trace Support
+
+> **Added in CLI v1.0.5** - Request tracing for debugging and usage analysis
+
+### 7.1 X-Trace-Id Header
+
+The CLI automatically generates and includes a unique trace ID for every command execution.
+
+| Header | Format | Description |
+|--------|--------|-------------|
+| `X-Trace-Id` | UUID (36 chars) | Unique identifier per CLI command invocation |
+
+**Example:**
+```http
+GET /api/v1/metrics HTTP/1.1
+Host: localhost:8081
+X-Trace-Id: 550e8400-e29b-41d4-a716-446655440000
+```
+
+**Server-Side Handling:**
+- Server `TraceIdFilter` extracts `X-Trace-Id` from request headers
+- If not present, server generates its own trace ID
+- Stored in `audit_log.trace_id` column for request correlation
+
+### 7.2 User-Agent Header
+
+The CLI sends a structured User-Agent header with client metadata.
+
+| Header | Format | Description |
+|--------|--------|-------------|
+| `User-Agent` | `dli/{version} ({os}; Python/{py_version}) command/{cmd}` | CLI metadata |
+
+**Examples:**
+```
+dli/0.9.0 (darwin; Python/3.12.1) command/workflow-backfill
+dli/0.9.0 (linux; Python/3.12.0) command/run
+dli/0.9.0 (windows; Python/3.11.5) command/debug
+```
+
+**Server-Side Parsing:**
+- Server parses User-Agent to extract client metadata
+- Stored in `audit_log.client_metadata` JSON column:
+
+```json
+{
+  "name": "dli",
+  "version": "0.9.0",
+  "os": "darwin",
+  "python_version": "3.12.1",
+  "command": "workflow-backfill"
+}
+```
+
+### 7.3 Trace Mode Configuration
+
+CLI users can control trace ID display in output:
+
+| Mode | CLI Flag | Behavior |
+|------|----------|----------|
+| `always` | `--trace` | Show trace ID in all output |
+| `error_only` | (default) | Show trace ID only on errors |
+| `never` | `--no-trace` | Never show (server logs only) |
+
+**Config File:**
+```yaml
+# ~/.dli/config.yaml
+trace: error_only  # always, error_only, never
+```
+
+**Environment Variable:**
+```bash
+DLI_TRACE=always dli run query.sql
+```
+
+### 7.4 Server Audit Log Query
+
+```sql
+-- Query by trace_id
+SELECT *
+FROM audit_log
+WHERE trace_id = '550e8400-e29b-41d4-a716-446655440000'
+ORDER BY created_at;
+
+-- Query by CLI version
+SELECT *
+FROM audit_log
+WHERE JSON_EXTRACT(client_metadata, '$.version') = '0.9.0'
+  AND JSON_EXTRACT(client_metadata, '$.name') = 'dli';
+
+-- Command usage statistics
+SELECT
+  JSON_EXTRACT(client_metadata, '$.command') as command,
+  COUNT(*) as count
+FROM audit_log
+WHERE client_type = 'CLI'
+GROUP BY command
+ORDER BY count DESC;
+```
+
+### 7.5 Error Response with Trace
+
+When the server returns an error, CLI displays the trace ID for debugging:
+
+```
+[DLI-501] [trace:550e8400] Server error: Connection refused
+
+Trace ID를 사용하여 서버 로그를 확인하세요:
+  trace_id: 550e8400-e29b-41d4-a716-446655440000
+```
+
+---
+
+## Related Documentation
+
+- **CLI Audit Feature**: [`project-interface-cli/features/AUDIT_FEATURE.md`](../../project-interface-cli/features/AUDIT_FEATURE.md)
+- **CLI Audit Release**: [`project-interface-cli/features/AUDIT_RELEASE.md`](../../project-interface-cli/features/AUDIT_RELEASE.md)
+- **Server Audit Feature**: [`project-basecamp-server/features/AUDIT_FEATURE.md`](../features/AUDIT_FEATURE.md)
 
 ---
 

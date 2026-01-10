@@ -1,5 +1,6 @@
 package com.dataops.basecamp.util
 
+import com.dataops.basecamp.common.enums.UserRole
 import com.dataops.basecamp.dto.SessionResponse
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -32,6 +33,25 @@ object SecurityContext {
     fun getCurrentUserIdOrThrow(): Long =
         getCurrentUserId()
             ?: throw IllegalArgumentException("User ID not found in security context")
+
+    /**
+     * 현재 사용자가 특정 역할을 가지고 있는지 확인합니다.
+     */
+    fun hasRole(role: UserRole): Boolean {
+        val context = SecurityContextHolder.getContext()
+        val authorities = context?.authentication?.authorities ?: return false
+
+        val roleString = "ROLE_${role.name}"
+        return authorities.any { it.authority == roleString }
+    }
+
+    /**
+     * 현재 사용자의 역할 목록을 조회합니다.
+     */
+    fun getCurrentRoles(): List<String> {
+        val context = SecurityContextHolder.getContext()
+        return context?.authentication?.authorities?.mapNotNull { it.authority } ?: emptyList()
+    }
 
     /**
      * 현재 사용자 이름(이메일)을 조회합니다.

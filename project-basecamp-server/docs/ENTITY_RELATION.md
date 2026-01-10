@@ -69,6 +69,12 @@ erDiagram
     %% Flag Domain
     FlagEntity ||--o{ FlagTargetEntity : "has targets"
 
+    %% Resource Sharing Domain
+    TeamEntity ||--o{ TeamResourceShareEntity : "owns shares"
+    TeamEntity ||--o{ TeamResourceShareEntity : "receives shares"
+    TeamResourceShareEntity ||--o{ UserResourceGrantEntity : "has grants"
+    UserEntity ||--o{ UserResourceGrantEntity : "receives grants"
+
     %% Entity Definitions
     UserEntity {
         Long id PK
@@ -221,6 +227,27 @@ erDiagram
         Boolean enabled
         String permissions
     }
+
+    TeamResourceShareEntity {
+        Long id PK
+        Long ownerTeamId FK
+        Long sharedWithTeamId FK
+        ShareableResourceType resourceType
+        Long resourceId
+        ResourcePermission permission
+        Boolean visibleToTeam
+        Long grantedBy FK
+        DateTime grantedAt
+    }
+
+    UserResourceGrantEntity {
+        Long id PK
+        Long shareId FK
+        Long userId FK
+        ResourcePermission permission
+        Long grantedBy FK
+        DateTime grantedAt
+    }
 ```
 
 ---
@@ -270,6 +297,18 @@ erDiagram
 | Entity | FK Field | References | Cardinality | Notes |
 |--------|----------|------------|-------------|-------|
 | `FlagTargetEntity` | `flagId` | `FlagEntity` | N:1 | User/API target with override and permissions |
+
+### Resource Sharing Domain
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `TeamResourceShareEntity` | `ownerTeamId` | `TeamEntity` | N:1 | Team that owns the resource (Producer) |
+| `TeamResourceShareEntity` | `sharedWithTeamId` | `TeamEntity` | N:1 | Team receiving access (Consumer) |
+| `TeamResourceShareEntity` | `resourceId` | Various Entities | N:1 | Resource being shared (via resourceType) |
+| `TeamResourceShareEntity` | `grantedBy` | `UserEntity` | N:1 | User who created the share |
+| `UserResourceGrantEntity` | `shareId` | `TeamResourceShareEntity` | N:1 | Parent share for this grant |
+| `UserResourceGrantEntity` | `userId` | `UserEntity` | N:1 | User receiving the grant |
+| `UserResourceGrantEntity` | `grantedBy` | `UserEntity` | N:1 | User who created the grant |
 
 ### Standalone Entities (No FK References)
 
@@ -334,6 +373,18 @@ QualitySpecEntity (root)
 ```
 FlagEntity (root)
   +-- FlagTargetEntity (flagId FK)
+```
+
+### Resource Sharing Domain (v1.0.0)
+
+```
+TeamResourceShareEntity (root)
+  +-- UserResourceGrantEntity (shareId FK)
+
+Team-to-Team Resource Sharing:
+  Producer Team ──owns──> TeamResourceShareEntity
+  Consumer Team ──receives──> TeamResourceShareEntity
+  Consumer User ──granted──> UserResourceGrantEntity
 ```
 
 ---
@@ -550,45 +601,132 @@ Execution Domain (service-layer coordination)
 
 ---
 
-### SQL Management Domain (v1.0.0)
+### Team Domain (v1.0.0) - Phase 1 Complete
 
-> The SQL (Saved Query) Management APIs provide storage for reusable SQL queries organized within projects.
+> The Team Management APIs provide resource ownership and collaboration model for the Basecamp platform.
+> Teams own all data resources and can share resources with other teams.
+> **Reference:** [TEAM_FEATURE.md](../features/TEAM_FEATURE.md) | [TEAM_RELEASE.md](../features/TEAM_RELEASE.md)
 
-```
-SQL Domain
-  ProjectEntity (root)
-    +-- SqlFolderEntity (projectId FK)
-         +-- SqlSnippetEntity (folderId FK)
-```
-
-| Entity | FK Field | References | Cardinality | Notes |
-|--------|----------|------------|-------------|-------|
-| `SqlFolderEntity` | `projectId` | `ProjectEntity` | N:1 | Folders belong to a project |
-| `SqlSnippetEntity` | `folderId` | `SqlFolderEntity` | N:1 | Snippets belong to a folder |
-
-**Entity Definitions:**
+#### Phase 1 Implementation (2026-01-10)
 
 ```mermaid
 erDiagram
-    ProjectEntity ||--o{ SqlFolderEntity : "has folders"
-    SqlFolderEntity ||--o{ SqlSnippetEntity : "has snippets"
+    %% Team Domain - Phase 1 (Implemented)
+    TeamEntity ||--o{ TeamMemberEntity : "has members"
+    TeamEntity ||--o{ WorksheetFolderEntity : "has folders"
 
-    ProjectEntity {
+    TeamEntity {
         Long id PK
         String name UK
         String displayName
         String description
     }
 
-    SqlFolderEntity {
+    TeamMemberEntity {
         Long id PK
-        Long projectId FK
-        String name UK_per_project
+        Long teamId FK
+        Long userId FK
+        TeamRole role
+    }
+```
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `TeamMemberEntity` | `teamId` | `TeamEntity` | N:1 | Members belong to a team |
+| `TeamMemberEntity` | `userId` | `UserEntity` | N:1 | User reference |
+
+**Enums (Phase 1):**
+- `TeamRole`: MANAGER, EDITOR, VIEWER
+- `TeamResourceType`: METRIC, DATASET, WORKFLOW, QUALITY, GITHUB_REPO, SQL_FOLDER, SQL_WORKSHEET, QUERY_HISTORY
+
+#### Phase 2/3 Entities (Planned)
+
+```mermaid
+erDiagram
+    %% Team Domain - Phase 2/3 (Planned)
+    TeamEntity ||--o{ TeamResourceShareEntity : "owns shares"
+    TeamEntity ||--o{ TeamResourceShareEntity : "receives shares"
+    TeamEntity ||--o{ TeamExternalResourceEntity : "has external resources"
+
+    TeamResourceShareEntity {
+        Long id PK
+        Long ownerTeamId FK
+        Long sharedWithTeamId FK
+        TeamResourceType resourceType
+        Long resourceId
+        SharePermission permission
+        Long grantedBy
+        DateTime grantedAt
+    }
+
+    TeamExternalResourceEntity {
+        Long id PK
+        Long teamId FK
+        ExternalResourceType externalResourceType
+        Long externalResourceId
+        Long assignedBy
+        DateTime assignedAt
+    }
+```
+
+| Entity | FK Field | References | Cardinality | Notes | Phase |
+|--------|----------|------------|-------------|-------|-------|
+| `TeamResourceShareEntity` | `ownerTeamId` | `TeamEntity` | N:1 | Team that owns the resource | Phase 2 |
+| `TeamResourceShareEntity` | `sharedWithTeamId` | `TeamEntity` | N:1 | Team receiving access | Phase 2 |
+| `TeamExternalResourceEntity` | `teamId` | `TeamEntity` | N:1 | Team association | Phase 3 |
+
+**Resource Ownership:**
+Teams own the following resources via `teamId` FK:
+- `MetricEntity` (teamId FK)
+- `DatasetEntity` (teamId FK)
+- `WorkflowEntity` (teamId FK)
+- `QualitySpecEntity` (teamId FK)
+- `GitHubRepoEntity` (teamId FK)
+- `WorksheetFolderEntity` (teamId FK) - v3.3.0 (renamed from SqlFolderEntity)
+
+---
+
+### SQL Management Domain (v3.3.0)
+
+> The SQL (Saved Worksheet) Management APIs provide storage for reusable SQL worksheets organized within teams.
+> **Updated in v3.3.0**: Entity renamed SqlFolderEntity → WorksheetFolderEntity, SqlSnippetEntity → SqlWorksheetEntity.
+> Controller renamed TeamSqlController → TeamController.
+
+```
+SQL Domain (Team-based ownership - v3.3.0)
+  TeamEntity (from TEAM_FEATURE.md)
+    +-- WorksheetFolderEntity (teamId FK)
+         +-- SqlWorksheetEntity (folderId FK)
+```
+
+| Entity | FK Field | References | Cardinality | Notes |
+|--------|----------|------------|-------------|-------|
+| `WorksheetFolderEntity` | `teamId` | `TeamEntity` | N:1 | Folders belong to a team |
+| `SqlWorksheetEntity` | `folderId` | `WorksheetFolderEntity` | N:1 | Worksheets belong to a folder |
+
+**Entity Definitions:**
+
+```mermaid
+erDiagram
+    TeamEntity ||--o{ WorksheetFolderEntity : "has folders"
+    WorksheetFolderEntity ||--o{ SqlWorksheetEntity : "has worksheets"
+
+    TeamEntity {
+        Long id PK
+        String name UK
+        String displayName
+        String description
+    }
+
+    WorksheetFolderEntity {
+        Long id PK
+        Long teamId FK
+        String name UK_per_team
         String description
         Int displayOrder
     }
 
-    SqlSnippetEntity {
+    SqlWorksheetEntity {
         Long id PK
         Long folderId FK
         String name
@@ -603,4 +741,4 @@ erDiagram
 
 ---
 
-*Last Updated: 2026-01-09 (Added Flag Domain v1.0.0)*
+*Last Updated: 2026-01-10 (Resource Sharing Domain v1.0.0 Phase 1+2 Complete, Team Domain v1.0.0, SQL Domain v3.3.0)*

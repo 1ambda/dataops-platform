@@ -1,8 +1,17 @@
 # Audit Feature Specification
 
-> **Version**: 1.2.0
-> **Status**: Design Review Complete (CLI Integration Support Added)
-> **Last Updated**: 2026-01-09
+> **Version**: 3.0.0
+> **Status**: Design Review Complete (Team-based Architecture)
+> **Last Updated**: 2026-01-10
+
+---
+
+## Migration Note (v3.0.0)
+
+**Breaking Change:** Project-based context replaced with Team-based context.
+- `project_id` column renamed to `team_id` in audit_log table
+- `extractProjectId()` function renamed to `extractTeamId()`
+- `AuditResource.PROJECT` replaced with `AuditResource.TEAM`
 
 ## 1. Overview
 
@@ -185,8 +194,8 @@ class AuditLogEntity(
     @Column(name = "resource_id", nullable = true, updatable = false, length = 255)
     val resourceId: String? = null,  // e.g., metric name, dataset id
 
-    @Column(name = "project_id", nullable = true, updatable = false)
-    val projectId: Long? = null,
+    @Column(name = "team_id", nullable = true, updatable = false)
+    val teamId: Long? = null,  // FK to Team (v3.0.0: renamed from project_id)
 
     // 타임스탬프 - 프로젝트 패턴: LocalDateTime 사용
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -294,8 +303,8 @@ enum class AuditResource(val value: String, val description: String) {
     CATALOG("CATALOG", "카탈로그"),
     TABLE("TABLE", "테이블"),
 
-    // Project & SQL Management
-    PROJECT("PROJECT", "프로젝트"),
+    // Team & SQL Management (v3.0.0: PROJECT removed)
+    TEAM("TEAM", "팀"),
     SQL_FOLDER("SQL_FOLDER", "SQL 폴더"),
     SQL_SNIPPET("SQL_SNIPPET", "SQL 스니펫"),
 
@@ -451,7 +460,7 @@ class AuditAspect(
             userAgent = request?.getHeader("User-Agent"),
             clientMetadata = extractClientMetadata(request),  // v1.2.0: User-Agent 파싱 메타데이터
             resourceId = extractResourceId(joinPoint),
-            projectId = extractProjectId(joinPoint),
+            teamId = extractTeamId(joinPoint),  // v3.0.0: renamed from projectId
         )
     }
 
@@ -467,9 +476,9 @@ class AuditAspect(
             className.contains("Quality") -> AuditResource.QUALITY
             className.contains("Query") -> AuditResource.QUERY
             className.contains("Catalog") -> AuditResource.CATALOG
-            className.contains("Project") && methodName.contains("Snippet") -> AuditResource.SQL_SNIPPET
-            className.contains("Project") && methodName.contains("Folder") -> AuditResource.SQL_FOLDER
-            className.contains("Project") -> AuditResource.PROJECT
+            className.contains("Sql") && methodName.contains("Snippet") -> AuditResource.SQL_SNIPPET
+            className.contains("Sql") && methodName.contains("Folder") -> AuditResource.SQL_FOLDER
+            className.contains("Team") -> AuditResource.TEAM
             className.contains("Flag") -> AuditResource.FLAG
             className.contains("GitHub") -> when {
                 methodName.contains("Branch") -> AuditResource.GITHUB_BRANCH
@@ -621,7 +630,7 @@ class AuditAspect(
         return null
     }
 
-    private fun extractProjectId(joinPoint: ProceedingJoinPoint): Long? {
+    private fun extractTeamId(joinPoint: ProceedingJoinPoint): Long? {
         val method = (joinPoint.signature as MethodSignature).method
         val parameters = method.parameters
         val args = joinPoint.args
@@ -629,7 +638,7 @@ class AuditAspect(
         parameters.forEachIndexed { index, param ->
             param.getAnnotation(PathVariable::class.java)?.let { annotation ->
                 val name = annotation.value.ifEmpty { param.name }
-                if (name == "projectId") {
+                if (name == "teamId") {
                     return (args[index] as? Number)?.toLong()
                 }
             }
@@ -663,7 +672,7 @@ class AuditAspect(
             is DatasetNotFoundException -> 404
             is WorkflowNotFoundException -> 404
             is QualityNotFoundException -> 404
-            is ProjectNotFoundException -> 404
+            is TeamNotFoundException -> 404  // v3.0.0: renamed from ProjectNotFoundException
             is FlagTargetNotFoundException -> 404
             is GitHubServiceException -> 404  // Repository/Branch not found
 
@@ -770,7 +779,7 @@ class AuditService(
         userAgent: String?,
         clientMetadata: String?,  // v1.2.0
         resourceId: String?,
-        projectId: Long?,
+        teamId: Long?,  // v3.0.0: renamed from projectId
     ): AuditLogEntity {
         val entity = AuditLogEntity(
             userId = userId,
@@ -790,7 +799,7 @@ class AuditService(
             userAgent = userAgent,
             clientMetadata = clientMetadata,  // v1.2.0
             resourceId = resourceId,
-            projectId = projectId,
+            teamId = teamId,  // v3.0.0: renamed from projectId
         )
         return auditLogRepositoryJpa.save(entity)
     }
@@ -1072,6 +1081,7 @@ class SessionController {
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 3.0.0 | 2026-01-10 | - | **Breaking Change:** Project to Team migration - project_id -> team_id, AuditResource.PROJECT -> TEAM |
 | 1.2.0 | 2026-01-09 | - | CLI Integration: client_metadata JSON 컬럼 추가, User-Agent 파싱 로직 추가 |
 | 1.1.0 | 2026-01-09 | - | Spring Boot 4 Best Practices 적용: Trace ID 지원, 예외 매핑 확장, 기존 SecurityContext object 활용 |
 | 1.0.1 | 2026-01-09 | - | Agent review feedback 반영: Entity 패턴 수정, Service 메서드 추가, AOP 순서 수정 |

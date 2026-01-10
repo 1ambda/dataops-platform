@@ -28,6 +28,8 @@ class UserEntity(
     var enabled: Boolean = true,
     @Column(name = "last_active_at")
     var lastActiveAt: LocalDateTime? = null,
+    @Column(name = "default_team_id")
+    var defaultTeamId: Long? = null,
 ) : BaseEntity() {
     /**
      * 이메일 기반으로 사용자 정보를 동기화합니다.

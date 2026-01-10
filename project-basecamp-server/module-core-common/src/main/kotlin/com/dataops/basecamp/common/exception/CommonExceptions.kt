@@ -839,6 +839,59 @@ class TeamAlreadyExistsException(
         cause = cause,
     )
 
+/**
+ * Exception thrown when team cannot be deleted due to existing resources
+ */
+class TeamHasResourcesException(
+    val teamId: Long,
+    val resourceDetails: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = resourceDetails,
+        errorCode = "TEAM_HAS_RESOURCES",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a team member is not found
+ */
+class TeamMemberNotFoundException(
+    val teamId: Long,
+    val userId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Team member not found: team=$teamId, user=$userId",
+        errorCode = "TEAM_MEMBER_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to add a member who is already in the team
+ */
+class TeamMemberAlreadyExistsException(
+    val teamId: Long,
+    val userId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "User $userId is already a member of team $teamId",
+        errorCode = "TEAM_MEMBER_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when user is not authorized to perform team operation
+ */
+class TeamPermissionDeniedException(
+    val teamId: Long,
+    val operation: String,
+    val reason: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Permission denied for '$operation' on team $teamId: $reason",
+        errorCode = "TEAM_PERMISSION_DENIED",
+        cause = cause,
+    )
+
 // ============= Worksheet Folder Exceptions =============
 
 /**
@@ -943,5 +996,72 @@ class FlagTargetNotFoundException(
 ) : BusinessException(
         message = "Feature flag target not found: $flagKey for $subjectType:$subjectId",
         errorCode = "FLAG_TARGET_NOT_FOUND",
+        cause = cause,
+    )
+
+// ============= Resource Sharing Exceptions =============
+
+/**
+ * Exception thrown when a resource share is not found
+ */
+class ResourceShareNotFoundException(
+    val shareId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Resource share with id '$shareId' not found",
+        errorCode = "RESOURCE_SHARE_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a share that already exists
+ */
+class ResourceShareAlreadyExistsException(
+    val resourceType: String,
+    val resourceId: Long,
+    val ownerTeamId: Long,
+    val sharedWithTeamId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Share already exists: $resourceType:$resourceId from team $ownerTeamId to team $sharedWithTeamId",
+        errorCode = "RESOURCE_SHARE_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when a user grant is not found
+ */
+class UserGrantNotFoundException(
+    val grantId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "User grant with id '$grantId' not found",
+        errorCode = "USER_GRANT_NOT_FOUND",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when trying to create a grant that already exists
+ */
+class UserGrantAlreadyExistsException(
+    val shareId: Long,
+    val userId: Long,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "User grant already exists: share $shareId for user $userId",
+        errorCode = "USER_GRANT_ALREADY_EXISTS",
+        cause = cause,
+    )
+
+/**
+ * Exception thrown when grant permission exceeds share permission
+ */
+class GrantPermissionExceedsShareException(
+    val grantPermission: String,
+    val sharePermission: String,
+    cause: Throwable? = null,
+) : BusinessException(
+        message = "Grant permission '$grantPermission' cannot exceed share permission '$sharePermission'",
+        errorCode = "GRANT_PERMISSION_EXCEEDS_SHARE",
         cause = cause,
     )

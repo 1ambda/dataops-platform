@@ -21,6 +21,8 @@ interface UserRepositoryJpa {
     fun findAll(): List<UserEntity>
 
     // 도메인 특화 조회 메서드
+    fun findByIdAndDeletedAtIsNull(id: Long): UserEntity?
+
     fun findByEmail(email: String): UserEntity?
 
     fun findByUsername(username: String): UserEntity?
