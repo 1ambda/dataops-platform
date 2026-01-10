@@ -57,6 +57,12 @@ spring:
   # Security & OAuth2 Configuration
   security:
     oauth2:
+      # Resource Server Configuration (JWT validation)
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH_ISSUER:http://localhost:8080/realms/playground}
+          jwk-set-uri: ${OAUTH_JWK_SET_URI:http://localhost:8080/realms/playground/protocol/openid-connect/certs}
+      # Client Configuration (for browser-based OAuth2 flows)
       client:
         provider:
           keycloak:
@@ -100,6 +106,19 @@ server:
       min-spare: 10
 
 app:
+  # Security Configuration
+  security:
+    # Enable mock authentication for local/test profiles (bypasses OAuth2)
+    mock-auth-enabled: ${MOCK_AUTH_ENABLED:false}
+    # Default mock user for development (when mock-auth-enabled is true)
+    mock-user:
+      id: "1"
+      email: "dev@dataops.local"
+      roles:
+        - "admin"
+        - "editor"
+        - "viewer"
+
   database:
     connection-timeout: 30000
     validation-timeout: 5000
@@ -197,8 +216,8 @@ spring:
   # Disable OAuth2 auto-configuration for local development (no Keycloak required)
   autoconfigure:
     exclude:
-      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
-      - org.springframework.boot.security.oauth2.resource.server.autoconfigure.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
 
   datasource:
     url: jdbc:mysql://localhost:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
@@ -207,6 +226,11 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+
+app:
+  security:
+    # Enable mock authentication for local development
+    mock-auth-enabled: true
 
 logging:
   level:
@@ -222,8 +246,8 @@ spring:
   # Disable OAuth2 auto-configuration for tests (no Keycloak required)
   autoconfigure:
     exclude:
-      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
-      - org.springframework.boot.security.oauth2.resource.server.autoconfigure.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
 
   datasource:
     driver-class-name: org.h2.Driver
@@ -239,7 +263,12 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6370  # 테스트용 다른 포트
+      port: 6370  # Different port for tests
+
+app:
+  security:
+    # Enable mock authentication for tests
+    mock-auth-enabled: true
 
 ---
 spring:
@@ -257,6 +286,11 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:dev-redis}
+
+app:
+  security:
+    # OAuth2 enabled in dev (Keycloak available)
+    mock-auth-enabled: false
 
 logging:
   level:
@@ -279,6 +313,11 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:prod-redis}
+
+app:
+  security:
+    # OAuth2 enabled in production
+    mock-auth-enabled: false
 
 management:
   endpoints:

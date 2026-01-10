@@ -10,55 +10,156 @@
   "attributes": {
     "adminEventsExpiration": "900"
   },
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access"
+      },
+      {
+        "name": "editor",
+        "description": "Editor role with write access"
+      },
+      {
+        "name": "viewer",
+        "description": "Viewer role with read-only access"
+      }
+    ]
+  },
   "clients": [
     {
-      "id" : "application",
-      "clientId" : "application",
-      "name" : "application",
-      "description" : "",
-      "rootUrl" : "https://localhost:8070",
-      "adminUrl" : "https://localhost:8070",
-      "baseUrl" : "https://localhost:8070",
-      "surrogateAuthRequired" : false,
-      "enabled" : true,
-      "alwaysDisplayInConsole" : false,
-      "clientAuthenticatorType" : "client-secret",
-      "secret" : "v7Yku3CSBSVfZOxTetGmA5tCRhzDXZeY",
-      "redirectUris" : [
-        "https://localhost:8070/*"
+      "id": "application",
+      "clientId": "application",
+      "name": "Basecamp Web Application",
+      "description": "Main web application client for browser-based access",
+      "rootUrl": "http://localhost:3000",
+      "adminUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "v7Yku3CSBSVfZOxTetGmA5tCRhzDXZeY",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:8070/*",
+        "http://localhost:8081/*"
       ],
-      "webOrigins" : [
-        "*"
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:8070",
+        "http://localhost:8081"
       ],
-      "notBefore" : 0,
-      "bearerOnly" : false,
-      "consentRequired" : false,
-      "standardFlowEnabled" : true,
-      "implicitFlowEnabled" : false,
-      "directAccessGrantsEnabled" : false,
-      "serviceAccountsEnabled" : false,
-      "publicClient" : false,
-      "frontchannelLogout" : false,
-      "protocol" : "openid-connect",
-      "attributes" : {
-        "oidc.ciba.grant.enabled" : "false",
-        "client.secret.creation.time" : "1716872965",
-        "backchannel.logout.session.required" : "true",
-        "post.logout.redirect.uris" : "*",
-        "display.on.consent.screen" : "false",
-        "oauth2.device.authorization.grant.enabled" : "false",
-        "backchannel.logout.revoke.offline.tokens" : "false"
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1716872965",
+        "backchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:8070/*##http://localhost:8081/*",
+        "display.on.consent.screen": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false"
       },
-      "fullScopeAllowed" : true
+      "fullScopeAllowed": true
+    },
+    {
+      "id": "cli-service",
+      "clientId": "cli-service",
+      "name": "CLI Service Account",
+      "description": "Service account client for CLI tool with Device Authorization Grant support",
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "cli-service-secret-key-12345",
+      "redirectUris": [],
+      "webOrigins": [],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "display.on.consent.screen": "false",
+        "oauth2.device.authorization.grant.enabled": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "fullScopeAllowed": true
     }
   ],
   "users": [
     {
+      "id": "admin-user-001",
+      "email": "admin@dataops.local",
+      "username": "admin",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "admin123"
+        }
+      ],
+      "realmRoles": ["admin", "editor", "viewer"]
+    },
+    {
+      "id": "editor-user-001",
+      "email": "editor@dataops.local",
+      "username": "editor",
+      "firstName": "Editor",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "editor123"
+        }
+      ],
+      "realmRoles": ["editor", "viewer"]
+    },
+    {
+      "id": "viewer-user-001",
+      "email": "viewer@dataops.local",
+      "username": "viewer",
+      "firstName": "Viewer",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "viewer123"
+        }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
       "id": "1ambda",
       "email": "1ambda@github.com",
       "username": "lambda",
-      "firstName": "lambda",
-      "lastName": "lambda",
+      "firstName": "Lambda",
+      "lastName": "User",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -67,7 +168,8 @@
           "type": "password",
           "value": "changeme"
         }
-      ]
+      ],
+      "realmRoles": ["admin", "editor", "viewer"]
     }
   ]
 }

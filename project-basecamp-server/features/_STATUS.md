@@ -1,7 +1,7 @@
 # Basecamp Server - Implementation Status
 
 > **Last Updated:** 2026-01-10
-> **Scope:** BASECAMP API feature implementation (96 endpoints) - v3.5.0 Team-based architecture with Audit Logging
+> **Scope:** BASECAMP API feature implementation (96 endpoints) - v3.6.0 OAuth2/OIDC Security
 > **Current Progress:** 100% (96/96 endpoints completed)
 
 ---
@@ -19,15 +19,15 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total BASECAMP APIs** | 96 endpoints | Target scope (v3.5.0 - With Audit Logging) |
-| **Completed** | 96 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL (Team-based)** + **Flag** + **Resource Sharing** + **Audit** APIs |
+| **Total BASECAMP APIs** | 96 endpoints | Target scope (v3.6.0 - With OAuth2/OIDC Security) |
+| **Completed** | 96 endpoints | Health + Metrics + Datasets + Catalog + Lineage + Quality + **Workflow v2.0** + Run + Query + Transpile + GitHub + **Airflow** + **Execution** + **SQL (Team-based)** + **Flag** + **Resource Sharing** + **Audit** + **Security** APIs |
 | **In Progress** | 0 endpoints | - |
 | **Not Started** | 0 endpoints | - |
 | **Overall Progress** | **100%** | All phases complete |
 | **Infrastructure Readiness** | **98%** | Production ready |
 | **Estimated Timeline** | 5 weeks | ~1.3 months with 1.5 FTE (revised) |
 
-**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management - Team-based v3.0.0), **P8 (Flag)**, **P9 (Resource Sharing)**, and **P10 (Audit Logging)** APIs all operational with 1280+ tests total. All CLI commands fully supported. **v3.5.0 Update:** Audit Logging feature added with AOP-based automatic logging (78 tests).
+**Key Insight:** All BASECAMP APIs completed with full hexagonal architecture implementation. P0 Critical (Health, Metrics, Datasets), P1 (Catalog, Lineage), P2 (Workflow v2.0), P3 (Quality, Run, Query, Transpile), P4 (GitHub), P5 (Airflow Integration), P6 (Execution), P7 (SQL Management - Team-based v3.0.0), **P8 (Flag)**, **P9 (Resource Sharing)**, **P10 (Audit Logging)**, and **P11 (Security)** APIs all operational with 1350+ tests total. All CLI commands fully supported. **v3.6.0 Update:** OAuth2/OIDC Security Phase 1 complete with Keycloak integration, Mock authentication for local development, and comprehensive SecurityContext utility (69 tests).
 
 ---
 
@@ -54,7 +54,8 @@
 | **P8 Flag** | Flag | 11 | 11 | **100%** | `dli config flags` (planned) |
 | **P9 Resource** | Resource Sharing | 10 | 10 | **100%** | (Server API) |
 | **P10 Audit** | Audit Logging | 3 | 3 | **100%** | (Management API) |
-| **TOTAL** | **16 features** | **96** | **96** | **100%** | All CLI commands |
+| **P11 Security** | OAuth2/OIDC | - | - | **100%** | (Infrastructure) |
+| **TOTAL** | **17 features** | **96** | **96** | **100%** | All CLI commands |
 
 ### Progress Breakdown by Phase
 
@@ -484,6 +485,37 @@
 
 **Summary:** 78 tests (15 service + 8 controller + 55 aspect), AuditLogEntity (19 columns), AuditAction enum (33 values), AuditResource enum (25 values), AOP-based automatic logging for all @RestController methods, TraceIdFilter for distributed tracing, request body filtering (global + endpoint-specific keys), @NoAudit applied to HealthController (class) and SessionController.whoami()
 
+### Security API (OAuth2/OIDC) - 100% Complete (Phase 1)
+
+> **Detailed Documentation:** [`SECURITY_RELEASE.md`](./SECURITY_RELEASE.md) | [`SECURITY_FEATURE.md`](./SECURITY_FEATURE.md)
+
+#### Authentication Modes
+
+| Mode | Profile | Description |
+|------|---------|-------------|
+| OAuth2/JWT | dev, prod | Keycloak JWT validation |
+| Mock | local, test | Header-based mock authentication |
+
+#### Core Components
+
+| Component | Status |
+|-----------|--------|
+| SecurityConfig (OAuth2 Resource Server) | Complete |
+| SecurityProperties | Complete |
+| MockAuthenticationFilter | Complete |
+| SecurityContext (JWT/OIDC/Mock support) | Complete |
+
+#### Keycloak Configuration
+
+| Item | Status |
+|------|--------|
+| Realm (playground) | Complete |
+| Clients (application, cli-service) | Complete |
+| Roles (admin, editor, viewer) | Complete |
+| Test Users (4 users) | Complete |
+
+**Summary:** 69 tests (43 SecurityContext + 14 SecurityConfig + 12 MockAuth), OAuth2 Resource Server with Keycloak JWT validation, Mock authentication for local/test profiles, comprehensive SecurityContext utility supporting JWT/OIDC/Mock authentication types, role extraction from realm_access and resource_access claims, profile-based security mode switching
+
 ---
 
 ## 🏗️ Infrastructure Status (95% Complete)
@@ -515,7 +547,7 @@ project-basecamp-server/
 | Spring Boot | 3.4.1 | ✅ Configured |
 | Kotlin | 2.2.21 | ✅ Configured |
 | JPA/Hibernate | Latest | ✅ With QueryDSL |
-| Security | OAuth2 + Keycloak | ✅ Integrated |
+| Security | OAuth2/OIDC + Keycloak | ✅ Complete (Phase 1) |
 | Cache | Redis | ✅ Integrated |
 | Database | MySQL 8.0 | ✅ Configured |
 | Build | Gradle 9.2.1 | ✅ Multi-module |
@@ -681,6 +713,7 @@ project-basecamp-server/
 | **P8** | Flag API | [`FLAG_FEATURE.md`](./FLAG_FEATURE.md) | 4.5/5 |
 | **P9** | Resource API | [`RESOURCE_FEATURE.md`](./RESOURCE_FEATURE.md) | 4.5/5 |
 | **P10** | Audit API | [`AUDIT_FEATURE.md`](./AUDIT_FEATURE.md) | 4.5/5 |
+| **P11** | Security API | [`SECURITY_FEATURE.md`](./SECURITY_FEATURE.md) | 4.5/5 |
 
 ### Release Documents (Completed Implementations)
 
@@ -703,6 +736,7 @@ project-basecamp-server/
 | **Flag API** | [`FLAG_RELEASE.md`](./FLAG_RELEASE.md) | 100% (11/11 endpoints) |
 | **Resource API** | [`RESOURCE_RELEASE.md`](./RESOURCE_RELEASE.md) | 100% (10/10 endpoints) - Phase 1 + 2 |
 | **Audit API** | [`AUDIT_RELEASE.md`](./AUDIT_RELEASE.md) | 100% (3/3 endpoints + AOP) - Phase 1 |
+| **Security API** | [`SECURITY_RELEASE.md`](./SECURITY_RELEASE.md) | 100% (OAuth2/OIDC) - Phase 1 |
 
 ### Implementation Guides
 
@@ -749,4 +783,4 @@ project-basecamp-server/
 
 ---
 
-*Last Updated: 2026-01-10 (v3.5.0 - Audit Logging API Phase 1 Complete, 3 Management endpoints + AOP automatic logging, 78 tests) | Next Review: Weekly*
+*Last Updated: 2026-01-10 (v3.6.0 - OAuth2/OIDC Security Phase 1 Complete, Keycloak integration with Mock authentication for local/test profiles, 69 tests) | Next Review: Weekly*

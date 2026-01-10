@@ -76,7 +76,7 @@ class RunControllerTest {
     private lateinit var testPolicy: ExecutionPolicyProjection
     private lateinit var testExecutionResult: QueryExecutionResult
     private val testQueryId = "adhoc_20260101_120000_abc12345"
-    private val testUserId = "anonymous" // Default for unauthenticated requests
+    private val testUserId = "1" // Default mock user ID from MockAuthenticationFilter
 
     @BeforeEach
     fun setUp() {
