@@ -51,7 +51,7 @@ class SampleQueryEntity(
      * SQL query text
      */
     @field:NotBlank(message = "SQL is required")
-    @Column(nullable = false, length = 10000)
+    @Column(name = "`sql`", nullable = false, length = 10000)
     val sql: String,
     /**
      * Query author email

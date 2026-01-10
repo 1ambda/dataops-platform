@@ -352,6 +352,14 @@ db-reset: ## Reset database (WARNING: destroys all data)
 	@echo "$(GREEN)✓ Database reset complete$(RESET)"
 	@echo ""
 
+.PHONY: db-init
+db-init: ## Initialize database with merged DDL schema (idempotent)
+	@echo ""
+	@echo "$(BOLD)[$(TAG)] ($(TIMESTAMP)) - Initializing database schema...$(RESET)"
+	@docker exec -i dataops-mysql mysql -u dataops_user -pdataops_password dataops < project-basecamp-server/scripts/init-local-db.sql
+	@echo "$(GREEN)✓ Database schema initialized$(RESET)"
+	@echo ""
+
 .PHONY: redis-cli
 redis-cli: ## Open Redis CLI
 	@echo ""

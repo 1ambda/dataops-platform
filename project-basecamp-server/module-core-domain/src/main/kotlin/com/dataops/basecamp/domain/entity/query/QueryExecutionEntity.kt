@@ -27,7 +27,7 @@ class QueryExecutionEntity(
     @Column(name = "query_id")
     val queryId: String,
     @field:NotBlank(message = "SQL expression is required")
-    @Column(name = "sql", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "`sql`", columnDefinition = "TEXT", nullable = false)
     val sql: String,
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

@@ -214,18 +214,25 @@ spring:
       on-profile: local
 
   # Disable OAuth2 auto-configuration for local development (no Keycloak required)
+  # Note: Package names changed in Spring Boot 4.0
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration
 
   datasource:
     url: jdbc:mysql://localhost:3306/dops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Use 'update' for local development with MySQL (safer than create-drop)
+      # Flyway handles schema migrations; JPA validates and adds missing columns
+      ddl-auto: update
     show-sql: true
+
+  # Flyway enabled for local development (manages schema migrations)
+  flyway:
+    enabled: true
 
 app:
   security:
@@ -244,21 +251,29 @@ spring:
       on-profile: test
 
   # Disable OAuth2 auto-configuration for tests (no Keycloak required)
+  # Note: Package names changed in Spring Boot 4.0
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration
 
+  # H2 in-memory database for tests (no MySQL required)
   datasource:
     driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=USER
     username: sa
     password:
 
   jpa:
     hibernate:
+      # create-drop for clean test state on each run
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: true
+
+  # Flyway disabled for tests (JPA handles schema via ddl-auto: create-drop)
+  flyway:
+    enabled: false
 
   data:
     redis:
