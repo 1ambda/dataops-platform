@@ -225,9 +225,9 @@ spring:
 
   jpa:
     hibernate:
-      # Use 'update' for local development with MySQL (safer than create-drop)
-      # Flyway handles schema migrations; JPA validates and adds missing columns
-      ddl-auto: update
+      # Disable auto DDL for local development - Flyway handles all schema migrations
+      # Use 'make db-init' or Flyway migrations to manage schema
+      ddl-auto: none
     show-sql: true
 
   # Flyway enabled for local development (manages schema migrations)
