@@ -1,8 +1,9 @@
 # Audit Feature Specification
 
 > **Version**: 3.0.0
-> **Status**: Design Review Complete (Team-based Architecture)
+> **Status**: Phase 1 Complete (78 tests, 3 Management endpoints + AOP)
 > **Last Updated**: 2026-01-10
+> **Release Document**: [`AUDIT_RELEASE.md`](./AUDIT_RELEASE.md)
 
 ---
 
@@ -163,6 +164,10 @@ class AuditLogEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "query_parameters", nullable = true, updatable = false, columnDefinition = "json")
     val queryParameters: String? = null,  // JSON: {"page": "1", "size": "10"}
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "request_body", nullable = true, updatable = false, columnDefinition = "json")
+    val requestBody: String? = null,  // JSON: Filtered request body (sensitive keys removed)
 
     // 응답 정보
     @Column(name = "response_status", nullable = false, updatable = false)
@@ -951,19 +956,26 @@ class AuditController(
 
 ## 10. Implementation Phases
 
-### Phase 1 (MVP) - 예상 3-4일
+### Phase 1 (MVP) - Complete (2026-01-10)
 
-| Priority | Task | Description |
-|----------|------|-------------|
-| P0 | ENUM 정의 | `AuditAction`, `AuditResource` ENUM 생성 |
-| P0 | Entity 생성 | `AuditLogEntity` 생성 (trace_id 포함), 기존 Entity 삭제 |
-| P0 | Repository 구현 | JPA + DSL Repository 구현 |
-| P0 | Service 리팩토링 | `AuditService` 신규 메서드 추가 |
-| P0 | `@NoAudit` 어노테이션 | 제외 어노테이션 구현 |
-| P0 | `TraceIdFilter` 구현 | 요청별 Trace ID 생성/MDC 저장 (v1.1.0) |
-| P0 | `AuditAspect` 구현 | AOP 기반 자동 기록 |
-| P1 | Management API | 조회/검색/통계 API |
-| P1 | 기존 Controller에 `@NoAudit` 적용 | HealthController, SessionController.whoami |
+| Priority | Task | Description | Status |
+|----------|------|-------------|--------|
+| P0 | ENUM 정의 | `AuditAction` (33 values), `AuditResource` (25 values) ENUM 생성 | ✅ Complete |
+| P0 | Entity 생성 | `AuditLogEntity` 생성 (19 columns, request_body 포함), 기존 Entity 삭제 | ✅ Complete |
+| P0 | Repository 구현 | JPA + DSL Repository 구현 | ✅ Complete |
+| P0 | Service 리팩토링 | `AuditService` 신규 메서드 추가 (saveLog, findById, searchLogs, getStats) | ✅ Complete |
+| P0 | `@NoAudit` 어노테이션 | 제외 어노테이션 구현 | ✅ Complete |
+| P0 | `@AuditExcludeKeys` 어노테이션 | Request body 필터링 어노테이션 구현 | ✅ Complete |
+| P0 | `TraceIdFilter` 구현 | 요청별 Trace ID 생성/MDC 저장 (v1.1.0) | ✅ Complete |
+| P0 | `AuditAspect` 구현 | AOP 기반 자동 기록 (Global + Endpoint-specific filtering) | ✅ Complete |
+| P1 | Management API | 조회/검색/통계 API (3 endpoints) | ✅ Complete |
+| P1 | 기존 Controller에 `@NoAudit` 적용 | HealthController (class), SessionController.whoami() | ✅ Complete |
+| P1 | ExecutionController에 `@AuditExcludeKeys` 적용 | rendered_sql, sql 키 제외 | ✅ Complete |
+
+**Test Coverage (78 tests):**
+- AuditServiceTest: 15 tests
+- AuditControllerTest: 8 tests
+- AuditAspectTest: 55 tests
 
 ### Phase 2 (Enhancement)
 
@@ -992,38 +1004,49 @@ class AuditController(
 
 ## 12. Files to Create/Modify
 
-### 12.1 신규 생성
+### 12.1 신규 생성 (Implemented)
 
-| File | Location |
-|------|----------|
-| `AuditEnums.kt` | `module-core-common/src/.../enums/` |
-| `AuditLogEntity.kt` | `module-core-domain/src/.../entity/audit/` |
-| `AuditLogRepositoryJpa.kt` | `module-core-domain/src/.../repository/audit/` |
-| `AuditLogRepositoryDsl.kt` | `module-core-domain/src/.../repository/audit/` |
-| `AuditLogRepositoryJpaImpl.kt` | `module-core-infra/src/.../repository/audit/` |
-| `AuditLogRepositoryDslImpl.kt` | `module-core-infra/src/.../repository/audit/` |
-| `NoAudit.kt` | `module-server-api/src/.../annotation/` |
-| `AuditAspect.kt` | `module-server-api/src/.../aspect/` |
-| `TraceIdFilter.kt` | `module-server-api/src/.../filter/` (v1.1.0) |
-| `AuditController.kt` | `module-server-api/src/.../controller/` |
-| `AuditDtos.kt` | `module-server-api/src/.../dto/audit/` |
+| File | Location | Status |
+|------|----------|--------|
+| `AuditEnums.kt` | `module-core-common/src/.../enums/` | ✅ Created |
+| `AuditLogEntity.kt` | `module-core-domain/src/.../entity/audit/` | ✅ Created (19 columns) |
+| `AuditLogRepositoryJpa.kt` | `module-core-domain/src/.../repository/audit/` | ✅ Created |
+| `AuditLogRepositoryDsl.kt` | `module-core-domain/src/.../repository/audit/` | ✅ Created |
+| `AuditLogRepositoryJpaImpl.kt` | `module-core-infra/src/.../repository/audit/` | ✅ Created |
+| `AuditLogRepositoryJpaSpringData.kt` | `module-core-infra/src/.../repository/audit/` | ✅ Created |
+| `AuditLogRepositoryDslImpl.kt` | `module-core-infra/src/.../repository/audit/` | ✅ Created |
+| `NoAudit.kt` | `module-server-api/src/.../annotation/` | ✅ Created |
+| `AuditExcludeKeys.kt` | `module-server-api/src/.../annotation/` | ✅ Created |
+| `AuditAspect.kt` | `module-server-api/src/.../aspect/` | ✅ Created |
+| `TraceIdFilter.kt` | `module-server-api/src/.../filter/` | ✅ Created |
+| `AuditController.kt` | `module-server-api/src/.../controller/` | ✅ Created (3 endpoints) |
+| `AuditDtos.kt` | `module-server-api/src/.../dto/audit/` | ✅ Created |
 
-### 12.2 수정
+### 12.2 수정 (Implemented)
 
-| File | Change |
-|------|--------|
-| `AuditService.kt` | 신규 메서드 추가 (기존 유지하며 확장) |
-| `HealthController.kt` | `@NoAudit` 추가 |
-| `SessionController.kt` | `whoami()`에 `@NoAudit` 추가 |
+| File | Change | Status |
+|------|--------|--------|
+| `AuditService.kt` | 신규 메서드 추가 (saveLog, findById, searchLogs, getStats) | ✅ Modified |
+| `HealthController.kt` | `@NoAudit` 클래스 레벨 어노테이션 추가 | ✅ Modified |
+| `SessionController.kt` | `whoami()`에 `@NoAudit` 메서드 레벨 어노테이션 추가 | ✅ Modified |
+| `ExecutionController.kt` | `@AuditExcludeKeys(["rendered_sql", "sql"])` 추가 | ✅ Modified |
 
-### 12.3 삭제
+### 12.3 삭제 (Implemented)
 
-| File | Reason |
-|------|--------|
-| `AuditAccessEntity.kt` | AuditLogEntity로 통합 |
-| `AuditResourceEntity.kt` | AuditLogEntity로 통합 |
-| `AuditAccessRepository*.kt` | 신규 Repository로 대체 |
-| `AuditResourceRepository*.kt` | 신규 Repository로 대체 |
+| File | Reason | Status |
+|------|--------|--------|
+| `AuditAccessEntity.kt` | AuditLogEntity로 통합 | ✅ Deleted |
+| `AuditResourceEntity.kt` | AuditLogEntity로 통합 | ✅ Deleted |
+| `AuditAccessRepository*.kt` | 신규 Repository로 대체 | ✅ Deleted |
+| `AuditResourceRepository*.kt` | 신규 Repository로 대체 | ✅ Deleted |
+
+### 12.4 Test Files Created
+
+| File | Location | Test Count |
+|------|----------|------------|
+| `AuditServiceTest.kt` | `module-core-domain/src/test/.../service/` | 15 tests |
+| `AuditControllerTest.kt` | `module-server-api/src/test/.../controller/` | 8 tests |
+| `AuditAspectTest.kt` | `module-server-api/src/test/.../aspect/` | 55 tests |
 
 ---
 

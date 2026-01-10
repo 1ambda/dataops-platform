@@ -1,5 +1,6 @@
 package com.dataops.basecamp.controller
 
+import com.dataops.basecamp.annotation.NoAudit
 import com.dataops.basecamp.domain.repository.user.UserRepositoryJpa
 import com.dataops.basecamp.domain.service.TeamService
 import com.dataops.basecamp.dto.SessionResponse
@@ -46,6 +47,7 @@ class SessionController(
         description = "Returns authenticated user information including team memberships",
     )
     @GetMapping("/api/session/whoami")
+    @NoAudit(reason = "Frequent calls, no sensitive information")
     fun whoami(principal: Principal?): SessionResponse {
         val baseResponse = SecurityContext.of(principal)
 

@@ -1,5 +1,6 @@
 package com.dataops.basecamp.controller
 
+import com.dataops.basecamp.annotation.NoAudit
 import com.dataops.basecamp.common.constant.CommonConstants
 import com.dataops.basecamp.common.enums.HealthStatus
 import com.dataops.basecamp.domain.service.HealthService
@@ -21,6 +22,7 @@ import java.time.LocalDateTime
 @RestController
 @RequestMapping(CommonConstants.Api.BASE_PATH)
 @Tag(name = "Health", description = "시스템 상태 확인 API")
+@NoAudit(reason = "Health check endpoints should not be audited")
 class HealthController(
     private val buildProperties: BuildProperties? = null,
     private val healthService: HealthService,

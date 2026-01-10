@@ -322,6 +322,7 @@ erDiagram
 | `UserEntity` | Root aggregate |
 | `AirflowClusterEntity` | Root aggregate (team-based cluster management) |
 | `FlagEntity` | Root aggregate (feature flag definitions) |
+| `AuditLogEntity` | Standalone, immutable audit log (no soft delete) |
 
 ---
 
@@ -386,6 +387,52 @@ Team-to-Team Resource Sharing:
   Consumer Team ──receives──> TeamResourceShareEntity
   Consumer User ──granted──> UserResourceGrantEntity
 ```
+
+### Audit Domain (v1.0.0)
+
+> The Audit Logging feature provides automatic API call logging via AOP-based interception.
+> **Reference:** [AUDIT_FEATURE.md](../features/AUDIT_FEATURE.md) | [AUDIT_RELEASE.md](../features/AUDIT_RELEASE.md)
+
+```
+AuditLogEntity (standalone, immutable - no BaseEntity inheritance)
+  - No FK relationships
+  - No soft delete (audit logs are append-only)
+  - 19 columns including JSON fields for path/query/body
+```
+
+**Entity Definition:**
+
+```kotlin
+AuditLogEntity {
+    Long id PK
+    String userId              // User identifier (String for flexibility)
+    String userEmail           // User email address
+    String traceId             // UUID for distributed tracing
+    AuditAction action         // 33 action types (ENUM)
+    AuditResource resource     // 25 resource types (ENUM)
+    String httpMethod          // GET, POST, PUT, DELETE
+    String requestUrl          // Full request URL
+    String pathVariables       // JSON: path variable map
+    String queryParameters     // JSON: query parameter map
+    String requestBody         // JSON: filtered request body
+    Int responseStatus         // HTTP status code
+    String responseMessage     // Error message if any
+    Long durationMs            // Request duration in ms
+    String clientType          // CLI, WEB, API
+    String clientIp            // Client IP address
+    String userAgent           // User-Agent header
+    String clientMetadata      // JSON: parsed User-Agent
+    String resourceId          // Target resource identifier
+    Long teamId                // FK to Team (nullable)
+    DateTime createdAt         // Record creation time
+}
+```
+
+**Notes:**
+- Does NOT inherit from `BaseEntity` (no updatedAt, no soft delete)
+- `teamId` is a weak FK reference (no JPA relationship)
+- JSON columns: `pathVariables`, `queryParameters`, `requestBody`, `clientMetadata`
+- Indexed columns: `user_id`, `action`, `resource`, `created_at`, `trace_id`
 
 ---
 
@@ -741,4 +788,4 @@ erDiagram
 
 ---
 
-*Last Updated: 2026-01-10 (Resource Sharing Domain v1.0.0 Phase 1+2 Complete, Team Domain v1.0.0, SQL Domain v3.3.0)*
+*Last Updated: 2026-01-10 (Audit Domain v1.0.0, Resource Sharing Domain v1.0.0 Phase 1+2 Complete, Team Domain v1.0.0, SQL Domain v3.3.0)*

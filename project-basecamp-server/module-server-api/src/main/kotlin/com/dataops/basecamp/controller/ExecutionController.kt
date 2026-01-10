@@ -1,5 +1,6 @@
 package com.dataops.basecamp.controller
 
+import com.dataops.basecamp.annotation.AuditExcludeKeys
 import com.dataops.basecamp.domain.service.ExecutionService
 import com.dataops.basecamp.dto.execution.DatasetExecutionRequest
 import com.dataops.basecamp.dto.execution.ExecutionResultDto
@@ -42,6 +43,7 @@ class ExecutionController(
      * @return 실행 결과
      */
     @PostMapping("/datasets/run")
+    @AuditExcludeKeys(["rendered_sql", "renderedSql", "original_spec", "originalSpec"])
     fun executeDataset(
         @Valid @RequestBody request: DatasetExecutionRequest,
         authentication: Authentication?,
@@ -64,6 +66,7 @@ class ExecutionController(
      * @return 실행 결과
      */
     @PostMapping("/metrics/run")
+    @AuditExcludeKeys(["rendered_sql", "renderedSql", "original_spec", "originalSpec"])
     fun executeMetric(
         @Valid @RequestBody request: MetricExecutionRequest,
         authentication: Authentication?,
@@ -86,6 +89,7 @@ class ExecutionController(
      * @return 실행 결과
      */
     @PostMapping("/quality/run")
+    @AuditExcludeKeys(["rendered_sql", "renderedSql", "tests"])
     fun executeQuality(
         @Valid @RequestBody request: QualityExecutionRequest,
         authentication: Authentication?,
@@ -108,6 +112,7 @@ class ExecutionController(
      * @return 실행 결과
      */
     @PostMapping("/sql/run")
+    @AuditExcludeKeys(["sql"])
     fun executeSql(
         @Valid @RequestBody request: SqlExecutionRequest,
         authentication: Authentication?,
