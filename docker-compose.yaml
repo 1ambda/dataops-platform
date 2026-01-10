@@ -1,7 +1,7 @@
 services:
   # MySQL Database
   mysql:
-    image: mysql:8-alpine
+    image: mysql:8.0
     container_name: dataops-mysql
     restart: unless-stopped
     ports:
