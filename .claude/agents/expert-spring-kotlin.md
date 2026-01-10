@@ -3,6 +3,7 @@ name: expert-spring-kotlin
 description: Senior Spring Boot + Kotlin engineer. Hexagonal architecture, idiomatic Kotlin, testability-first. Use PROACTIVELY when working on Kotlin/Spring code, API design, or backend services. Triggers on Spring Boot, Kotlin, JPA, QueryDSL, MockK, and clean architecture questions.
 model: inherit
 skills:
+  - jetbrains-workflow # JetBrains MCP 도구 활용 (필수, 개발 속도 10배 향상)
   - doc-search         # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency     # 80-90% token savings via structured queries
   - kotlin-testing     # MockK, JUnit 5, Spring test slices (NOT pytest!)
@@ -10,6 +11,72 @@ skills:
   - refactoring        # Safe restructuring with test protection
   - debugging          # 버그 조사, 루트 원인 분석
   - completion-gate    # 완료 선언 Gate + 코드 존재 검증
+---
+
+## 🚀 Fast Feedback Workflow (MANDATORY)
+
+> **코드 먼저, 테스트 나중, 전체 빌드는 마지막에!**
+
+### 개발 사이클 (3단계 - 빠른 피드백 우선)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 코드 작성                                                │
+│  2. IDE 검사 (0-2초) → jetbrains.get_file_problems(...)     │
+│  3. 단일 테스트 (5-10초) → ./gradlew :module:test --tests   │
+│  4. 반복 (1-3) - 테스트 성공할 때까지                         │
+├─────────────────────────────────────────────────────────────┤
+│  5. 기능 완료 후 (1회만)                                     │
+│     → ./gradlew ktlintCheck && ./gradlew build              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 핵심 명령어 (개발 중)
+
+```bash
+# 단일 테스트 실행 (컴파일 자동 포함, 5-10초)
+./gradlew :module-core-domain:test --tests "*ServiceTest"
+
+# Entity 변경 시 Q-Class 재생성 필요
+./gradlew :module-core-domain:kaptKotlin
+
+# 모듈 전체 테스트 (필요시만, 15-30초)
+./gradlew :module-core-domain:test
+```
+
+### 최종 검증 (기능 완료 후 1회만)
+
+```bash
+# ktlint + 전체 빌드 (60초+)
+./gradlew ktlintCheck && ./gradlew build
+
+# 캐시 문제 시에만
+./gradlew clean build
+```
+
+### ⚠️ 개발 중 금지 패턴
+
+```bash
+# ❌ 개발 반복 중 사용 금지
+./gradlew clean build        # 최종 검증에서만!
+./gradlew test               # --tests 사용!
+./gradlew ktlintCheck        # 최종 검증에서만!
+```
+
+### JetBrains MCP 활용
+
+> **상세 가이드**: `jetbrains-workflow` skill 참조 (7개 카테고리별 코드 예제 포함)
+
+**핵심 원칙**: IDE 먼저, Gradle 나중에
+
+| 작업 | JetBrains MCP | 속도 향상 |
+|------|---------------|----------|
+| 에러 확인 | `get_file_problems` | 2-3x |
+| 테스트 | `execute_run_configuration` | 2x |
+| 포맷팅 | `reformat_file` | 5x+ |
+| 검색 | `find_files_by_name_keyword` | 3x+ |
+| 리팩토링 | `rename_refactoring` | 안전 |
+
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -88,13 +155,13 @@ search_for_pattern(
 - Understand requirements and identify affected layers
 - Check CLAUDE.md for architecture patterns; **when in doubt, ask the user**
 
-### 2. Implement (TDD)
-- Write tests first
+### 2. Implement (Code First)
+- 코드 작성 → IDE 검사 → 단일 테스트 → 반복
 - Constructor injection for all dependencies
 - Leverage Kotlin idioms: extension functions, scope functions, `when`
 
-### 3. Verify
-- Run `./gradlew build` - must pass
+### 3. Verify (기능 완료 후 1회만)
+- Run `./gradlew ktlintCheck && ./gradlew build` - must pass
 - Verify transaction boundaries and null safety
 
 ## Implementation Patterns (CRITICAL)
@@ -184,7 +251,7 @@ See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 | Fetch related entities | QueryDSL |
 
 ## Quality Checklist
-- [ ] `./gradlew clean build` passes
+- [ ] `./gradlew ktlintCheck && ./gradlew build` passes (기능 완료 후)
 - [ ] Hexagonal boundaries respected
 - [ ] Constructor injection used
 - [ ] Idiomatic Kotlin (minimal `!!`, data classes)
@@ -205,7 +272,7 @@ See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 구현 완료 후 반드시 수행:
 
 ```
-□ ./gradlew clean build 테스트/빌드 통과 확인
+□ ./gradlew ktlintCheck && ./gradlew build 통과 확인
 □ make serena-server              # Symbol 캐시 동기화
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
@@ -213,47 +280,29 @@ See `docs/PATTERNS.md#module-placement-rules` for detailed decision tree.
 
 ---
 
-## MCP 활용 (Token Efficiency CRITICAL)
+## MCP 활용
 
-> **상세 가이드**: `mcp-efficiency` skill 참조
+> **상세 가이드**: `mcp-efficiency` skill, `jetbrains-workflow` skill 참조
 
-### MCP Query Anti-Patterns (AVOID)
+### 도구 선택 Decision Tree
+
+```
+코드 작성 후 에러 확인?  → jetbrains.get_file_problems()
+테스트 실행?            → jetbrains.execute_run_configuration()
+파일 찾기?             → jetbrains.find_files_by_name_keyword()
+코드 검색?             → jetbrains.search_in_files_by_text()
+클래스 구조 파악?       → serena.get_symbols_overview()
+메서드 시그니처?        → serena.find_symbol(include_body=False)
+리팩토링?              → jetbrains.rename_refactoring()
+LAST RESORT           → Read() full file
+```
+
+### Serena Anti-Patterns
 
 ```python
-# BAD: Returns 20k+ tokens
-search_for_pattern("@RequestMapping.*", context_lines_after=10)
-search_for_pattern("@Service", restrict_search_to_code_files=True)
+# BAD - 20k+ 토큰
+search_for_pattern("@Service", context_lines_after=10)
 
-# BAD: Reading files before structure check
-Read("SomeService.kt")  # 5000+ tokens wasted
-```
-
-### Token-Efficient Patterns (USE)
-
-```python
-# GOOD: Progressive disclosure
-list_dir("module-core-domain/src/.../service", recursive=False)  # ~200 tokens
-get_symbols_overview("path/to/SomeService.kt")                    # ~300 tokens
-find_symbol("SomeService", depth=1, include_body=False)           # ~400 tokens
-find_symbol("SomeService/createMethod", include_body=True)        # ~500 tokens
-
-# GOOD: Pattern search with minimal context
-search_for_pattern(
-    "@Transactional",
-    context_lines_before=0,
-    context_lines_after=2,
-    relative_path="module-core-domain/",  # ALWAYS scope!
-    max_answer_chars=3000
-)
-```
-
-### Decision Tree
-
-```
-Need file list?       → list_dir()
-Need class structure? → get_symbols_overview()
-Need method list?     → find_symbol(depth=1, include_body=False)
-Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
-Need to find pattern? → search_for_pattern with context=0
-LAST RESORT          → Read() full file
+# GOOD - 제한된 응답
+search_for_pattern("@Service", relative_path="module-core-domain/", context_lines_after=1, max_answer_chars=3000)
 ```

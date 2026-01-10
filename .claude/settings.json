@@ -7,9 +7,8 @@
     "cicd-automation@claude-code-workflows": true,
     "code-documentation@claude-code-workflows": true,
     "documentation-generation@claude-code-workflows": true,
-    "superpowers@superpowers-marketplace": true,
-    "superpowers-developing-for-claude-code@superpowers-marketplace": true,
-    "claude-mem@thedotmack": true,
-    "interactive-review@team-attention-plugins": true
+    "superpowers@superpowers-marketplace": false,
+    "superpowers-developing-for-claude-code@superpowers-marketplace": false,
+    "claude-mem@thedotmack": true
   }
 }

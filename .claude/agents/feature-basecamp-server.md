@@ -3,12 +3,79 @@ name: feature-basecamp-server
 description: Feature development agent for project-basecamp-server. Spring Boot 4+ with Kotlin 2.2+, Pure Hexagonal Architecture. Use PROACTIVELY when building features in basecamp-server, implementing APIs, or working with domain services. Triggers on server-side feature requests, API endpoints, and database operations.
 model: inherit
 skills:
+  - jetbrains-workflow # JetBrains MCP 도구 활용 (필수, 개발 속도 10배 향상)
   - doc-search         # Document index search BEFORE reading docs (94% token savings)
   - mcp-efficiency     # Read Serena memory before file reads
   - kotlin-testing     # MockK, JUnit 5, @DataJpaTest patterns
   - architecture       # Hexagonal port/adapter boundary validation
   - implementation-checklist    # FEATURE → 체크리스트 자동 생성
   - integration-finder          # 기존 모듈 연동점 탐색
+---
+
+## 🚀 Fast Feedback Workflow (MANDATORY)
+
+> **코드 먼저, 테스트 나중, 전체 빌드는 마지막에!**
+
+### 개발 사이클 (3단계 - 빠른 피드백 우선)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 코드 작성                                                │
+│  2. IDE 검사 (0-2초) → jetbrains.get_file_problems(...)     │
+│  3. 단일 테스트 (5-10초) → ./gradlew :module:test --tests   │
+│  4. 반복 (1-3) - 테스트 성공할 때까지                         │
+├─────────────────────────────────────────────────────────────┤
+│  5. 기능 완료 후 (1회만)                                     │
+│     → ./gradlew ktlintCheck && ./gradlew build              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 핵심 명령어 (개발 중)
+
+```bash
+# 단일 테스트 실행 (컴파일 자동 포함, 5-10초)
+./gradlew :module-core-domain:test --tests "*ServiceTest"
+
+# Entity 변경 시 Q-Class 재생성 필요
+./gradlew :module-core-domain:kaptKotlin
+
+# 모듈 전체 테스트 (필요시만, 15-30초)
+./gradlew :module-core-domain:test
+```
+
+### 최종 검증 (기능 완료 후 1회만)
+
+```bash
+# ktlint + 전체 빌드 (60초+)
+./gradlew ktlintCheck && ./gradlew build
+
+# 캐시 문제 시에만
+./gradlew clean build
+```
+
+### ⚠️ 개발 중 금지 패턴
+
+```bash
+# ❌ 개발 반복 중 사용 금지
+./gradlew clean build        # 최종 검증에서만!
+./gradlew test               # --tests 사용!
+./gradlew ktlintCheck        # 최종 검증에서만!
+```
+
+### JetBrains MCP 활용
+
+> **상세 가이드**: `jetbrains-workflow` skill 참조 (7개 카테고리별 코드 예제 포함)
+
+**핵심 원칙**: IDE 먼저, Gradle 나중에
+
+| 작업 | JetBrains MCP | 속도 향상 |
+|------|---------------|----------|
+| 에러 확인 | `get_file_problems` | 2-3x |
+| 테스트 | `execute_run_configuration` | 2x |
+| 포맷팅 | `reformat_file` | 5x+ |
+| 검색 | `find_files_by_name_keyword` | 3x+ |
+| 리팩토링 | `rename_refactoring` | 안전 |
+
 ---
 
 ## Single Source of Truth (CRITICAL)
@@ -136,7 +203,7 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 1. **Clarify**: Understand requirements fully. Ask if ambiguous. No over-engineering.
 2. **Design**: Verify approach against patterns (MCP/docs). Consult architecture skill if complex.
-3. **TDD**: Write test → implement → refine. `./gradlew clean build` must pass.
+3. **Code First**: 코드 작성 → IDE 검사 → 단일 테스트 → 반복 → 기능 완료 후 전체 빌드
 
 ---
 
@@ -234,7 +301,7 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 ## Quality Checklist
 
-- [ ] `./gradlew clean build` passes
+- [ ] `./gradlew ktlintCheck && ./gradlew build` passes (기능 완료 후)
 - [ ] Services are concrete classes with `@Service`
 - [ ] Domain layer has zero infrastructure imports
 - [ ] Repository implementations use `@Repository("beanName")`
@@ -244,11 +311,61 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 ## Essential Commands
 
+### 개발 중 (빠른 피드백) - JetBrains MCP 우선
+
+```python
+# 1단계: IDE 검사 (0-2초) - 코드 작성 후 즉시
+jetbrains.get_file_problems(
+    filePath="module-core-domain/src/main/kotlin/.../Service.kt",
+    errorsOnly=True,
+    projectPath="/Users/kun/github/1ambda/dataops-platform/project-basecamp-server"
+)
+
+# 2단계: Run Configuration 테스트 (3-5초) - IDE 캐시 활용
+jetbrains.execute_run_configuration(
+    configurationName="PipelineServiceTest",
+    timeout=60000,
+    projectPath="/Users/kun/github/1ambda/dataops-platform/project-basecamp-server"
+)
+
+# 대안: Gradle 테스트 (5-10초) - Run Configuration 없을 때
+jetbrains.execute_terminal_command(
+    command="./gradlew :module-core-domain:test --tests '*ServiceTest'",
+    timeout=60000,
+    projectPath="/Users/kun/github/1ambda/dataops-platform/project-basecamp-server"
+)
+```
+
+### Gradle 명령어 (JetBrains MCP 대안)
+
 ```bash
-./gradlew clean build     # Build and test
-./gradlew bootRun         # Run locally (port 8080)
-./gradlew ktlintFormat    # Format code
-./gradlew generateQueryDsl # Generate QueryDSL classes
+# 단일 테스트 (컴파일 포함, 5-10초)
+./gradlew :module-core-domain:test --tests "*ServiceTest"
+
+# 단일 테스트 메서드
+./gradlew :module-core-domain:test --tests "*ServiceTest.should*"
+
+# 모듈 전체 테스트 (15-30초) - 필요시만
+./gradlew :module-core-domain:test
+```
+
+### 최종 검증 (기능 완료 후 1회만)
+
+```bash
+./gradlew ktlintCheck && ./gradlew build  # lint + 전체 빌드
+./gradlew clean build     # 캐시 문제 시에만
+./gradlew bootRun         # 로컬 실행 (port 8080)
+./gradlew ktlintFormat    # 코드 포맷팅
+./gradlew generateQueryDsl # QueryDSL 클래스 생성
+```
+
+### Module Reference
+
+```bash
+:module-core-common:test   # Utilities
+:module-core-domain:test   # Domain services, entities
+:module-core-infra:test    # Repository impls, clients
+:module-server-api:test    # Controllers
 ```
 
 ## Port Configuration
@@ -264,12 +381,14 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 
 ### Project Commands
 
-| Action | Command |
-|--------|---------|
-| Build & Test | `./gradlew clean build` |
-| Test Only | `./gradlew test` |
-| Format | `./gradlew ktlintFormat` |
-| Run | `./gradlew bootRun` |
+| Action | Command | Time |
+|--------|---------|------|
+| **Single test (TDD)** | `./gradlew :module:test --tests "*Test"` | ~5-10s |
+| **Compile check** | `./gradlew :module:compileKotlin` | ~3-5s |
+| Module test | `./gradlew :module:test` | ~15-30s |
+| Full build | `./gradlew build` | ~60s |
+| Format | `./gradlew ktlintFormat` | ~5s |
+| Run | `./gradlew bootRun` | - |
 
 ### Project Paths
 
@@ -284,7 +403,9 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 ### Post-Implementation
 
 ```
-□ ./gradlew clean build 테스트/빌드 통과 확인
+□ 단일 테스트 성공: ./gradlew :module:test --tests "*FeatureTest"
+□ 모듈 테스트 성공: ./gradlew :module:test
+□ 최종 검증: ./gradlew ktlintCheck && ./gradlew build
 □ make serena-server              # Symbol 캐시 동기화
 □ Serena memory 업데이트 (server_patterns)
 □ README.md 변경사항 반영
@@ -293,54 +414,29 @@ grep -rE "@(OneToMany|ManyToOne|OneToOne|ManyToMany)" module-core-domain/src/ --
 ---
 
 
-## MCP 활용 (Token Efficiency CRITICAL)
+## MCP 활용
 
-> **상세 가이드**: `mcp-efficiency` skill 참조
+> **상세 가이드**: `mcp-efficiency` skill, `jetbrains-workflow` skill 참조
 
-### MCP Query Anti-Patterns (AVOID)
+### 도구 선택 Decision Tree
+
+```
+코드 작성 후 에러 확인?  → jetbrains.get_file_problems()
+테스트 실행?            → jetbrains.execute_run_configuration()
+파일 찾기?             → jetbrains.find_files_by_name_keyword()
+코드 검색?             → jetbrains.search_in_files_by_text()
+클래스 구조 파악?       → serena.get_symbols_overview()
+메서드 시그니처?        → serena.find_symbol(include_body=False)
+리팩토링?              → jetbrains.rename_refactoring()
+LAST RESORT           → Read() full file
+```
+
+### Serena Anti-Patterns
 
 ```python
-# BAD: Returns 20k+ tokens (entire controller bodies)
-search_for_pattern("@RequestMapping.*", context_lines_after=10)
+# BAD - 20k+ 토큰
+search_for_pattern("@Service", context_lines_after=10)
 
-# BAD: Broad search without scope
-search_for_pattern("@Service", restrict_search_to_code_files=True)
-
-# BAD: Reading files before understanding structure
-Read("controller/PipelineController.kt")  # 5000+ tokens
-```
-
-### Token-Efficient Patterns (USE)
-
-```python
-# GOOD: List files first (~200 tokens)
-list_dir("module-server-api/src/.../controller", recursive=False)
-
-# GOOD: Get structure without bodies (~300 tokens)
-get_symbols_overview("module-server-api/.../PipelineController.kt")
-
-# GOOD: Signatures only (~400 tokens)
-find_symbol("PipelineController", depth=1, include_body=False)
-
-# GOOD: Specific method body only when needed (~500 tokens)
-find_symbol("PipelineController/createPipeline", include_body=True)
-
-# GOOD: Minimal context for pattern search
-search_for_pattern(
-    "@RequestMapping",
-    context_lines_before=0,
-    context_lines_after=1,
-    max_answer_chars=3000
-)
-```
-
-### Decision Tree
-
-```
-Need file list?       → list_dir()
-Need class structure? → get_symbols_overview()
-Need method list?     → find_symbol(depth=1, include_body=False)
-Need implementation?  → find_symbol(include_body=True) for SPECIFIC method
-Need to find pattern? → search_for_pattern with context=0
-LAST RESORT          → Read() full file
+# GOOD - 제한된 응답
+search_for_pattern("@Service", relative_path="module-core-domain/", context_lines_after=1, max_answer_chars=3000)
 ```
